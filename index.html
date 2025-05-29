@@ -6,7 +6,18 @@
   <title>Daily.co Video Room</title>
   <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
   <style>
-    #video-container { width: 100vw; height: 100vh; }
+    #video-container {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
   </style>
 </head>
 <body>
@@ -16,12 +27,16 @@
     if (roomUrl) {
       const callFrame = window.Daily.createFrame({
         showLeaveButton: true,
-        iframeStyle: { width: '100%', height: '100%', border: '0' },
-        parentElement: document.getElementById('video-container')
+        iframeStyle: {
+          width: '100%',
+          height: '100%',
+          border: '0'
+        }
       });
+      document.getElementById('video-container').appendChild(callFrame.iframe);
       callFrame.join({ url: roomUrl });
     } else {
-      document.body.innerHTML = '<h1>No room URL provided WQHAT THE FUCK</h1>';
+      document.body.innerHTML = '<h1>No room URL provided. WHAT THE FUCK</h1>';
     }
   </script>
 </body>

@@ -1,6 +1,0 @@
-name = "spherechat-wrapper"
-compatibility_date = "2025-05-29"
-
-[site]
-bucket = "./"
-entry-point = "workers-site"

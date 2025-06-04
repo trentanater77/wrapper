@@ -17,104 +17,71 @@
       width: 100%;
       height: 100%;
       font-family: 'Nunito', sans-serif;
-      background-color: #F8F9FA;
+      background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 50%, #FFB6B9 100%);
       color: #22223B;
-      overflow: hidden;
     }
 
     #status-overlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 50%, #FFB6B9 100%);
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
       z-index: 1000;
-      transition: opacity 0.5s ease;
     }
 
-    .logo-container {
+    #status-overlay .logo-container {
       margin-bottom: 1rem;
       animation: gentle-pulse 2s ease-in-out infinite;
     }
 
-    .status-card {
+    #status-overlay .status-card {
       background: white;
-      padding: 2.5rem 3rem;
-      border-radius: 24px;
-      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.1);
-      text-align: center;
+      padding: 1.5rem 2rem;
+      border-radius: 20px;
+      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.15);
       border: 3px solid #fff;
-      max-width: 500px;
-      margin: 0 1rem;
+      min-width: 320px;
     }
 
-    .status-title {
-      font-size: 1.75rem;
+    #status-overlay h2 {
+      font-size: 1.4rem;
       font-weight: 700;
       color: #e63946;
-      margin-bottom: 1rem;
+      background: transparent;
+      padding: 0;
+      border-radius: 0;
+      box-shadow: none;
+      margin-bottom: 0.5rem;
       letter-spacing: -0.02em;
     }
 
-    .status-subtitle {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #22223B;
-      margin-bottom: 1.5rem;
-      line-height: 1.5;
-    }
-
-    .cat-image {
-      width: 120px;
-      margin-bottom: 1rem;
-      border-radius: 12px;
-    }
-
-    .sphere-indicator {
+    #status-overlay .sphere-indicator {
       display: inline-flex;
       align-items: center;
       background: #FFD166;
       color: #22223B;
-      padding: 0.75rem 1.5rem;
+      padding: 0.5rem 1rem;
       border-radius: 100px;
       font-weight: 700;
-      font-size: 0.95rem;
-      margin-top: 1rem;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
       box-shadow: 0 4px 12px rgba(255, 209, 102, 0.3);
     }
 
-    .loading-dots::after {
-      content: '';
-      animation: loading-dots 1.5s infinite;
-    }
-
-    .cute-element {
-      font-size: 2rem;
-      margin: 1rem 0;
+    #status-overlay .cute-element {
+      font-size: 1.5rem;
+      margin: 0.5rem 0;
       animation: gentle-bounce 3s ease-in-out infinite;
     }
 
     .joined-celebration {
-      background: #e63946;
-      color: white;
+      background: #e63946 !important;
+      color: white !important;
     }
 
-    .joined-celebration .status-title {
-      color: white;
-    }
-
-    .joined-celebration .status-subtitle {
-      color: #FCE2E5;
-    }
-
-    .joined-celebration .sphere-indicator {
-      background: #FFD166;
-      color: #22223B;
+    .joined-celebration h2 {
+      color: white !important;
     }
 
     iframe {
@@ -130,7 +97,12 @@
 
     @keyframes gentle-bounce {
       0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .loading-dots::after {
+      content: '';
+      animation: loading-dots 1.5s infinite;
     }
 
     @keyframes loading-dots {
@@ -141,25 +113,16 @@
       100% { content: ''; }
     }
 
-    @keyframes fade-out {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-
-    .fade-out {
-      animation: fade-out 0.5s ease forwards;
-    }
-
+    /* Responsive design */
     @media (max-width: 768px) {
-      .status-card {
-        padding: 2rem 1.5rem;
+      #status-overlay .status-card {
+        padding: 1rem 1.5rem;
+        min-width: 280px;
         margin: 0 1rem;
       }
-      .status-title {
-        font-size: 1.5rem;
-      }
-      .status-subtitle {
-        font-size: 1rem;
+      
+      #status-overlay h2 {
+        font-size: 1.2rem;
       }
     }
   </style>
@@ -174,12 +137,10 @@
         <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
       </svg>
     </div>
-    <div class="status-card" id="status-card">
-      <img class="cat-image" src="cat chilling.jpeg" alt="Cool cat chilling" />
-      <h1 class="status-title">preparing your sphere</h1>
-      <p class="status-subtitle">get ready for a meaningful conversation with someone who shares your interests</p>
+    <div class="status-card">
       <div class="cute-element">🐱✨</div>
-      <div class="sphere-indicator">waiting for connection<span class="loading-dots"></span></div>
+      <h2>waiting for someone to join your sphere<span class="loading-dots"></span></h2>
+      <div class="sphere-indicator">sphere ready</div>
     </div>
   </div>
 
@@ -199,49 +160,86 @@
       callFrame.join({ url: roomUrl });
 
       const overlay = document.getElementById("status-overlay");
-      const statusCard = document.getElementById("status-card");
 
       callFrame.on("participant-joined", () => {
         const participants = callFrame.participants();
         if (Object.keys(participants).length > 1) {
-          statusCard.classList.add("joined-celebration");
-          statusCard.innerHTML = `
-            <h1 class="status-title">sphere connected! 🎉</h1>
-            <p class="status-subtitle">someone awesome just joined your conversation</p>
-            <div class="cute-element">⚡🌟</div>
-            <div class="sphere-indicator">enjoy your chat!</div>
+          overlay.innerHTML = `
+            <div class="logo-container">
+              <svg viewBox="0 0 64 64" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+                <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+                <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+                <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+              </svg>
+            </div>
+            <div class="status-card joined-celebration">
+              <div class="cute-element">🎉⚡</div>
+              <h2>someone joined! enjoy your chat 🎉</h2>
+              <div class="sphere-indicator">connection active</div>
+            </div>
           `;
-          setTimeout(() => {
-            overlay.classList.add("fade-out");
-            setTimeout(() => overlay.remove(), 500);
-          }, 2500);
+          setTimeout(() => overlay.remove(), 3000);
         }
       });
 
       callFrame.on("participant-left", () => {
         const participants = callFrame.participants();
         if (Object.keys(participants).length <= 1) {
-          if (!document.getElementById("status-overlay")) {
-            location.reload(); // fallback reload
-          } else {
-            statusCard.className = "status-card";
-            statusCard.innerHTML = `
-              <img class="cat-image" src="cat chilling.jpeg" alt="Cool cat chilling" />
-              <h1 class="status-title">waiting for reconnection</h1>
-              <p class="status-subtitle">your conversation partner left, but someone new might join soon</p>
-              <div class="cute-element">🔄💫</div>
-              <div class="sphere-indicator">sphere ready<span class="loading-dots"></span></div>
-            `;
-          }
+          overlay.innerHTML = `
+            <div class="logo-container">
+              <svg viewBox="0 0 64 64" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+                <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+                <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+                <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+              </svg>
+            </div>
+            <div class="status-card">
+              <div class="cute-element">🐱✨</div>
+              <h2>waiting for someone to join your sphere<span class="loading-dots"></span></h2>
+              <div class="sphere-indicator">sphere ready</div>
+            </div>
+          `;
         }
       });
 
     } else {
-      document.getElementById("status-overlay").innerHTML = `
-        <div class="status-card joined-celebration">
-          <h1 class="status-title">oops! something went wrong</h1>
-          <p class="status-subtitle">no room url was provided — try again</p>
-          <div class="cute-element">😿</div>
+      document.body.innerHTML = `
+        <div style="
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          text-align: center;
+          padding: 2rem;
+        ">
+          <div style="margin-bottom: 2rem;">
+            <svg viewBox="0 0 64 64" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+              <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+              <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+              <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+            </svg>
+          </div>
+          <div style="
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(230, 57, 70, 0.15);
+            border: 3px solid #FFB6B9;
+            max-width: 500px;
+          ">
+            <h1 style="
+              color: #e63946;
+              font-family: 'Nunito', sans-serif;
+              font-weight: 700;
+              margin-bottom: 1rem;
+              font-size: 1.5rem;
+            ">No room URL provided.</h1>
+            <div style="font-size: 2rem; margin: 1rem 0;">😿</div>
+          </div>
         </div>
       `;
     }

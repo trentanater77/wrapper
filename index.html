@@ -59,7 +59,6 @@
 <div id="ready-message">✅ You're connected! Enjoy your conversation.</div>
 
 <script>
-  // ✅ Your Firebase config (safe for frontend use)
   const firebaseConfig = {
     apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
     authDomain: "chatspheresfirebasedb.firebaseapp.com",
@@ -71,7 +70,7 @@
     measurementId: "G-PJ2X2LSEF9"
   };
 
-  // ✅ Initialize Firebase
+  // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -80,39 +79,50 @@
   if (!roomUrl) {
     document.body.innerHTML = '<h1>No room URL provided.</h1>';
   } else {
-    const roomId = btoa(roomUrl); // base64 encode to make Firebase-safe
-    const userId = `user_${Math.random().toString(36).slice(2)}_${crypto.randomUUID?.() || Date.now()}`;
+    console.log("🌐 Room URL:", roomUrl);
+
+    const roomId = btoa(roomUrl);
+    const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
     const roomRef = db.ref(`rooms/${roomId}`);
 
-    // ✅ Write this user to Firebase
-    db.ref(`rooms/${roomId}/${userId}`).set(true)
-      .then(() => console.log("✅ User joined Firebase room"))
-      .catch(err => console.error("❌ Firebase write failed:", err));
+    console.log("📦 Writing to Firebase path:", `rooms/${roomId}/${userId}`);
 
-    // ✅ Listen for other users in this room
+    // Write to Firebase
+    db.ref(`rooms/${roomId}/${userId}`).set(true)
+      .then(() => console.log("✅ User successfully written to Firebase"))
+      .catch(err => {
+        console.error("❌ Firebase write error:", err);
+        alert("Firebase write failed. Check your config and DB rules.");
+      });
+
+    // Listen for participant count
     roomRef.on('value', (snapshot) => {
       const users = snapshot.val();
-      const count = users ? Object.keys(users).length : 0;
+      console.log("📡 Firebase snapshot:", users);
 
-      console.log("🔥 Firebase room snapshot:", users);
-      console.log(`👥 Users in room: ${count}`);
+      const count = users ? Object.keys(users).length : 0;
+      console.log(`👥 User count: ${count}`);
 
       if (count >= 2) {
-        document.getElementById('waiting').style.display = 'none';
+        const waiting = document.getElementById('waiting');
         const ready = document.getElementById('ready-message');
-        ready.style.display = 'block';
-        setTimeout(() => ready.style.display = 'none', 3000);
+        if (waiting) waiting.style.display = 'none';
+        if (ready) {
+          ready.style.display = 'block';
+          setTimeout(() => ready.style.display = 'none', 3000);
+        }
       }
     });
 
-    // ✅ Embed Daily.co video room
+    // Load iframe
     const iframe = document.createElement('iframe');
     iframe.allow = "camera; microphone; fullscreen; display-capture";
     iframe.src = roomUrl;
     document.body.appendChild(iframe);
 
-    // ✅ Remove user when tab is closed
+    // Remove user on unload
     window.addEventListener('beforeunload', () => {
+      console.log("💨 Removing user:", userId);
       db.ref(`rooms/${roomId}/${userId}`).remove();
     });
   }

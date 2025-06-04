@@ -25,16 +25,16 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(255, 255, 255, 0.95);
+      background: rgba(255, 255, 255, 0.97);
       z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-direction: column;
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       color: #e63946;
       font-weight: bold;
-      transition: opacity 0.4s ease;
+      text-align: center;
     }
 
     .spinner {
@@ -54,6 +54,7 @@
     .fade-out {
       opacity: 0;
       pointer-events: none;
+      transition: opacity 0.4s ease;
     }
   </style>
 </head>
@@ -87,21 +88,18 @@
 
       function updateOverlay() {
         const participants = callFrame.participants();
-        const count = Object.keys(participants).length;
-
-        if (count > 1) {
+        const joined = Object.values(participants).filter(p => p.session_id && p.user_name);
+        if (joined.length >= 2) {
           overlay.classList.add("fade-out");
-          setTimeout(() => overlay.remove(), 500);
-        } else {
-          overlay.classList.remove("fade-out");
+          setTimeout(() => overlay.remove(), 400);
         }
       }
 
       callFrame.on("joined-meeting", updateOverlay);
       callFrame.on("participant-joined", updateOverlay);
+      callFrame.on("participant-updated", updateOverlay);
       callFrame.on("participant-left", updateOverlay);
 
-      // Add iframe to wrapper
       document.getElementById("video-wrapper").appendChild(callFrame.iframe());
     }
   </script>

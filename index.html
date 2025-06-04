@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChatSpheres - Room Join Detection</title>
+
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
   <style>
     html, body {
       margin: 0;
@@ -41,7 +43,7 @@
 <div id="waiting">Waiting for someone else to join...</div>
 
 <script>
-  // ✅ Your Firebase config (already done!)
+  // ✅ Your Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
     authDomain: "chatspheresfirebasedb.firebaseapp.com",
@@ -57,19 +59,21 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
+  // ✅ Grab room URL from ?room=...
   const roomUrl = new URLSearchParams(window.location.search).get('room');
 
   if (!roomUrl) {
     document.body.innerHTML = '<h1>No room URL provided.</h1>';
   } else {
-    const roomId = encodeURIComponent(roomUrl);
+    // ✅ Base64-encode the room URL to make it Firebase-safe
+    const roomId = btoa(roomUrl);
     const userId = `user_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
     const roomRef = db.ref(`rooms/${roomId}`);
 
     // ✅ Write this user to the room
     db.ref(`rooms/${roomId}/${userId}`).set(true);
 
-    // ✅ Listen for total number of users in room
+    // ✅ Listen for how many users have joined this room
     roomRef.on('value', (snapshot) => {
       const users = snapshot.val();
       const count = users ? Object.keys(users).length : 0;
@@ -80,13 +84,13 @@
       }
     });
 
-    // ✅ Embed the video room
+    // ✅ Load the Daily iframe
     const iframe = document.createElement('iframe');
     iframe.allow = "camera; microphone; fullscreen; display-capture";
     iframe.src = roomUrl;
     document.body.appendChild(iframe);
 
-    // ❌ Optional: Remove user from room when they leave
+    // ✅ Clean up user entry when the page is closed
     window.addEventListener('beforeunload', () => {
       db.ref(`rooms/${roomId}/${userId}`).remove();
     });

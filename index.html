@@ -6,7 +6,7 @@
   <title>ChatSpheres - Join Your Sphere</title>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/@daily-co/daily-js"></script>
   <style>
     html, body {
       margin: 0; padding: 0;
@@ -14,8 +14,6 @@
       width: 100%; height: 100%;
       background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 100%);
     }
-    iframe { width: 100%; height: 100%; border: none; }
-
     #waiting, #ready-message {
       position: absolute; top: 20px; right: 20px;
       padding: 1.5rem 2rem;
@@ -27,14 +25,15 @@
     }
     #waiting {
       background: white;
-      border: 3px solid #fff;
       box-shadow: 0 8px 32px rgba(230, 57, 70, 0.15);
     }
     #ready-message {
       background: #e63946;
       color: white;
-      border: 3px solid #fff;
       box-shadow: 0 8px 32px rgba(230, 57, 70, 0.25);
+    }
+    #daily-container {
+      width: 100%; height: 100%;
     }
   </style>
 </head>
@@ -42,16 +41,17 @@
 
 <div id="waiting">
   <div class="cute-icon">🐱✨</div>
-  <div class="waiting-title"><strong>preparing your sphere</strong></div>
-  <div class="waiting-subtitle">waiting for someone awesome to join your conversation</div>
-  <div class="status-badge">connecting<span class="loading-dots">...</span></div>
+  <div><strong>preparing your sphere</strong></div>
+  <p>waiting for someone awesome to join your conversation</p>
 </div>
 
 <div id="ready-message">
   <div class="cute-icon">🎉⚡</div>
-  <div class="ready-title"><strong>sphere connected!</strong></div>
-  <div class="ready-subtitle">someone joined your conversation - enjoy chatting!</div>
+  <div><strong>sphere connected!</strong></div>
+  <p>someone joined your conversation - enjoy chatting!</p>
 </div>
+
+<div id="daily-container"></div>
 
 <script>
   const firebaseConfig = {
@@ -72,46 +72,50 @@
   if (!roomUrl) {
     document.body.innerHTML = "<h1>Missing room URL</h1>";
   } else {
-    const iframe = document.createElement('iframe');
-    iframe.allow = "camera; microphone; fullscreen; display-capture";
-    iframe.src = roomUrl;
-    document.body.appendChild(iframe);
-
     const roomId = btoa(roomUrl);
     const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
     const roomRef = db.ref(`rooms/${roomId}`);
 
-    let firebaseWritten = false;
+    const call = window.DailyIframe.createFrame({
+      showLeaveButton: true,
+      iframeStyle: {
+        width: '100%',
+        height: '100%',
+        border: '0',
+      },
+    });
 
-    const interval = setInterval(() => {
-      try {
-        const joinBtn = iframe.contentWindow.document.querySelector('[data-testid="prejoin-join-button"]');
-        if (joinBtn && !firebaseWritten) {
-          joinBtn.addEventListener("click", () => {
-            document.getElementById('waiting').style.display = 'block';
-            db.ref(`rooms/${roomId}/${userId}`).set(true).then(() => {
-              firebaseWritten = true;
-              roomRef.on('value', (snapshot) => {
-                const users = snapshot.val();
-                const count = users ? Object.keys(users).length : 0;
-                if (count >= 2) {
-                  document.getElementById('waiting').style.display = 'none';
-                  const readyMsg = document.getElementById('ready-message');
-                  readyMsg.style.display = 'block';
-                  setTimeout(() => readyMsg.style.display = 'none', 3000);
-                }
-              });
-            });
+    call.join({ url: roomUrl });
+
+    document.getElementById('daily-container').appendChild(call.iframe);
+
+    let alreadyJoined = false;
+
+    call.on('joined-meeting', () => {
+      // User clicked Join and actually entered the call
+      document.getElementById('waiting').style.display = 'block';
+
+      if (!alreadyJoined) {
+        db.ref(`rooms/${roomId}/${userId}`).set(true).then(() => {
+          alreadyJoined = true;
+
+          roomRef.on('value', (snapshot) => {
+            const users = snapshot.val();
+            const count = users ? Object.keys(users).length : 0;
+
+            if (count >= 2) {
+              document.getElementById('waiting').style.display = 'none';
+              const readyMsg = document.getElementById('ready-message');
+              readyMsg.style.display = 'block';
+              setTimeout(() => readyMsg.style.display = 'none', 3000);
+            }
           });
-          clearInterval(interval);
-        }
-      } catch (err) {
-        // Ignore cross-origin iframe access errors until it's ready
+        });
       }
-    }, 500);
+    });
 
     window.addEventListener('beforeunload', () => {
-      if (firebaseWritten) db.ref(`rooms/${roomId}/${userId}`).remove();
+      if (alreadyJoined) db.ref(`rooms/${roomId}/${userId}`).remove();
     });
   }
 </script>

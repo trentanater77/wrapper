@@ -1,17 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Daily.co Video Room</title>
-  <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChatSpheres – Join Room</title>
+  <script src="https://unpkg.com/@daily-co/daily-js"></script>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       width: 100%;
       height: 100%;
+      font-family: sans-serif;
+      background-color: #111;
+      color: white;
     }
+
+    #status-overlay {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      z-index: 1000;
+    }
+
+    #status-overlay img {
+      width: 120px;
+      margin-bottom: 10px;
+      border-radius: 12px;
+    }
+
+    #status-overlay h2 {
+      font-size: 1.4rem;
+      color: #fff;
+      background: #e63946;
+      padding: 10px 20px;
+      border-radius: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.4);
+    }
+
     iframe {
       width: 100%;
       height: 100%;
@@ -20,19 +48,48 @@
   </style>
 </head>
 <body>
+  <div id="status-overlay">
+    <img src="cat chilling.jpeg" alt="Cool cat" />
+    <h2>Waiting for someone to join your sphere...</h2>
+  </div>
+
   <script>
     const roomUrl = new URLSearchParams(window.location.search).get('room');
 
     if (roomUrl) {
-      // ✅ Skip daily-js API — just embed raw iframe
-      document.body.innerHTML = `
-        <iframe
-          allow="camera; microphone; fullscreen; display-capture"
-          src="${roomUrl}"
-        ></iframe>
-      `;
+      const callFrame = window.DailyIframe.createFrame({
+        showLeaveButton: true,
+        iframeStyle: {
+          width: "100%",
+          height: "100%",
+          border: "0",
+        }
+      });
+
+      callFrame.join({ url: roomUrl });
+
+      const overlay = document.getElementById("status-overlay");
+
+      callFrame.on("participant-joined", () => {
+        const participants = callFrame.participants();
+        if (Object.keys(participants).length > 1) {
+          overlay.innerHTML = "<h2>Someone joined! Enjoy your chat 🎉</h2>";
+          setTimeout(() => overlay.remove(), 3000);
+        }
+      });
+
+      callFrame.on("participant-left", () => {
+        const participants = callFrame.participants();
+        if (Object.keys(participants).length <= 1) {
+          overlay.innerHTML = `
+            <img src="cat chilling.jpeg" alt="Cool cat" />
+            <h2>Waiting for someone to join your sphere...</h2>
+          `;
+        }
+      });
+
     } else {
-      document.body.innerHTML = '<h1>No room URL provided. WHAT THE FUCK ELON MUK</h1>';
+      document.body.innerHTML = "<h1 style='color: red;'>No room URL provided.</h1>";
     }
   </script>
 </body>

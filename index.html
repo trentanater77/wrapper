@@ -3,47 +3,136 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChatSpheres - Room Join Detection</title>
+  <title>ChatSpheres - Join Your Sphere</title>
 
   <!-- Firebase SDKs (compat version for HTML use) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
 
   <style>
-    html, body {
+    * {
       margin: 0;
       padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
       width: 100%;
       height: 100%;
-      font-family: sans-serif;
+      font-family: 'Nunito', sans-serif;
+      background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 100%);
     }
 
     #waiting {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      background: #fff3cd;
-      color: #856404;
-      font-weight: bold;
-      padding: 10px;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border: 3px solid #fff;
+      border-radius: 24px;
+      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.15);
+      padding: 1.5rem 2rem;
       z-index: 9999;
       transition: all 0.4s ease;
+      text-align: center;
+      min-width: 320px;
+    }
+
+    #waiting .logo {
+      margin-bottom: 1rem;
+      animation: gentle-pulse 2s ease-in-out infinite;
+    }
+
+    #waiting .waiting-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #e63946;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    #waiting .waiting-subtitle {
+      font-size: 0.95rem;
+      color: #22223B;
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+
+    #waiting .status-badge {
+      display: inline-flex;
+      align-items: center;
+      background: #FFD166;
+      color: #22223B;
+      padding: 0.5rem 1rem;
+      border-radius: 100px;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    #waiting .cute-icon {
+      font-size: 1.5rem;
+      margin: 0.5rem 0;
+      animation: gentle-bounce 3s ease-in-out infinite;
+    }
+
+    .loading-dots::after {
+      content: '';
+      animation: loading-dots 1.5s infinite;
+      margin-left: 0.25rem;
     }
 
     #ready-message {
       display: none;
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      text-align: center;
-      background: #d4edda;
-      color: #155724;
-      font-weight: bold;
-      padding: 10px;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #e63946;
+      color: white;
+      border: 3px solid #fff;
+      border-radius: 24px;
+      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.25);
+      padding: 1.5rem 2rem;
       z-index: 9999;
+      text-align: center;
+      min-width: 320px;
+    }
+
+    #ready-message .logo {
+      margin-bottom: 1rem;
+    }
+
+    #ready-message .ready-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.02em;
+    }
+
+    #ready-message .ready-subtitle {
+      font-size: 0.95rem;
+      color: #FCE2E5;
+      margin-bottom: 1rem;
+      line-height: 1.4;
+    }
+
+    #ready-message .status-badge {
+      display: inline-flex;
+      align-items: center;
+      background: #FFD166;
+      color: #22223B;
+      padding: 0.5rem 1rem;
+      border-radius: 100px;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    #ready-message .cute-icon {
+      font-size: 1.5rem;
+      margin: 0.5rem 0;
+      animation: celebration-bounce 0.6s ease-in-out;
     }
 
     iframe {
@@ -51,12 +140,80 @@
       height: 100%;
       border: none;
     }
+
+    @keyframes gentle-pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    @keyframes gentle-bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes celebration-bounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+
+    @keyframes loading-dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+      100% { content: ''; }
+    }
+
+    @media (max-width: 768px) {
+      #waiting, #ready-message {
+        min-width: 280px;
+        margin: 0 1rem;
+        padding: 1.25rem 1.5rem;
+      }
+      
+      #waiting .waiting-title, #ready-message .ready-title {
+        font-size: 1.1rem;
+      }
+      
+      #waiting .waiting-subtitle, #ready-message .ready-subtitle {
+        font-size: 0.85rem;
+      }
+    }
   </style>
 </head>
 <body>
 
-<div id="waiting">Waiting for someone else to join...</div>
-<div id="ready-message">✅ You're connected! Enjoy your conversation.</div>
+<div id="waiting">
+  <div class="logo">
+    <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+      <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+      <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+      <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+    </svg>
+  </div>
+  <div class="cute-icon">🐱✨</div>
+  <div class="waiting-title">preparing your sphere</div>
+  <div class="waiting-subtitle">waiting for someone awesome to join your conversation</div>
+  <div class="status-badge">
+    connecting<span class="loading-dots"></span>
+  </div>
+</div>
+
+<div id="ready-message">
+  <div class="logo">
+    <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+      <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+      <circle cx="24" cy="32" r="18" stroke="#fff" stroke-width="4" fill="none"/>
+      <circle cx="40" cy="32" r="18" stroke="#fff" stroke-width="4" fill="none"/>
+    </svg>
+  </div>
+  <div class="cute-icon">🎉⚡</div>
+  <div class="ready-title">sphere connected!</div>
+  <div class="ready-subtitle">someone joined your conversation - enjoy chatting!</div>
+  <div class="status-badge">ready to chat</div>
+</div>
 
 <script>
   // ✅ Your Firebase config
@@ -78,7 +235,45 @@
   const roomUrl = new URLSearchParams(window.location.search).get('room');
 
   if (!roomUrl) {
-    document.body.innerHTML = '<h1>No room URL provided.</h1>';
+    document.body.innerHTML = `
+      <div style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 100%);
+        padding: 2rem;
+        font-family: 'Nunito', sans-serif;
+      ">
+        <div style="
+          background: white;
+          padding: 2rem;
+          border-radius: 24px;
+          box-shadow: 0 8px 32px rgba(230, 57, 70, 0.15);
+          border: 3px solid #FFB6B9;
+          text-align: center;
+          max-width: 400px;
+        ">
+          <div style="margin-bottom: 1rem;">
+            <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+              <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+              <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+              <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+            </svg>
+          </div>
+          <div style="font-size: 2rem; margin: 1rem 0;">😿</div>
+          <h1 style="
+            color: #e63946;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            font-size: 1.3rem;
+          ">no sphere url provided</h1>
+          <p style="color: #22223B;">please create a sphere first to start chatting</p>
+        </div>
+      </div>
+    `;
   } else {
     console.log("🌐 Room URL:", roomUrl);
 

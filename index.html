@@ -4,140 +4,53 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChatSpheres - Join Your Sphere</title>
-
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
     html, body {
-      width: 100%;
-      height: 100%;
+      margin: 0; padding: 0;
       font-family: 'Nunito', sans-serif;
+      width: 100%; height: 100%;
       background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 100%);
     }
+    iframe { width: 100%; height: 100%; border: none; }
 
     #waiting, #ready-message {
-      display: none;
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 320px;
+      position: absolute; top: 20px; right: 20px;
       padding: 1.5rem 2rem;
       border-radius: 24px;
       z-index: 9999;
       text-align: center;
+      width: 320px;
+      display: none;
     }
-
     #waiting {
       background: white;
       border: 3px solid #fff;
       box-shadow: 0 8px 32px rgba(230, 57, 70, 0.15);
     }
-
     #ready-message {
       background: #e63946;
       color: white;
       border: 3px solid #fff;
       box-shadow: 0 8px 32px rgba(230, 57, 70, 0.25);
     }
-
-    .logo {
-      margin-bottom: 1rem;
-      animation: gentle-pulse 2s ease-in-out infinite;
-    }
-
-    .cute-icon {
-      font-size: 1.5rem;
-      margin: 0.5rem 0;
-      animation: gentle-bounce 3s ease-in-out infinite;
-    }
-
-    .waiting-title, .ready-title {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-
-    .waiting-title { color: #e63946; }
-    .ready-subtitle { color: #FCE2E5; }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      background: #FFD166;
-      color: #22223B;
-      padding: 0.5rem 1rem;
-      border-radius: 100px;
-      font-weight: 700;
-      font-size: 0.85rem;
-    }
-
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-
-    @keyframes gentle-pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-
-    @keyframes gentle-bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
-    }
-
-    @media (max-width: 768px) {
-      #waiting, #ready-message {
-        width: 240px;
-        top: 10px;
-        left: 10px;
-        right: auto;
-        padding: 1rem 1.25rem;
-        border-radius: 16px;
-      }
-    }
   </style>
 </head>
 <body>
 
 <div id="waiting">
-  <div class="logo">
-    <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
-      <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-      <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-      <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4"/>
-      <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4"/>
-    </svg>
-  </div>
   <div class="cute-icon">🐱✨</div>
-  <div class="waiting-title">preparing your sphere</div>
+  <div class="waiting-title"><strong>preparing your sphere</strong></div>
   <div class="waiting-subtitle">waiting for someone awesome to join your conversation</div>
-  <div class="status-badge">connecting...</div>
+  <div class="status-badge">connecting<span class="loading-dots">...</span></div>
 </div>
 
 <div id="ready-message">
-  <div class="logo">
-    <svg viewBox="0 0 64 64" width="64" height="64" fill="none">
-      <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-      <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-      <circle cx="24" cy="32" r="18" stroke="#fff" stroke-width="4"/>
-      <circle cx="40" cy="32" r="18" stroke="#fff" stroke-width="4"/>
-    </svg>
-  </div>
   <div class="cute-icon">🎉⚡</div>
-  <div class="ready-title">sphere connected!</div>
+  <div class="ready-title"><strong>sphere connected!</strong></div>
   <div class="ready-subtitle">someone joined your conversation - enjoy chatting!</div>
-  <div class="status-badge">ready to chat</div>
 </div>
 
 <script>
@@ -156,52 +69,49 @@
   const db = firebase.database();
 
   const roomUrl = new URLSearchParams(window.location.search).get('room');
-
   if (!roomUrl) {
-    document.body.innerHTML = `<div style="text-align: center; margin-top: 3rem;">No sphere URL provided.</div>`;
+    document.body.innerHTML = "<h1>Missing room URL</h1>";
   } else {
-    const roomId = btoa(roomUrl);
-    const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-    const roomRef = db.ref(`rooms/${roomId}`);
-
-    // ✅ Add iframe and wait for user to click join
     const iframe = document.createElement('iframe');
     iframe.allow = "camera; microphone; fullscreen; display-capture";
     iframe.src = roomUrl;
     document.body.appendChild(iframe);
 
-    // ✅ Add listener after iframe loads
-    iframe.onload = () => {
-      // ✅ Simulate “Join” by clicking anywhere in iframe or setting a delay
-      db.ref(`rooms/${roomId}/${userId}`).set(true)
-        .then(() => {
-          console.log("✅ Firebase user write complete");
+    const roomId = btoa(roomUrl);
+    const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    const roomRef = db.ref(`rooms/${roomId}`);
 
-          // Show waiting message AFTER write
-          document.getElementById("waiting").style.display = "block";
+    let firebaseWritten = false;
 
-          roomRef.on('value', (snapshot) => {
-            const users = snapshot.val();
-            const count = users ? Object.keys(users).length : 0;
-            console.log("👥 User count:", count);
-
-            if (count >= 2) {
-              document.getElementById("waiting").style.display = "none";
-              const ready = document.getElementById("ready-message");
-              ready.style.display = "block";
-              setTimeout(() => ready.style.display = 'none', 3000);
-            }
+    const interval = setInterval(() => {
+      try {
+        const joinBtn = iframe.contentWindow.document.querySelector('[data-testid="prejoin-join-button"]');
+        if (joinBtn && !firebaseWritten) {
+          joinBtn.addEventListener("click", () => {
+            document.getElementById('waiting').style.display = 'block';
+            db.ref(`rooms/${roomId}/${userId}`).set(true).then(() => {
+              firebaseWritten = true;
+              roomRef.on('value', (snapshot) => {
+                const users = snapshot.val();
+                const count = users ? Object.keys(users).length : 0;
+                if (count >= 2) {
+                  document.getElementById('waiting').style.display = 'none';
+                  const readyMsg = document.getElementById('ready-message');
+                  readyMsg.style.display = 'block';
+                  setTimeout(() => readyMsg.style.display = 'none', 3000);
+                }
+              });
+            });
           });
-        })
-        .catch(err => {
-          console.error("❌ Firebase error:", err);
-          alert("Error writing to Firebase.");
-        });
-    };
+          clearInterval(interval);
+        }
+      } catch (err) {
+        // Ignore cross-origin iframe access errors until it's ready
+      }
+    }, 500);
 
-    // ✅ Cleanup
-    window.addEventListener("beforeunload", () => {
-      db.ref(`rooms/${roomId}/${userId}`).remove();
+    window.addEventListener('beforeunload', () => {
+      if (firebaseWritten) db.ref(`rooms/${roomId}/${userId}`).remove();
     });
   }
 </script>

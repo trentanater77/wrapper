@@ -27,8 +27,7 @@
     #waiting {
       position: absolute;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      right: 20px;
       background: white;
       border: 3px solid #fff;
       border-radius: 24px;
@@ -37,7 +36,7 @@
       z-index: 9999;
       transition: all 0.4s ease;
       text-align: center;
-      min-width: 320px;
+      width: 320px;
     }
 
     #waiting .logo {
@@ -87,8 +86,7 @@
       display: none;
       position: absolute;
       top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
+      right: 20px;
       background: #e63946;
       color: white;
       border: 3px solid #fff;
@@ -97,7 +95,7 @@
       padding: 1.5rem 2rem;
       z-index: 9999;
       text-align: center;
-      min-width: 320px;
+      width: 320px;
     }
 
     #ready-message .logo {
@@ -166,8 +164,9 @@
 
     @media (max-width: 768px) {
       #waiting, #ready-message {
-        min-width: 280px;
-        margin: 0 1rem;
+        width: 280px;
+        right: 10px;
+        top: 10px;
         padding: 1.25rem 1.5rem;
       }
       

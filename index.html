@@ -3,55 +3,63 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChatSpheres - Join Your Sphere</title>
+  <title>ChatSpheres</title>
+
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <!-- Daily.js -->
   <script src="https://unpkg.com/@daily-co/daily-js"></script>
+
   <style>
     html, body {
-      margin: 0; padding: 0;
+      margin: 0;
+      height: 100%;
       font-family: 'Nunito', sans-serif;
-      width: 100%; height: 100%;
-      background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 100%);
+      background: linear-gradient(135deg, #F8F9FA, #FCE2E5);
     }
+
     #waiting, #ready-message {
-      position: absolute; top: 20px; right: 20px;
-      padding: 1.5rem 2rem;
-      border-radius: 24px;
-      z-index: 9999;
-      text-align: center;
-      width: 320px;
       display: none;
-    }
-    #waiting {
+      position: absolute;
+      top: 20px;
+      right: 20px;
       background: white;
-      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.15);
+      border-radius: 1rem;
+      padding: 1.5rem;
+      z-index: 999;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      width: 300px;
+      text-align: center;
     }
+
     #ready-message {
       background: #e63946;
       color: white;
-      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.25);
     }
-    #daily-container {
-      width: 100%; height: 100%;
+
+    #daily-wrapper {
+      width: 100%;
+      height: 100%;
     }
   </style>
 </head>
 <body>
 
 <div id="waiting">
-  <div class="cute-icon">🐱✨</div>
-  <div><strong>preparing your sphere</strong></div>
-  <p>waiting for someone awesome to join your conversation</p>
+  <div>🐱✨</div>
+  <h3>Preparing your sphere</h3>
+  <p>Waiting for someone awesome to join...</p>
 </div>
 
 <div id="ready-message">
-  <div class="cute-icon">🎉⚡</div>
-  <div><strong>sphere connected!</strong></div>
-  <p>someone joined your conversation - enjoy chatting!</p>
+  <div>🎉⚡</div>
+  <h3>Sphere Connected!</h3>
+  <p>Someone joined your conversation. Enjoy!</p>
 </div>
 
-<div id="daily-container"></div>
+<div id="daily-wrapper"></div>
 
 <script>
   const firebaseConfig = {
@@ -64,7 +72,6 @@
     appId: "1:224075573732:web:47e014622bd263fb2abff1",
     measurementId: "G-PJ2X2LSEF9"
   };
-
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -77,37 +84,36 @@
     const roomRef = db.ref(`rooms/${roomId}`);
 
     const call = window.DailyIframe.createFrame({
+      parentElement: document.getElementById('daily-wrapper'),
       showLeaveButton: true,
       iframeStyle: {
         width: '100%',
         height: '100%',
         border: '0',
-      },
+      }
     });
 
     call.join({ url: roomUrl });
 
-    document.getElementById('daily-container').appendChild(call.iframe);
-
     let alreadyJoined = false;
 
     call.on('joined-meeting', () => {
-      // User clicked Join and actually entered the call
+      // ✅ Only write to Firebase once joined
       document.getElementById('waiting').style.display = 'block';
 
       if (!alreadyJoined) {
         db.ref(`rooms/${roomId}/${userId}`).set(true).then(() => {
           alreadyJoined = true;
 
+          // Watch for other users
           roomRef.on('value', (snapshot) => {
             const users = snapshot.val();
             const count = users ? Object.keys(users).length : 0;
-
             if (count >= 2) {
               document.getElementById('waiting').style.display = 'none';
-              const readyMsg = document.getElementById('ready-message');
-              readyMsg.style.display = 'block';
-              setTimeout(() => readyMsg.style.display = 'none', 3000);
+              const ready = document.getElementById('ready-message');
+              ready.style.display = 'block';
+              setTimeout(() => ready.style.display = 'none', 3000);
             }
           });
         });
@@ -115,7 +121,9 @@
     });
 
     window.addEventListener('beforeunload', () => {
-      if (alreadyJoined) db.ref(`rooms/${roomId}/${userId}`).remove();
+      if (alreadyJoined) {
+        db.ref(`rooms/${roomId}/${userId}`).remove();
+      }
     });
   }
 </script>

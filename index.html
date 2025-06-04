@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ChatSpheres - Join Your Sphere</title>
-  <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
   <style>
     html, body {
       margin: 0;
@@ -27,20 +26,20 @@
       left: 0;
       right: 0;
       bottom: 0;
-      z-index: 9999;
       background: rgba(255, 255, 255, 0.95);
+      z-index: 9999;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: 1.2rem;
+      font-size: 1.4rem;
+      color: #e63946;
       font-weight: bold;
       text-align: center;
-      color: #e63946;
     }
 
     .spinner {
-      margin-top: 20px;
+      margin-top: 15px;
       width: 40px;
       height: 40px;
       border: 4px solid #e63946;
@@ -57,7 +56,7 @@
 <body>
 
   <div id="waiting-overlay">
-    <div>Waiting for someone to join your sphere...</div>
+    Waiting for someone to join your sphere...
     <div class="spinner"></div>
   </div>
 
@@ -67,32 +66,16 @@
     const roomUrl = new URLSearchParams(window.location.search).get('room');
 
     if (roomUrl) {
-      const container = document.getElementById("video-container");
-
-      // Create the iframe manually
       const iframe = document.createElement("iframe");
       iframe.allow = "camera; microphone; fullscreen; display-capture";
       iframe.src = roomUrl;
-      container.appendChild(iframe);
+      document.getElementById("video-container").appendChild(iframe);
 
-      // Use Daily.js API for presence detection
-      const callFrame = window.DailyIframe.wrap(iframe);
-      const overlay = document.getElementById("waiting-overlay");
-
-      function checkParticipants() {
-        const participants = callFrame.participants();
-        const count = Object.keys(participants).length;
-
-        if (count > 1) {
-          overlay.style.display = "none";
-        } else {
-          overlay.style.display = "flex";
-        }
-      }
-
-      callFrame.on("joined-meeting", checkParticipants);
-      callFrame.on("participant-joined", checkParticipants);
-      callFrame.on("participant-left", checkParticipants);
+      // Show overlay for 15 seconds, then hide it
+      setTimeout(() => {
+        const overlay = document.getElementById("waiting-overlay");
+        if (overlay) overlay.style.display = "none";
+      }, 15000);
     } else {
       document.body.innerHTML = '<h1 style="text-align:center; color:#e63946;">No room URL provided. Please try again.</h1>';
     }

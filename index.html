@@ -364,6 +364,27 @@
     iframe.src = roomUrl;
     document.body.appendChild(iframe);
 
+    iframe.addEventListener('load', () => {
+  iframe.contentWindow.postMessage({
+    action: 'set-theme',
+    theme: {
+      colors: {
+        accent: '#e63946',
+        accentText: '#FFFFFF',
+        background: '#F8F9FA',
+        backgroundAccent: '#FCE2E5',
+        baseText: '#22223B',
+        border: '#FFB6B9',
+        mainAreaBg: '#FFFFFF',
+        mainAreaBgAccent: '#FCE2E5',
+        mainAreaText: '#22223B',
+        supportiveText: '#FFB6B9',
+      }
+    }
+  }, '*');
+});
+
+
     // ✅ Remove user on unload
     window.addEventListener('beforeunload', () => {
       console.log("💨 Removing user from room:", userId);

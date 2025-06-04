@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChatSpheres - Room Join Detection</title>
 
-  <!-- Firebase SDKs (compat version for plain HTML use) -->
+  <!-- Firebase SDKs (compat version for HTML use) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
@@ -59,6 +59,7 @@
 <div id="ready-message">✅ You're connected! Enjoy your conversation.</div>
 
 <script>
+  // ✅ Your Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
     authDomain: "chatspheresfirebasedb.firebaseapp.com",
@@ -70,7 +71,7 @@
     measurementId: "G-PJ2X2LSEF9"
   };
 
-  // Initialize Firebase
+  // ✅ Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -81,48 +82,50 @@
   } else {
     console.log("🌐 Room URL:", roomUrl);
 
-    const roomId = btoa(roomUrl);
+    const roomId = btoa(roomUrl); // make Firebase-safe
     const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
     const roomRef = db.ref(`rooms/${roomId}`);
 
     console.log("📦 Writing to Firebase path:", `rooms/${roomId}/${userId}`);
 
-    // Write to Firebase
+    // Write this user to the room
     db.ref(`rooms/${roomId}/${userId}`).set(true)
-      .then(() => console.log("✅ User successfully written to Firebase"))
+      .then(() => {
+        console.log("✅ User successfully written to Firebase");
+
+        // Listen after write succeeds
+        roomRef.on('value', (snapshot) => {
+          const users = snapshot.val();
+          console.log("📡 Firebase snapshot:", users);
+
+          const count = users ? Object.keys(users).length : 0;
+          console.log(`👥 User count: ${count}`);
+
+          if (count >= 2) {
+            const waiting = document.getElementById('waiting');
+            const ready = document.getElementById('ready-message');
+            if (waiting) waiting.style.display = 'none';
+            if (ready) {
+              ready.style.display = 'block';
+              setTimeout(() => ready.style.display = 'none', 3000);
+            }
+          }
+        });
+      })
       .catch(err => {
         console.error("❌ Firebase write error:", err);
         alert("Firebase write failed. Check your config and DB rules.");
       });
 
-    // Listen for participant count
-    roomRef.on('value', (snapshot) => {
-      const users = snapshot.val();
-      console.log("📡 Firebase snapshot:", users);
-
-      const count = users ? Object.keys(users).length : 0;
-      console.log(`👥 User count: ${count}`);
-
-      if (count >= 2) {
-        const waiting = document.getElementById('waiting');
-        const ready = document.getElementById('ready-message');
-        if (waiting) waiting.style.display = 'none';
-        if (ready) {
-          ready.style.display = 'block';
-          setTimeout(() => ready.style.display = 'none', 3000);
-        }
-      }
-    });
-
-    // Load iframe
+    // ✅ Load the Daily iframe
     const iframe = document.createElement('iframe');
     iframe.allow = "camera; microphone; fullscreen; display-capture";
     iframe.src = roomUrl;
     document.body.appendChild(iframe);
 
-    // Remove user on unload
+    // ✅ Remove user on unload
     window.addEventListener('beforeunload', () => {
-      console.log("💨 Removing user:", userId);
+      console.log("💨 Removing user from room:", userId);
       db.ref(`rooms/${roomId}/${userId}`).remove();
     });
   }

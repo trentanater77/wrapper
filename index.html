@@ -3,298 +3,71 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChatSpheres - Video Room</title>
+  <title>Daily.co Video Room</title>
   <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
-    * {
+    html, body {
       margin: 0;
       padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
       width: 100%;
       height: 100%;
-      font-family: 'Nunito', sans-serif;
     }
-
+    #status {
+      position: absolute;
+      width: 100%;
+      text-align: center;
+      top: 15px;
+      z-index: 9999;
+      font-family: sans-serif;
+      font-size: 1.2rem;
+      background: #fff3cd;
+      color: #856404;
+      padding: 10px 0;
+    }
     iframe {
       width: 100%;
       height: 100%;
       border: none;
     }
-
-    #waiting-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 50%, #FFB6B9 100%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      transition: opacity 0.5s ease;
-    }
-
-    .waiting-card {
-      background: white;
-      padding: 2rem 2.5rem;
-      border-radius: 24px;
-      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.1);
-      text-align: center;
-      border: 3px solid #fff;
-      max-width: 400px;
-      margin: 0 1rem;
-    }
-
-    .logo {
-      margin-bottom: 1.5rem;
-      animation: gentle-pulse 2s ease-in-out infinite;
-    }
-
-    .waiting-title {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #e63946;
-      margin-bottom: 0.5rem;
-      letter-spacing: -0.02em;
-    }
-
-    .waiting-subtitle {
-      font-size: 1rem;
-      color: #22223B;
-      margin-bottom: 1rem;
-      line-height: 1.4;
-    }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      background: #FFD166;
-      color: #22223B;
-      padding: 0.5rem 1rem;
-      border-radius: 100px;
-      font-weight: 700;
-      font-size: 0.9rem;
-    }
-
-    .loading-dots::after {
-      content: '';
-      animation: loading-dots 1.5s infinite;
-      margin-left: 0.25rem;
-    }
-
-    .success-state {
-      background: #e63946;
-      color: white;
-    }
-
-    .success-state .waiting-title {
-      color: white;
-    }
-
-    .success-state .waiting-subtitle {
-      color: #FCE2E5;
-    }
-
-    .success-state .status-badge {
-      background: #FFD166;
-      color: #22223B;
-    }
-
-    .cute-icon {
-      font-size: 1.8rem;
-      margin: 0.5rem 0;
-      animation: gentle-bounce 3s ease-in-out infinite;
-    }
-
-    .fade-out {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    @keyframes gentle-pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-
-    @keyframes gentle-bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
-    }
-
-    @keyframes loading-dots {
-      0% { content: ''; }
-      25% { content: '.'; }
-      50% { content: '..'; }
-      75% { content: '...'; }
-      100% { content: ''; }
-    }
-
-    @media (max-width: 768px) {
-      .waiting-card {
-        padding: 1.5rem 2rem;
-        margin: 0 1rem;
-      }
-      
-      .waiting-title {
-        font-size: 1.3rem;
-      }
-    }
   </style>
 </head>
 <body>
-  <div id="waiting-overlay">
-    <div class="waiting-card">
-      <div class="logo">
-        <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-          <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        </svg>
-      </div>
-      
-      <div class="cute-icon">🐱✨</div>
-      <h2 class="waiting-title">preparing your sphere</h2>
-      <p class="waiting-subtitle">waiting for someone awesome to join your conversation</p>
-      <div class="status-badge">
-        <span>connecting<span class="loading-dots"></span></span>
-      </div>
-    </div>
-  </div>
 
-  <script>
-    const roomUrl = new URLSearchParams(window.location.search).get('room');
+<div id="status">Waiting for someone to join...</div>
 
-    if (roomUrl) {
-      // Create Daily.co call frame to detect participants
-      const callFrame = window.DailyIframe.createFrame({
-        showLeaveButton: true,
-        iframeStyle: {
-          width: "100%",
-          height: "100%",
-          border: "0",
+<script>
+  const roomUrl = new URLSearchParams(window.location.search).get('room');
+
+  if (roomUrl) {
+    const iframe = document.createElement('iframe');
+    iframe.allow = "camera; microphone; fullscreen; display-capture";
+    iframe.src = roomUrl;
+
+    document.body.appendChild(iframe);
+
+    // Polling loop to detect when 2 participants are in the room
+    let participants = 1;
+    const interval = setInterval(() => {
+      // Use Daily iframe API postMessage bridge
+      iframe.contentWindow.postMessage({ action: "participant-count" }, "*");
+    }, 1500);
+
+    // Listen for postMessage response
+    window.addEventListener("message", (event) => {
+      try {
+        const msg = event.data;
+        if (msg && msg.event === "participant-count" && msg.participants >= 2) {
+          document.getElementById('status').style.display = 'none';
+          clearInterval(interval);
         }
-      });
+      } catch (e) {
+        console.warn('Message parse failed:', e);
+      }
+    });
+  } else {
+    document.body.innerHTML = '<h1>No room URL provided.</h1>';
+  }
+</script>
 
-      // Join the room
-      callFrame.join({ url: roomUrl });
-
-      const overlay = document.getElementById('waiting-overlay');
-      const waitingCard = overlay.querySelector('.waiting-card');
-
-      // Listen for participants joining
-      callFrame.on('participant-joined', () => {
-        const participants = callFrame.participants();
-        
-        // If more than 1 person (including yourself), show success
-        if (Object.keys(participants).length > 1) {
-          // Update to success state
-          waitingCard.classList.add('success-state');
-          waitingCard.innerHTML = `
-            <div class="logo">
-              <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-                <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-                <circle cx="24" cy="32" r="18" stroke="#fff" stroke-width="4" fill="none"/>
-                <circle cx="40" cy="32" r="18" stroke="#fff" stroke-width="4" fill="none"/>
-              </svg>
-            </div>
-            
-            <div class="cute-icon">🎉✨</div>
-            <h2 class="waiting-title">sphere connected!</h2>
-            <p class="waiting-subtitle">someone joined your conversation - enjoy chatting!</p>
-            <div class="status-badge">ready to chat</div>
-          `;
-          
-          // Hide overlay after 2.5 seconds
-          setTimeout(() => {
-            overlay.classList.add('fade-out');
-            setTimeout(() => overlay.remove(), 500);
-          }, 2500);
-        }
-      });
-
-      // Handle participant leaving (back to waiting if alone)
-      callFrame.on('participant-left', () => {
-        const participants = callFrame.participants();
-        
-        // If back to 1 person or less, show waiting again
-        if (Object.keys(participants).length <= 1) {
-          // Recreate overlay if it was removed
-          if (!document.getElementById('waiting-overlay')) {
-            const newOverlay = document.createElement('div');
-            newOverlay.id = 'waiting-overlay';
-            newOverlay.innerHTML = `
-              <div class="waiting-card">
-                <div class="logo">
-                  <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-                    <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-                    <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-                    <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-                  </svg>
-                </div>
-                
-                <div class="cute-icon">🔄💫</div>
-                <h2 class="waiting-title">waiting again</h2>
-                <p class="waiting-subtitle">your chat partner left, but someone new might join soon</p>
-                <div class="status-badge">
-                  <span>ready for connection<span class="loading-dots"></span></span>
-                </div>
-              </div>
-            `;
-            document.body.appendChild(newOverlay);
-          }
-        }
-      });
-
-    } else {
-      document.body.innerHTML = `
-        <div style="
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100vh;
-          background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 50%, #FFB6B9 100%);
-          padding: 2rem;
-          font-family: 'Nunito', sans-serif;
-        ">
-          <div style="
-            background: white;
-            padding: 2rem;
-            border-radius: 24px;
-            box-shadow: 0 8px 32px rgba(230, 57, 70, 0.1);
-            border: 3px solid #FFB6B9;
-            text-align: center;
-            max-width: 400px;
-          ">
-            <div style="margin-bottom: 1rem;">
-              <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-                <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-                <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-                <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-              </svg>
-            </div>
-            <div style="font-size: 2rem; margin: 1rem 0;">😿</div>
-            <h1 style="
-              color: #e63946;
-              font-weight: 700;
-              margin-bottom: 0.5rem;
-              font-size: 1.3rem;
-            ">no room url provided</h1>
-            <p style="color: #22223B;">please create a sphere first</p>
-          </div>
-        </div>
-      `;
-    }
-  </script>
 </body>
 </html>

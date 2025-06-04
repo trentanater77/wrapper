@@ -69,12 +69,6 @@
       line-height: 1.5;
     }
 
-    .cat-image {
-      width: 120px;
-      margin-bottom: 1rem;
-      border-radius: 12px;
-    }
-
     .sphere-indicator {
       display: inline-flex;
       align-items: center;
@@ -175,7 +169,6 @@
       </svg>
     </div>
     <div class="status-card" id="status-card">
-      <img class="cat-image" src="cat chilling.jpeg" alt="Cool cat chilling" />
       <h1 class="status-title">preparing your sphere</h1>
       <p class="status-subtitle">get ready for a meaningful conversation with someone who shares your interests</p>
       <div class="cute-element">🐱✨</div>
@@ -196,12 +189,10 @@
         }
       });
 
-      callFrame.join({ url: roomUrl });
-
       const overlay = document.getElementById("status-overlay");
       const statusCard = document.getElementById("status-card");
 
-      callFrame.on("participant-joined", () => {
+      function updateOverlayBasedOnParticipants() {
         const participants = callFrame.participants();
         if (Object.keys(participants).length > 1) {
           statusCard.classList.add("joined-celebration");
@@ -216,7 +207,12 @@
             setTimeout(() => overlay.remove(), 500);
           }, 2500);
         }
-      });
+      }
+
+      callFrame.join({ url: roomUrl });
+
+      callFrame.on("joined-meeting", updateOverlayBasedOnParticipants);
+      callFrame.on("participant-joined", updateOverlayBasedOnParticipants);
 
       callFrame.on("participant-left", () => {
         const participants = callFrame.participants();
@@ -226,7 +222,6 @@
           } else {
             statusCard.className = "status-card";
             statusCard.innerHTML = `
-              <img class="cat-image" src="cat chilling.jpeg" alt="Cool cat chilling" />
               <h1 class="status-title">waiting for reconnection</h1>
               <p class="status-subtitle">your conversation partner left, but someone new might join soon</p>
               <div class="cute-element">🔄💫</div>

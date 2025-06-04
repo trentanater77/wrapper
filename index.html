@@ -4,9 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChatSpheres - Room Join Detection</title>
-  <!-- Firebase SDKs -->
+
+  <!-- Firebase SDKs (compat version for plain HTML use) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
   <style>
     html, body {
       margin: 0;
@@ -57,7 +59,7 @@
 <div id="ready-message">✅ You're connected! Enjoy your conversation.</div>
 
 <script>
-  // ✅ Your Firebase config
+  // ✅ Your Firebase config (safe for frontend use)
   const firebaseConfig = {
     apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
     authDomain: "chatspheresfirebasedb.firebaseapp.com",
@@ -65,9 +67,11 @@
     projectId: "chatspheresfirebasedb",
     storageBucket: "chatspheresfirebasedb.firebasestorage.app",
     messagingSenderId: "224075573732",
-    appId: "1:224075573732:web:47e014622bd263fb2abff1"
+    appId: "1:224075573732:web:47e014622bd263fb2abff1",
+    measurementId: "G-PJ2X2LSEF9"
   };
 
+  // ✅ Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 
@@ -76,48 +80,41 @@
   if (!roomUrl) {
     document.body.innerHTML = '<h1>No room URL provided.</h1>';
   } else {
-    const roomId = btoa(roomUrl); // make Firebase-safe
-    const userId = `user_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+    const roomId = btoa(roomUrl); // base64 encode to make Firebase-safe
+    const userId = `user_${Math.random().toString(36).slice(2)}_${crypto.randomUUID?.() || Date.now()}`;
     const roomRef = db.ref(`rooms/${roomId}`);
 
-    db.ref(`rooms/${roomId}/${userId}`).set(true);
+    // ✅ Write this user to Firebase
+    db.ref(`rooms/${roomId}/${userId}`).set(true)
+      .then(() => console.log("✅ User joined Firebase room"))
+      .catch(err => console.error("❌ Firebase write failed:", err));
 
-    // Listen for changes in the room
+    // ✅ Listen for other users in this room
     roomRef.on('value', (snapshot) => {
       const users = snapshot.val();
       const count = users ? Object.keys(users).length : 0;
-      console.log(`Current users in room ${roomId}: ${count}`);
+
+      console.log("🔥 Firebase room snapshot:", users);
+      console.log(`👥 Users in room: ${count}`);
 
       if (count >= 2) {
-        const waiting = document.getElementById('waiting');
+        document.getElementById('waiting').style.display = 'none';
         const ready = document.getElementById('ready-message');
-
-        if (waiting) waiting.style.display = 'none';
-        if (ready) {
-          ready.style.display = 'block';
-          setTimeout(() => {
-            ready.style.display = 'none';
-          }, 3000); // hide after 3 seconds
-        }
+        ready.style.display = 'block';
+        setTimeout(() => ready.style.display = 'none', 3000);
       }
     });
 
-    // Load the Daily iframe
+    // ✅ Embed Daily.co video room
     const iframe = document.createElement('iframe');
     iframe.allow = "camera; microphone; fullscreen; display-capture";
     iframe.src = roomUrl;
     document.body.appendChild(iframe);
 
-    // Remove on close
+    // ✅ Remove user when tab is closed
     window.addEventListener('beforeunload', () => {
       db.ref(`rooms/${roomId}/${userId}`).remove();
     });
-
-    // ⏱ Optional fail-safe: hide waiting after 60s just in case
-    setTimeout(() => {
-      const waiting = document.getElementById('waiting');
-      if (waiting) waiting.innerText = 'No one joined. Try again later.';
-    }, 60000);
   }
 </script>
 

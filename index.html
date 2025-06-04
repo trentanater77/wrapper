@@ -224,6 +224,26 @@
         width: 32px;
         height: 32px;
       }
+.cta-btn {
+  background: #FFD166;
+  color: #22223B;
+  border: none;
+  border-radius: 100px;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  margin-top: 12px;
+  transition: background 0.2s, color 0.2s;
+  cursor: pointer;
+}
+.cta-btn:hover {
+  background: #e63946;
+  color: #fff;
+}
+
+
+
+      
     }
   </style>
 </head>
@@ -264,6 +284,21 @@
 <!-- Add Daily.js SDK -->
 <script src="https://unpkg.com/@daily-co/daily-js"></script>
 
+<div id="branding-ui" style="position: absolute; top: 20px; left: 20px; z-index: 10000;">
+  <svg viewBox="0 0 64 64" width="48" height="48" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+    <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+    <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+    <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+  </svg>
+  <button class="cta-btn" id="leave-btn">Leave Sphere</button>
+</div>
+
+
+
+
+
+  
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
@@ -334,10 +369,18 @@
             border: '0',
             zIndex: '1'
           },
-          showLeaveButton: true
+          customLayout: true,
+          showLeaveButton: false // hides their red "Leave" button
         });
 
         callFrame.join({ url: roomUrl });
+
+        // ✅ Step 3: Make the leave button work
+document.getElementById('leave-btn').addEventListener('click', () => {
+  callFrame.leave();
+  db.ref(`rooms/${roomId}/${userId}`).remove();
+  window.location.href = '/'; // or change to whatever URL you want
+});
 
         // Optional: show loading indicator until join
         callFrame.on('joined-meeting', () => {

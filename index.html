@@ -1,81 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ChatSpheres - Join Your Sphere</title>
-  <script src="https://unpkg.com/@daily-co/daily-js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <script crossorigin src="https://unpkg.com/@daily-co/daily-js"></script>
   <style>
-    * {
+    html, body {
       margin: 0;
       padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
       width: 100%;
       height: 100%;
-      font-family: 'Nunito', sans-serif;
-      background-color: #F8F9FA;
-      color: #22223B;
-      overflow: hidden;
-    }
-
-    #status-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 50%, #FFB6B9 100%);
-      z-index: 1000;
-      transition: opacity 0.5s ease;
-    }
-
-    .logo-container {
-      margin-bottom: 1rem;
-      animation: gentle-pulse 2s ease-in-out infinite;
-    }
-
-    .status-card {
-      background: white;
-      padding: 2.5rem 3rem;
-      border-radius: 24px;
-      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.1);
-      text-align: center;
-      border: 3px solid #fff;
-      max-width: 500px;
-      margin: 0 1rem;
-    }
-
-    .status-title {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #e63946;
-      margin-bottom: 1rem;
-      letter-spacing: -0.02em;
-    }
-
-    .status-subtitle {
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #22223B;
-      line-height: 1.5;
-    }
-
-    .cute-element {
-      font-size: 2rem;
-      margin: 1.5rem 0 0.5rem;
-      animation: gentle-bounce 3s ease-in-out infinite;
-    }
-
-    .fade-out {
-      animation: fade-out 0.5s ease forwards;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f8f9fa;
     }
 
     iframe {
@@ -84,70 +21,80 @@
       border: none;
     }
 
-    @keyframes gentle-pulse {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.05); opacity: 0.9; }
+    #waiting-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 9999;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      text-align: center;
+      color: #e63946;
     }
 
-    @keyframes gentle-bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
+    .spinner {
+      margin-top: 20px;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e63946;
+      border-top: 4px solid transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
     }
 
-    @keyframes fade-out {
-      from { opacity: 1; }
-      to { opacity: 0; }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
-  <div id="status-overlay">
-    <div class="logo-container">
-      <svg viewBox="0 0 64 64" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-      </svg>
-    </div>
-    <div class="status-card">
-      <h1 class="status-title">connecting to your sphere</h1>
-      <p class="status-subtitle">we’re setting up your chat now — just a moment!</p>
-      <div class="cute-element">✨🌀</div>
-    </div>
+
+  <div id="waiting-overlay">
+    <div>Waiting for someone to join your sphere...</div>
+    <div class="spinner"></div>
   </div>
+
+  <div id="video-container"></div>
 
   <script>
     const roomUrl = new URLSearchParams(window.location.search).get('room');
 
     if (roomUrl) {
-      const callFrame = window.DailyIframe.createFrame({
-        showLeaveButton: true,
-        iframeStyle: {
-          width: "100%",
-          height: "100%",
-          border: "0",
+      const container = document.getElementById("video-container");
+
+      // Create the iframe manually
+      const iframe = document.createElement("iframe");
+      iframe.allow = "camera; microphone; fullscreen; display-capture";
+      iframe.src = roomUrl;
+      container.appendChild(iframe);
+
+      // Use Daily.js API for presence detection
+      const callFrame = window.DailyIframe.wrap(iframe);
+      const overlay = document.getElementById("waiting-overlay");
+
+      function checkParticipants() {
+        const participants = callFrame.participants();
+        const count = Object.keys(participants).length;
+
+        if (count > 1) {
+          overlay.style.display = "none";
+        } else {
+          overlay.style.display = "flex";
         }
-      });
+      }
 
-      const overlay = document.getElementById("status-overlay");
-
-      callFrame.join({ url: roomUrl });
-
-      // Once you're in the meeting, fade the overlay out
-      callFrame.on("joined-meeting", () => {
-        overlay.classList.add("fade-out");
-        setTimeout(() => overlay.remove(), 500);
-      });
-
+      callFrame.on("joined-meeting", checkParticipants);
+      callFrame.on("participant-joined", checkParticipants);
+      callFrame.on("participant-left", checkParticipants);
     } else {
-      document.getElementById("status-overlay").innerHTML = `
-        <div class="status-card">
-          <h1 class="status-title">oops!</h1>
-          <p class="status-subtitle">no room URL provided. please try again.</p>
-          <div class="cute-element">😿</div>
-        </div>
-      `;
+      document.body.innerHTML = '<h1 style="text-align:center; color:#e63946;">No room URL provided. Please try again.</h1>';
     }
   </script>
 </body>

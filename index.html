@@ -244,6 +244,11 @@
   <div class="status-badge">
     Waiting<span class="loading-dots"></span>
   </div>
+  
+  <div style="margin-top: 1rem; font-size: 0.85rem; color: #222;">
+    <strong>Topic:</strong> <span id="topic-text">Loading...</span><br>
+    <strong>Description:</strong> <span id="topic-description">Please wait...</span>
+  </div>
 </div>
 
 <div id="ready-message">
@@ -259,7 +264,13 @@
   <div class="ready-title">connected!</div>
   <div class="ready-subtitle"></div>
   <div class="status-badge">sphere active</div>
+  
+  <div style="margin-top: 1rem; font-size: 0.85rem; color: #FCE2E5;">
+    <strong>Topic:</strong> <span id="topic-text-ready">Loading...</span><br>
+    <strong>Description:</strong> <span id="topic-description-ready">Please wait...</span>
+  </div>
 </div>
+
 <script src="https://unpkg.com/@daily-co/daily-js"></script>
 <script>
   const firebaseConfig = {
@@ -363,7 +374,32 @@
   }
 </script>
 
+<script>
+fetch('https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info')
+  .then(r => r.json())
+  .then(data => {
+    const urlParam = decodeURIComponent(new URLSearchParams(location.search).get('room') || '');
+    const room = data.matchRoom.find(r => r.room_url === urlParam);
+    const desc = data.topic_descriptions;
 
+    if (room && desc) {
+      const topic = room.topic.charAt(0).toUpperCase() + room.topic.slice(1);
+      
+      // Update waiting message elements
+      const topicText = document.getElementById("topic-text");
+      const topicDesc = document.getElementById("topic-description");
+      if (topicText) topicText.innerText = topic;
+      if (topicDesc) topicDesc.innerText = desc[topic] || "No description.";
+      
+      // Update ready message elements  
+      const topicTextReady = document.getElementById("topic-text-ready");
+      const topicDescReady = document.getElementById("topic-description-ready");
+      if (topicTextReady) topicTextReady.innerText = topic;
+      if (topicDescReady) topicDescReady.innerText = desc[topic] || "No description.";
+    }
+  })
+  .catch(err => console.error("Failed to load room info:", err));
+</script>
 
 </body>
 </html>

@@ -143,6 +143,15 @@
       100% { content: ''; }
     }
 
+    .control-btn {
+      transition: all 0.2s ease;
+    }
+
+    .control-btn.active {
+      background: #e63946 !important;
+      color: white !important;
+    }
+
     @media (max-width: 768px) {
       #waiting-overlay {
         width: 200px;
@@ -179,7 +188,7 @@
   </div>
 </div>
 
-<!-- Main Video Chat Interface (hidden until call starts) -->
+<!-- Main Video Chat Interface -->
 <div id="video-interface" class="hidden">
   <!-- Header -->
   <header class="bg-white dark:bg-charcoal shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
@@ -222,7 +231,8 @@
       <div class="lg:col-span-2 space-y-4">
         <!-- Remote Video -->
         <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
-          <video id="remote-video" class="w-full h-full object-cover" autoplay playsinline muted></video>
+          <video id="remote-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+          <video id="screen-share-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
           
           <div id="remote-placeholder" class="absolute inset-0 flex items-center justify-center video-placeholder">
             <svg class="vesica-accent" viewBox="0 0 64 64" width="120" height="120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -271,23 +281,58 @@
             </div>
           </div>
 
-          <!-- Controls -->
-          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-3">
-            <button id="mic-btn" class="bg-charcoal bg-opacity-80 hover:bg-main-red text-white p-3 rounded-full transition-all shadow-lg">
+          <!-- Enhanced Controls -->
+          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+            <button id="mic-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-main-red text-white p-3 rounded-full shadow-lg">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
               </svg>
             </button>
-            <button id="camera-btn" class="bg-charcoal bg-opacity-80 hover:bg-main-red text-white p-3 rounded-full transition-all shadow-lg">
+            <button id="camera-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-main-red text-white p-3 rounded-full shadow-lg">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/>
               </svg>
             </button>
-            <button id="leave-btn" class="bg-main-red hover:bg-red-600 text-white p-3 rounded-full transition-all shadow-lg">
+            <button id="screen-share-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-gold text-white p-3 rounded-full shadow-lg">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 3a1 1 0 000 2h.01a1 1 0 100-2H5zm3 0a1 1 0 000 2h.01a1 1 0 100-2H8zm3 0a1 1 0 000 2h.01a1 1 0 100-2H11z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <button id="settings-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-gold text-white p-3 rounded-full shadow-lg">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <button id="leave-btn" class="control-btn bg-main-red hover:bg-red-600 text-white p-3 rounded-full shadow-lg">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414L9.586 11l-2.293 2.293a1 1 0 001.414 1.414L10 12.414l1.293 1.293a1 1 0 001.414-1.414L11.414 11l2.293-2.293z" clip-rule="evenodd"/>
               </svg>
             </button>
+          </div>
+        </div>
+
+        <!-- Device Settings Panel -->
+        <div id="settings-panel" class="hidden bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-bold text-charcoal dark:text-white mb-4">🎛️ Device Settings</h3>
+          
+          <div class="grid md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-semibold text-charcoal dark:text-white mb-2">📹 Camera</label>
+              <select id="camera-selector" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-main-red bg-white dark:bg-gray-700 text-charcoal dark:text-white">
+                <option disabled selected>Select camera...</option>
+              </select>
+            </div>
+            
+            <div>
+              <label class="block text-sm font-semibold text-charcoal dark:text-white mb-2">🎤 Microphone</label>
+              <select id="mic-selector" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-main-red bg-white dark:bg-gray-700 text-charcoal dark:text-white">
+                <option disabled selected>Select microphone...</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="mt-4 text-center">
+            <button id="close-settings" class="new-spark-btn px-6 py-2 rounded-full font-bold text-sm">Close Settings</button>
           </div>
         </div>
       </div>
@@ -404,6 +449,11 @@
   </div>
 </div>
 
+<!-- Toast -->
+<div id="toast" class="fixed bottom-4 right-4 bg-main-red text-white px-6 py-3 rounded-xl shadow-lg transform translate-y-full transition-transform hidden z-40">
+  <p id="toastMessage"></p>
+</div>
+
 <script src="https://unpkg.com/@daily-co/daily-js"></script>
 <script>
   // Firebase config
@@ -425,8 +475,10 @@
   let call = null;
   let localVideo = null;
   let remoteVideo = null;
+  let screenShareVideo = null;
   let isCameraOn = true;
   let isMicOn = true;
+  let isScreenSharing = false;
   let timeRemaining = 60 * 60; // 1 hour
   let timerInterval = null;
 
@@ -463,7 +515,72 @@
     initializeVideoChat();
   }
 
+  // Load room info first
+  async function loadRoomInfo() {
+    const urlParam = decodeURIComponent(roomUrl);
+    console.log("🔍 Looking for room URL:", urlParam);
+
+    // Try the working approach from before with better fallbacks
+    try {
+      // First try: Simple fetch
+      let response = await fetch('https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info');
+      
+      if (!response.ok) {
+        throw new Error(`API returned ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log("📦 API Response:", data);
+      
+      // Try different data structures
+      let matchRoom = data.matchRoom || data.data?.matchRoom || data;
+      if (!Array.isArray(matchRoom)) {
+        matchRoom = Object.values(data).find(val => Array.isArray(val)) || [];
+      }
+      
+      const room = matchRoom.find(r => r.room_url === urlParam);
+      
+      if (room && room.topic) {
+        const topic = room.topic.charAt(0).toUpperCase() + room.topic.slice(1);
+        const description = room.description || "Meaningful conversations await!";
+        
+        updateTopicDisplay(topic, description);
+        return;
+      }
+      
+    } catch (error) {
+      console.error("❌ API Error:", error);
+    }
+    
+    // Fallback: Use default topic
+    updateTopicDisplay("General Chat", "Connect and have meaningful conversations!");
+  }
+
+  function updateTopicDisplay(topic, description) {
+    const elements = [
+      'topic-text', 'topic-description', 
+      'topic-display', 'topic-desc-display'
+    ];
+    
+    elements.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        if (id.includes('description') || id.includes('desc')) {
+          element.innerText = description;
+        } else {
+          element.innerText = topic;
+        }
+      }
+    });
+    
+    console.log("✅ Updated topic:", topic);
+    console.log("✅ Updated description:", description);
+  }
+
   async function initializeVideoChat() {
+    // Load room info first
+    await loadRoomInfo();
+    
     // Firebase presence tracking
     const roomId = btoa(roomUrl);
     const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
@@ -503,7 +620,7 @@
 
     } catch (error) {
       console.error('Failed to join call:', error);
-      showError('Failed to join the video call. Please try refreshing the page.');
+      showToast('Failed to join the video call. Please try refreshing the page.');
     }
   }
 
@@ -519,21 +636,41 @@
     
     // Set up local video
     setupLocalVideo();
+    
+    // Set up device selectors
+    setupDeviceSelectors();
+    
+    showToast('🎉 Welcome to your ChatSpheres room!');
   }
 
   function handleParticipantJoined(event) {
     console.log('👋 Participant joined:', event.participant.user_name);
     updateRemoteInfo(event.participant.user_name || 'Guest');
+    showToast(`👋 ${event.participant.user_name || 'Guest'} joined the call!`);
   }
 
   function handleParticipantLeft(event) {
     console.log('👋 Participant left:', event.participant.user_name);
     hideRemoteVideo();
+    showToast(`👋 ${event.participant.user_name || 'Guest'} left the call`);
   }
 
   function handleParticipantUpdated(event) {
     console.log('🔄 Participant updated:', event.participant);
-    // Handle participant state changes (mute/unmute, camera on/off)
+    // Handle track updates
+    const tracks = event.participant.tracks;
+    if (tracks) {
+      if (tracks.video && tracks.video.persistentTrack) {
+        if (!event.participant.local) {
+          setupRemoteVideo(tracks.video.persistentTrack);
+        }
+      }
+      if (tracks.screenVideo && tracks.screenVideo.persistentTrack) {
+        if (!event.participant.local) {
+          setupScreenShareVideo(tracks.screenVideo.persistentTrack);
+        }
+      }
+    }
   }
 
   function handleTrackStarted(event) {
@@ -545,7 +682,11 @@
       }
     } else {
       if (event.track.kind === 'video') {
-        setupRemoteVideo(event.track);
+        if (event.track.label.includes('screen')) {
+          setupScreenShareVideo(event.track);
+        } else {
+          setupRemoteVideo(event.track);
+        }
       }
     }
   }
@@ -554,7 +695,11 @@
     console.log('🛑 Track stopped:', event);
     
     if (!event.participant.local && event.track.kind === 'video') {
-      hideRemoteVideo();
+      if (event.track.label.includes('screen')) {
+        hideScreenShareVideo();
+      } else {
+        hideRemoteVideo();
+      }
     }
   }
 
@@ -576,7 +721,7 @@
 
   function handleError(event) {
     console.error('❌ Daily.co error:', event);
-    showError('Video call error: ' + event.errorMsg);
+    showToast('Video call error: ' + event.errorMsg);
   }
 
   function setupLocalVideo(track) {
@@ -585,16 +730,17 @@
     
     if (track) {
       localVideo.srcObject = new MediaStream([track]);
-      localVideo.style.display = 'block';
-      placeholder.style.display = 'none';
     } else {
       // Get local video track from call participants
       const localParticipant = call.participants().local;
       if (localParticipant && localParticipant.video) {
         localVideo.srcObject = new MediaStream([localParticipant.video]);
-        localVideo.style.display = 'block';
-        placeholder.style.display = 'none';
       }
+    }
+    
+    if (isCameraOn && localVideo.srcObject) {
+      localVideo.style.display = 'block';
+      placeholder.style.display = 'none';
     }
   }
 
@@ -607,6 +753,15 @@
     placeholder.style.display = 'none';
   }
 
+  function setupScreenShareVideo(track) {
+    screenShareVideo = document.getElementById('screen-share-video');
+    const remoteVideo = document.getElementById('remote-video');
+    
+    screenShareVideo.srcObject = new MediaStream([track]);
+    screenShareVideo.style.display = 'block';
+    remoteVideo.style.display = 'none';
+  }
+
   function hideRemoteVideo() {
     const remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
@@ -615,14 +770,64 @@
     placeholder.style.display = 'flex';
   }
 
+  function hideScreenShareVideo() {
+    const screenShareVideo = document.getElementById('screen-share-video');
+    const remoteVideo = document.getElementById('remote-video');
+    
+    screenShareVideo.style.display = 'none';
+    remoteVideo.style.display = 'block';
+  }
+
   function updateRemoteInfo(name) {
     document.getElementById('remote-name').textContent = name;
   }
 
-  function showError(message) {
-    // You can implement a toast or modal here
-    console.error(message);
-    alert(message);
+  async function setupDeviceSelectors() {
+    try {
+      const selectedDevices = await call.getInputDevices();
+      const { devices: allDevices } = await call.enumerateDevices();
+
+      const cameraSelector = document.getElementById('camera-selector');
+      const micSelector = document.getElementById('mic-selector');
+
+      // Setup camera selector
+      cameraSelector.innerHTML = '<option disabled selected>Select camera...</option>';
+      allDevices.filter(d => d.kind === 'videoinput').forEach(device => {
+        const option = new Option(device.label, device.deviceId);
+        if (selectedDevices.camera.deviceId === device.deviceId) {
+          option.selected = true;
+        }
+        cameraSelector.appendChild(option);
+      });
+
+      // Setup mic selector
+      micSelector.innerHTML = '<option disabled selected>Select microphone...</option>';
+      allDevices.filter(d => d.kind === 'audioinput').forEach(device => {
+        const option = new Option(device.label, device.deviceId);
+        if (selectedDevices.mic.deviceId === device.deviceId) {
+          option.selected = true;
+        }
+        micSelector.appendChild(option);
+      });
+
+      // Add event listeners
+      cameraSelector.addEventListener('change', async (e) => {
+        if (e.target.value) {
+          await call.setInputDevicesAsync({ videoDeviceId: e.target.value });
+          showToast('📹 Camera changed');
+        }
+      });
+
+      micSelector.addEventListener('change', async (e) => {
+        if (e.target.value) {
+          await call.setInputDevicesAsync({ audioDeviceId: e.target.value });
+          showToast('🎤 Microphone changed');
+        }
+      });
+
+    } catch (error) {
+      console.error('Error setting up device selectors:', error);
+    }
   }
 
   // Control functions
@@ -632,11 +837,11 @@
     
     const micBtn = document.getElementById('mic-btn');
     if (isMicOn) {
-      micBtn.classList.remove('bg-main-red');
-      micBtn.classList.add('bg-charcoal', 'bg-opacity-80');
+      micBtn.classList.remove('active');
+      showToast('🎤 Microphone on');
     } else {
-      micBtn.classList.add('bg-main-red');
-      micBtn.classList.remove('bg-charcoal', 'bg-opacity-80');
+      micBtn.classList.add('active');
+      showToast('🔇 Microphone muted');
     }
   }
 
@@ -649,15 +854,56 @@
     const placeholder = document.getElementById('local-placeholder');
     
     if (isCameraOn) {
-      cameraBtn.classList.remove('bg-main-red');
-      cameraBtn.classList.add('bg-charcoal', 'bg-opacity-80');
+      cameraBtn.classList.remove('active');
       localVideo.style.display = 'block';
       placeholder.style.display = 'none';
+      showToast('📹 Camera on');
     } else {
-      cameraBtn.classList.add('bg-main-red');
-      cameraBtn.classList.remove('bg-charcoal', 'bg-opacity-80');
+      cameraBtn.classList.add('active');
       localVideo.style.display = 'none';
       placeholder.style.display = 'flex';
+      showToast('📷 Camera off');
+    }
+  }
+
+  async function toggleScreenShare() {
+    const screenShareBtn = document.getElementById('screen-share-btn');
+    
+    if (!isScreenSharing) {
+      try {
+        await call.startScreenShare({
+          displayMediaOptions: {
+            audio: true,
+            video: true,
+            selfBrowserSurface: 'exclude',
+            surfaceSwitching: 'include'
+          }
+        });
+        isScreenSharing = true;
+        screenShareBtn.classList.add('active');
+        showToast('🖥️ Screen sharing started');
+      } catch (error) {
+        console.error('Screen share failed:', error);
+        showToast('❌ Screen share failed');
+      }
+    } else {
+      try {
+        await call.stopScreenShare();
+        isScreenSharing = false;
+        screenShareBtn.classList.remove('active');
+        showToast('🖥️ Screen sharing stopped');
+      } catch (error) {
+        console.error('Stop screen share failed:', error);
+      }
+    }
+  }
+
+  function toggleSettings() {
+    const settingsPanel = document.getElementById('settings-panel');
+    if (settingsPanel.classList.contains('hidden')) {
+      settingsPanel.classList.remove('hidden');
+    } else {
+      settingsPanel.classList.add('hidden');
     }
   }
 
@@ -671,7 +917,10 @@
   // Event listeners for controls
   document.getElementById('mic-btn').addEventListener('click', toggleMic);
   document.getElementById('camera-btn').addEventListener('click', toggleCamera);
+  document.getElementById('screen-share-btn').addEventListener('click', toggleScreenShare);
+  document.getElementById('settings-btn').addEventListener('click', toggleSettings);
   document.getElementById('leave-btn').addEventListener('click', leaveCall);
+  document.getElementById('close-settings').addEventListener('click', toggleSettings);
 
   // Timer functions
   function startTimer() {
@@ -690,7 +939,7 @@
       timeRemaining--;
     } else {
       clearInterval(timerInterval);
-      // Handle timer expiry
+      showToast('⏰ Time\'s up! Thanks for chatting!');
       if (call) call.leave();
     }
   }
@@ -709,6 +958,19 @@
     }
   });
 
+  // Toast function
+  function showToast(message) {
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    toastMessage.textContent = message;
+    toast.classList.remove('hidden', 'translate-y-full');
+    
+    setTimeout(() => {
+      toast.classList.add('translate-y-full');
+      setTimeout(() => toast.classList.add('hidden'), 300);
+    }, 3000);
+  }
+
   // Spark functions
   function navigateSpark(direction) {
     if (direction === 'next') {
@@ -718,7 +980,7 @@
     }
     updateSparkDisplay();
     
-    // Sync with other participants via Daily's sendAppMessage
+    // Sync with other participants
     if (call) {
       call.sendAppMessage({
         type: 'spark-navigation',
@@ -756,9 +1018,11 @@
     if (sparkIsSelected) {
       currentSparkEl.classList.add('ring-4', 'ring-gold');
       currentSparkEl.style.background = 'linear-gradient(135deg, #FFD166 0%, #FFB6B9 100%)';
+      showToast('🌟 Spark highlighted for both users!');
     } else {
       currentSparkEl.classList.remove('ring-4', 'ring-gold');
       currentSparkEl.style.background = '';
+      showToast('💫 Spark deselected');
     }
     
     // Sync selection with other participants
@@ -772,67 +1036,15 @@
   }
 
   function generateNewSparks() {
-    // Placeholder for AI spark generation
-    console.log('🔄 Generating new sparks...');
+    showToast('🔄 AI spark generation not available in this demo');
   }
 
   function generateCustomSparks() {
-    // Placeholder for custom spark generation
-    console.log('⚡ Generating custom sparks...');
+    showToast('⚡ Custom spark generation not available in this demo');
   }
 
-  // Load room info
-  fetch('https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info')
-    .then(r => r.json())
-    .then(data => {
-      const urlParam = decodeURIComponent(roomUrl);
-      console.log("🔍 Looking for room URL:", urlParam);
-      console.log("📦 API Response data:", data);
-      
-      // Handle different possible data structures
-      let matchRoom = null;
-      let descriptions = null;
-      
-      if (data.matchRoom && Array.isArray(data.matchRoom)) {
-        matchRoom = data.matchRoom;
-        descriptions = data.topic_descriptions;
-      } else if (data.data && data.data.matchRoom) {
-        matchRoom = data.data.matchRoom;
-        descriptions = data.data.topic_descriptions;
-      }
-      
-      if (matchRoom && matchRoom.length > 0) {
-        const room = matchRoom.find(r => r.room_url === urlParam);
-        
-        if (room && room.topic) {
-          const topic = room.topic.charAt(0).toUpperCase() + room.topic.slice(1);
-          let description = "Meaningful conversations await!";
-          
-          if (descriptions && descriptions[room.topic]) {
-            description = descriptions[room.topic];
-          } else if (descriptions && descriptions[topic]) {
-            description = descriptions[topic];
-          }
-          
-          // Update topic displays
-          document.getElementById('topic-text').innerText = topic;
-          document.getElementById('topic-description').innerText = description;
-          document.getElementById('topic-display').innerText = topic;
-          document.getElementById('topic-desc-display').innerText = description;
-          
-          console.log("✅ Updated topic:", topic);
-          console.log("✅ Updated description:", description);
-        }
-      }
-    })
-    .catch(err => {
-      console.error("Failed to load room info:", err);
-      // Fallback
-      document.getElementById('topic-text').innerText = "General Chat";
-      document.getElementById('topic-description').innerText = "Connect and have meaningful conversations!";
-      document.getElementById('topic-display').innerText = "General Chat";
-      document.getElementById('topic-desc-display').innerText = "Connect and have meaningful conversations!";
-    });
+  // Initialize
+  console.log("ChatSpheres Video Chat Room Loading... 🌟");
 </script>
 
 </body>

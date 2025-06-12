@@ -5,26 +5,95 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ChatSpheres - Join Your Sphere</title>
 
-  <!-- Firebase SDKs (compat version for HTML use) -->
+  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'main-red': '#e63946',
+            'gold': '#FFD166',
+            'rose': '#FFB6B9',
+            'light-rose': '#FCE2E5',
+            'charcoal': '#22223B',
+            'bg-light': '#F8F9FA'
+          },
+          fontFamily: {
+            'nunito': ['Nunito', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
 
   <style>
     * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
       font-family: 'Nunito', sans-serif;
-      background: linear-gradient(135deg, #F8F9FA 0%, #FCE2E5 100%);
+    }
+    
+    .video-placeholder {
+      background: linear-gradient(135deg, #22223B 0%, #2a2a4a 100%);
+    }
+    
+    .chatspheres-pattern {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .chatspheres-pattern::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 30% 70%, rgba(230, 57, 70, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 30%, rgba(255, 209, 102, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    
+    .vesica-accent {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0.1;
+      pointer-events: none;
+    }
+    
+    .timer-glow {
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    
+    .new-spark-btn {
+      background: #FFD166;
+      color: #22223B;
+      transition: all 0.2s ease;
+    }
+    
+    .new-spark-btn:hover {
+      background: #e63946;
+      color: white;
+      transform: scale(1.05);
+    }
+    
+    .topic-badge {
+      background: linear-gradient(135deg, #e63946 0%, #FFD166 100%);
+      color: white;
     }
 
-    #waiting {
+    /* Waiting overlay styles */
+    #waiting-overlay {
       position: absolute;
       top: 20px;
       right: 20px;
@@ -34,124 +103,36 @@
       box-shadow: 0 8px 32px rgba(230, 57, 70, 0.15);
       padding: 1.5rem 2rem;
       z-index: 9999;
-      transition: all 0.4s ease;
       text-align: center;
       width: 320px;
     }
 
-    #waiting .logo {
-      margin-bottom: 1rem;
-      animation: gentle-pulse 2s ease-in-out infinite;
-    }
-
-    #waiting .waiting-title {
+    #waiting-overlay .waiting-title {
       font-size: 1.3rem;
       font-weight: 700;
       color: #e63946;
       margin-bottom: 0.5rem;
-      letter-spacing: -0.02em;
     }
 
-    #waiting .waiting-subtitle {
+    #waiting-overlay .waiting-subtitle {
       font-size: 0.95rem;
       color: #22223B;
       margin-bottom: 1rem;
-      line-height: 1.4;
     }
 
-    #waiting .status-badge {
-      display: inline-flex;
-      align-items: center;
+    #waiting-overlay .status-badge {
       background: #FFD166;
       color: #22223B;
       padding: 0.5rem 1rem;
       border-radius: 100px;
       font-weight: 700;
       font-size: 0.85rem;
-    }
-
-    #waiting .cute-icon {
-      font-size: 1.5rem;
-      margin: 0.5rem 0;
-      animation: gentle-bounce 3s ease-in-out infinite;
     }
 
     .loading-dots::after {
       content: '';
       animation: loading-dots 1.5s infinite;
       margin-left: 0.25rem;
-    }
-
-    #ready-message {
-      display: none;
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      background: #e63946;
-      color: white;
-      border: 3px solid #fff;
-      border-radius: 24px;
-      box-shadow: 0 8px 32px rgba(230, 57, 70, 0.25);
-      padding: 1.5rem 2rem;
-      z-index: 9999;
-      text-align: center;
-      width: 320px;
-    }
-
-    #ready-message .logo {
-      margin-bottom: 1rem;
-    }
-
-    #ready-message .ready-title {
-      font-size: 1.3rem;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-      letter-spacing: -0.02em;
-    }
-
-    #ready-message .ready-subtitle {
-      font-size: 0.95rem;
-      color: #FCE2E5;
-      margin-bottom: 1rem;
-      line-height: 1.4;
-    }
-
-    #ready-message .status-badge {
-      display: inline-flex;
-      align-items: center;
-      background: #FFD166;
-      color: #22223B;
-      padding: 0.5rem 1rem;
-      border-radius: 100px;
-      font-weight: 700;
-      font-size: 0.85rem;
-    }
-
-    #ready-message .cute-icon {
-      font-size: 1.5rem;
-      margin: 0.5rem 0;
-      animation: celebration-bounce 0.6s ease-in-out;
-    }
-
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-
-    @keyframes gentle-pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-
-    @keyframes gentle-bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-8px); }
-    }
-
-    @keyframes celebration-bounce {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.2); }
     }
 
     @keyframes loading-dots {
@@ -163,74 +144,21 @@
     }
 
     @media (max-width: 768px) {
-      #waiting, #ready-message {
+      #waiting-overlay {
         width: 200px;
         top: 8px;
         left: 8px;
         right: auto;
         padding: 0.75rem 1rem;
-        border-radius: 12px;
-        border-width: 2px;
-      }
-      
-      #waiting .logo, #ready-message .logo {
-        margin-bottom: 0.25rem;
-      }
-      
-      #waiting .logo svg, #ready-message .logo svg {
-        width: 36px;
-        height: 36px;
-      }
-      
-      #waiting .waiting-title, #ready-message .ready-title {
-        font-size: 0.9rem;
-        margin-bottom: 0.15rem;
-      }
-      
-      #waiting .waiting-subtitle, #ready-message .ready-subtitle {
-        font-size: 0.65rem;
-        margin-bottom: 0.5rem;
-        line-height: 1.2;
-      }
-      
-      #waiting .cute-icon, #ready-message .cute-icon {
-        font-size: 1rem;
-        margin: 0.15rem 0;
-      }
-      
-      #waiting .status-badge, #ready-message .status-badge {
-        font-size: 0.65rem;
-        padding: 0.3rem 0.6rem;
-      }
-    }
-
-    @media (max-width: 430px) {
-      #waiting, #ready-message {
-        width: 180px;
-        top: 6px;
-        left: 6px;
-        padding: 0.6rem 0.8rem;
-      }
-      
-      #waiting .waiting-title, #ready-message .ready-title {
-        font-size: 0.8rem;
-      }
-      
-      #waiting .waiting-subtitle, #ready-message .ready-subtitle {
-        font-size: 0.6rem;
-      }
-      
-      #waiting .logo svg, #ready-message .logo svg {
-        width: 32px;
-        height: 32px;
       }
     }
   </style>
 </head>
-<body>
+<body class="bg-bg-light dark:bg-charcoal min-h-screen font-nunito">
 
-<div id="waiting">
-  <div class="logo">
+<!-- Waiting Overlay -->
+<div id="waiting-overlay">
+  <div class="mb-4">
     <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
       <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
@@ -238,11 +166,11 @@
       <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
     </svg>
   </div>
-  <div class="cute-icon">🐱✨</div>
+  <div class="text-2xl mb-2">🐱✨</div>
   <div class="waiting-title">preparing your sphere</div>
-  <div class="waiting-subtitle">click join and wait for someone!</div>
+  <div class="waiting-subtitle">joining room...</div>
   <div class="status-badge">
-    Waiting<span class="loading-dots"></span>
+    Connecting<span class="loading-dots"></span>
   </div>
   
   <div style="margin-top: 1rem; font-size: 0.85rem; color: #222;">
@@ -251,28 +179,234 @@
   </div>
 </div>
 
-<div id="ready-message">
-  <div class="logo">
-    <svg viewBox="0 0 64 64" width="64" height="64" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-      <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-      <circle cx="24" cy="32" r="18" stroke="#fff" stroke-width="4" fill="none"/>
-      <circle cx="40" cy="32" r="18" stroke="#fff" stroke-width="4" fill="none"/>
-    </svg>
+<!-- Main Video Chat Interface (hidden until call starts) -->
+<div id="video-interface" class="hidden">
+  <!-- Header -->
+  <header class="bg-white dark:bg-charcoal shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center space-x-3">
+        <svg viewBox="0 0 64 64" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <h1 class="text-xl font-bold text-charcoal dark:text-white">chatspheres</h1>
+      </div>
+      
+      <!-- Timer -->
+      <div class="flex items-center space-x-2">
+        <div class="timer-glow bg-main-red text-white px-4 py-2 rounded-full font-bold text-lg">
+          <span id="timer-header">60:00</span>
+        </div>
+        <span class="text-sm text-gray-600 dark:text-gray-300 hidden sm:block">time remaining</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <!-- Topic Section -->
+    <div class="mb-6 text-center">
+      <div class="topic-badge inline-block px-6 py-3 rounded-full font-bold text-lg mb-3">
+        🌟 <span id="topic-display">Loading Topic...</span>
+      </div>
+      <p class="text-charcoal dark:text-gray-300 text-base max-w-2xl mx-auto" id="topic-desc-display">
+        Loading description...
+      </p>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid lg:grid-cols-3 gap-6">
+      <!-- Video Section -->
+      <div class="lg:col-span-2 space-y-4">
+        <!-- Remote Video -->
+        <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
+          <video id="remote-video" class="w-full h-full object-cover" autoplay playsinline muted></video>
+          
+          <div id="remote-placeholder" class="absolute inset-0 flex items-center justify-center video-placeholder">
+            <svg class="vesica-accent" viewBox="0 0 64 64" width="120" height="120" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="3"/>
+              <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="3"/>
+              <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="2" fill="none"/>
+              <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="2" fill="none"/>
+            </svg>
+            
+            <div class="text-center text-white relative z-10">
+              <div class="w-16 h-16 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg">
+                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+              <p class="font-bold text-lg text-white">Waiting for your chat partner...</p>
+              <p class="text-sm text-gold mt-1">🐱 They might be as curious as a cat about this topic!</p>
+            </div>
+          </div>
+
+          <!-- Participant Info -->
+          <div id="remote-info" class="absolute top-4 left-4 bg-main-red text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+            <span id="remote-name">Guest</span>
+          </div>
+        </div>
+
+        <!-- Local Video -->
+        <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video sm:aspect-[4/3] lg:aspect-video chatspheres-pattern">
+          <video id="local-video" class="w-full h-full object-cover scale-x-[-1]" autoplay playsinline muted></video>
+          
+          <div id="local-placeholder" class="absolute inset-0 flex items-center justify-center video-placeholder">
+            <svg class="vesica-accent" viewBox="0 0 64 64" width="80" height="80" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="2"/>
+              <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="2"/>
+              <circle cx="24" cy="32" r="18" stroke="#FFD166" stroke-width="2" fill="none"/>
+              <circle cx="40" cy="32" r="18" stroke="#FFD166" stroke-width="2" fill="none"/>
+            </svg>
+            
+            <div class="text-center text-white relative z-10">
+              <div class="w-12 h-12 mx-auto mb-3 bg-gold rounded-full flex items-center justify-center shadow-lg">
+                <svg class="w-6 h-6 text-charcoal" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                </svg>
+              </div>
+              <p class="font-bold text-gold">You</p>
+            </div>
+          </div>
+
+          <!-- Controls -->
+          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-3">
+            <button id="mic-btn" class="bg-charcoal bg-opacity-80 hover:bg-main-red text-white p-3 rounded-full transition-all shadow-lg">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <button id="camera-btn" class="bg-charcoal bg-opacity-80 hover:bg-main-red text-white p-3 rounded-full transition-all shadow-lg">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/>
+              </svg>
+            </button>
+            <button id="leave-btn" class="bg-main-red hover:bg-red-600 text-white p-3 rounded-full transition-all shadow-lg">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414L9.586 11l-2.293 2.293a1 1 0 001.414 1.414L10 12.414l1.293 1.293a1 1 0 001.414-1.414L11.414 11l2.293-2.293z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Conversation Sparks Sidebar -->
+      <div class="lg:col-span-1">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <!-- Header -->
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-lg font-bold text-charcoal dark:text-white flex items-center">
+              ✨ conversation sparks
+            </h3>
+            <button 
+              id="newSparkBtn" 
+              class="new-spark-btn px-4 py-2 rounded-full font-bold text-sm"
+              onclick="generateNewSparks()"
+            >
+              🔄 new spark
+            </button>
+          </div>
+
+          <!-- Single Conversation Spark -->
+          <div id="sparksContainer">
+            <div class="relative">
+              <!-- Main Spark Display -->
+              <div id="currentSpark" class="bg-gradient-to-br from-light-rose to-rose p-6 rounded-2xl shadow-lg border-2 border-transparent hover:border-main-red transition-all cursor-pointer" onclick="selectCurrentSpark()">
+                <div class="flex items-start justify-between mb-3">
+                  <div class="bg-main-red text-white px-3 py-1 rounded-full text-xs font-bold">
+                    SPARK #<span id="sparkNumber">1</span>
+                  </div>
+                  <div class="text-main-red">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                  </div>
+                </div>
+                <blockquote class="text-charcoal font-bold text-base leading-relaxed italic">
+                  "<span id="sparkText">If you could have a conversation with your future self from 10 years from now, what would you want to ask them about the choices you're making today?</span>"
+                </blockquote>
+                <div class="mt-4 text-center">
+                  <span class="text-xs text-charcoal font-semibold opacity-70">👆 Click to highlight for both users</span>
+                </div>
+              </div>
+
+              <!-- Navigation Controls -->
+              <div class="flex justify-between items-center mt-4">
+                <button 
+                  id="prevSparkBtn"
+                  onclick="navigateSpark('prev')" 
+                  class="flex items-center space-x-2 bg-gold hover:bg-main-red text-charcoal hover:text-white px-4 py-2 rounded-full font-bold text-sm transition-all"
+                >
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                  </svg>
+                  <span>Previous</span>
+                </button>
+                
+                <div class="flex space-x-2">
+                  <span id="sparkDot1" class="w-2 h-2 bg-main-red rounded-full transition-all"></span>
+                  <span id="sparkDot2" class="w-2 h-2 bg-gray-300 rounded-full transition-all"></span>
+                  <span id="sparkDot3" class="w-2 h-2 bg-gray-300 rounded-full transition-all"></span>
+                </div>
+                
+                <button 
+                  id="nextSparkBtn"
+                  onclick="navigateSpark('next')" 
+                  class="flex items-center space-x-2 bg-gold hover:bg-main-red text-charcoal hover:text-white px-4 py-2 rounded-full font-bold text-sm transition-all"
+                >
+                  <span>Next</span>
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- User Prompts Section -->
+          <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+            <h4 class="text-sm font-bold text-charcoal dark:text-white mb-3">Custom Spark Request</h4>
+            <div class="space-y-3">
+              <input 
+                type="text" 
+                id="userPrompt"
+                placeholder="e.g., 'questions about career changes'"
+                class="w-full px-4 py-3 text-base border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-main-red focus:border-transparent bg-white dark:bg-gray-700 text-charcoal dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              >
+              <button 
+                onclick="generateCustomSparks()" 
+                class="w-full new-spark-btn py-3 rounded-xl font-bold text-sm"
+              >
+                ⚡ Generate Custom Sparks
+              </button>
+            </div>
+          </div>
+
+          <!-- Fun Facts -->
+          <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+            <div class="text-center text-xs text-gray-500 dark:text-gray-400">
+              <p>💡 Like a Pokémon evolving through battles,</p>
+              <p>great conversations evolve through curiosity!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="cute-icon">🎉⚡</div>
-  <div class="ready-title">connected!</div>
-  <div class="ready-subtitle"></div>
-  <div class="status-badge">sphere active</div>
-  
-  <div style="margin-top: 1rem; font-size: 0.85rem; color: #FCE2E5;">
-    <strong>Topic:</strong> <span id="topic-text-ready">Loading...</span><br>
-    <strong>Description:</strong> <span id="topic-description-ready">Please wait...</span>
+</div>
+
+<!-- Sticky Timer -->
+<div id="stickyTimer" class="fixed top-4 right-4 z-50 transition-all duration-300 opacity-0 transform translate-y-[-20px]">
+  <div class="timer-glow bg-main-red text-white px-3 py-2 rounded-full font-bold text-sm shadow-lg">
+    <span id="timer">60:00</span>
   </div>
 </div>
 
 <script src="https://unpkg.com/@daily-co/daily-js"></script>
 <script>
+  // Firebase config
   const firebaseConfig = {
     apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
     authDomain: "chatspheresfirebasedb.firebaseapp.com",
@@ -286,6 +420,24 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+
+  // Global variables
+  let call = null;
+  let localVideo = null;
+  let remoteVideo = null;
+  let isCameraOn = true;
+  let isMicOn = true;
+  let timeRemaining = 60 * 60; // 1 hour
+  let timerInterval = null;
+
+  // Sparks data
+  let currentSparks = [
+    "If you could have a conversation with your future self from 10 years from now, what would you want to ask them about the choices you're making today?",
+    "What's something you believed strongly about life when you were younger that you've completely changed your mind about now?",
+    "If you had to choose one value to guide every major decision for the rest of your life, what would it be and why?"
+  ];
+  let currentSparkIndex = 0;
+  let sparkIsSelected = false;
 
   const roomUrl = new URLSearchParams(window.location.search).get('room');
 
@@ -308,197 +460,379 @@
       </div>
     `;
   } else {
-    console.log("🌐 Room URL:", roomUrl);
+    initializeVideoChat();
+  }
 
+  async function initializeVideoChat() {
+    // Firebase presence tracking
     const roomId = btoa(roomUrl);
     const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
     const roomRef = db.ref(`rooms/${roomId}`);
 
-    db.ref(`rooms/${roomId}/${userId}`).set(true)
-      .then(() => {
-        console.log("✅ Firebase write success");
+    // Create Daily call object
+    call = Daily.createCallObject();
+    
+    // Set up event listeners
+    call.on('joined-meeting', handleJoinedMeeting);
+    call.on('participant-joined', handleParticipantJoined);
+    call.on('participant-left', handleParticipantLeft);
+    call.on('participant-updated', handleParticipantUpdated);
+    call.on('track-started', handleTrackStarted);
+    call.on('track-stopped', handleTrackStopped);
+    call.on('app-message', handleAppMessage);
+    call.on('error', handleError);
 
-        roomRef.on('value', (snapshot) => {
-          const users = snapshot.val();
-          const count = users ? Object.keys(users).length : 0;
-          console.log(`👥 User count: ${count}`);
-
-          if (count >= 2) {
-            const waiting = document.getElementById('waiting');
-            const ready = document.getElementById('ready-message');
-            if (waiting) waiting.style.display = 'none';
-            if (ready) {
-              ready.style.display = 'block';
-              setTimeout(() => ready.style.display = 'none', 3000);
-            }
-          }
-        });
-      })
-      .catch(err => {
-        console.error("❌ Firebase error:", err);
-        alert("Problem writing to Firebase.");
+    try {
+      // Join the call
+      await call.join({ url: roomUrl });
+      
+      // Set up Firebase presence
+      await db.ref(`rooms/${roomId}/${userId}`).set(true);
+      
+      roomRef.on('value', (snapshot) => {
+        const users = snapshot.val();
+        const count = users ? Object.keys(users).length : 0;
+        console.log(`👥 User count: ${count}`);
       });
 
-    // ✅ Use Daily.createFrame and apply branding
-    const call = Daily.createFrame({
-      iframeStyle: {
-        position: 'absolute',
-        top: '0',
-        left: '0',
-        width: '100%',
-        height: '100%',
-        border: '0',
-      }
-    });
+      // Clean up on page unload
+      window.addEventListener('beforeunload', () => {
+        db.ref(`rooms/${roomId}/${userId}`).remove();
+        if (call) call.leave();
+      });
 
-    call.join({ url: roomUrl });
-
-    call.setTheme({
-      colors: {
-        accent: '#e63946',
-        accentText: '#FFFFFF',
-        background: '#F8F9FA',
-        backgroundAccent: '#FCE2E5',
-        baseText: '#22223B',
-        border: '#FFB6B9',
-        mainAreaBg: '#FFFFFF',
-        mainAreaBgAccent: '#FCE2E5',
-        mainAreaText: '#22223B',
-        supportiveText: '#FFB6B9',
-      }
-    });
-
-    window.addEventListener('beforeunload', () => {
-      db.ref(`rooms/${roomId}/${userId}`).remove();
-    });
-  }
-</script>
-
-<script>
-// Get the room URL parameter
-const urlParam = decodeURIComponent(new URLSearchParams(location.search).get('room') || '');
-console.log("🔍 Looking for room URL:", urlParam);
-
-// Try different API approaches
-async function fetchRoomInfo() {
-  // Update UI to show we're trying to fetch data
-  function updateTopicElements(topic, description) {
-    const elements = [
-      'topic-text', 'topic-description', 
-      'topic-text-ready', 'topic-description-ready'
-    ];
-    
-    elements.forEach(id => {
-      const element = document.getElementById(id);
-      if (element) {
-        if (id.includes('description')) {
-          element.innerText = description;
-        } else {
-          element.innerText = topic;
-        }
-      }
-    });
-  }
-
-  // Try the main API first
-  try {
-    console.log("🌐 Fetching from main API...");
-    const response = await fetch('https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info');
-    
-    console.log("📡 API Response status:", response.status);
-    
-    if (!response.ok) {
-      throw new Error(`API returned ${response.status}: ${response.statusText}`);
+    } catch (error) {
+      console.error('Failed to join call:', error);
+      showError('Failed to join the video call. Please try refreshing the page.');
     }
+  }
+
+  function handleJoinedMeeting(event) {
+    console.log('✅ Joined meeting successfully');
     
-    const data = await response.json();
-    console.log("📦 API Response data:", data);
+    // Hide waiting overlay and show video interface
+    document.getElementById('waiting-overlay').style.display = 'none';
+    document.getElementById('video-interface').classList.remove('hidden');
     
-    // Handle different possible data structures
-    let matchRoom = null;
-    let descriptions = null;
+    // Start timer
+    startTimer();
     
-    if (data.matchRoom && Array.isArray(data.matchRoom)) {
-      matchRoom = data.matchRoom;
-      descriptions = data.topic_descriptions;
-    } else if (data.data && data.data.matchRoom) {
-      matchRoom = data.data.matchRoom;
-      descriptions = data.data.topic_descriptions;
-    } else if (Array.isArray(data)) {
-      matchRoom = data;
+    // Set up local video
+    setupLocalVideo();
+  }
+
+  function handleParticipantJoined(event) {
+    console.log('👋 Participant joined:', event.participant.user_name);
+    updateRemoteInfo(event.participant.user_name || 'Guest');
+  }
+
+  function handleParticipantLeft(event) {
+    console.log('👋 Participant left:', event.participant.user_name);
+    hideRemoteVideo();
+  }
+
+  function handleParticipantUpdated(event) {
+    console.log('🔄 Participant updated:', event.participant);
+    // Handle participant state changes (mute/unmute, camera on/off)
+  }
+
+  function handleTrackStarted(event) {
+    console.log('🎥 Track started:', event);
+    
+    if (event.participant.local) {
+      if (event.track.kind === 'video') {
+        setupLocalVideo(event.track);
+      }
     } else {
-      console.log("🤔 Unexpected data structure, trying direct room search...");
-      matchRoom = Object.values(data).find(val => Array.isArray(val)) || [];
-    }
-    
-    console.log("🏠 Found matchRoom:", matchRoom);
-    console.log("📝 Found descriptions:", descriptions);
-    
-    if (matchRoom && matchRoom.length > 0) {
-      const room = matchRoom.find(r => r.room_url === urlParam);
-      console.log("🎯 Found matching room:", room);
-      
-      if (room && room.topic) {
-        const topic = room.topic.charAt(0).toUpperCase() + room.topic.slice(1);
-        let description = "Meaningful conversations await!";
-        
-        // Try to get description from various possible sources
-        if (descriptions && descriptions[room.topic]) {
-          description = descriptions[room.topic];
-        } else if (descriptions && descriptions[topic]) {
-          description = descriptions[topic];
-        } else if (room.description) {
-          description = room.description;
-        } else if (room.topic_description) {
-          description = room.topic_description;
-        }
-        
-        console.log("✅ Using topic:", topic);
-        console.log("✅ Using description:", description);
-        
-        updateTopicElements(topic, description);
-        return;
+      if (event.track.kind === 'video') {
+        setupRemoteVideo(event.track);
       }
-    }
-    
-    // If we get here, we couldn't find the room
-    console.log("❌ Could not find room with URL:", urlParam);
-    updateTopicElements("Room Not Found", "Please check your room link and try again.");
-    
-  } catch (error) {
-    console.error("❌ API Error:", error);
-    
-    // Try alternative API endpoint
-    try {
-      console.log("🔄 Trying alternative API approach...");
-      const altResponse = await fetch(`https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info?room_url=${encodeURIComponent(urlParam)}`);
-      
-      if (altResponse.ok) {
-        const altData = await altResponse.json();
-        console.log("📦 Alternative API data:", altData);
-        
-        if (altData.topic) {
-          const topic = altData.topic.charAt(0).toUpperCase() + altData.topic.slice(1);
-          const description = altData.description || altData.topic_description || "Great conversations start here!";
-          updateTopicElements(topic, description);
-          return;
-        }
-      }
-    } catch (altError) {
-      console.error("❌ Alternative API also failed:", altError);
-    }
-    
-    // Fallback: Use a default topic based on room URL patterns or show error
-    if (urlParam.includes('daily.co')) {
-      updateTopicElements("General Chat", "Connect and have meaningful conversations!");
-    } else {
-      updateTopicElements("Connection Error", "Unable to load room details. Please try refreshing.");
     }
   }
-}
 
-// Call the function
-fetchRoomInfo();
+  function handleTrackStopped(event) {
+    console.log('🛑 Track stopped:', event);
+    
+    if (!event.participant.local && event.track.kind === 'video') {
+      hideRemoteVideo();
+    }
+  }
+
+  function handleAppMessage(event) {
+    console.log('📨 App message received:', event);
+    
+    if (event.data.type === 'spark-selected') {
+      // Sync spark selection across participants
+      currentSparkIndex = event.data.sparkIndex;
+      sparkIsSelected = event.data.isSelected;
+      updateSparkDisplay();
+      if (sparkIsSelected) {
+        const currentSparkEl = document.getElementById('currentSpark');
+        currentSparkEl.classList.add('ring-4', 'ring-gold');
+        currentSparkEl.style.background = 'linear-gradient(135deg, #FFD166 0%, #FFB6B9 100%)';
+      }
+    }
+  }
+
+  function handleError(event) {
+    console.error('❌ Daily.co error:', event);
+    showError('Video call error: ' + event.errorMsg);
+  }
+
+  function setupLocalVideo(track) {
+    localVideo = document.getElementById('local-video');
+    const placeholder = document.getElementById('local-placeholder');
+    
+    if (track) {
+      localVideo.srcObject = new MediaStream([track]);
+      localVideo.style.display = 'block';
+      placeholder.style.display = 'none';
+    } else {
+      // Get local video track from call participants
+      const localParticipant = call.participants().local;
+      if (localParticipant && localParticipant.video) {
+        localVideo.srcObject = new MediaStream([localParticipant.video]);
+        localVideo.style.display = 'block';
+        placeholder.style.display = 'none';
+      }
+    }
+  }
+
+  function setupRemoteVideo(track) {
+    remoteVideo = document.getElementById('remote-video');
+    const placeholder = document.getElementById('remote-placeholder');
+    
+    remoteVideo.srcObject = new MediaStream([track]);
+    remoteVideo.style.display = 'block';
+    placeholder.style.display = 'none';
+  }
+
+  function hideRemoteVideo() {
+    const remoteVideo = document.getElementById('remote-video');
+    const placeholder = document.getElementById('remote-placeholder');
+    
+    remoteVideo.style.display = 'none';
+    placeholder.style.display = 'flex';
+  }
+
+  function updateRemoteInfo(name) {
+    document.getElementById('remote-name').textContent = name;
+  }
+
+  function showError(message) {
+    // You can implement a toast or modal here
+    console.error(message);
+    alert(message);
+  }
+
+  // Control functions
+  function toggleMic() {
+    isMicOn = !isMicOn;
+    call.setLocalAudio(isMicOn);
+    
+    const micBtn = document.getElementById('mic-btn');
+    if (isMicOn) {
+      micBtn.classList.remove('bg-main-red');
+      micBtn.classList.add('bg-charcoal', 'bg-opacity-80');
+    } else {
+      micBtn.classList.add('bg-main-red');
+      micBtn.classList.remove('bg-charcoal', 'bg-opacity-80');
+    }
+  }
+
+  function toggleCamera() {
+    isCameraOn = !isCameraOn;
+    call.setLocalVideo(isCameraOn);
+    
+    const cameraBtn = document.getElementById('camera-btn');
+    const localVideo = document.getElementById('local-video');
+    const placeholder = document.getElementById('local-placeholder');
+    
+    if (isCameraOn) {
+      cameraBtn.classList.remove('bg-main-red');
+      cameraBtn.classList.add('bg-charcoal', 'bg-opacity-80');
+      localVideo.style.display = 'block';
+      placeholder.style.display = 'none';
+    } else {
+      cameraBtn.classList.add('bg-main-red');
+      cameraBtn.classList.remove('bg-charcoal', 'bg-opacity-80');
+      localVideo.style.display = 'none';
+      placeholder.style.display = 'flex';
+    }
+  }
+
+  function leaveCall() {
+    if (call) {
+      call.leave();
+    }
+    window.location.reload();
+  }
+
+  // Event listeners for controls
+  document.getElementById('mic-btn').addEventListener('click', toggleMic);
+  document.getElementById('camera-btn').addEventListener('click', toggleCamera);
+  document.getElementById('leave-btn').addEventListener('click', leaveCall);
+
+  // Timer functions
+  function startTimer() {
+    timerInterval = setInterval(updateTimer, 1000);
+  }
+
+  function updateTimer() {
+    const minutes = Math.floor(timeRemaining / 60);
+    const seconds = timeRemaining % 60;
+    const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    document.getElementById('timer').textContent = timeString;
+    document.getElementById('timer-header').textContent = timeString;
+    
+    if (timeRemaining > 0) {
+      timeRemaining--;
+    } else {
+      clearInterval(timerInterval);
+      // Handle timer expiry
+      if (call) call.leave();
+    }
+  }
+
+  // Sticky timer scroll handler
+  window.addEventListener('scroll', function() {
+    const stickyTimer = document.getElementById('stickyTimer');
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+    
+    if (scrollTop > 200 && !document.getElementById('video-interface').classList.contains('hidden')) {
+      stickyTimer.style.opacity = '1';
+      stickyTimer.style.transform = 'translateY(0)';
+    } else {
+      stickyTimer.style.opacity = '0';
+      stickyTimer.style.transform = 'translateY(-20px)';
+    }
+  });
+
+  // Spark functions
+  function navigateSpark(direction) {
+    if (direction === 'next') {
+      currentSparkIndex = (currentSparkIndex + 1) % currentSparks.length;
+    } else {
+      currentSparkIndex = currentSparkIndex === 0 ? currentSparks.length - 1 : currentSparkIndex - 1;
+    }
+    updateSparkDisplay();
+    
+    // Sync with other participants via Daily's sendAppMessage
+    if (call) {
+      call.sendAppMessage({
+        type: 'spark-navigation',
+        sparkIndex: currentSparkIndex
+      });
+    }
+  }
+
+  function updateSparkDisplay() {
+    document.getElementById('sparkText').textContent = currentSparks[currentSparkIndex];
+    document.getElementById('sparkNumber').textContent = currentSparkIndex + 1;
+    
+    // Update navigation dots
+    for (let i = 1; i <= 3; i++) {
+      const dot = document.getElementById(`sparkDot${i}`);
+      if (i === currentSparkIndex + 1) {
+        dot.className = 'w-2 h-2 bg-main-red rounded-full transition-all';
+      } else {
+        dot.className = 'w-2 h-2 bg-gray-300 rounded-full transition-all';
+      }
+    }
+    
+    // Reset selection state
+    const currentSparkEl = document.getElementById('currentSpark');
+    currentSparkEl.classList.remove('ring-4', 'ring-gold');
+    currentSparkEl.style.background = '';
+    sparkIsSelected = false;
+  }
+
+  function selectCurrentSpark() {
+    const currentSparkEl = document.getElementById('currentSpark');
+    
+    sparkIsSelected = !sparkIsSelected;
+    
+    if (sparkIsSelected) {
+      currentSparkEl.classList.add('ring-4', 'ring-gold');
+      currentSparkEl.style.background = 'linear-gradient(135deg, #FFD166 0%, #FFB6B9 100%)';
+    } else {
+      currentSparkEl.classList.remove('ring-4', 'ring-gold');
+      currentSparkEl.style.background = '';
+    }
+    
+    // Sync selection with other participants
+    if (call) {
+      call.sendAppMessage({
+        type: 'spark-selected',
+        sparkIndex: currentSparkIndex,
+        isSelected: sparkIsSelected
+      });
+    }
+  }
+
+  function generateNewSparks() {
+    // Placeholder for AI spark generation
+    console.log('🔄 Generating new sparks...');
+  }
+
+  function generateCustomSparks() {
+    // Placeholder for custom spark generation
+    console.log('⚡ Generating custom sparks...');
+  }
+
+  // Load room info
+  fetch('https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info')
+    .then(r => r.json())
+    .then(data => {
+      const urlParam = decodeURIComponent(roomUrl);
+      console.log("🔍 Looking for room URL:", urlParam);
+      console.log("📦 API Response data:", data);
+      
+      // Handle different possible data structures
+      let matchRoom = null;
+      let descriptions = null;
+      
+      if (data.matchRoom && Array.isArray(data.matchRoom)) {
+        matchRoom = data.matchRoom;
+        descriptions = data.topic_descriptions;
+      } else if (data.data && data.data.matchRoom) {
+        matchRoom = data.data.matchRoom;
+        descriptions = data.data.topic_descriptions;
+      }
+      
+      if (matchRoom && matchRoom.length > 0) {
+        const room = matchRoom.find(r => r.room_url === urlParam);
+        
+        if (room && room.topic) {
+          const topic = room.topic.charAt(0).toUpperCase() + room.topic.slice(1);
+          let description = "Meaningful conversations await!";
+          
+          if (descriptions && descriptions[room.topic]) {
+            description = descriptions[room.topic];
+          } else if (descriptions && descriptions[topic]) {
+            description = descriptions[topic];
+          }
+          
+          // Update topic displays
+          document.getElementById('topic-text').innerText = topic;
+          document.getElementById('topic-description').innerText = description;
+          document.getElementById('topic-display').innerText = topic;
+          document.getElementById('topic-desc-display').innerText = description;
+          
+          console.log("✅ Updated topic:", topic);
+          console.log("✅ Updated description:", description);
+        }
+      }
+    })
+    .catch(err => {
+      console.error("Failed to load room info:", err);
+      // Fallback
+      document.getElementById('topic-text').innerText = "General Chat";
+      document.getElementById('topic-description').innerText = "Connect and have meaningful conversations!";
+      document.getElementById('topic-display').innerText = "General Chat";
+      document.getElementById('topic-desc-display').innerText = "Connect and have meaningful conversations!";
+    });
 </script>
 
 </body>

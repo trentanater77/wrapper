@@ -521,9 +521,11 @@
     console.log("🔍 Looking for room URL:", urlParam);
 
     try {
-      // The API is working and returns this structure:
-      // { "topic": "creativity", "description": "...", "room_type": "matchmaking", "prompt": "" }
-      let response = await fetch('https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info');
+      // ✅ FIXED: Pass room URL as query parameter
+      const apiUrl = `https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info?room_url=${encodeURIComponent(urlParam)}`;
+      console.log("🌐 API URL:", apiUrl);
+      
+      let response = await fetch(apiUrl);
       
       if (!response.ok) {
         throw new Error(`API returned ${response.status}: ${response.statusText}`);
@@ -548,7 +550,7 @@
       
     } catch (error) {
       console.error("❌ API Error:", error);
-      console.log("🔄 API might be returning 400 because no room matches the URL");
+      console.log("🔄 Using fallback topic because room not found or API error");
     }
     
     // Fallback: Use default topic

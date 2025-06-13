@@ -639,10 +639,37 @@
     // Set up local video
     setupLocalVideo();
     
-    // Set up device selectors
-    setupDeviceSelectors();
+    // Request permissions first, then set up device selectors
+    requestPermissionsAndSetupDevices();
     
     showToast('🎉 Welcome to your ChatSpheres room!');
+  }
+
+  async function requestPermissionsAndSetupDevices() {
+    try {
+      console.log("🔐 Requesting media permissions...");
+      
+      // Request permissions to ensure device labels are available
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: true 
+      });
+      
+      // Stop the temporary stream
+      stream.getTracks().forEach(track => track.stop());
+      
+      console.log("✅ Permissions granted, setting up devices...");
+      
+      // Now set up device selectors with proper labels
+      setTimeout(setupDeviceSelectors, 1000);
+      
+    } catch (error) {
+      console.error("❌ Permission denied or device error:", error);
+      showToast('❌ Camera/mic permissions needed for device settings');
+      
+      // Still try to set up selectors (may have generic names)
+      setTimeout(setupDeviceSelectors, 1000);
+    }
   }
 
   function handleParticipantJoined(event) {
@@ -786,27 +813,52 @@
 
   async function setupDeviceSelectors() {
     try {
+      console.log("🔧 Setting up device selectors...");
+      
+      // Wait a bit for devices to be ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const selectedDevices = await call.getInputDevices();
       const { devices: allDevices } = await call.enumerateDevices();
+      
+      console.log("📱 Selected devices:", selectedDevices);
+      console.log("📱 All devices:", allDevices);
 
       const cameraSelector = document.getElementById('camera-selector');
       const micSelector = document.getElementById('mic-selector');
 
+      if (!cameraSelector || !micSelector) {
+        console.error("❌ Settings selectors not found in DOM");
+        return;
+      }
+
       // Setup camera selector
       cameraSelector.innerHTML = '<option disabled selected>Select camera...</option>';
-      allDevices.filter(d => d.kind === 'videoinput').forEach(device => {
-        const option = new Option(device.label, device.deviceId);
-        if (selectedDevices.camera.deviceId === device.deviceId) {
+      const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
+      console.log("📹 Video devices found:", videoDevices.length);
+      
+      videoDevices.forEach(device => {
+        const option = new Option(
+          device.label || `Camera ${device.deviceId.slice(0, 8)}...`, 
+          device.deviceId
+        );
+        if (selectedDevices.camera && selectedDevices.camera.deviceId === device.deviceId) {
           option.selected = true;
         }
         cameraSelector.appendChild(option);
       });
 
-      // Setup mic selector
+      // Setup mic selector  
       micSelector.innerHTML = '<option disabled selected>Select microphone...</option>';
-      allDevices.filter(d => d.kind === 'audioinput').forEach(device => {
-        const option = new Option(device.label, device.deviceId);
-        if (selectedDevices.mic.deviceId === device.deviceId) {
+      const audioDevices = allDevices.filter(d => d.kind === 'audioinput');
+      console.log("🎤 Audio devices found:", audioDevices.length);
+      
+      audioDevices.forEach(device => {
+        const option = new Option(
+          device.label || `Microphone ${device.deviceId.slice(0, 8)}...`, 
+          device.deviceId
+        );
+        if (selectedDevices.mic && selectedDevices.mic.deviceId === device.deviceId) {
           option.selected = true;
         }
         micSelector.appendChild(option);
@@ -815,20 +867,35 @@
       // Add event listeners
       cameraSelector.addEventListener('change', async (e) => {
         if (e.target.value) {
-          await call.setInputDevicesAsync({ videoDeviceId: e.target.value });
-          showToast('📹 Camera changed');
+          console.log("📹 Changing camera to:", e.target.value);
+          try {
+            await call.setInputDevicesAsync({ videoDeviceId: e.target.value });
+            showToast('📹 Camera changed');
+          } catch (error) {
+            console.error("❌ Camera change failed:", error);
+            showToast('❌ Camera change failed');
+          }
         }
       });
 
       micSelector.addEventListener('change', async (e) => {
         if (e.target.value) {
-          await call.setInputDevicesAsync({ audioDeviceId: e.target.value });
-          showToast('🎤 Microphone changed');
+          console.log("🎤 Changing microphone to:", e.target.value);
+          try {
+            await call.setInputDevicesAsync({ audioDeviceId: e.target.value });
+            showToast('🎤 Microphone changed');
+          } catch (error) {
+            console.error("❌ Microphone change failed:", error);
+            showToast('❌ Microphone change failed');
+          }
         }
       });
 
+      console.log("✅ Device selectors set up successfully");
+
     } catch (error) {
-      console.error('Error setting up device selectors:', error);
+      console.error('❌ Error setting up device selectors:', error);
+      showToast('❌ Device settings unavailable');
     }
   }
 

@@ -520,39 +520,39 @@
     const urlParam = decodeURIComponent(roomUrl);
     console.log("🔍 Looking for room URL:", urlParam);
 
-    // Try the working approach from before with better fallbacks
     try {
-      // First try: Simple fetch
+      // The API is working and returns this structure:
+      // { "topic": "creativity", "description": "...", "room_type": "matchmaking", "prompt": "" }
       let response = await fetch('https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info');
       
       if (!response.ok) {
-        throw new Error(`API returned ${response.status}`);
+        throw new Error(`API returned ${response.status}: ${response.statusText}`);
       }
       
       const data = await response.json();
       console.log("📦 API Response:", data);
       
-      // Try different data structures
-      let matchRoom = data.matchRoom || data.data?.matchRoom || data;
-      if (!Array.isArray(matchRoom)) {
-        matchRoom = Object.values(data).find(val => Array.isArray(val)) || [];
-      }
-      
-      const room = matchRoom.find(r => r.room_url === urlParam);
-      
-      if (room && room.topic) {
-        const topic = room.topic.charAt(0).toUpperCase() + room.topic.slice(1);
-        const description = room.description || "Meaningful conversations await!";
+      // Handle the actual API response structure
+      if (data.topic && data.description) {
+        const topic = data.topic.charAt(0).toUpperCase() + data.topic.slice(1);
+        const description = data.description;
+        
+        console.log("✅ Found topic:", topic);
+        console.log("✅ Found description:", description);
         
         updateTopicDisplay(topic, description);
         return;
+      } else {
+        console.log("❌ API response missing topic/description:", data);
       }
       
     } catch (error) {
       console.error("❌ API Error:", error);
+      console.log("🔄 API might be returning 400 because no room matches the URL");
     }
     
     // Fallback: Use default topic
+    console.log("🔄 Using fallback topic");
     updateTopicDisplay("General Chat", "Connect and have meaningful conversations!");
   }
 
@@ -830,18 +830,53 @@
     }
   }
 
+  // Audio level monitoring for microphone confirmation
+  let audioLevelObserver = null;
+  
+  function startAudioLevelMonitoring() {
+    if (call && !audioLevelObserver) {
+      console.log("🎤 Starting audio level monitoring...");
+      audioLevelObserver = call.startLocalAudioLevelObserver(100); // Check every 100ms
+      
+      call.on('local-audio-level', (event) => {
+        const level = event.audioLevel;
+        console.log("🔊 MICROPHONE AUDIO LEVEL:", level);
+        
+        if (level > 0.01) { // Threshold for detecting sound
+          console.log("✅ MICROPHONE IS WORKING! Audio detected:", level);
+        }
+      });
+    }
+  }
+  
   // Control functions
   function toggleMic() {
+    console.log("🎤 Toggling microphone. Current state:", isMicOn);
+    
     isMicOn = !isMicOn;
     call.setLocalAudio(isMicOn);
+    
+    console.log("🎤 NEW MICROPHONE STATE:", isMicOn ? "ON" : "MUTED");
+    console.log("🎤 Daily.co localAudio() returns:", call.localAudio());
     
     const micBtn = document.getElementById('mic-btn');
     if (isMicOn) {
       micBtn.classList.remove('active');
-      showToast('🎤 Microphone on');
+      showToast('🎤 Microphone on - Speak to test!');
+      console.log("✅ MICROPHONE ENABLED - Check console for audio levels");
+      
+      // Start monitoring when mic is on
+      startAudioLevelMonitoring();
     } else {
       micBtn.classList.add('active');
       showToast('🔇 Microphone muted');
+      console.log("🔇 MICROPHONE DISABLED");
+    }
+    
+    // Log participant state
+    const localParticipant = call.participants().local;
+    if (localParticipant) {
+      console.log("👤 Local participant audio track state:", localParticipant.tracks.audio);
     }
   }
 

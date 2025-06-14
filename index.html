@@ -552,17 +552,19 @@
       console.log("📦 API Response:", data);
       
       // Handle the actual API response structure
-      if (data.topic && data.description) {
+      if (data.topic) {
         const topic = data.topic.charAt(0).toUpperCase() + data.topic.slice(1);
-        const description = data.description;
+        // Handle null description for matchmaking rooms
+        const description = data.description || `Discover and discuss fascinating aspects of ${data.topic.toLowerCase()}!`;
         
         console.log("✅ Found topic:", topic);
         console.log("✅ Found description:", description);
+        console.log("🎯 Room type:", data.room_type);
         
         updateTopicDisplay(topic, description);
         return;
       } else {
-        console.log("❌ API response missing topic/description:", data);
+        console.log("❌ API response missing topic:", data);
       }
       
     } catch (error) {
@@ -784,19 +786,33 @@
     localVideo = document.getElementById('local-video');
     const placeholder = document.getElementById('local-placeholder');
     
-    if (track) {
-      localVideo.srcObject = new MediaStream([track]);
-    } else {
-      // Get local video track from call participants
-      const localParticipant = call.participants().local;
-      if (localParticipant && localParticipant.video) {
-        localVideo.srcObject = new MediaStream([localParticipant.video]);
+    try {
+      if (track && track instanceof MediaStreamTrack) {
+        // Use provided track if it's valid
+        localVideo.srcObject = new MediaStream([track]);
+      } else {
+        // Get local video track from call participants
+        const localParticipant = call.participants().local;
+        if (localParticipant && localParticipant.tracks && localParticipant.tracks.video) {
+          const videoTrack = localParticipant.tracks.video.track || localParticipant.tracks.video.persistentTrack;
+          if (videoTrack && videoTrack instanceof MediaStreamTrack) {
+            localVideo.srcObject = new MediaStream([videoTrack]);
+          }
+        }
       }
-    }
-    
-    if (isCameraOn && localVideo.srcObject) {
-      localVideo.style.display = 'block';
-      placeholder.style.display = 'none';
+      
+      if (isCameraOn && localVideo.srcObject) {
+        localVideo.style.display = 'block';
+        placeholder.style.display = 'none';
+      } else {
+        localVideo.style.display = 'none';
+        placeholder.style.display = 'flex';
+      }
+    } catch (error) {
+      console.error("❌ Error setting up local video:", error);
+      // Show placeholder on error
+      localVideo.style.display = 'none';
+      placeholder.style.display = 'flex';
     }
   }
 

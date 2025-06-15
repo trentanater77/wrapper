@@ -493,7 +493,7 @@
   let remoteVideo = null;
   let screenShareVideo = null;
   let isCameraOn = true;
-  let isMicOn = true;
+  let isMicOn = false; // ✅ Start muted by default (more typical for web apps)
   let isScreenSharing = false;
   let timeRemaining = 60 * 60; // 1 hour
   let timerInterval = null;
@@ -606,8 +606,11 @@
     const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
     const roomRef = db.ref(`rooms/${roomId}`);
 
-    // Create Daily call object
-    call = Daily.createCallObject();
+    // ✅ Create Daily call object with proper audio configuration
+    call = Daily.createCallObject({
+      audioSource: true,  // ✅ Ensure audio is enabled by default
+      videoSource: true   // ✅ Ensure video is enabled by default
+    });
     
     // Set up event listeners
     call.on('joined-meeting', handleJoinedMeeting);
@@ -618,6 +621,7 @@
     call.on('track-stopped', handleTrackStopped);
     call.on('app-message', handleAppMessage);
     call.on('error', handleError);
+    call.on('camera-error', handleCameraError);
 
     try {
       // Join the call
@@ -647,6 +651,37 @@
   function handleJoinedMeeting(event) {
     console.log('✅ Joined meeting successfully');
     
+    // ✅ CRITICAL: Check and log initial audio/video states
+    console.log("🎤 Initial microphone state:", call.localAudio());
+    console.log("📹 Initial camera state:", call.localVideo());
+    
+    // ✅ Update the local state variables to match Daily's state
+    isMicOn = call.localAudio();
+    isCameraOn = call.localVideo();
+    
+    console.log("🎤 Updated isMicOn to:", isMicOn);
+    console.log("📹 Updated isCameraOn to:", isCameraOn);
+    
+    // ✅ Update button states to match
+    const micBtn = document.getElementById('mic-btn');
+    const cameraBtn = document.getElementById('camera-btn');
+    
+    if (isMicOn) {
+      micBtn.classList.remove('active');
+      console.log("🎤 Microphone button set to ON state");
+    } else {
+      micBtn.classList.add('active');
+      console.log("🎤 Microphone button set to MUTED state");
+    }
+    
+    if (isCameraOn) {
+      cameraBtn.classList.remove('active');
+      console.log("📹 Camera button set to ON state");
+    } else {
+      cameraBtn.classList.add('active');
+      console.log("📹 Camera button set to OFF state");
+    }
+    
     // Hide waiting overlay and show video interface
     document.getElementById('waiting-overlay').style.display = 'none';
     document.getElementById('video-interface').classList.remove('hidden');
@@ -656,6 +691,12 @@
     
     // Set up local video
     setupLocalVideo();
+    
+    // ✅ Start audio level monitoring immediately if mic is on
+    if (isMicOn) {
+      console.log("🎤 Starting audio monitoring since mic is ON");
+      startAudioLevelMonitoring();
+    }
     
     // Request permissions first, then set up device selectors
     requestPermissionsAndSetupDevices();
@@ -670,23 +711,41 @@
     try {
       console.log("🔐 Requesting media permissions...");
       
-      // Request permissions to ensure device labels are available
+      // ✅ CRITICAL: Request both camera AND microphone permissions together
       const stream = await navigator.mediaDevices.getUserMedia({ 
         video: true, 
         audio: true 
       });
       
+      console.log("✅ Permissions granted successfully!");
+      console.log("🎤 Audio tracks:", stream.getAudioTracks().length);
+      console.log("📹 Video tracks:", stream.getVideoTracks().length);
+      
+      // Test audio track properties
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length > 0) {
+        console.log("🎤 Audio track label:", audioTracks[0].label);
+        console.log("🎤 Audio track enabled:", audioTracks[0].enabled);
+        console.log("🎤 Audio track ready state:", audioTracks[0].readyState);
+      }
+      
       // Stop the temporary stream
       stream.getTracks().forEach(track => track.stop());
-      
-      console.log("✅ Permissions granted, setting up devices...");
       
       // Now set up device selectors with proper labels
       setTimeout(setupDeviceSelectors, 1000);
       
     } catch (error) {
       console.error("❌ Permission denied or device error:", error);
-      showToast('❌ Camera/mic permissions needed for device settings');
+      
+      // Provide specific error guidance
+      if (error.name === 'NotAllowedError') {
+        showToast('❌ Please allow camera and microphone access and reload the page');
+      } else if (error.name === 'NotFoundError') {
+        showToast('❌ No camera or microphone found. Please check your devices.');
+      } else {
+        showToast('❌ Camera/mic permissions needed. Error: ' + error.name);
+      }
       
       // Still try to set up selectors (may have generic names)
       setTimeout(setupDeviceSelectors, 1000);
@@ -779,6 +838,48 @@
   function handleError(event) {
     console.error('❌ Daily.co error:', event);
     showToast('Video call error: ' + event.errorMsg);
+  }
+
+  // ✅ NEW: Handle camera/microphone permission errors
+  function handleCameraError(event) {
+    console.error('🎥❌ Camera/Microphone error:', event);
+    
+    const { error } = event;
+    
+    switch (error.type) {
+      case 'permissions':
+        if (error.blockedMedia.includes('audio')) {
+          console.error('🎤❌ Microphone permissions denied!');
+          showToast('❌ Microphone access denied. Please allow microphone access and reload.');
+        }
+        if (error.blockedMedia.includes('video')) {
+          console.error('📹❌ Camera permissions denied!');
+          showToast('❌ Camera access denied. Please allow camera access and reload.');
+        }
+        break;
+        
+      case 'cam-in-use':
+      case 'mic-in-use':
+      case 'cam-mic-in-use':
+        console.error('🔒 Device in use by another application');
+        showToast('❌ Camera or microphone is being used by another app. Please close other apps and try again.');
+        break;
+        
+      case 'not-found':
+        if (error.missingMedia.includes('audio')) {
+          console.error('🎤❌ No microphone found!');
+          showToast('❌ No microphone detected. Please check your device.');
+        }
+        if (error.missingMedia.includes('video')) {
+          console.error('📹❌ No camera found!');
+          showToast('❌ No camera detected. Please check your device.');
+        }
+        break;
+        
+      default:
+        console.error('❌ Unknown camera error:', error);
+        showToast('❌ Device error: ' + error.msg);
+    }
   }
 
   function setupLocalVideo(track) {

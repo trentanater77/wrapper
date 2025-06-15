@@ -485,8 +485,7 @@
   const promptsApp = firebase.initializeApp(promptsFirebaseConfig, "prompts");
   const promptsDb = promptsApp.database();
 
-  // ChatGPT API configuration
-  const OPENAI_API_KEY = "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";
+  // Netlify Functions configuration (API key securely stored as env variable)
 
   // Global variables
   let call = null;
@@ -1292,34 +1291,43 @@
   async function generateSparksWithAI(topic) {
     const sparkPrompt = `Give 5 fresh and creative conversation starters about "${topic}". Number each one clearly (1. 2. 3. 4. 5.) and make them engaging and thought-provoking.`;
 
-    console.log("🤖 Calling OpenAI API...");
+    console.log("🤖 Calling Netlify Function for AI sparks...");
     
-    // Step 1: Call OpenAI to generate sparks
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Step 1: Call Netlify Function to generate sparks (secure API key)
+    const response = await fetch("/.netlify/functions/generateSpark", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`
+      headers: { 
+        "Content-Type": "application/json" 
       },
-      body: JSON.stringify({
-        model: "gpt-3.5-turbo",
-        messages: [
-          { role: "system", content: "You help generate engaging conversation sparks for social apps. Always number your responses clearly with 1. 2. 3. 4. 5." },
-          { role: "user", content: sparkPrompt }
-        ],
-        temperature: 0.8,
-        max_tokens: 500
+      body: JSON.stringify({ 
+        prompt: sparkPrompt 
       })
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      // Enhanced error handling for 401 and other common errors
+      let errorMessage = `Netlify Function error: ${response.status} ${response.statusText}`;
+      
+      if (response.status === 401) {
+        errorMessage = "❌ API Authentication failed. Please check your OpenAI API key configuration in Netlify.";
+        console.error("🔑 401 Error - API key issue:", {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url
+        });
+      } else if (response.status === 404) {
+        errorMessage = "❌ Netlify Function not found. Make sure your generateSpark function is deployed.";
+      } else if (response.status >= 500) {
+        errorMessage = "❌ Server error. Please try again in a moment.";
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const json = await response.json();
-    const rawContent = json.choices?.[0]?.message?.content || "";
+    const rawContent = json.result || "";
     
-    console.log("🤖 OpenAI raw response:", rawContent);
+    console.log("🤖 Netlify Function raw response:", rawContent);
     
     // Parse the numbered responses
     const sparks = rawContent

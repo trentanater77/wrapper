@@ -790,12 +790,16 @@
         setupLocalVideo(event.track);
       }
     } else {
+      // Handle remote participant tracks
       if (event.track.kind === 'video') {
         if (event.track.label.includes('screen')) {
           setupScreenShareVideo(event.track);
         } else {
           setupRemoteVideo(event.track);
         }
+      } else if (event.track.kind === 'audio') {
+        // Set up remote audio
+        setupRemoteAudio(event.track);
       }
     }
   }
@@ -932,6 +936,34 @@
     screenShareVideo.srcObject = new MediaStream([track]);
     screenShareVideo.style.display = 'block';
     remoteVideo.style.display = 'none';
+  }
+
+  // ✅ NEW: Handle remote audio tracks
+  function setupRemoteAudio(track) {
+    console.log("🔊 Setting up remote audio track:", track);
+    
+    // Create a hidden audio element to play remote audio
+    let remoteAudio = document.getElementById('remote-audio');
+    if (!remoteAudio) {
+      remoteAudio = document.createElement('audio');
+      remoteAudio.id = 'remote-audio';
+      remoteAudio.autoplay = true;
+      remoteAudio.playsInline = true;
+      document.body.appendChild(remoteAudio);
+      console.log("🔊 Created remote audio element");
+    }
+    
+    // Set the audio track
+    remoteAudio.srcObject = new MediaStream([track]);
+    console.log("🔊 Remote audio track attached");
+    
+    // Ensure audio plays
+    remoteAudio.play().then(() => {
+      console.log("✅ Remote audio started playing");
+    }).catch(err => {
+      console.error("❌ Remote audio play failed:", err);
+      showToast('🔊 Click anywhere to enable audio');
+    });
   }
 
   function hideRemoteVideo() {
@@ -1485,6 +1517,29 @@
 
     showToast(`✅ Generated ${sparks.length} sparks for "${topic}"!`);
     console.log("✅ Spark generation complete!");
+  }
+
+  // ✅ Enable audio context on user interaction (required by browsers)
+  document.addEventListener('click', enableAudioContext, { once: true });
+  document.addEventListener('touchstart', enableAudioContext, { once: true });
+  
+  function enableAudioContext() {
+    console.log("🔊 Enabling audio context from user interaction");
+    // Resume audio context if suspended
+    if (window.AudioContext || window.webkitAudioContext) {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === 'suspended') {
+        audioContext.resume().then(() => {
+          console.log("✅ Audio context resumed");
+        });
+      }
+    }
+    
+    // Try to play any existing remote audio elements
+    const remoteAudio = document.getElementById('remote-audio');
+    if (remoteAudio) {
+      remoteAudio.play().catch(err => console.log("Audio play attempt:", err));
+    }
   }
 
   // Initialize

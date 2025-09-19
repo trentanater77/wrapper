@@ -8,6 +8,7 @@
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   
@@ -152,6 +153,71 @@
       color: white !important;
     }
 
+    /* Live Chat Styles */
+    .live-chat {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .live-chat::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .live-chat::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 2px;
+    }
+
+    .live-chat::-webkit-scrollbar-thumb {
+      background: #FFD166;
+      border-radius: 2px;
+    }
+
+    .live-chat::-webkit-scrollbar-thumb:hover {
+      background: #e63946;
+    }
+
+    .chat-message {
+      animation: slideInRight 0.3s ease-out;
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .spectator-badge {
+      background: linear-gradient(135deg, #FFB6B9 0%, #FCE2E5 100%);
+      color: #22223B;
+    }
+
+    .participant-badge {
+      background: linear-gradient(135deg, #e63946 0%, #FFD166 100%);
+      color: white;
+    }
+
+    /* Recording Indicator */
+    .recording-indicator {
+      animation: recordingPulse 1s infinite;
+    }
+
+    @keyframes recordingPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      background: rgba(34, 34, 59, 0.8);
+      backdrop-filter: blur(4px);
+    }
+
     @media (max-width: 768px) {
       #waiting-overlay {
         width: 200px;
@@ -160,10 +226,54 @@
         right: auto;
         padding: 0.75rem 1rem;
       }
+      
+      .live-chat {
+        max-height: 300px;
+      }
     }
   </style>
 </head>
 <body class="bg-bg-light dark:bg-charcoal min-h-screen font-nunito">
+
+<!-- Recording Consent Modal -->
+<div id="recording-consent-modal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-gray-700">
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center">
+        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M7 4V2a1 1 0 011-1h4a1 1 0 011 1v2h3a1 1 0 110 2h-1v9a2 2 0 01-2 2H7a2 2 0 01-2-2V6H4a1 1 0 110-2h3zM9 6v8a1 1 0 102 0V6a1 1 0 10-2 0z" clip-rule="evenodd"/>
+        </svg>
+      </div>
+      <h3 class="text-xl font-bold text-charcoal dark:text-white mb-2">🎥 Start Recording?</h3>
+      <p class="text-gray-600 dark:text-gray-300 text-sm">This will record video, audio, screen shares, and chat messages for all participants.</p>
+    </div>
+    
+    <div class="space-y-4 mb-6">
+      <div>
+        <label class="block text-sm font-semibold text-charcoal dark:text-white mb-2">Privacy Setting</label>
+        <select id="recording-privacy" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-main-red bg-white dark:bg-gray-700 text-charcoal dark:text-white">
+          <option value="private">🔒 Private (only participants can view)</option>
+          <option value="public">🌐 Public (anyone with link can view)</option>
+        </select>
+      </div>
+      
+      <div>
+        <label class="block text-sm font-semibold text-charcoal dark:text-white mb-2">Auto-delete</label>
+        <select id="recording-auto-delete" class="w-full px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-main-red bg-white dark:bg-gray-700 text-charcoal dark:text-white">
+          <option value="never">Never delete</option>
+          <option value="7">Delete after 7 days</option>
+          <option value="30">Delete after 30 days</option>
+          <option value="90">Delete after 90 days</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="flex space-x-3">
+      <button onclick="cancelRecording()" class="flex-1 px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-semibold">Cancel</button>
+      <button onclick="confirmRecording()" class="flex-1 px-4 py-2 bg-main-red text-white hover:bg-red-600 rounded-lg font-semibold">Start Recording</button>
+    </div>
+  </div>
+</div>
 
 <!-- Waiting Overlay -->
 <div id="waiting-overlay">
@@ -177,7 +287,7 @@
   </div>
   <div class="text-2xl mb-2">🐱✨</div>
   <div class="waiting-title">preparing your sphere</div>
-  <div class="waiting-subtitle">joining room...</div>
+  <div class="waiting-subtitle" id="waiting-mode">joining room...</div>
   <div class="status-badge">
     Connecting<span class="loading-dots"></span>
   </div>
@@ -202,6 +312,25 @@
           <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         </svg>
         <h1 class="text-xl font-bold text-charcoal dark:text-white">chatspheres</h1>
+        
+        <!-- User Role Badge -->
+        <div id="user-role-badge" class="hidden px-3 py-1 rounded-full text-xs font-bold">
+          <span id="role-text">participant</span>
+        </div>
+        
+        <!-- Live Indicator -->
+        <div id="live-indicator" class="hidden flex items-center space-x-2 bg-main-red text-white px-3 py-1 rounded-full text-xs font-bold">
+          <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+          <span>LIVE</span>
+          <span id="viewer-count">0</span>
+          <span>👁️</span>
+        </div>
+        
+        <!-- Recording Indicator -->
+        <div id="recording-status" class="hidden flex items-center space-x-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold recording-indicator">
+          <div class="w-2 h-2 bg-white rounded-full"></div>
+          <span>REC</span>
+        </div>
       </div>
       
       <!-- Timer -->
@@ -225,8 +354,8 @@
       </p>
     </div>
 
-    <!-- Main Content Grid -->
-    <div class="grid lg:grid-cols-3 gap-6">
+    <!-- Main Content Grid - Spectator Mode has different layout -->
+    <div id="participant-layout" class="grid lg:grid-cols-3 gap-6">
       <!-- Video Section -->
       <div class="lg:col-span-2 space-y-4">
         <!-- Remote Video -->
@@ -259,8 +388,8 @@
           </div>
         </div>
 
-        <!-- Local Video -->
-        <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video sm:aspect-[4/3] lg:aspect-video chatspheres-pattern">
+        <!-- Local Video (hidden for spectators) -->
+        <div id="local-video-container" class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video sm:aspect-[4/3] lg:aspect-video chatspheres-pattern">
           <video id="local-video" class="w-full h-full object-cover scale-x-[-1]" autoplay playsinline muted></video>
           
           <div id="local-placeholder" class="absolute inset-0 flex items-center justify-center video-placeholder">
@@ -281,8 +410,8 @@
             </div>
           </div>
 
-          <!-- Enhanced Controls -->
-          <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+          <!-- Enhanced Controls (hidden for spectators) -->
+          <div id="participant-controls" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
             <button id="mic-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-main-red text-white p-3 rounded-full shadow-lg">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/>
@@ -296,6 +425,11 @@
             <button id="screen-share-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-gold text-white p-3 rounded-full shadow-lg">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm2 3a1 1 0 000 2h.01a1 1 0 100-2H5zm3 0a1 1 0 000 2h.01a1 1 0 100-2H8zm3 0a1 1 0 000 2h.01a1 1 0 100-2H11z" clip-rule="evenodd"/>
+              </svg>
+            </button>
+            <button id="record-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-red-600 text-white p-3 rounded-full shadow-lg">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
               </svg>
             </button>
             <button id="settings-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-gold text-white p-3 rounded-full shadow-lg">
@@ -439,6 +573,94 @@
         </div>
       </div>
     </div>
+
+    <!-- Spectator Layout -->
+    <div id="spectator-layout" class="hidden grid lg:grid-cols-4 gap-6">
+      <!-- Main Video (3/4 width) -->
+      <div class="lg:col-span-3 space-y-4">
+        <!-- Combined Video View for Spectators -->
+        <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
+          <video id="spectator-main-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+          <video id="spectator-screen-share" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+          
+          <div id="spectator-placeholder" class="absolute inset-0 flex items-center justify-center video-placeholder">
+            <div class="text-center text-white">
+              <div class="w-20 h-20 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg">
+                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z"/>
+                </svg>
+              </div>
+              <p class="font-bold text-xl text-white">🎬 Waiting for conversation to start...</p>
+              <p class="text-sm text-gold mt-2">Join the chat to interact with other viewers!</p>
+            </div>
+          </div>
+
+          <!-- Participant Info Overlay -->
+          <div id="spectator-participants" class="absolute bottom-4 left-4 flex space-x-2">
+            <!-- Participant badges will be added here dynamically -->
+          </div>
+        </div>
+
+        <!-- Spectator Notice -->
+        <div class="bg-gradient-to-r from-light-rose to-rose rounded-xl p-4 border border-rose">
+          <div class="flex items-center space-x-3">
+            <div class="text-2xl">👀</div>
+            <div>
+              <h3 class="font-bold text-charcoal mb-1">You're watching as a spectator</h3>
+              <p class="text-sm text-charcoal opacity-80">Enjoy the conversation and share your thoughts in the live chat!</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Chat (1/4 width) -->
+      <div class="lg:col-span-1">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 h-full flex flex-col">
+          <!-- Chat Header -->
+          <div class="p-4 border-b border-gray-200 dark:border-gray-600">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-charcoal dark:text-white">💬 Live Chat</h3>
+              <div class="text-xs text-gray-500 dark:text-gray-400">
+                <span id="chat-viewer-count">0</span> viewers
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Messages -->
+          <div id="live-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 live-chat">
+            <!-- Welcome message -->
+            <div class="text-center text-xs text-gray-500 dark:text-gray-400 py-2">
+              Welcome to the chat! 👋
+            </div>
+          </div>
+
+          <!-- Chat Input -->
+          <div class="p-4 border-t border-gray-200 dark:border-gray-600">
+            <div class="flex space-x-2">
+              <input 
+                type="text" 
+                id="chat-input"
+                placeholder="Type a message..."
+                maxlength="200"
+                class="flex-1 px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-main-red focus:border-transparent bg-white dark:bg-gray-700 text-charcoal dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              >
+              <button 
+                id="send-chat"
+                onclick="sendChatMessage()"
+                class="bg-main-red hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
+                </svg>
+              </button>
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <span id="char-count">0</span>/200 characters
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -470,10 +692,11 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+  const storage = firebase.storage();
 
   // Prompts Firebase config - Secondary database
   const promptsFirebaseConfig = {
-    apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ", // Using same key
+    apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
     authDomain: "chatspheresfirebasepromptsai.firebaseapp.com",
     databaseURL: "https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com",
     projectId: "chatspheresfirebasepromptsai",
@@ -485,18 +708,27 @@
   const promptsApp = firebase.initializeApp(promptsFirebaseConfig, "prompts");
   const promptsDb = promptsApp.database();
 
-  // Netlify Functions configuration (API key securely stored as env variable)
-
   // Global variables
   let call = null;
   let localVideo = null;
   let remoteVideo = null;
   let screenShareVideo = null;
   let isCameraOn = true;
-  let isMicOn = false; // ✅ Start muted by default (more typical for web apps)
+  let isMicOn = false;
   let isScreenSharing = false;
   let timeRemaining = 60 * 60; // 1 hour
   let timerInterval = null;
+
+  // User mode and recording
+  let isSpectator = false;
+  let isRecording = false;
+  let recordingId = null;
+  let userName = '';
+  let userId = '';
+
+  // Chat system
+  let chatRef = null;
+  let viewerCountRef = null;
 
   // Sparks data
   let currentSparks = [
@@ -508,7 +740,9 @@
   let sparkIsSelected = false;
 
   const roomUrl = new URLSearchParams(window.location.search).get('room');
+  const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
 
+  // Check if valid room URL
   if (!roomUrl) {
     document.body.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:linear-gradient(135deg,#F8F9FA 0%,#FCE2E5 100%);padding:2rem;font-family:'Nunito',sans-serif;">
@@ -528,16 +762,28 @@
       </div>
     `;
   } else {
+    // Set user mode
+    isSpectator = spectatorMode;
+    userName = isSpectator ? `Viewer_${Math.random().toString(36).slice(2, 8)}` : `User_${Math.random().toString(36).slice(2, 8)}`;
+    userId = `${isSpectator ? 'spectator' : 'participant'}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    
+    console.log(`🎭 User Mode: ${isSpectator ? 'Spectator' : 'Participant'}`);
+    console.log(`👤 User Name: ${userName}`);
+    
+    // Update waiting overlay
+    if (isSpectator) {
+      document.getElementById('waiting-mode').textContent = 'joining as spectator...';
+    }
+    
     initializeVideoChat();
   }
 
-  // Load room info first
+  // Load room info
   async function loadRoomInfo() {
     const urlParam = decodeURIComponent(roomUrl);
     console.log("🔍 Looking for room URL:", urlParam);
 
     try {
-      // ✅ FIXED: Pass room URL as query parameter
       const apiUrl = `https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info?room_url=${encodeURIComponent(urlParam)}`;
       console.log("🌐 API URL:", apiUrl);
       
@@ -550,10 +796,8 @@
       const data = await response.json();
       console.log("📦 API Response:", data);
       
-      // Handle the actual API response structure
       if (data.topic) {
         const topic = data.topic.charAt(0).toUpperCase() + data.topic.slice(1);
-        // Handle null description for matchmaking rooms
         const description = data.description || `Discover and discuss fascinating aspects of ${data.topic.toLowerCase()}!`;
         
         console.log("✅ Found topic:", topic);
@@ -571,7 +815,6 @@
       console.log("🔄 Using fallback topic because room not found or API error");
     }
     
-    // Fallback: Use default topic
     console.log("🔄 Using fallback topic");
     updateTopicDisplay("General Chat", "Connect and have meaningful conversations!");
   }
@@ -598,18 +841,27 @@
   }
 
   async function initializeVideoChat() {
-    // Load room info first
     await loadRoomInfo();
     
-    // Firebase presence tracking
+    // Set up Firebase for chat and presence
     const roomId = btoa(roomUrl);
-    const userId = `user_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-    const roomRef = db.ref(`rooms/${roomId}`);
-
-    // ✅ Create Daily call object with proper audio configuration
+    chatRef = db.ref(`chats/${roomId}`);
+    viewerCountRef = db.ref(`viewers/${roomId}`);
+    
+    // Set up user role display
+    setupUserRoleDisplay();
+    
+    // Set up layout based on user type
+    if (isSpectator) {
+      setupSpectatorMode();
+    } else {
+      setupParticipantMode();
+    }
+    
+    // Create Daily call object
     call = Daily.createCallObject({
-      audioSource: true,  // ✅ Ensure audio is enabled by default
-      videoSource: true   // ✅ Ensure video is enabled by default
+      audioSource: !isSpectator,  // Spectators don't need audio
+      videoSource: !isSpectator   // Spectators don't need video
     });
     
     // Set up event listeners
@@ -622,25 +874,24 @@
     call.on('app-message', handleAppMessage);
     call.on('error', handleError);
     call.on('camera-error', handleCameraError);
+    call.on('recording-started', handleRecordingStarted);
+    call.on('recording-stopped', handleRecordingStopped);
 
     try {
       // Join the call
-      await call.join({ url: roomUrl });
+      await call.join({ 
+        url: roomUrl,
+        userName: userName
+      });
       
       // Set up Firebase presence
-      await db.ref(`rooms/${roomId}/${userId}`).set(true);
+      await setupPresence(roomId);
       
-      roomRef.on('value', (snapshot) => {
-        const users = snapshot.val();
-        const count = users ? Object.keys(users).length : 0;
-        console.log(`👥 User count: ${count}`);
-      });
-
+      // Set up chat listeners
+      setupChatListeners();
+      
       // Clean up on page unload
-      window.addEventListener('beforeunload', () => {
-        db.ref(`rooms/${roomId}/${userId}`).remove();
-        if (call) call.leave();
-      });
+      window.addEventListener('beforeunload', cleanup);
 
     } catch (error) {
       console.error('Failed to join call:', error);
@@ -648,135 +899,243 @@
     }
   }
 
+  function setupUserRoleDisplay() {
+    const roleBadge = document.getElementById('user-role-badge');
+    const roleText = document.getElementById('role-text');
+    
+    if (isSpectator) {
+      roleBadge.classList.add('spectator-badge');
+      roleText.textContent = 'spectator';
+    } else {
+      roleBadge.classList.add('participant-badge');
+      roleText.textContent = 'participant';
+    }
+    
+    roleBadge.classList.remove('hidden');
+  }
+
+  function setupSpectatorMode() {
+    // Hide participant layout, show spectator layout
+    document.getElementById('participant-layout').style.display = 'none';
+    document.getElementById('spectator-layout').classList.remove('hidden');
+    
+    // Set up live indicator
+    document.getElementById('live-indicator').classList.remove('hidden');
+    
+    console.log('👀 Spectator mode enabled');
+  }
+
+  function setupParticipantMode() {
+    // Keep participant layout visible
+    console.log('🎤 Participant mode enabled');
+  }
+
+  async function setupPresence(roomId) {
+    const presenceRef = db.ref(`presence/${roomId}/${userId}`);
+    
+    // Set user online
+    await presenceRef.set({
+      name: userName,
+      type: isSpectator ? 'spectator' : 'participant',
+      joinedAt: firebase.database.ServerValue.TIMESTAMP
+    });
+    
+    // Listen for viewer count changes
+    const allPresenceRef = db.ref(`presence/${roomId}`);
+    allPresenceRef.on('value', (snapshot) => {
+      const users = snapshot.val() || {};
+      const spectators = Object.values(users).filter(user => user.type === 'spectator');
+      const participants = Object.values(users).filter(user => user.type === 'participant');
+      
+      updateViewerCount(spectators.length);
+      
+      console.log(`👥 Room stats: ${participants.length} participants, ${spectators.length} spectators`);
+    });
+    
+    // Clean up presence on disconnect
+    presenceRef.onDisconnect().remove();
+  }
+
+  function updateViewerCount(count) {
+    const viewerCountElements = [
+      document.getElementById('viewer-count'),
+      document.getElementById('chat-viewer-count')
+    ];
+    
+    viewerCountElements.forEach(el => {
+      if (el) el.textContent = count;
+    });
+  }
+
+  function setupChatListeners() {
+    // Listen for new chat messages
+    chatRef.orderByChild('timestamp').limitToLast(50).on('child_added', (snapshot) => {
+      const message = snapshot.val();
+      if (message) {
+        displayChatMessage(message);
+      }
+    });
+    
+    // Set up chat input
+    const chatInput = document.getElementById('chat-input');
+    const charCount = document.getElementById('char-count');
+    
+    if (chatInput && charCount) {
+      chatInput.addEventListener('input', () => {
+        charCount.textContent = chatInput.value.length;
+      });
+      
+      chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          sendChatMessage();
+        }
+      });
+    }
+  }
+
+  function displayChatMessage(message) {
+    const chatContainer = document.getElementById('live-chat-messages');
+    if (!chatContainer) return;
+    
+    const messageEl = document.createElement('div');
+    messageEl.className = 'chat-message p-3 rounded-lg border';
+    
+    // Style based on user type
+    if (message.userType === 'participant') {
+      messageEl.classList.add('bg-light-rose', 'border-rose');
+    } else {
+      messageEl.classList.add('bg-gray-50', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+    }
+    
+    const timestamp = new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    
+    messageEl.innerHTML = `
+      <div class="flex items-start space-x-2">
+        <div class="flex-shrink-0">
+          <div class="w-6 h-6 rounded-full ${message.userType === 'participant' ? 'bg-main-red' : 'bg-gold'} flex items-center justify-center text-white text-xs font-bold">
+            ${message.userName.charAt(0).toUpperCase()}
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center space-x-2 mb-1">
+            <span class="font-semibold text-charcoal dark:text-white text-sm">${message.userName}</span>
+            <span class="text-xs text-gray-500">${timestamp}</span>
+            ${message.userType === 'participant' ? '<span class="text-xs bg-main-red text-white px-1 rounded">HOST</span>' : ''}
+          </div>
+          <p class="text-charcoal dark:text-white text-sm break-words">${message.text}</p>
+        </div>
+      </div>
+    `;
+    
+    chatContainer.appendChild(messageEl);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  function sendChatMessage() {
+    const chatInput = document.getElementById('chat-input');
+    if (!chatInput || !chatRef) return;
+    
+    const text = chatInput.value.trim();
+    if (!text) return;
+    
+    const message = {
+      userId: userId,
+      userName: userName,
+      userType: isSpectator ? 'spectator' : 'participant',
+      text: text,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+    
+    chatRef.push(message);
+    chatInput.value = '';
+    document.getElementById('char-count').textContent = '0';
+  }
+
   function handleJoinedMeeting(event) {
     console.log('✅ Joined meeting successfully');
     
-    // ✅ CRITICAL: Check and log initial audio/video states
-    console.log("🎤 Initial microphone state:", call.localAudio());
-    console.log("📹 Initial camera state:", call.localVideo());
-    
-    // ✅ Update the local state variables to match Daily's state
-    isMicOn = call.localAudio();
-    isCameraOn = call.localVideo();
-    
-    console.log("🎤 Updated isMicOn to:", isMicOn);
-    console.log("📹 Updated isCameraOn to:", isCameraOn);
-    
-    // ✅ Update button states to match
-    const micBtn = document.getElementById('mic-btn');
-    const cameraBtn = document.getElementById('camera-btn');
-    
-    if (isMicOn) {
-      micBtn.classList.remove('active');
-      console.log("🎤 Microphone button set to ON state");
-    } else {
-      micBtn.classList.add('active');
-      console.log("🎤 Microphone button set to MUTED state");
-    }
-    
-    if (isCameraOn) {
-      cameraBtn.classList.remove('active');
-      console.log("📹 Camera button set to ON state");
-    } else {
-      cameraBtn.classList.add('active');
-      console.log("📹 Camera button set to OFF state");
+    if (!isSpectator) {
+      // Update mic/camera states for participants
+      isMicOn = call.localAudio();
+      isCameraOn = call.localVideo();
+      
+      const micBtn = document.getElementById('mic-btn');
+      const cameraBtn = document.getElementById('camera-btn');
+      
+      if (isMicOn) {
+        micBtn.classList.remove('active');
+      } else {
+        micBtn.classList.add('active');
+      }
+      
+      if (isCameraOn) {
+        cameraBtn.classList.remove('active');
+      } else {
+        cameraBtn.classList.add('active');
+      }
+      
+      setupLocalVideo();
+      
+      if (isMicOn) {
+        startAudioLevelMonitoring();
+      }
+      
+      requestPermissionsAndSetupDevices();
+      initializeSparks();
     }
     
     // Hide waiting overlay and show video interface
     document.getElementById('waiting-overlay').style.display = 'none';
     document.getElementById('video-interface').classList.remove('hidden');
     
-    // Start timer
     startTimer();
-    
-    // Set up local video
-    setupLocalVideo();
-    
-    // ✅ Start audio level monitoring immediately if mic is on
-    if (isMicOn) {
-      console.log("🎤 Starting audio monitoring since mic is ON");
-      startAudioLevelMonitoring();
-    }
-    
-    // Request permissions first, then set up device selectors
-    requestPermissionsAndSetupDevices();
-    
-    // Initialize AI sparks system
-    initializeSparks();
-    
-    showToast('🎉 Welcome to your ChatSpheres room!');
-  }
-
-  async function requestPermissionsAndSetupDevices() {
-    try {
-      console.log("🔐 Requesting media permissions...");
-      
-      // ✅ CRITICAL: Request both camera AND microphone permissions together
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true, 
-        audio: true 
-      });
-      
-      console.log("✅ Permissions granted successfully!");
-      console.log("🎤 Audio tracks:", stream.getAudioTracks().length);
-      console.log("📹 Video tracks:", stream.getVideoTracks().length);
-      
-      // Test audio track properties
-      const audioTracks = stream.getAudioTracks();
-      if (audioTracks.length > 0) {
-        console.log("🎤 Audio track label:", audioTracks[0].label);
-        console.log("🎤 Audio track enabled:", audioTracks[0].enabled);
-        console.log("🎤 Audio track ready state:", audioTracks[0].readyState);
-      }
-      
-      // Stop the temporary stream
-      stream.getTracks().forEach(track => track.stop());
-      
-      // Now set up device selectors with proper labels
-      setTimeout(setupDeviceSelectors, 1000);
-      
-    } catch (error) {
-      console.error("❌ Permission denied or device error:", error);
-      
-      // Provide specific error guidance
-      if (error.name === 'NotAllowedError') {
-        showToast('❌ Please allow camera and microphone access and reload the page');
-      } else if (error.name === 'NotFoundError') {
-        showToast('❌ No camera or microphone found. Please check your devices.');
-      } else {
-        showToast('❌ Camera/mic permissions needed. Error: ' + error.name);
-      }
-      
-      // Still try to set up selectors (may have generic names)
-      setTimeout(setupDeviceSelectors, 1000);
-    }
+    showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
   }
 
   function handleParticipantJoined(event) {
     console.log('👋 Participant joined:', event.participant.user_name);
-    updateRemoteInfo(event.participant.user_name || 'Guest');
-    showToast(`👋 ${event.participant.user_name || 'Guest'} joined the call!`);
+    
+    if (!isSpectator) {
+      updateRemoteInfo(event.participant.user_name || 'Guest');
+      showToast(`👋 ${event.participant.user_name || 'Guest'} joined the call!`);
+    } else {
+      // Update spectator participants list
+      updateSpectatorParticipants();
+    }
   }
 
   function handleParticipantLeft(event) {
     console.log('👋 Participant left:', event.participant.user_name);
-    hideRemoteVideo();
-    showToast(`👋 ${event.participant.user_name || 'Guest'} left the call`);
+    
+    if (!isSpectator) {
+      hideRemoteVideo();
+      showToast(`👋 ${event.participant.user_name || 'Guest'} left the call`);
+    } else {
+      updateSpectatorParticipants();
+    }
   }
 
   function handleParticipantUpdated(event) {
     console.log('🔄 Participant updated:', event.participant);
-    // Handle track updates
+    
     const tracks = event.participant.tracks;
     if (tracks) {
       if (tracks.video && tracks.video.persistentTrack) {
         if (!event.participant.local) {
-          setupRemoteVideo(tracks.video.persistentTrack);
+          if (isSpectator) {
+            setupSpectatorVideo(tracks.video.persistentTrack);
+          } else {
+            setupRemoteVideo(tracks.video.persistentTrack);
+          }
         }
       }
       if (tracks.screenVideo && tracks.screenVideo.persistentTrack) {
         if (!event.participant.local) {
-          setupScreenShareVideo(tracks.screenVideo.persistentTrack);
+          if (isSpectator) {
+            setupSpectatorScreenShare(tracks.screenVideo.persistentTrack);
+          } else {
+            setupScreenShareVideo(tracks.screenVideo.persistentTrack);
+          }
         }
       }
     }
@@ -785,7 +1144,7 @@
   function handleTrackStarted(event) {
     console.log('🎥 Track started:', event);
     
-    if (event.participant.local) {
+    if (event.participant.local && !isSpectator) {
       if (event.track.kind === 'video') {
         setupLocalVideo(event.track);
       }
@@ -793,12 +1152,19 @@
       // Handle remote participant tracks
       if (event.track.kind === 'video') {
         if (event.track.label.includes('screen')) {
-          setupScreenShareVideo(event.track);
+          if (isSpectator) {
+            setupSpectatorScreenShare(event.track);
+          } else {
+            setupScreenShareVideo(event.track);
+          }
         } else {
-          setupRemoteVideo(event.track);
+          if (isSpectator) {
+            setupSpectatorVideo(event.track);
+          } else {
+            setupRemoteVideo(event.track);
+          }
         }
       } else if (event.track.kind === 'audio') {
-        // Set up remote audio
         setupRemoteAudio(event.track);
       }
     }
@@ -809,9 +1175,17 @@
     
     if (!event.participant.local && event.track.kind === 'video') {
       if (event.track.label.includes('screen')) {
-        hideScreenShareVideo();
+        if (isSpectator) {
+          hideSpectatorScreenShare();
+        } else {
+          hideScreenShareVideo();
+        }
       } else {
-        hideRemoteVideo();
+        if (isSpectator) {
+          hideSpectatorVideo();
+        } else {
+          hideRemoteVideo();
+        }
       }
     }
   }
@@ -820,7 +1194,6 @@
     console.log('📨 App message received:', event);
     
     if (event.data.type === 'spark-selected') {
-      // Sync spark selection across participants
       currentSparkIndex = event.data.sparkIndex;
       sparkIsSelected = event.data.isSelected;
       updateSparkDisplay();
@@ -830,7 +1203,6 @@
         currentSparkEl.style.background = 'linear-gradient(135deg, #FFD166 0%, #FFB6B9 100%)';
       }
     } else if (event.data.type === 'sparks-updated') {
-      // Sync new sparks from other participant
       console.log("📨 Receiving updated sparks from other participant");
       currentSparks = event.data.sparks;
       currentSparkIndex = 0;
@@ -844,7 +1216,6 @@
     showToast('Video call error: ' + event.errorMsg);
   }
 
-  // ✅ NEW: Handle camera/microphone permission errors
   function handleCameraError(event) {
     console.error('🎥❌ Camera/Microphone error:', event);
     
@@ -886,16 +1257,54 @@
     }
   }
 
+  // Recording event handlers
+  function handleRecordingStarted(event) {
+    console.log('🎥 Recording started:', event);
+    isRecording = true;
+    recordingId = event.recordingId;
+    
+    document.getElementById('recording-status').classList.remove('hidden');
+    
+    // Update record button
+    const recordBtn = document.getElementById('record-btn');
+    if (recordBtn) {
+      recordBtn.classList.add('active');
+    }
+    
+    showToast('🎬 Recording started!');
+  }
+
+  function handleRecordingStopped(event) {
+    console.log('🛑 Recording stopped:', event);
+    isRecording = false;
+    
+    document.getElementById('recording-status').classList.add('hidden');
+    
+    // Update record button
+    const recordBtn = document.getElementById('record-btn');
+    if (recordBtn) {
+      recordBtn.classList.remove('active');
+    }
+    
+    // Save recording metadata to Firebase
+    if (recordingId) {
+      saveRecordingMetadata(event);
+    }
+    
+    showToast('🎬 Recording stopped and saved!');
+  }
+
+  // Video setup functions
   function setupLocalVideo(track) {
+    if (isSpectator) return; // Spectators don't have local video
+    
     localVideo = document.getElementById('local-video');
     const placeholder = document.getElementById('local-placeholder');
     
     try {
       if (track && track instanceof MediaStreamTrack) {
-        // Use provided track if it's valid
         localVideo.srcObject = new MediaStream([track]);
       } else {
-        // Get local video track from call participants
         const localParticipant = call.participants().local;
         if (localParticipant && localParticipant.tracks && localParticipant.tracks.video) {
           const videoTrack = localParticipant.tracks.video.track || localParticipant.tracks.video.persistentTrack;
@@ -914,13 +1323,14 @@
       }
     } catch (error) {
       console.error("❌ Error setting up local video:", error);
-      // Show placeholder on error
       localVideo.style.display = 'none';
       placeholder.style.display = 'flex';
     }
   }
 
   function setupRemoteVideo(track) {
+    if (isSpectator) return; // Spectators use different video setup
+    
     remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
     
@@ -929,7 +1339,21 @@
     placeholder.style.display = 'none';
   }
 
+  function setupSpectatorVideo(track) {
+    const spectatorVideo = document.getElementById('spectator-main-video');
+    const placeholder = document.getElementById('spectator-placeholder');
+    
+    spectatorVideo.srcObject = new MediaStream([track]);
+    spectatorVideo.style.display = 'block';
+    placeholder.style.display = 'none';
+  }
+
   function setupScreenShareVideo(track) {
+    if (isSpectator) {
+      setupSpectatorScreenShare(track);
+      return;
+    }
+    
     screenShareVideo = document.getElementById('screen-share-video');
     const remoteVideo = document.getElementById('remote-video');
     
@@ -938,11 +1362,18 @@
     remoteVideo.style.display = 'none';
   }
 
-  // ✅ NEW: Handle remote audio tracks
+  function setupSpectatorScreenShare(track) {
+    const spectatorScreenShare = document.getElementById('spectator-screen-share');
+    const spectatorVideo = document.getElementById('spectator-main-video');
+    
+    spectatorScreenShare.srcObject = new MediaStream([track]);
+    spectatorScreenShare.style.display = 'block';
+    spectatorVideo.style.display = 'none';
+  }
+
   function setupRemoteAudio(track) {
     console.log("🔊 Setting up remote audio track:", track);
     
-    // Create a hidden audio element to play remote audio
     let remoteAudio = document.getElementById('remote-audio');
     if (!remoteAudio) {
       remoteAudio = document.createElement('audio');
@@ -953,11 +1384,9 @@
       console.log("🔊 Created remote audio element");
     }
     
-    // Set the audio track
     remoteAudio.srcObject = new MediaStream([track]);
     console.log("🔊 Remote audio track attached");
     
-    // Ensure audio plays
     remoteAudio.play().then(() => {
       console.log("✅ Remote audio started playing");
     }).catch(err => {
@@ -967,6 +1396,11 @@
   }
 
   function hideRemoteVideo() {
+    if (isSpectator) {
+      hideSpectatorVideo();
+      return;
+    }
+    
     const remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
     
@@ -974,7 +1408,20 @@
     placeholder.style.display = 'flex';
   }
 
+  function hideSpectatorVideo() {
+    const spectatorVideo = document.getElementById('spectator-main-video');
+    const placeholder = document.getElementById('spectator-placeholder');
+    
+    spectatorVideo.style.display = 'none';
+    placeholder.style.display = 'flex';
+  }
+
   function hideScreenShareVideo() {
+    if (isSpectator) {
+      hideSpectatorScreenShare();
+      return;
+    }
+    
     const screenShareVideo = document.getElementById('screen-share-video');
     const remoteVideo = document.getElementById('remote-video');
     
@@ -982,15 +1429,302 @@
     remoteVideo.style.display = 'block';
   }
 
+  function hideSpectatorScreenShare() {
+    const spectatorScreenShare = document.getElementById('spectator-screen-share');
+    const spectatorVideo = document.getElementById('spectator-main-video');
+    
+    spectatorScreenShare.style.display = 'none';
+    spectatorVideo.style.display = 'block';
+  }
+
   function updateRemoteInfo(name) {
-    document.getElementById('remote-name').textContent = name;
+    const remoteNameEl = document.getElementById('remote-name');
+    if (remoteNameEl) {
+      remoteNameEl.textContent = name;
+    }
+  }
+
+  function updateSpectatorParticipants() {
+    const container = document.getElementById('spectator-participants');
+    if (!container) return;
+    
+    const participants = call.participants();
+    const activeParticipants = Object.values(participants).filter(p => !p.local);
+    
+    container.innerHTML = '';
+    
+    activeParticipants.forEach((participant, index) => {
+      const badge = document.createElement('div');
+      badge.className = 'bg-main-red text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg';
+      badge.textContent = participant.user_name || `Participant ${index + 1}`;
+      container.appendChild(badge);
+    });
+  }
+
+  // Control functions (only for participants)
+  function toggleMic() {
+    if (isSpectator) return;
+    
+    console.log("🎤 Toggling microphone. Current state:", isMicOn);
+    
+    isMicOn = !isMicOn;
+    call.setLocalAudio(isMicOn);
+    
+    console.log("🎤 NEW MICROPHONE STATE:", isMicOn ? "ON" : "MUTED");
+    console.log("🎤 Daily.co localAudio() returns:", call.localAudio());
+    
+    const micBtn = document.getElementById('mic-btn');
+    if (isMicOn) {
+      micBtn.classList.remove('active');
+      showToast('🎤 Microphone on - Speak to test!');
+      console.log("✅ MICROPHONE ENABLED - Check console for audio levels");
+      startAudioLevelMonitoring();
+    } else {
+      micBtn.classList.add('active');
+      showToast('🔇 Microphone muted');
+      console.log("🔇 MICROPHONE DISABLED");
+    }
+    
+    const localParticipant = call.participants().local;
+    if (localParticipant) {
+      console.log("👤 Local participant audio track state:", localParticipant.tracks.audio);
+    }
+  }
+
+  function toggleCamera() {
+    if (isSpectator) return;
+    
+    isCameraOn = !isCameraOn;
+    call.setLocalVideo(isCameraOn);
+    
+    const cameraBtn = document.getElementById('camera-btn');
+    const localVideo = document.getElementById('local-video');
+    const placeholder = document.getElementById('local-placeholder');
+    
+    if (isCameraOn) {
+      cameraBtn.classList.remove('active');
+      localVideo.style.display = 'block';
+      placeholder.style.display = 'none';
+      showToast('📹 Camera on');
+    } else {
+      cameraBtn.classList.add('active');
+      localVideo.style.display = 'none';
+      placeholder.style.display = 'flex';
+      showToast('📷 Camera off');
+    }
+  }
+
+  async function toggleScreenShare() {
+    if (isSpectator) return;
+    
+    const screenShareBtn = document.getElementById('screen-share-btn');
+    
+    if (!isScreenSharing) {
+      try {
+        await call.startScreenShare({
+          displayMediaOptions: {
+            audio: true,
+            video: true,
+            selfBrowserSurface: 'exclude',
+            surfaceSwitching: 'include'
+          }
+        });
+        isScreenSharing = true;
+        screenShareBtn.classList.add('active');
+        showToast('🖥️ Screen sharing started');
+      } catch (error) {
+        console.error('Screen share failed:', error);
+        showToast('❌ Screen share failed');
+      }
+    } else {
+      try {
+        await call.stopScreenShare();
+        isScreenSharing = false;
+        screenShareBtn.classList.remove('active');
+        showToast('🖥️ Screen sharing stopped');
+      } catch (error) {
+        console.error('Stop screen share failed:', error);
+      }
+    }
+  }
+
+  function toggleRecording() {
+    if (isSpectator) return; // Only participants can record
+    
+    if (!isRecording) {
+      showRecordingConsentModal();
+    } else {
+      stopRecording();
+    }
+  }
+
+  function showRecordingConsentModal() {
+    document.getElementById('recording-consent-modal').classList.remove('hidden');
+  }
+
+  function cancelRecording() {
+    document.getElementById('recording-consent-modal').classList.add('hidden');
+  }
+
+  async function confirmRecording() {
+    const privacy = document.getElementById('recording-privacy').value;
+    const autoDelete = document.getElementById('recording-auto-delete').value;
+    
+    document.getElementById('recording-consent-modal').classList.add('hidden');
+    
+    try {
+      // Start Daily.co recording
+      await call.startRecording({
+        instanceId: `chatspheres_${Date.now()}`,
+        layout: {
+          preset: 'default'
+        }
+      });
+      
+      // Store recording preferences
+      window.recordingPreferences = {
+        privacy: privacy,
+        autoDelete: autoDelete
+      };
+      
+      console.log('🎬 Recording started with preferences:', window.recordingPreferences);
+      
+    } catch (error) {
+      console.error('❌ Failed to start recording:', error);
+      showToast('❌ Failed to start recording: ' + error.message);
+    }
+  }
+
+  async function stopRecording() {
+    try {
+      await call.stopRecording();
+      console.log('🛑 Recording stopped');
+    } catch (error) {
+      console.error('❌ Failed to stop recording:', error);
+      showToast('❌ Failed to stop recording: ' + error.message);
+    }
+  }
+
+  async function saveRecordingMetadata(event) {
+    const roomId = btoa(roomUrl);
+    const currentTopic = document.getElementById('topic-display').textContent || 'General Chat';
+    const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
+    
+    const recordingData = {
+      recordingId: recordingId,
+      roomUrl: roomUrl,
+      topic: currentTopic,
+      participants: Object.values(call.participants()).map(p => p.user_name || 'Guest'),
+      privacy: preferences.privacy,
+      autoDelete: preferences.autoDelete,
+      status: 'processing',
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      downloadUrl: null // Will be updated when Daily.co provides the URL
+    };
+    
+    try {
+      await db.ref(`recordings/${roomId}/${recordingId}`).set(recordingData);
+      console.log('💾 Recording metadata saved to Firebase');
+      
+      showToast('💾 Recording saved! You\'ll receive a download link soon.');
+      
+    } catch (error) {
+      console.error('❌ Failed to save recording metadata:', error);
+      showToast('❌ Failed to save recording data');
+    }
+  }
+
+  function toggleSettings() {
+    if (isSpectator) return;
+    
+    const settingsPanel = document.getElementById('settings-panel');
+    if (settingsPanel.classList.contains('hidden')) {
+      settingsPanel.classList.remove('hidden');
+    } else {
+      settingsPanel.classList.add('hidden');
+    }
+  }
+
+  function leaveCall() {
+    if (call) {
+      call.leave();
+    }
+    window.location.reload();
+  }
+
+  function cleanup() {
+    const roomId = btoa(roomUrl);
+    db.ref(`presence/${roomId}/${userId}`).remove();
+    
+    if (call) {
+      call.leave();
+    }
+  }
+
+  // Event listeners for controls (only set up for participants)
+  if (!isSpectator) {
+    document.getElementById('mic-btn').addEventListener('click', toggleMic);
+    document.getElementById('camera-btn').addEventListener('click', toggleCamera);
+    document.getElementById('screen-share-btn').addEventListener('click', toggleScreenShare);
+    document.getElementById('record-btn').addEventListener('click', toggleRecording);
+    document.getElementById('settings-btn').addEventListener('click', toggleSettings);
+    document.getElementById('leave-btn').addEventListener('click', leaveCall);
+    document.getElementById('close-settings').addEventListener('click', toggleSettings);
+  } else {
+    // Hide participant-only controls for spectators
+    const participantContainer = document.getElementById('local-video-container');
+    if (participantContainer) {
+      participantContainer.style.display = 'none';
+    }
+  }
+
+  // Device setup functions (only for participants)
+  async function requestPermissionsAndSetupDevices() {
+    if (isSpectator) return;
+    
+    try {
+      console.log("🔐 Requesting media permissions...");
+      
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: true, 
+        audio: true 
+      });
+      
+      console.log("✅ Permissions granted successfully!");
+      console.log("🎤 Audio tracks:", stream.getAudioTracks().length);
+      console.log("📹 Video tracks:", stream.getVideoTracks().length);
+      
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length > 0) {
+        console.log("🎤 Audio track label:", audioTracks[0].label);
+        console.log("🎤 Audio track enabled:", audioTracks[0].enabled);
+        console.log("🎤 Audio track ready state:", audioTracks[0].readyState);
+      }
+      
+      stream.getTracks().forEach(track => track.stop());
+      setTimeout(setupDeviceSelectors, 1000);
+      
+    } catch (error) {
+      console.error("❌ Permission denied or device error:", error);
+      
+      if (error.name === 'NotAllowedError') {
+        showToast('❌ Please allow camera and microphone access and reload the page');
+      } else if (error.name === 'NotFoundError') {
+        showToast('❌ No camera or microphone found. Please check your devices.');
+      } else {
+        showToast('❌ Camera/mic permissions needed. Error: ' + error.name);
+      }
+      
+      setTimeout(setupDeviceSelectors, 1000);
+    }
   }
 
   async function setupDeviceSelectors() {
+    if (isSpectator) return;
+    
     try {
       console.log("🔧 Setting up device selectors...");
       
-      // Wait a bit for devices to be ready
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const selectedDevices = await call.getInputDevices();
@@ -1074,132 +1808,26 @@
     }
   }
 
-  // Audio level monitoring for microphone confirmation
+  // Audio level monitoring for microphone confirmation (participants only)
   let audioLevelObserver = null;
   
   function startAudioLevelMonitoring() {
+    if (isSpectator) return;
+    
     if (call && !audioLevelObserver) {
       console.log("🎤 Starting audio level monitoring...");
-      audioLevelObserver = call.startLocalAudioLevelObserver(100); // Check every 100ms
+      audioLevelObserver = call.startLocalAudioLevelObserver(100);
       
       call.on('local-audio-level', (event) => {
         const level = event.audioLevel;
         console.log("🔊 MICROPHONE AUDIO LEVEL:", level);
         
-        if (level > 0.01) { // Threshold for detecting sound
+        if (level > 0.01) {
           console.log("✅ MICROPHONE IS WORKING! Audio detected:", level);
         }
       });
     }
   }
-  
-  // Control functions
-  function toggleMic() {
-    console.log("🎤 Toggling microphone. Current state:", isMicOn);
-    
-    isMicOn = !isMicOn;
-    call.setLocalAudio(isMicOn);
-    
-    console.log("🎤 NEW MICROPHONE STATE:", isMicOn ? "ON" : "MUTED");
-    console.log("🎤 Daily.co localAudio() returns:", call.localAudio());
-    
-    const micBtn = document.getElementById('mic-btn');
-    if (isMicOn) {
-      micBtn.classList.remove('active');
-      showToast('🎤 Microphone on - Speak to test!');
-      console.log("✅ MICROPHONE ENABLED - Check console for audio levels");
-      
-      // Start monitoring when mic is on
-      startAudioLevelMonitoring();
-    } else {
-      micBtn.classList.add('active');
-      showToast('🔇 Microphone muted');
-      console.log("🔇 MICROPHONE DISABLED");
-    }
-    
-    // Log participant state
-    const localParticipant = call.participants().local;
-    if (localParticipant) {
-      console.log("👤 Local participant audio track state:", localParticipant.tracks.audio);
-    }
-  }
-
-  function toggleCamera() {
-    isCameraOn = !isCameraOn;
-    call.setLocalVideo(isCameraOn);
-    
-    const cameraBtn = document.getElementById('camera-btn');
-    const localVideo = document.getElementById('local-video');
-    const placeholder = document.getElementById('local-placeholder');
-    
-    if (isCameraOn) {
-      cameraBtn.classList.remove('active');
-      localVideo.style.display = 'block';
-      placeholder.style.display = 'none';
-      showToast('📹 Camera on');
-    } else {
-      cameraBtn.classList.add('active');
-      localVideo.style.display = 'none';
-      placeholder.style.display = 'flex';
-      showToast('📷 Camera off');
-    }
-  }
-
-  async function toggleScreenShare() {
-    const screenShareBtn = document.getElementById('screen-share-btn');
-    
-    if (!isScreenSharing) {
-      try {
-        await call.startScreenShare({
-          displayMediaOptions: {
-            audio: true,
-            video: true,
-            selfBrowserSurface: 'exclude',
-            surfaceSwitching: 'include'
-          }
-        });
-        isScreenSharing = true;
-        screenShareBtn.classList.add('active');
-        showToast('🖥️ Screen sharing started');
-      } catch (error) {
-        console.error('Screen share failed:', error);
-        showToast('❌ Screen share failed');
-      }
-    } else {
-      try {
-        await call.stopScreenShare();
-        isScreenSharing = false;
-        screenShareBtn.classList.remove('active');
-        showToast('🖥️ Screen sharing stopped');
-      } catch (error) {
-        console.error('Stop screen share failed:', error);
-      }
-    }
-  }
-
-  function toggleSettings() {
-    const settingsPanel = document.getElementById('settings-panel');
-    if (settingsPanel.classList.contains('hidden')) {
-      settingsPanel.classList.remove('hidden');
-    } else {
-      settingsPanel.classList.add('hidden');
-    }
-  }
-
-  function leaveCall() {
-    if (call) {
-      call.leave();
-    }
-    window.location.reload();
-  }
-
-  // Event listeners for controls
-  document.getElementById('mic-btn').addEventListener('click', toggleMic);
-  document.getElementById('camera-btn').addEventListener('click', toggleCamera);
-  document.getElementById('screen-share-btn').addEventListener('click', toggleScreenShare);
-  document.getElementById('settings-btn').addEventListener('click', toggleSettings);
-  document.getElementById('leave-btn').addEventListener('click', leaveCall);
-  document.getElementById('close-settings').addEventListener('click', toggleSettings);
 
   // Timer functions
   function startTimer() {
@@ -1250,7 +1878,7 @@
     }, 3000);
   }
 
-  // Spark functions
+  // Spark functions (available to all users but only participants can generate new ones)
   function navigateSpark(direction) {
     if (direction === 'next') {
       currentSparkIndex = (currentSparkIndex + 1) % currentSparks.length;
@@ -1347,12 +1975,10 @@
 
   // Initialize sparks after joining call
   async function initializeSparks() {
-    // Load existing sparks first
     await loadExistingSparks();
     
-    // If we still have default sparks and have a topic, generate new ones
     const currentTopic = document.getElementById('topic-display').textContent;
-    if (currentSparks.length === 3 && currentTopic && currentTopic !== 'Loading Topic...' && currentTopic !== 'General Chat') {
+    if (!isSpectator && currentSparks.length === 3 && currentTopic && currentTopic !== 'Loading Topic...' && currentTopic !== 'General Chat') {
       console.log("🤖 Auto-generating sparks for topic:", currentTopic);
       try {
         await generateSparksWithAI(currentTopic);
@@ -1362,17 +1988,20 @@
     }
   }
 
-  // AI Spark Generation Functions
+  // AI Spark Generation Functions (only for participants)
   async function generateNewSparks() {
+    if (isSpectator) {
+      showToast('👀 Only participants can generate sparks');
+      return;
+    }
+    
     const generateBtn = document.getElementById('newSparkBtn');
     const originalText = generateBtn.innerHTML;
     
     try {
-      // Show loading state
       generateBtn.innerHTML = '🔄 generating...';
       generateBtn.disabled = true;
       
-      // Get current topic
       const currentTopic = document.getElementById('topic-display').textContent || 'general conversation';
       console.log("🧠 Generating sparks for topic:", currentTopic);
       
@@ -1382,13 +2011,17 @@
       console.error("❌ Spark generation failed:", error);
       showToast('❌ Failed to generate sparks: ' + error.message);
     } finally {
-      // Reset button
       generateBtn.innerHTML = originalText;
       generateBtn.disabled = false;
     }
   }
 
   async function generateCustomSparks() {
+    if (isSpectator) {
+      showToast('👀 Only participants can generate sparks');
+      return;
+    }
+    
     const customTopic = document.getElementById('userPrompt').value.trim();
     const generateBtn = document.querySelector('button[onclick="generateCustomSparks()"]');
     const originalText = generateBtn.innerHTML;
@@ -1400,7 +2033,6 @@
     }
     
     try {
-      // Show loading state
       generateBtn.innerHTML = '⚡ generating...';
       generateBtn.disabled = true;
       
@@ -1408,14 +2040,12 @@
       
       await generateSparksWithAI(customTopic);
       
-      // Clear input after successful generation
       document.getElementById('userPrompt').value = '';
       
     } catch (error) {
       console.error("❌ Custom spark generation failed:", error);
       showToast('❌ Failed to generate custom sparks: ' + error.message);
     } finally {
-      // Reset button
       generateBtn.innerHTML = originalText;
       generateBtn.disabled = false;
     }
@@ -1426,7 +2056,6 @@
 
     console.log("🤖 Calling Netlify Function for AI sparks...");
     
-    // Step 1: Call Netlify Function to generate sparks (secure API key)
     const response = await fetch("/.netlify/functions/generateSpark", {
       method: "POST",
       headers: { 
@@ -1438,7 +2067,6 @@
     });
 
     if (!response.ok) {
-      // Enhanced error handling for 401 and other common errors
       let errorMessage = `Netlify Function error: ${response.status} ${response.statusText}`;
       
       if (response.status === 401) {
@@ -1462,13 +2090,12 @@
     
     console.log("🤖 Netlify Function raw response:", rawContent);
     
-    // Parse the numbered responses
     const sparks = rawContent
       .split("\n")
       .map(line => line.trim())
       .filter(line => line.length > 0 && /^\d+\./.test(line))
-      .map(line => line.replace(/^\d+\.\s*/, '').trim()) // Remove number prefix
-      .filter(line => line.length > 10); // Filter out too short responses
+      .map(line => line.replace(/^\d+\.\s*/, '').trim())
+      .filter(line => line.length > 10);
 
     console.log("✨ Parsed sparks:", sparks);
 
@@ -1476,7 +2103,6 @@
       throw new Error("No valid sparks generated from AI response");
     }
 
-    // Step 2: Save to Firebase
     console.log("💾 Saving sparks to Firebase...");
     
     const sparkData = {
@@ -1499,7 +2125,6 @@
       throw new Error("Failed to save sparks to Firebase");
     }
 
-    // Step 3: Update UI immediately
     console.log("🎨 Updating UI with new sparks...");
     
     currentSparks = sparks;
@@ -1519,13 +2144,12 @@
     console.log("✅ Spark generation complete!");
   }
 
-  // ✅ Enable audio context on user interaction (required by browsers)
+  // Enable audio context on user interaction
   document.addEventListener('click', enableAudioContext, { once: true });
   document.addEventListener('touchstart', enableAudioContext, { once: true });
   
   function enableAudioContext() {
     console.log("🔊 Enabling audio context from user interaction");
-    // Resume audio context if suspended
     if (window.AudioContext || window.webkitAudioContext) {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       if (audioContext.state === 'suspended') {
@@ -1535,7 +2159,6 @@
       }
     }
     
-    // Try to play any existing remote audio elements
     const remoteAudio = document.getElementById('remote-audio');
     if (remoteAudio) {
       remoteAudio.play().catch(err => console.log("Audio play attempt:", err));
@@ -1544,6 +2167,7 @@
 
   // Initialize
   console.log("ChatSpheres Video Chat Room Loading... 🌟");
+  console.log(`Mode: ${isSpectator ? 'Spectator 👀' : 'Participant 🎤'}`);
 </script>
 
 </body>

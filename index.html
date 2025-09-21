@@ -1232,6 +1232,12 @@
 
   function handleTrackStarted(event) {
     console.log('🎥 Track started:', event);
+    console.log('🎥 Track details:', {
+      kind: event.track.kind,
+      label: event.track.label,
+      participantLocal: event.participant.local,
+      isSpectator: isSpectator
+    });
     
     if (event.participant.local && !isSpectator) {
       if (event.track.kind === 'video') {
@@ -1240,13 +1246,15 @@
     } else {
       // Handle remote participant tracks
       if (event.track.kind === 'video') {
-        if (event.track.label.includes('screen')) {
+        if (event.track.label && event.track.label.includes('screen')) {
+          console.log('📺 Setting up screen share for spectator');
           if (isSpectator) {
             setupSpectatorScreenShare(event.track);
           } else {
             setupScreenShareVideo(event.track);
           }
         } else {
+          console.log('🎥 Setting up video for spectator');
           if (isSpectator) {
             setupSpectatorVideo(event.track);
           } else {
@@ -1429,12 +1437,31 @@
   }
 
   function setupSpectatorVideo(track) {
+    console.log('🎬 Setting up spectator video:', track);
     const spectatorVideo = document.getElementById('spectator-main-video');
     const placeholder = document.getElementById('spectator-placeholder');
     
-    spectatorVideo.srcObject = new MediaStream([track]);
-    spectatorVideo.style.display = 'block';
-    placeholder.style.display = 'none';
+    if (!spectatorVideo || !placeholder) {
+      console.error('❌ Spectator video elements not found');
+      return;
+    }
+    
+    try {
+      spectatorVideo.srcObject = new MediaStream([track]);
+      spectatorVideo.style.display = 'block';
+      placeholder.style.display = 'none';
+      console.log('✅ Spectator video stream set up successfully');
+      
+      // Ensure video plays
+      spectatorVideo.play().then(() => {
+        console.log('✅ Spectator video playing');
+      }).catch(err => {
+        console.error('❌ Spectator video play failed:', err);
+      });
+      
+    } catch (error) {
+      console.error('❌ Error setting up spectator video:', error);
+    }
   }
 
   function setupScreenShareVideo(track) {

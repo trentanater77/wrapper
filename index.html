@@ -1215,6 +1215,9 @@
       
       requestPermissionsAndSetupDevices();
       initializeSparks();
+      
+      // For participants, also set up existing participants after joining (for refresh case)
+      setTimeout(setupExistingParticipantsForParticipant, 1000);
     } else {
       // For spectators, set up existing participants after joining
       setTimeout(setupExistingParticipants, 1000);
@@ -2489,6 +2492,43 @@
 
     showToast(`✅ Generated ${sparks.length} sparks for "${topic}"!`);
     console.log("✅ Spark generation complete!");
+  }
+
+  // Set up existing participants for participants who join late or refresh
+  function setupExistingParticipantsForParticipant() {
+    if (isSpectator) return;
+    
+    console.log('🔄 Setting up existing participants for participant refresh');
+    
+    const participants = call.participants();
+    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
+    
+    console.log('👥 Found remote participants:', remoteParticipants.length);
+    
+    remoteParticipants.forEach(([participantId, participant]) => {
+      console.log('🎭 Processing remote participant for participant view:', participantId, participant.user_name);
+      
+      // Set up video tracks if available
+      if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
+        console.log('🎥 Setting up remote video for existing participant:', participantId);
+        setupRemoteVideo(participant.tracks.video.persistentTrack);
+        updateRemoteInfo(participant.user_name || 'Guest');
+      }
+      
+      // Set up screen share tracks if available
+      if (participant.tracks && participant.tracks.screenVideo && participant.tracks.screenVideo.persistentTrack) {
+        console.log('📺 Setting up screen share for existing participant:', participantId);
+        setupScreenShareVideo(participant.tracks.screenVideo.persistentTrack);
+      }
+      
+      // Set up audio tracks if available
+      if (participant.tracks && participant.tracks.audio && participant.tracks.audio.persistentTrack) {
+        console.log('🔊 Setting up audio for existing participant:', participantId);
+        setupRemoteAudio(participant.tracks.audio.persistentTrack);
+      }
+    });
+    
+    console.log('✅ Participant refresh setup complete');
   }
 
   // Set up existing participants for spectators who join late or refresh

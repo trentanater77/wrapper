@@ -1070,52 +1070,60 @@
     
     // Only update if no remote video is showing (no other participants)
     if (remotePlaceholder && remoteVideo && remoteVideo.style.display !== 'block') {
-      const placeholder = remotePlaceholder.querySelector('.text-center.text-white.relative.z-10');
+      // Check if there are any other participants (not spectators)
+      const participants = call ? call.participants() : {};
+      const otherParticipants = Object.values(participants).filter(p => !p.local);
       
-      if (placeholder) {
-        const icon = placeholder.querySelector('.w-16.h-16');
-        const title = placeholder.querySelector('.font-bold.text-lg.text-white');
-        const subtitle = placeholder.querySelector('.text-sm.text-gold.mt-1');
+      // Only show spectator message if there are NO other participants
+      if (otherParticipants.length === 0) {
+        const placeholder = remotePlaceholder.querySelector('.text-center.text-white.relative.z-10');
         
-        if (spectatorCount > 0) {
-          // Show that spectators are watching
-          if (icon) {
-            icon.innerHTML = `
-              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
-              </svg>
-            `;
-          }
+        if (placeholder) {
+          const icon = placeholder.querySelector('.w-16.h-16');
+          const title = placeholder.querySelector('.font-bold.text-lg.text-white');
+          const subtitle = placeholder.querySelector('.text-sm.text-gold.mt-1');
           
-          if (title) {
-            title.textContent = spectatorCount === 1 
-              ? `${spectatorCount} viewer is watching!` 
-              : `${spectatorCount} viewers are watching!`;
-          }
-          
-          if (subtitle) {
-            subtitle.innerHTML = `🎭 They're here for the conversation! <br>🎤 Waiting for another participant to join...`;
-          }
-        } else {
-          // Reset to original state when no spectators
-          if (icon) {
-            icon.innerHTML = `
-              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
-              </svg>
-            `;
-          }
-          
-          if (title) {
-            title.textContent = "Waiting for your chat partner...";
-          }
-          
-          if (subtitle) {
-            subtitle.innerHTML = "🐱 They might be as curious as a cat about this topic!";
+          if (spectatorCount > 0) {
+            // Show that spectators are watching
+            if (icon) {
+              icon.innerHTML = `
+                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                  <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+                </svg>
+              `;
+            }
+            
+            if (title) {
+              title.textContent = spectatorCount === 1 
+                ? `${spectatorCount} viewer is watching!` 
+                : `${spectatorCount} viewers are watching!`;
+            }
+            
+            if (subtitle) {
+              subtitle.innerHTML = `🎭 They're here for the conversation! <br>🎤 Waiting for another participant to join...`;
+            }
+          } else {
+            // Reset to original state when no spectators
+            if (icon) {
+              icon.innerHTML = `
+                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+                </svg>
+              `;
+            }
+            
+            if (title) {
+              title.textContent = "Waiting for your chat partner...";
+            }
+            
+            if (subtitle) {
+              subtitle.innerHTML = "🐱 They might be as curious as a cat about this topic!";
+            }
           }
         }
       }
+      // If there ARE other participants, don't change anything - let their video show
     }
   }
 

@@ -2220,7 +2220,11 @@
     try {
       console.log("🔍 Loading existing sparks for room...");
       
-      const response = await fetch(`https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy="room_url"&equalTo="${encodeURIComponent(roomUrl)}"&limitToLast=1`);
+      // Decode the room URL first to avoid double encoding
+      const decodedRoomUrl = decodeURIComponent(roomUrl);
+      console.log("🔗 Decoded room URL:", decodedRoomUrl);
+      
+      const response = await fetch(`https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy="room_url"&equalTo="${encodeURIComponent(decodedRoomUrl)}"&limitToLast=1`);
       
       if (response.ok) {
         const data = await response.json();
@@ -2237,6 +2241,8 @@
             return;
           }
         }
+      } else {
+        console.error("❌ Firebase response not ok:", response.status, response.statusText);
       }
       
       console.log("📝 No existing sparks found, using defaults");

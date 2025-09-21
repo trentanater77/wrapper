@@ -1619,11 +1619,19 @@
 
   function setupSpectatorScreenShare(track) {
     const spectatorScreenShare = document.getElementById('spectator-screen-share');
-    const spectatorVideo = document.getElementById('spectator-main-video');
+    const participantsContainer = document.getElementById('spectator-participants-container');
     
+    if (!spectatorScreenShare || !participantsContainer) {
+      console.error('❌ Screen share elements not found for spectator');
+      return;
+    }
+    
+    console.log('📺 Setting up spectator screen share');
     spectatorScreenShare.srcObject = new MediaStream([track]);
-    spectatorScreenShare.style.display = 'block';
-    spectatorVideo.style.display = 'none';
+    spectatorScreenShare.classList.remove('hidden');
+    participantsContainer.style.display = 'none';
+    
+    console.log('✅ Spectator screen share started');
   }
 
   function setupRemoteAudio(track) {
@@ -1686,10 +1694,19 @@
 
   function hideSpectatorScreenShare() {
     const spectatorScreenShare = document.getElementById('spectator-screen-share');
-    const spectatorVideo = document.getElementById('spectator-main-video');
+    const participantsContainer = document.getElementById('spectator-participants-container');
     
-    spectatorScreenShare.style.display = 'none';
-    spectatorVideo.style.display = 'block';
+    if (!spectatorScreenShare || !participantsContainer) {
+      console.error('❌ Screen share elements not found when hiding');
+      return;
+    }
+    
+    console.log('📺 Hiding spectator screen share');
+    spectatorScreenShare.classList.add('hidden');
+    spectatorScreenShare.srcObject = null;
+    participantsContainer.style.display = 'grid';
+    
+    console.log('✅ Spectator screen share hidden, participants view restored');
   }
 
   function updateRemoteInfo(name) {

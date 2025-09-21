@@ -1249,11 +1249,13 @@
     console.log('🔄 Participant updated:', event.participant);
     
     const tracks = event.participant.tracks;
+    const participantId = event.participant.session_id;
+    
     if (tracks) {
       if (tracks.video && tracks.video.persistentTrack) {
         if (!event.participant.local) {
           if (isSpectator) {
-            setupSpectatorVideo(tracks.video.persistentTrack);
+            setupSpectatorVideo(tracks.video.persistentTrack, participantId);
           } else {
             setupRemoteVideo(tracks.video.persistentTrack);
           }

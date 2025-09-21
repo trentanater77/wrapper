@@ -625,10 +625,18 @@
     <div id="spectator-layout" class="hidden grid lg:grid-cols-4 gap-6">
       <!-- Main Video (3/4 width) -->
       <div class="lg:col-span-3 space-y-4">
-        <!-- Combined Video View for Spectators -->
+        <!-- Multi-Participant Video View for Spectators -->
         <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
-          <video id="spectator-main-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
-          <video id="spectator-screen-share" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+          <!-- Main Video Container -->
+          <div id="spectator-video-container" class="w-full h-full relative">
+            <!-- Screen Share Video (takes full space when active) -->
+            <video id="spectator-screen-share" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+            
+            <!-- Multi-Participant Grid -->
+            <div id="spectator-video-grid" class="w-full h-full grid gap-2 p-2">
+              <!-- Participant videos will be added here dynamically -->
+            </div>
+          </div>
           
           <div id="spectator-placeholder" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80" onclick="enableSpectatorVideo()">
             <div class="text-center text-white">
@@ -1203,7 +1211,11 @@
       hideRemoteVideo();
       showToast(`👋 ${event.participant.user_name || 'Guest'} left the call`);
     } else {
+      // Remove the participant's video from spectator view
+      const participantId = event.participant.session_id;
+      removeSpectatorParticipant(participantId);
       updateSpectatorParticipants();
+      showToast(`👋 ${event.participant.user_name || 'Guest'} left the conversation`);
     }
   }
 
@@ -1239,6 +1251,7 @@
       kind: event.track.kind,
       label: event.track.label,
       participantLocal: event.participant.local,
+      participantId: event.participant.session_id,
       isSpectator: isSpectator
     });
     
@@ -1248,18 +1261,20 @@
       }
     } else {
       // Handle remote participant tracks
+      const participantId = event.participant.session_id;
+      
       if (event.track.kind === 'video') {
         if (event.track.label && event.track.label.includes('screen')) {
-          console.log('📺 Setting up screen share for spectator');
+          console.log('📺 Setting up screen share for participant:', participantId);
           if (isSpectator) {
             setupSpectatorScreenShare(event.track);
           } else {
             setupScreenShareVideo(event.track);
           }
         } else {
-          console.log('🎥 Setting up video for spectator');
+          console.log('🎥 Setting up video for participant:', participantId);
           if (isSpectator) {
-            setupSpectatorVideo(event.track);
+            setupSpectatorVideo(event.track, participantId);
           } else {
             setupRemoteVideo(event.track);
           }
@@ -1439,62 +1454,151 @@
     placeholder.style.display = 'none';
   }
 
-  function setupSpectatorVideo(track) {
-    console.log('🎬 Setting up spectator video:', track);
-    const spectatorVideo = document.getElementById('spectator-main-video');
+  // Global variable to track spectator participant videos
+  let spectatorParticipantVideos = new Map(); // participantId -> { videoElement, stream }
+
+  function setupSpectatorVideo(track, participantId) {
+    console.log('🎬 Setting up spectator video for participant:', participantId);
+    
+    const videoGrid = document.getElementById('spectator-video-grid');
     const placeholder = document.getElementById('spectator-placeholder');
     
-    if (!spectatorVideo || !placeholder) {
+    if (!videoGrid || !placeholder) {
       console.error('❌ Spectator video elements not found');
       return;
     }
     
     try {
-      // Get existing stream or create new one
-      let existingStream = spectatorVideo.srcObject;
-      if (!existingStream) {
-        existingStream = new MediaStream();
-        spectatorVideo.srcObject = existingStream;
-      }
+      // Check if we already have a video for this participant
+      let participantData = spectatorParticipantVideos.get(participantId);
       
-      // Check if this track is already added to avoid duplicates
-      const existingTracks = existingStream.getVideoTracks();
-      const trackExists = existingTracks.some(existingTrack => existingTrack.id === track.id);
-      
-      if (!trackExists) {
-        // Remove old tracks and add the new one (for simplicity, we'll show the most recent)
-        existingTracks.forEach(oldTrack => {
-          existingStream.removeTrack(oldTrack);
-        });
-        existingStream.addTrack(track);
-        console.log('🎥 Added new video track to spectator stream:', track.id);
+      if (!participantData) {
+        // Create new video element for this participant
+        const videoElement = document.createElement('video');
+        videoElement.id = `spectator-video-${participantId}`;
+        videoElement.className = 'w-full h-full object-cover rounded-lg bg-charcoal';
+        videoElement.autoplay = true;
+        videoElement.playsInline = true;
+        videoElement.muted = false; // Allow audio from participants
+        
+        // Create container for video + participant name
+        const container = document.createElement('div');
+        container.className = 'relative rounded-lg overflow-hidden bg-charcoal';
+        container.appendChild(videoElement);
+        
+        // Add participant name overlay
+        const nameOverlay = document.createElement('div');
+        nameOverlay.className = 'absolute bottom-2 left-2 bg-main-red text-white px-2 py-1 rounded text-sm font-semibold';
+        nameOverlay.textContent = getParticipantName(participantId);
+        container.appendChild(nameOverlay);
+        
+        // Add to grid
+        videoGrid.appendChild(container);
+        
+        // Store reference
+        participantData = {
+          videoElement,
+          container,
+          stream: new MediaStream([track])
+        };
+        spectatorParticipantVideos.set(participantId, participantData);
+        
+        console.log('🎥 Created new video element for participant:', participantId);
       } else {
-        console.log('🔄 Video track already exists in spectator stream');
+        // Update existing participant's video
+        const existingTracks = participantData.stream.getVideoTracks();
+        existingTracks.forEach(oldTrack => {
+          participantData.stream.removeTrack(oldTrack);
+        });
+        participantData.stream.addTrack(track);
+        
+        console.log('🔄 Updated video track for participant:', participantId);
       }
       
-      spectatorVideo.style.display = 'block';
+      // Set video source
+      participantData.videoElement.srcObject = participantData.stream;
+      
+      // Update grid layout based on number of participants
+      updateSpectatorVideoGrid();
+      
+      // Hide placeholder and show video grid
       placeholder.style.display = 'none';
-      console.log('✅ Spectator video stream set up successfully');
+      videoGrid.style.display = 'grid';
+      
+      console.log('✅ Spectator video set up successfully for participant:', participantId);
       
       // Ensure video plays (with user interaction check)
-      spectatorVideo.play().then(() => {
-        console.log('✅ Spectator video playing');
-        // Hide placeholder and show video
-        placeholder.style.display = 'none';
-        spectatorVideo.style.display = 'block';
+      participantData.videoElement.play().then(() => {
+        console.log('✅ Spectator video playing for participant:', participantId);
       }).catch(err => {
         if (err.name === 'NotAllowedError') {
-          console.log('🎥 Video will play after user interaction');
-          // Show clickable placeholder
-          spectatorVideo.style.display = 'none';
-          placeholder.style.display = 'flex';
+          console.log('🎥 Video will play after user interaction for participant:', participantId);
         } else {
-          console.error('❌ Spectator video play failed:', err);
+          console.error('❌ Spectator video play failed for participant:', participantId, err);
         }
       });
       
     } catch (error) {
       console.error('❌ Error setting up spectator video:', error);
+    }
+  }
+
+  function getParticipantName(participantId) {
+    const participants = call.participants();
+    for (const [id, participant] of Object.entries(participants)) {
+      if (id === participantId) {
+        return participant.user_name || 'Participant';
+      }
+    }
+    return 'Participant';
+  }
+
+  function updateSpectatorVideoGrid() {
+    const videoGrid = document.getElementById('spectator-video-grid');
+    const participantCount = spectatorParticipantVideos.size;
+    
+    // Update grid layout based on number of participants
+    if (participantCount === 1) {
+      videoGrid.className = 'w-full h-full grid gap-2 p-2 grid-cols-1';
+    } else if (participantCount === 2) {
+      videoGrid.className = 'w-full h-full grid gap-2 p-2 grid-cols-2';
+    } else if (participantCount <= 4) {
+      videoGrid.className = 'w-full h-full grid gap-2 p-2 grid-cols-2 grid-rows-2';
+    } else {
+      // For more than 4 participants, use a 3x2 grid
+      videoGrid.className = 'w-full h-full grid gap-2 p-2 grid-cols-3 grid-rows-2';
+    }
+    
+    console.log(`📱 Updated spectator grid for ${participantCount} participants`);
+  }
+
+  function removeSpectatorParticipant(participantId) {
+    const participantData = spectatorParticipantVideos.get(participantId);
+    if (participantData) {
+      // Remove video element from DOM
+      participantData.container.remove();
+      
+      // Clean up stream
+      if (participantData.stream) {
+        participantData.stream.getTracks().forEach(track => track.stop());
+      }
+      
+      // Remove from map
+      spectatorParticipantVideos.delete(participantId);
+      
+      console.log('🗑️ Removed spectator video for participant:', participantId);
+      
+      // Update grid layout
+      updateSpectatorVideoGrid();
+      
+      // Show placeholder if no participants left
+      if (spectatorParticipantVideos.size === 0) {
+        const placeholder = document.getElementById('spectator-placeholder');
+        const videoGrid = document.getElementById('spectator-video-grid');
+        
+        placeholder.style.display = 'flex';
+        videoGrid.style.display = 'none';
+      }
     }
   }
 

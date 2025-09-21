@@ -41,6 +41,13 @@
       background: linear-gradient(135deg, #22223B 0%, #2a2a4a 100%);
     }
     
+    /* Fix screen share orientation - ensure screen shares are never flipped */
+    #screen-share-video,
+    #spectator-screen-share {
+      transform: none !important;
+      scale: none !important;
+    }
+    
     .chatspheres-pattern {
       position: relative;
       overflow: hidden;
@@ -2219,12 +2226,10 @@
   async function loadExistingSparks() {
     try {
       console.log("🔍 Loading existing sparks for room...");
+      console.log("🔗 Room URL from params:", roomUrl);
       
-      // Decode the room URL first to avoid double encoding
-      const decodedRoomUrl = decodeURIComponent(roomUrl);
-      console.log("🔗 Decoded room URL:", decodedRoomUrl);
-      
-      const response = await fetch(`https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy="room_url"&equalTo="${encodeURIComponent(decodedRoomUrl)}"&limitToLast=1`);
+      // roomUrl is already properly formatted from URL params, don't decode again
+      const response = await fetch(`https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy="room_url"&equalTo="${encodeURIComponent(roomUrl)}"&limitToLast=1`);
       
       if (response.ok) {
         const data = await response.json();
@@ -2243,6 +2248,7 @@
         }
       } else {
         console.error("❌ Firebase response not ok:", response.status, response.statusText);
+        console.error("❌ Request URL was:", response.url);
       }
       
       console.log("📝 No existing sparks found, using defaults");

@@ -1672,11 +1672,10 @@
   }
 
   function hideSpectatorVideo() {
-    const spectatorVideo = document.getElementById('spectator-main-video');
-    const placeholder = document.getElementById('spectator-placeholder');
-    
-    spectatorVideo.style.display = 'none';
-    placeholder.style.display = 'flex';
+    // This function is called when screen sharing stops
+    // For the new layout, we don't need to do anything here since
+    // hideSpectatorScreenShare() handles the screen share cleanup
+    console.log('🛑 Spectator video track stopped - handled by screen share function');
   }
 
   function hideScreenShareVideo() {

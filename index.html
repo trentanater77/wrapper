@@ -354,10 +354,10 @@
       </p>
     </div>
 
-    <!-- Main Content Grid - Spectator Mode has different layout -->
-    <div id="participant-layout" class="grid lg:grid-cols-3 gap-6">
+    <!-- Main Content Grid - Both modes now have chat -->
+    <div id="participant-layout" class="grid lg:grid-cols-4 gap-6">
       <!-- Video Section -->
-      <div class="lg:col-span-2 space-y-4">
+      <div class="lg:col-span-3 space-y-4">
         <!-- Remote Video -->
         <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
           <video id="remote-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
@@ -471,8 +471,55 @@
         </div>
       </div>
 
-      <!-- Conversation Sparks Sidebar -->
-      <div class="lg:col-span-1">
+      <!-- Live Chat and Sparks Sidebar -->
+      <div class="lg:col-span-1 space-y-6">
+        <!-- Live Chat (also for participants) -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+          <!-- Chat Header -->
+          <div class="p-4 border-b border-gray-200 dark:border-gray-600">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-charcoal dark:text-white">💬 Live Chat</h3>
+              <div class="text-xs text-gray-500 dark:text-gray-400">
+                <span id="participant-chat-viewer-count">0</span> viewers
+              </div>
+            </div>
+          </div>
+
+          <!-- Chat Messages -->
+          <div id="participant-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 live-chat" style="height: 250px;">
+            <!-- Welcome message -->
+            <div class="text-center text-xs text-gray-500 dark:text-gray-400 py-2">
+              Welcome to the chat! 👋
+            </div>
+          </div>
+
+          <!-- Chat Input -->
+          <div class="p-4 border-t border-gray-200 dark:border-gray-600">
+            <div class="flex space-x-2">
+              <input 
+                type="text" 
+                id="participant-chat-input"
+                placeholder="Type a message..."
+                maxlength="200"
+                class="flex-1 px-3 py-2 text-base border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-main-red focus:border-transparent bg-white dark:bg-gray-700 text-charcoal dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+              >
+              <button 
+                id="participant-send-chat"
+                onclick="sendParticipantChatMessage()"
+                class="bg-main-red hover:bg-red-600 text-white p-2 rounded-lg transition-colors"
+              >
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
+                </svg>
+              </button>
+            </div>
+            <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <span id="participant-char-count">0</span>/200 characters
+            </div>
+          </div>
+        </div>
+
+        <!-- Conversation Sparks -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700">
           <!-- Header -->
           <div class="flex items-center justify-between mb-6">
@@ -959,7 +1006,8 @@
   function updateViewerCount(count) {
     const viewerCountElements = [
       document.getElementById('viewer-count'),
-      document.getElementById('chat-viewer-count')
+      document.getElementById('chat-viewer-count'),
+      document.getElementById('participant-chat-viewer-count')
     ];
     
     viewerCountElements.forEach(el => {
@@ -976,7 +1024,7 @@
       }
     });
     
-    // Set up chat input
+    // Set up chat input for spectators
     const chatInput = document.getElementById('chat-input');
     const charCount = document.getElementById('char-count');
     
@@ -991,44 +1039,65 @@
         }
       });
     }
+
+    // Set up chat input for participants
+    const participantChatInput = document.getElementById('participant-chat-input');
+    const participantCharCount = document.getElementById('participant-char-count');
+    
+    if (participantChatInput && participantCharCount) {
+      participantChatInput.addEventListener('input', () => {
+        participantCharCount.textContent = participantChatInput.value.length;
+      });
+      
+      participantChatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          sendParticipantChatMessage();
+        }
+      });
+    }
   }
 
   function displayChatMessage(message) {
-    const chatContainer = document.getElementById('live-chat-messages');
-    if (!chatContainer) return;
+    // Display in both spectator and participant chat areas
+    const chatContainers = [
+      document.getElementById('live-chat-messages'), // Spectator chat
+      document.getElementById('participant-chat-messages') // Participant chat
+    ].filter(container => container); // Remove null containers
     
-    const messageEl = document.createElement('div');
-    messageEl.className = 'chat-message p-3 rounded-lg border';
-    
-    // Style based on user type
-    if (message.userType === 'participant') {
-      messageEl.classList.add('bg-light-rose', 'border-rose');
-    } else {
-      messageEl.classList.add('bg-gray-50', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
-    }
-    
-    const timestamp = new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    
-    messageEl.innerHTML = `
-      <div class="flex items-start space-x-2">
-        <div class="flex-shrink-0">
-          <div class="w-6 h-6 rounded-full ${message.userType === 'participant' ? 'bg-main-red' : 'bg-gold'} flex items-center justify-center text-white text-xs font-bold">
-            ${message.userName.charAt(0).toUpperCase()}
+    chatContainers.forEach(chatContainer => {
+      const messageEl = document.createElement('div');
+      messageEl.className = 'chat-message p-3 rounded-lg border';
+      
+      // Style based on user type
+      if (message.userType === 'participant') {
+        messageEl.classList.add('bg-light-rose', 'border-rose');
+      } else {
+        messageEl.classList.add('bg-gray-50', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+      }
+      
+      const timestamp = new Date(message.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      
+      messageEl.innerHTML = `
+        <div class="flex items-start space-x-2">
+          <div class="flex-shrink-0">
+            <div class="w-6 h-6 rounded-full ${message.userType === 'participant' ? 'bg-main-red' : 'bg-gold'} flex items-center justify-center text-white text-xs font-bold">
+              ${message.userName.charAt(0).toUpperCase()}
+            </div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-2 mb-1">
+              <span class="font-semibold text-charcoal dark:text-white text-sm">${message.userName}</span>
+              <span class="text-xs text-gray-500">${timestamp}</span>
+              ${message.userType === 'participant' ? '<span class="text-xs bg-main-red text-white px-1 rounded">HOST</span>' : ''}
+            </div>
+            <p class="text-charcoal dark:text-white text-sm break-words">${message.text}</p>
           </div>
         </div>
-        <div class="flex-1 min-w-0">
-          <div class="flex items-center space-x-2 mb-1">
-            <span class="font-semibold text-charcoal dark:text-white text-sm">${message.userName}</span>
-            <span class="text-xs text-gray-500">${timestamp}</span>
-            ${message.userType === 'participant' ? '<span class="text-xs bg-main-red text-white px-1 rounded">HOST</span>' : ''}
-          </div>
-          <p class="text-charcoal dark:text-white text-sm break-words">${message.text}</p>
-        </div>
-      </div>
-    `;
-    
-    chatContainer.appendChild(messageEl);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+      `;
+      
+      chatContainer.appendChild(messageEl);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
   }
 
   function sendChatMessage() {
@@ -1049,6 +1118,26 @@
     chatRef.push(message);
     chatInput.value = '';
     document.getElementById('char-count').textContent = '0';
+  }
+
+  function sendParticipantChatMessage() {
+    const chatInput = document.getElementById('participant-chat-input');
+    if (!chatInput || !chatRef) return;
+    
+    const text = chatInput.value.trim();
+    if (!text) return;
+    
+    const message = {
+      userId: userId,
+      userName: userName,
+      userType: isSpectator ? 'spectator' : 'participant',
+      text: text,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    };
+    
+    chatRef.push(message);
+    chatInput.value = '';
+    document.getElementById('participant-char-count').textContent = '0';
   }
 
   function handleJoinedMeeting(event) {

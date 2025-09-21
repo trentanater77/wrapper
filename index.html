@@ -625,37 +625,63 @@
     <div id="spectator-layout" class="hidden grid lg:grid-cols-4 gap-6">
       <!-- Main Video (3/4 width) -->
       <div class="lg:col-span-3 space-y-4">
-        <!-- Multi-Participant Video View for Spectators -->
-        <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
-          <!-- Main Video Container -->
-          <div id="spectator-video-container" class="w-full h-full relative">
+        <!-- Simple 2-Participant View for Spectators -->
+        <div class="space-y-4">
+          <!-- Main Conversation Area - Both Participants -->
+          <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
             <!-- Screen Share Video (takes full space when active) -->
             <video id="spectator-screen-share" class="w-full h-full object-cover hidden" autoplay playsinline></video>
             
-            <!-- Multi-Participant Grid -->
-            <div id="spectator-video-grid" class="w-full h-full grid gap-2 p-2">
-              <!-- Participant videos will be added here dynamically -->
-            </div>
-          </div>
-          
-          <div id="spectator-placeholder" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80" onclick="enableSpectatorVideo()">
-            <div class="text-center text-white">
-              <div class="w-20 h-20 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg animate-pulse">
-                <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
-                </svg>
+            <!-- Two-Participant Layout -->
+            <div id="spectator-participants-container" class="w-full h-full grid grid-cols-2 gap-1">
+              <!-- Participant 1 -->
+              <div class="relative bg-charcoal">
+                <video id="spectator-participant-1" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+                <div id="spectator-placeholder-1" class="absolute inset-0 flex items-center justify-center video-placeholder">
+                  <div class="text-center text-white">
+                    <div class="w-12 h-12 mx-auto mb-2 bg-main-red rounded-full flex items-center justify-center">
+                      <span class="text-white font-bold">1</span>
+                    </div>
+                    <p class="text-sm">Waiting for participant...</p>
+                  </div>
+                </div>
+                <div id="spectator-name-1" class="absolute bottom-2 left-2 bg-main-red text-white px-2 py-1 rounded text-sm font-semibold hidden">
+                  Participant 1
+                </div>
               </div>
-              <p class="font-bold text-xl text-white mb-2">🎬 Click to Enable Video</p>
-              <p class="text-sm text-gold mt-2">Tap anywhere to start watching the conversation!</p>
-              <div class="mt-4 px-4 py-2 bg-main-red rounded-full text-sm font-bold animate-bounce">
-                👆 Click Here
+              
+              <!-- Participant 2 -->
+              <div class="relative bg-charcoal">
+                <video id="spectator-participant-2" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+                <div id="spectator-placeholder-2" class="absolute inset-0 flex items-center justify-center video-placeholder">
+                  <div class="text-center text-white">
+                    <div class="w-12 h-12 mx-auto mb-2 bg-gold rounded-full flex items-center justify-center">
+                      <span class="text-charcoal font-bold">2</span>
+                    </div>
+                    <p class="text-sm">Waiting for participant...</p>
+                  </div>
+                </div>
+                <div id="spectator-name-2" class="absolute bottom-2 left-2 bg-gold text-charcoal px-2 py-1 rounded text-sm font-semibold hidden">
+                  Participant 2
+                </div>
               </div>
             </div>
-          </div>
-
-          <!-- Participant Info Overlay -->
-          <div id="spectator-participants" class="absolute bottom-4 left-4 flex space-x-2">
-            <!-- Participant badges will be added here dynamically -->
+            
+            <!-- Click to Enable Overlay -->
+            <div id="spectator-click-overlay" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80" onclick="enableSpectatorVideo()">
+              <div class="text-center text-white">
+                <div class="w-20 h-20 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg animate-pulse">
+                  <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+                  </svg>
+                </div>
+                <p class="font-bold text-xl text-white mb-2">🎬 Click to Watch Conversation</p>
+                <p class="text-sm text-gold mt-2">Tap anywhere to start watching the 2 participants!</p>
+                <div class="mt-4 px-4 py-2 bg-main-red rounded-full text-sm font-bold animate-bounce">
+                  👆 Click Here
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1454,87 +1480,69 @@
     placeholder.style.display = 'none';
   }
 
-  // Global variable to track spectator participant videos
-  let spectatorParticipantVideos = new Map(); // participantId -> { videoElement, stream }
+  // Track which participant slots are used (only 2 participants max)
+  let spectatorParticipant1 = null; // { participantId, participantName }
+  let spectatorParticipant2 = null; // { participantId, participantName }
 
   function setupSpectatorVideo(track, participantId) {
     console.log('🎬 Setting up spectator video for participant:', participantId);
     
-    const videoGrid = document.getElementById('spectator-video-grid');
-    const placeholder = document.getElementById('spectator-placeholder');
+    const clickOverlay = document.getElementById('spectator-click-overlay');
     
-    if (!videoGrid || !placeholder) {
-      console.error('❌ Spectator video elements not found');
+    // Assign participant to available slot (max 2 participants)
+    let participantSlot = null;
+    let participantName = getParticipantName(participantId);
+    
+    if (!spectatorParticipant1 || spectatorParticipant1.participantId === participantId) {
+      spectatorParticipant1 = { participantId, participantName };
+      participantSlot = 1;
+    } else if (!spectatorParticipant2 || spectatorParticipant2.participantId === participantId) {
+      spectatorParticipant2 = { participantId, participantName };
+      participantSlot = 2;
+    } else {
+      console.log('⚠️ Already have 2 participants, ignoring additional participant:', participantId);
+      return;
+    }
+    
+    console.log(`📍 Assigned participant ${participantId} to slot ${participantSlot}`);
+    
+    // Get the video element and placeholder for this slot
+    const videoElement = document.getElementById(`spectator-participant-${participantSlot}`);
+    const placeholder = document.getElementById(`spectator-placeholder-${participantSlot}`);
+    const nameElement = document.getElementById(`spectator-name-${participantSlot}`);
+    
+    if (!videoElement || !placeholder || !nameElement) {
+      console.error(`❌ Spectator elements not found for slot ${participantSlot}`);
       return;
     }
     
     try {
-      // Check if we already have a video for this participant
-      let participantData = spectatorParticipantVideos.get(participantId);
+      // Set up video stream
+      videoElement.srcObject = new MediaStream([track]);
       
-      if (!participantData) {
-        // Create new video element for this participant
-        const videoElement = document.createElement('video');
-        videoElement.id = `spectator-video-${participantId}`;
-        videoElement.className = 'w-full h-full object-cover rounded-lg bg-charcoal';
-        videoElement.autoplay = true;
-        videoElement.playsInline = true;
-        videoElement.muted = false; // Allow audio from participants
-        
-        // Create container for video + participant name
-        const container = document.createElement('div');
-        container.className = 'relative rounded-lg overflow-hidden bg-charcoal';
-        container.appendChild(videoElement);
-        
-        // Add participant name overlay
-        const nameOverlay = document.createElement('div');
-        nameOverlay.className = 'absolute bottom-2 left-2 bg-main-red text-white px-2 py-1 rounded text-sm font-semibold';
-        nameOverlay.textContent = getParticipantName(participantId);
-        container.appendChild(nameOverlay);
-        
-        // Add to grid
-        videoGrid.appendChild(container);
-        
-        // Store reference
-        participantData = {
-          videoElement,
-          container,
-          stream: new MediaStream([track])
-        };
-        spectatorParticipantVideos.set(participantId, participantData);
-        
-        console.log('🎥 Created new video element for participant:', participantId);
-      } else {
-        // Update existing participant's video
-        const existingTracks = participantData.stream.getVideoTracks();
-        existingTracks.forEach(oldTrack => {
-          participantData.stream.removeTrack(oldTrack);
-        });
-        participantData.stream.addTrack(track);
-        
-        console.log('🔄 Updated video track for participant:', participantId);
+      // Update participant name
+      nameElement.textContent = participantName;
+      nameElement.classList.remove('hidden');
+      
+      // Hide placeholder and show video
+      placeholder.style.display = 'none';
+      videoElement.classList.remove('hidden');
+      
+      // Hide click overlay if both participants are present or if any participant is present
+      if (spectatorParticipant1 || spectatorParticipant2) {
+        clickOverlay.style.display = 'none';
       }
       
-      // Set video source
-      participantData.videoElement.srcObject = participantData.stream;
+      console.log(`✅ Spectator video set up for participant ${participantId} in slot ${participantSlot}`);
       
-      // Update grid layout based on number of participants
-      updateSpectatorVideoGrid();
-      
-      // Hide placeholder and show video grid
-      placeholder.style.display = 'none';
-      videoGrid.style.display = 'grid';
-      
-      console.log('✅ Spectator video set up successfully for participant:', participantId);
-      
-      // Ensure video plays (with user interaction check)
-      participantData.videoElement.play().then(() => {
-        console.log('✅ Spectator video playing for participant:', participantId);
+      // Ensure video plays
+      videoElement.play().then(() => {
+        console.log(`✅ Spectator video playing for participant ${participantId}`);
       }).catch(err => {
         if (err.name === 'NotAllowedError') {
-          console.log('🎥 Video will play after user interaction for participant:', participantId);
+          console.log(`🎥 Video will play after user interaction for participant ${participantId}`);
         } else {
-          console.error('❌ Spectator video play failed for participant:', participantId, err);
+          console.error(`❌ Spectator video play failed for participant ${participantId}:`, err);
         }
       });
       
@@ -1553,52 +1561,45 @@
     return 'Participant';
   }
 
-  function updateSpectatorVideoGrid() {
-    const videoGrid = document.getElementById('spectator-video-grid');
-    const participantCount = spectatorParticipantVideos.size;
+  function removeSpectatorParticipant(participantId) {
+    console.log('🗑️ Removing spectator participant:', participantId);
     
-    // Update grid layout based on number of participants
-    if (participantCount === 1) {
-      videoGrid.className = 'w-full h-full grid gap-2 p-2 grid-cols-1';
-    } else if (participantCount === 2) {
-      videoGrid.className = 'w-full h-full grid gap-2 p-2 grid-cols-2';
-    } else if (participantCount <= 4) {
-      videoGrid.className = 'w-full h-full grid gap-2 p-2 grid-cols-2 grid-rows-2';
+    let participantSlot = null;
+    
+    // Find which slot this participant was in
+    if (spectatorParticipant1 && spectatorParticipant1.participantId === participantId) {
+      spectatorParticipant1 = null;
+      participantSlot = 1;
+    } else if (spectatorParticipant2 && spectatorParticipant2.participantId === participantId) {
+      spectatorParticipant2 = null;
+      participantSlot = 2;
     } else {
-      // For more than 4 participants, use a 3x2 grid
-      videoGrid.className = 'w-full h-full grid gap-2 p-2 grid-cols-3 grid-rows-2';
+      console.log('⚠️ Participant not found in any slot:', participantId);
+      return;
     }
     
-    console.log(`📱 Updated spectator grid for ${participantCount} participants`);
-  }
-
-  function removeSpectatorParticipant(participantId) {
-    const participantData = spectatorParticipantVideos.get(participantId);
-    if (participantData) {
-      // Remove video element from DOM
-      participantData.container.remove();
+    console.log(`📍 Removing participant from slot ${participantSlot}`);
+    
+    // Get elements for this slot
+    const videoElement = document.getElementById(`spectator-participant-${participantSlot}`);
+    const placeholder = document.getElementById(`spectator-placeholder-${participantSlot}`);
+    const nameElement = document.getElementById(`spectator-name-${participantSlot}`);
+    const clickOverlay = document.getElementById('spectator-click-overlay');
+    
+    if (videoElement && placeholder && nameElement) {
+      // Hide video and show placeholder
+      videoElement.classList.add('hidden');
+      videoElement.srcObject = null;
+      placeholder.style.display = 'flex';
+      nameElement.classList.add('hidden');
       
-      // Clean up stream
-      if (participantData.stream) {
-        participantData.stream.getTracks().forEach(track => track.stop());
-      }
-      
-      // Remove from map
-      spectatorParticipantVideos.delete(participantId);
-      
-      console.log('🗑️ Removed spectator video for participant:', participantId);
-      
-      // Update grid layout
-      updateSpectatorVideoGrid();
-      
-      // Show placeholder if no participants left
-      if (spectatorParticipantVideos.size === 0) {
-        const placeholder = document.getElementById('spectator-placeholder');
-        const videoGrid = document.getElementById('spectator-video-grid');
-        
-        placeholder.style.display = 'flex';
-        videoGrid.style.display = 'none';
-      }
+      console.log(`✅ Cleaned up slot ${participantSlot}`);
+    }
+    
+    // Show click overlay if no participants remain
+    if (!spectatorParticipant1 && !spectatorParticipant2) {
+      clickOverlay.style.display = 'flex';
+      console.log('📺 All participants left, showing click overlay');
     }
   }
 

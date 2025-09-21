@@ -1322,9 +1322,25 @@
 
   function handleTrackStopped(event) {
     console.log('🛑 Track stopped:', event);
+    console.log('🛑 Track details:', {
+      kind: event.track.kind,
+      label: event.track.label,
+      participantLocal: event.participant.local,
+      isSpectator: isSpectator
+    });
     
     if (!event.participant.local && event.track.kind === 'video') {
-      if (event.track.label.includes('screen')) {
+      // Better detection of screen share tracks
+      // Enhanced screen share detection
+      const isScreenShareTrack = event.track.label && (
+        event.track.label.includes('screen') || 
+        event.track.label.includes('Screen') ||
+        event.track.label.includes('display') ||
+        event.track.label.includes('Display')
+      );
+      
+      if (isScreenShareTrack) {
+        console.log('📺 Screen share track stopped - label:', event.track.label);
         if (isSpectator) {
           hideSpectatorScreenShare();
         } else {
@@ -2228,8 +2244,11 @@
       console.log("🔍 Loading existing sparks for room...");
       console.log("🔗 Room URL from params:", roomUrl);
       
-      // roomUrl is already properly formatted from URL params, don't decode again
-      const response = await fetch(`https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy="room_url"&equalTo="${encodeURIComponent(roomUrl)}"&limitToLast=1`);
+      // Use the roomUrl as is - it's already the correct URL format
+      const encodedRoomUrl = encodeURIComponent(roomUrl);
+      const firebaseUrl = `https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy=%22room_url%22&equalTo=%22${encodedRoomUrl}%22&limitToLast=1`;
+      console.log("🔍 Firebase query URL:", firebaseUrl);
+      const response = await fetch(firebaseUrl);
       
       if (response.ok) {
         const data = await response.json();

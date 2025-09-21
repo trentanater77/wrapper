@@ -1215,6 +1215,9 @@
       
       requestPermissionsAndSetupDevices();
       initializeSparks();
+    } else {
+      // For spectators, set up existing participants after joining
+      setTimeout(setupExistingParticipants, 1000);
     }
     
     // Hide waiting overlay and show video interface
@@ -1330,17 +1333,20 @@
     });
     
     if (!event.participant.local && event.track.kind === 'video') {
-      // Better detection of screen share tracks
-      // Enhanced screen share detection
-      const isScreenShareTrack = event.track.label && (
+      // Check if we currently have screen share active to determine if this is a screen share stopping
+      const spectatorScreenShare = document.getElementById('spectator-screen-share');
+      const isCurrentlyScreenSharing = spectatorScreenShare && !spectatorScreenShare.classList.contains('hidden');
+      
+      // Enhanced screen share detection - check label OR if we're currently showing screen share
+      const isScreenShareTrack = isCurrentlyScreenSharing || (event.track.label && (
         event.track.label.includes('screen') || 
         event.track.label.includes('Screen') ||
         event.track.label.includes('display') ||
         event.track.label.includes('Display')
-      );
+      ));
       
       if (isScreenShareTrack) {
-        console.log('📺 Screen share track stopped - label:', event.track.label);
+        console.log('📺 Screen share track stopped - label:', event.track.label, 'wasScreenSharing:', isCurrentlyScreenSharing);
         if (isSpectator) {
           hideSpectatorScreenShare();
         } else {
@@ -2483,6 +2489,48 @@
 
     showToast(`✅ Generated ${sparks.length} sparks for "${topic}"!`);
     console.log("✅ Spark generation complete!");
+  }
+
+  // Set up existing participants for spectators who join late or refresh
+  function setupExistingParticipants() {
+    if (!isSpectator) return;
+    
+    console.log('🔄 Setting up existing participants for spectator');
+    
+    const participants = call.participants();
+    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
+    
+    console.log('👥 Found participants:', remoteParticipants.length);
+    
+    remoteParticipants.forEach(([participantId, participant]) => {
+      console.log('🎭 Processing participant:', participantId, participant.user_name);
+      
+      // Set up video tracks if available
+      if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
+        console.log('🎥 Setting up video for existing participant:', participantId);
+        setupSpectatorVideo(participant.tracks.video.persistentTrack, participantId);
+      }
+      
+      // Set up screen share tracks if available
+      if (participant.tracks && participant.tracks.screenVideo && participant.tracks.screenVideo.persistentTrack) {
+        console.log('📺 Setting up screen share for existing participant:', participantId);
+        setupSpectatorScreenShare(participant.tracks.screenVideo.persistentTrack);
+      }
+      
+      // Set up audio tracks if available
+      if (participant.tracks && participant.tracks.audio && participant.tracks.audio.persistentTrack) {
+        console.log('🔊 Setting up audio for existing participant:', participantId);
+        setupRemoteAudio(participant.tracks.audio.persistentTrack);
+      }
+    });
+    
+    // If no participants were found, make sure click overlay is visible
+    if (remoteParticipants.length === 0) {
+      const clickOverlay = document.getElementById('spectator-click-overlay');
+      if (clickOverlay) {
+        clickOverlay.style.display = 'flex';
+      }
+    }
   }
 
   // Enable spectator video on user interaction

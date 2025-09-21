@@ -1324,10 +1324,12 @@
           hideScreenShareVideo();
         }
       } else {
-        if (isSpectator) {
-          hideSpectatorVideo();
-        } else {
+        // For spectators, don't remove participant videos when regular video tracks stop
+        // They should only be removed when participants actually leave
+        if (!isSpectator) {
           hideRemoteVideo();
+        } else {
+          console.log('🎥 Spectator: Regular video track stopped, but keeping participant in view');
         }
       }
     }

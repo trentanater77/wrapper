@@ -1447,16 +1447,41 @@
     }
     
     try {
-      spectatorVideo.srcObject = new MediaStream([track]);
+      // Get existing stream or create new one
+      let existingStream = spectatorVideo.srcObject;
+      if (!existingStream) {
+        existingStream = new MediaStream();
+        spectatorVideo.srcObject = existingStream;
+      }
+      
+      // Check if this track is already added to avoid duplicates
+      const existingTracks = existingStream.getVideoTracks();
+      const trackExists = existingTracks.some(existingTrack => existingTrack.id === track.id);
+      
+      if (!trackExists) {
+        // Remove old tracks and add the new one (for simplicity, we'll show the most recent)
+        existingTracks.forEach(oldTrack => {
+          existingStream.removeTrack(oldTrack);
+        });
+        existingStream.addTrack(track);
+        console.log('🎥 Added new video track to spectator stream:', track.id);
+      } else {
+        console.log('🔄 Video track already exists in spectator stream');
+      }
+      
       spectatorVideo.style.display = 'block';
       placeholder.style.display = 'none';
       console.log('✅ Spectator video stream set up successfully');
       
-      // Ensure video plays
+      // Ensure video plays (with user interaction check)
       spectatorVideo.play().then(() => {
         console.log('✅ Spectator video playing');
       }).catch(err => {
-        console.error('❌ Spectator video play failed:', err);
+        if (err.name === 'NotAllowedError') {
+          console.log('🎥 Video will play after user interaction');
+        } else {
+          console.error('❌ Spectator video play failed:', err);
+        }
       });
       
     } catch (error) {

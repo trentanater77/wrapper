@@ -1730,7 +1730,44 @@
     spectatorScreenShare.srcObject = null;
     participantsContainer.style.display = 'grid';
     
+    // Ensure participant videos are visible and playing
+    restoreSpectatorParticipantVideos();
+    
     console.log('✅ Spectator screen share hidden, participants view restored');
+  }
+
+  function restoreSpectatorParticipantVideos() {
+    console.log('🔄 Restoring spectator participant videos after screen share');
+    
+    // Restore participant 1 video if it exists
+    const video1 = document.getElementById('spectator-participant-1');
+    const placeholder1 = document.getElementById('spectator-placeholder-1');
+    if (video1 && video1.srcObject) {
+      video1.classList.remove('hidden');
+      placeholder1.style.display = 'none';
+      video1.play().catch(err => console.log('Video 1 play after restore:', err));
+      console.log('✅ Restored participant 1 video');
+    }
+    
+    // Restore participant 2 video if it exists
+    const video2 = document.getElementById('spectator-participant-2');
+    const placeholder2 = document.getElementById('spectator-placeholder-2');
+    if (video2 && video2.srcObject) {
+      video2.classList.remove('hidden');
+      placeholder2.style.display = 'none';
+      video2.play().catch(err => console.log('Video 2 play after restore:', err));
+      console.log('✅ Restored participant 2 video');
+    }
+    
+    // Hide click overlay if participants are available
+    const clickOverlay = document.getElementById('spectator-click-overlay');
+    if ((video1 && video1.srcObject) || (video2 && video2.srcObject)) {
+      clickOverlay.style.display = 'none';
+      console.log('✅ Hiding click overlay - participants available');
+    } else {
+      clickOverlay.style.display = 'flex';
+      console.log('⚠️ No participants available - showing click overlay');
+    }
   }
 
   function updateRemoteInfo(name) {

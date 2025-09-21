@@ -1057,6 +1057,66 @@
     viewerCountElements.forEach(el => {
       if (el) el.textContent = count;
     });
+    
+    // Update participant view when spectators are present
+    if (!isSpectator) {
+      updateParticipantViewForSpectators(count);
+    }
+  }
+
+  function updateParticipantViewForSpectators(spectatorCount) {
+    const remotePlaceholder = document.getElementById('remote-placeholder');
+    const remoteVideo = document.getElementById('remote-video');
+    
+    // Only update if no remote video is showing (no other participants)
+    if (remotePlaceholder && remoteVideo && remoteVideo.style.display !== 'block') {
+      const placeholder = remotePlaceholder.querySelector('.text-center.text-white.relative.z-10');
+      
+      if (placeholder) {
+        const icon = placeholder.querySelector('.w-16.h-16');
+        const title = placeholder.querySelector('.font-bold.text-lg.text-white');
+        const subtitle = placeholder.querySelector('.text-sm.text-gold.mt-1');
+        
+        if (spectatorCount > 0) {
+          // Show that spectators are watching
+          if (icon) {
+            icon.innerHTML = `
+              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>
+              </svg>
+            `;
+          }
+          
+          if (title) {
+            title.textContent = spectatorCount === 1 
+              ? `${spectatorCount} viewer is watching!` 
+              : `${spectatorCount} viewers are watching!`;
+          }
+          
+          if (subtitle) {
+            subtitle.innerHTML = `🎭 They're here for the conversation! <br>🎤 Waiting for another participant to join...`;
+          }
+        } else {
+          // Reset to original state when no spectators
+          if (icon) {
+            icon.innerHTML = `
+              <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+              </svg>
+            `;
+          }
+          
+          if (title) {
+            title.textContent = "Waiting for your chat partner...";
+          }
+          
+          if (subtitle) {
+            subtitle.innerHTML = "🐱 They might be as curious as a cat about this topic!";
+          }
+        }
+      }
+    }
   }
 
   function setupChatListeners() {
@@ -2532,40 +2592,59 @@
   }
 
   // Set up existing participants for spectators who join late or refresh
-  function setupExistingParticipants() {
+  function setupExistingParticipants(retryCount = 0) {
     if (!isSpectator) return;
     
-    console.log('🔄 Setting up existing participants for spectator');
+    console.log(`🔄 Setting up existing participants for spectator (attempt ${retryCount + 1}/5)`);
     
     const participants = call.participants();
     const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
     
     console.log('👥 Found participants:', remoteParticipants.length);
     
-    remoteParticipants.forEach(([participantId, participant]) => {
-      console.log('🎭 Processing participant:', participantId, participant.user_name);
-      
-      // Set up video tracks if available
-      if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
-        console.log('🎥 Setting up video for existing participant:', participantId);
-        setupSpectatorVideo(participant.tracks.video.persistentTrack, participantId);
-      }
-      
-      // Set up screen share tracks if available
-      if (participant.tracks && participant.tracks.screenVideo && participant.tracks.screenVideo.persistentTrack) {
-        console.log('📺 Setting up screen share for existing participant:', participantId);
-        setupSpectatorScreenShare(participant.tracks.screenVideo.persistentTrack);
-      }
-      
-      // Set up audio tracks if available
-      if (participant.tracks && participant.tracks.audio && participant.tracks.audio.persistentTrack) {
-        console.log('🔊 Setting up audio for existing participant:', participantId);
-        setupRemoteAudio(participant.tracks.audio.persistentTrack);
-      }
-    });
+    // If no participants found and we haven't exceeded retry limit, try again
+    if (remoteParticipants.length === 0 && retryCount < 4) {
+      console.log(`⏳ No participants found, retrying in ${(retryCount + 1) * 500}ms...`);
+      setTimeout(() => {
+        setupExistingParticipants(retryCount + 1);
+      }, (retryCount + 1) * 500);
+      return;
+    }
     
-    // If no participants were found, make sure click overlay is visible
-    if (remoteParticipants.length === 0) {
+    if (remoteParticipants.length > 0) {
+      console.log('✅ Found existing participants, setting them up...');
+      
+      remoteParticipants.forEach(([participantId, participant]) => {
+        console.log('🎭 Processing participant:', participantId, participant.user_name);
+        
+        // Set up video tracks if available
+        if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
+          console.log('🎥 Setting up video for existing participant:', participantId);
+          setupSpectatorVideo(participant.tracks.video.persistentTrack, participantId);
+        }
+        
+        // Set up screen share tracks if available
+        if (participant.tracks && participant.tracks.screenVideo && participant.tracks.screenVideo.persistentTrack) {
+          console.log('📺 Setting up screen share for existing participant:', participantId);
+          setupSpectatorScreenShare(participant.tracks.screenVideo.persistentTrack);
+        }
+        
+        // Set up audio tracks if available
+        if (participant.tracks && participant.tracks.audio && participant.tracks.audio.persistentTrack) {
+          console.log('🔊 Setting up audio for existing participant:', participantId);
+          setupRemoteAudio(participant.tracks.audio.persistentTrack);
+        }
+      });
+      
+      // Hide click overlay since we have participants
+      const clickOverlay = document.getElementById('spectator-click-overlay');
+      if (clickOverlay) {
+        clickOverlay.style.display = 'none';
+      }
+      
+    } else {
+      console.log('📺 No participants found after retries, showing click overlay');
+      // If no participants were found after retries, make sure click overlay is visible
       const clickOverlay = document.getElementById('spectator-click-overlay');
       if (clickOverlay) {
         clickOverlay.style.display = 'flex';

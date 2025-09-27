@@ -1736,23 +1736,26 @@
       // Check if we should auto-hide the click overlay
       checkAndHideClickOverlay();
       
-      // Ensure video plays (will need user interaction first)
-      videoElement.play().then(() => {
-        console.log(`✅ Spectator video playing for participant ${participantId}`);
-      }).catch(err => {
-        if (err.name === 'NotAllowedError') {
-          console.log(`🎥 Video will play after user interaction for participant ${participantId}`);
-        } else {
-          console.error(`❌ Spectator video play failed for participant ${participantId}:`, err);
-        }
-      });
+      // Ensure video plays - auto-play if user has already interacted
+      if (userHasInteracted) {
+        videoElement.play().then(() => {
+          console.log(`✅ Spectator video playing for participant ${participantId}`);
+        }).catch(err => {
+          console.log(`🎥 Video will auto-play after interaction for participant ${participantId}`);
+        });
+      } else {
+        console.log(`🎥 Video ready to play after user interaction for participant ${participantId}`);
+      }
       
     } catch (error) {
       console.error('❌ Error setting up spectator video:', error);
     }
   }
 
-  // Check if we should hide the click overlay when participants are available
+  // Global flag to track if user has interacted
+  let userHasInteracted = false;
+  
+  // Check if we should update the click overlay when participants are available
   function checkAndHideClickOverlay() {
     const clickOverlay = document.getElementById('spectator-click-overlay');
     if (!clickOverlay) return;
@@ -1764,7 +1767,7 @@
     const hasVideo2 = video2 && video2.srcObject && !video2.classList.contains('hidden');
     
     if (hasVideo1 || hasVideo2) {
-      console.log(`✅ Participants available (video1: ${hasVideo1}, video2: ${hasVideo2}), showing watch button`);
+      console.log(`✅ Participants available (video1: ${hasVideo1}, video2: ${hasVideo2}), updating overlay`);
       
       // Update overlay to show "ready to watch" instead of "waiting"
       const overlayText = clickOverlay.querySelector('.text-center.text-white');
@@ -1785,7 +1788,7 @@
         }
       }
       
-      // Make the overlay more obvious
+      // Make the overlay more obvious and KEEP IT VISIBLE until user clicks
       clickOverlay.style.backgroundColor = 'rgba(34, 34, 59, 0.95)';
       clickOverlay.style.cursor = 'pointer';
       clickOverlay.style.display = 'flex';
@@ -1796,9 +1799,26 @@
         clickOverlay.classList.add('animate-pulse');
       }
       
+      // Only hide overlay if user has successfully interacted and videos are playing
+      if (userHasInteracted && areVideosPlaying()) {
+        clickOverlay.style.display = 'none';
+        console.log('🎬 User has interacted and videos are playing, hiding overlay');
+      }
+      
     } else {
       console.log('⏳ No participants with video yet, keeping overlay');
     }
+  }
+  
+  // Check if videos are actually playing
+  function areVideosPlaying() {
+    const video1 = document.getElementById('spectator-participant-1');
+    const video2 = document.getElementById('spectator-participant-2');
+    
+    const video1Playing = video1 && video1.srcObject && !video1.paused && video1.readyState >= 2;
+    const video2Playing = video2 && video2.srcObject && !video2.paused && video2.readyState >= 2;
+    
+    return video1Playing || video2Playing;
   }
 
   function getParticipantName(participantId) {
@@ -2812,27 +2832,26 @@
   function enableSpectatorVideo() {
     console.log("🎬 User clicked to enable spectator video");
     
+    // Mark that user has interacted
+    userHasInteracted = true;
+    
     // Enable audio context
     enableAudioContext();
     
     const clickOverlay = document.getElementById('spectator-click-overlay');
     
-    // Hide the click overlay immediately with smooth transition
-    clickOverlay.style.opacity = '0';
-    clickOverlay.style.transform = 'scale(0.95)';
-    setTimeout(() => {
-      clickOverlay.style.display = 'none';
-    }, 300);
-    
-    // Try to play all available participant videos
+    // Try to play all available participant videos and auto-play future videos
     let playPromises = [];
     let participantCount = 0;
     
     // Play participant 1 video if available
     const video1 = document.getElementById('spectator-participant-1');
+    const placeholder1 = document.getElementById('spectator-placeholder-1');
     if (video1 && video1.srcObject) {
       console.log("🎬 Attempting to play participant 1 video");
       video1.classList.remove('hidden');
+      video1.style.display = 'block';
+      if (placeholder1) placeholder1.style.display = 'none';
       participantCount++;
       playPromises.push(
         video1.play().then(() => {
@@ -2847,9 +2866,12 @@
     
     // Play participant 2 video if available
     const video2 = document.getElementById('spectator-participant-2');
+    const placeholder2 = document.getElementById('spectator-placeholder-2');
     if (video2 && video2.srcObject) {
       console.log("🎬 Attempting to play participant 2 video");
       video2.classList.remove('hidden');
+      video2.style.display = 'block';
+      if (placeholder2) placeholder2.style.display = 'none';
       participantCount++;
       playPromises.push(
         video2.play().then(() => {
@@ -2864,6 +2886,13 @@
     
     // Show appropriate feedback based on what's available
     if (playPromises.length > 0) {
+      // Hide overlay immediately since we have videos to play
+      clickOverlay.style.opacity = '0';
+      clickOverlay.style.transform = 'scale(0.95)';
+      setTimeout(() => {
+        clickOverlay.style.display = 'none';
+      }, 300);
+      
       Promise.allSettled(playPromises).then((results) => {
         const successCount = results.filter(r => r.status === 'fulfilled' && r.value).length;
         if (successCount > 0) {
@@ -2871,19 +2900,27 @@
         } else {
           showToast('🎬 Videos ready! They may start playing shortly...');
         }
+        
+        // Check if videos are actually playing after a short delay
+        setTimeout(() => {
+          if (!areVideosPlaying()) {
+            console.log('⚠️ Videos not playing yet, keeping overlay ready to show');
+          }
+        }, 1000);
       });
     } else {
       console.log("🎬 No videos available yet, but user interaction registered");
       showToast('🎬 Ready for video! Waiting for participants to join...');
       
-      // Show click overlay again if no participants are available
-      setTimeout(() => {
-        if (participantCount === 0) {
-          clickOverlay.style.display = 'flex';
-          clickOverlay.style.opacity = '1';
-          clickOverlay.style.transform = 'scale(1)';
-        }
-      }, 2000);
+      // Keep overlay visible but update its state
+      const overlayText = clickOverlay.querySelector('.text-center.text-white');
+      if (overlayText) {
+        const title = overlayText.querySelector('.font-bold.text-xl.text-white');
+        const subtitle = overlayText.querySelector('.text-sm.text-gold');
+        
+        if (title) title.textContent = '⏳ Waiting for Participants';
+        if (subtitle) subtitle.textContent = 'Videos will start automatically when participants join!';
+      }
     }
     
     // Also try to play any remote audio
@@ -2895,6 +2932,8 @@
         console.log("Remote audio play attempt:", err);
       });
     }
+    
+    console.log('🎬 User interaction complete, videos should automatically play and start when new participants join');
   }
 
   // Enable audio context on user interaction

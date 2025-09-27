@@ -1716,11 +1716,9 @@
         console.log(`🔴 Parent element:`, videoElement.parentElement);
         console.log(`🔴 Parent bounds:`, videoElement.parentElement.getBoundingClientRect());
         
-        // Force additional styles for slot 2
-        videoElement.style.backgroundColor = 'red'; // Temporary debug color
-        videoElement.style.minWidth = '100px';
-        videoElement.style.minHeight = '100px';
-        videoElement.style.border = '3px solid yellow'; // Debug border
+        // Clear any debug styles
+        videoElement.style.backgroundColor = '';
+        videoElement.style.border = '';
         
         console.log(`🔴 Applied debug styles to slot 2`);
       

@@ -1287,8 +1287,8 @@
       // For participants, also set up existing participants after joining (for refresh case)
       setTimeout(setupExistingParticipantsForParticipant, 1000);
     } else {
-      // For spectators, set up existing participants after joining
-      setTimeout(setupExistingParticipants, 1000);
+      // For spectators, set up existing participants after joining - but wait longer for better user experience
+      setTimeout(setupExistingParticipants, 3000);
     }
     
     // Hide waiting overlay and show video interface
@@ -2812,11 +2812,8 @@
         }
       });
       
-      // Hide click overlay since we have participants
-      const clickOverlay = document.getElementById('spectator-click-overlay');
-      if (clickOverlay) {
-        clickOverlay.style.display = 'none';
-      }
+      // Update click overlay since we have participants, but don't hide until user interacts
+      checkAndHideClickOverlay();
       
     } else {
       console.log('📺 No participants found after retries, showing click overlay');

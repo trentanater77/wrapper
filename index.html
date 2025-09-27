@@ -1300,11 +1300,19 @@
   }
 
   function handleParticipantJoined(event) {
-    console.log('👋 Participant joined:', event.participant.user_name);
+    const participantName = event.participant.user_name || 'Guest';
+    const isSpectatorParticipant = participantName.includes('Viewer_');
+    
+    console.log('👋 Participant joined:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
     
     if (!isSpectator) {
-      updateRemoteInfo(event.participant.user_name || 'Guest');
-      showToast(`👋 ${event.participant.user_name || 'Guest'} joined the call!`);
+      // Only process actual participants, not spectators
+      if (!isSpectatorParticipant) {
+        updateRemoteInfo(participantName);
+        showToast(`👋 ${participantName} joined the call!`);
+      } else {
+        console.log('🔒 Ignoring spectator join event to prevent participant disruption');
+      }
     } else {
       // Update spectator participants list
       updateSpectatorParticipants();
@@ -1312,17 +1320,25 @@
   }
 
   function handleParticipantLeft(event) {
-    console.log('👋 Participant left:', event.participant.user_name);
+    const participantName = event.participant.user_name || 'Guest';
+    const isSpectatorParticipant = participantName.includes('Viewer_');
+    
+    console.log('👋 Participant left:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
     
     if (!isSpectator) {
-      hideRemoteVideo();
-      showToast(`👋 ${event.participant.user_name || 'Guest'} left the call`);
+      // Only process actual participants leaving, not spectators
+      if (!isSpectatorParticipant) {
+        hideRemoteVideo();
+        showToast(`👋 ${participantName} left the call`);
+      } else {
+        console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
+      }
     } else {
       // Remove the participant's video from spectator view
       const participantId = event.participant.session_id;
       removeSpectatorParticipant(participantId);
       updateSpectatorParticipants();
-      showToast(`👋 ${event.participant.user_name || 'Guest'} left the conversation`);
+      showToast(`👋 ${participantName} left the conversation`);
     }
   }
 

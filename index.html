@@ -1778,13 +1778,26 @@
         if (title) title.textContent = '🎬 Ready to Watch!';
         if (subtitle) subtitle.textContent = `${hasVideo1 && hasVideo2 ? '2 participants' : '1 participant'} ready for viewing`;
         if (button) {
-          button.textContent = '👆 Click to Start Watching';
-          button.classList.add('bg-green-500');
+          button.textContent = '👆 CLICK HERE TO START WATCHING';
+          button.classList.add('bg-green-500', 'text-white', 'font-bold', 'text-lg', 'px-8', 'py-4');
           button.classList.remove('bg-main-red');
+          button.style.fontSize = '18px';
+          button.style.fontWeight = 'bold';
+          button.style.padding = '16px 32px';
         }
       }
       
-      clickOverlay.style.display = 'flex'; // Keep overlay but update text
+      // Make the overlay more obvious
+      clickOverlay.style.backgroundColor = 'rgba(34, 34, 59, 0.95)';
+      clickOverlay.style.cursor = 'pointer';
+      clickOverlay.style.display = 'flex';
+      clickOverlay.style.zIndex = '999';
+      
+      // Add pulsing animation to make it more obvious
+      if (!clickOverlay.classList.contains('animate-pulse')) {
+        clickOverlay.classList.add('animate-pulse');
+      }
+      
     } else {
       console.log('⏳ No participants with video yet, keeping overlay');
     }

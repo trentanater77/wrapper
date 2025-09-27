@@ -1591,16 +1591,35 @@
   function setupSpectatorVideo(track, participantId) {
     console.log('🎬 Setting up spectator video for participant:', participantId);
     
+    // Check if this participant already has a video set up to prevent duplicates
+    if ((spectatorParticipant1 && spectatorParticipant1.participantId === participantId) ||
+        (spectatorParticipant2 && spectatorParticipant2.participantId === participantId)) {
+      const existingSlot = spectatorParticipant1?.participantId === participantId ? 1 : 2;
+      const videoElement = document.getElementById(`spectator-participant-${existingSlot}`);
+      
+      // Only update if the video source is different or not set
+      if (videoElement && (!videoElement.srcObject || videoElement.srcObject.getVideoTracks()[0] !== track)) {
+        console.log(`🔄 Updating existing video for participant ${participantId} in slot ${existingSlot}`);
+        videoElement.srcObject = new MediaStream([track]);
+        videoElement.play().catch(err => {
+          console.log(`🎥 Video will play after user interaction for participant ${participantId}`);
+        });
+      } else {
+        console.log(`⚠️ Participant ${participantId} video already set up, skipping duplicate`);
+      }
+      return;
+    }
+    
     const clickOverlay = document.getElementById('spectator-click-overlay');
     
     // Assign participant to available slot (max 2 participants)
     let participantSlot = null;
     let participantName = getParticipantName(participantId);
     
-    if (!spectatorParticipant1 || spectatorParticipant1.participantId === participantId) {
+    if (!spectatorParticipant1) {
       spectatorParticipant1 = { participantId, participantName };
       participantSlot = 1;
-    } else if (!spectatorParticipant2 || spectatorParticipant2.participantId === participantId) {
+    } else if (!spectatorParticipant2) {
       spectatorParticipant2 = { participantId, participantName };
       participantSlot = 2;
     } else {
@@ -1632,12 +1651,12 @@
       placeholder.style.display = 'none';
       videoElement.classList.remove('hidden');
       
-      // Don't auto-hide the overlay - let user click to enable video
-      // The overlay will be hidden in enableSpectatorVideo() after user interaction
-      
       console.log(`✅ Spectator video set up for participant ${participantId} in slot ${participantSlot}`);
       
-      // Ensure video plays
+      // Check if we should auto-hide the click overlay
+      checkAndHideClickOverlay();
+      
+      // Ensure video plays (will need user interaction first)
       videoElement.play().then(() => {
         console.log(`✅ Spectator video playing for participant ${participantId}`);
       }).catch(err => {
@@ -1650,6 +1669,42 @@
       
     } catch (error) {
       console.error('❌ Error setting up spectator video:', error);
+    }
+  }
+
+  // Check if we should hide the click overlay when participants are available
+  function checkAndHideClickOverlay() {
+    const clickOverlay = document.getElementById('spectator-click-overlay');
+    if (!clickOverlay) return;
+    
+    // Count participants with video streams
+    const video1 = document.getElementById('spectator-participant-1');
+    const video2 = document.getElementById('spectator-participant-2');
+    const hasVideo1 = video1 && video1.srcObject && !video1.classList.contains('hidden');
+    const hasVideo2 = video2 && video2.srcObject && !video2.classList.contains('hidden');
+    
+    if (hasVideo1 || hasVideo2) {
+      console.log(`✅ Participants available (video1: ${hasVideo1}, video2: ${hasVideo2}), showing watch button`);
+      
+      // Update overlay to show "ready to watch" instead of "waiting"
+      const overlayText = clickOverlay.querySelector('.text-center.text-white');
+      if (overlayText) {
+        const title = overlayText.querySelector('.font-bold.text-xl.text-white');
+        const subtitle = overlayText.querySelector('.text-sm.text-gold');
+        const button = overlayText.querySelector('.animate-bounce');
+        
+        if (title) title.textContent = '🎬 Ready to Watch!';
+        if (subtitle) subtitle.textContent = `${hasVideo1 && hasVideo2 ? '2 participants' : '1 participant'} ready for viewing`;
+        if (button) {
+          button.textContent = '👆 Click to Start Watching';
+          button.classList.add('bg-green-500');
+          button.classList.remove('bg-main-red');
+        }
+      }
+      
+      clickOverlay.style.display = 'flex'; // Keep overlay but update text
+    } else {
+      console.log('⏳ No participants with video yet, keeping overlay');
     }
   }
 
@@ -2669,52 +2724,83 @@
     
     const clickOverlay = document.getElementById('spectator-click-overlay');
     
-    // Hide the click overlay now that user has interacted
-    clickOverlay.style.display = 'none';
+    // Hide the click overlay immediately with smooth transition
+    clickOverlay.style.opacity = '0';
+    clickOverlay.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+      clickOverlay.style.display = 'none';
+    }, 300);
     
     // Try to play all available participant videos
     let playPromises = [];
+    let participantCount = 0;
     
     // Play participant 1 video if available
     const video1 = document.getElementById('spectator-participant-1');
-    if (video1 && video1.srcObject && !video1.classList.contains('hidden')) {
+    if (video1 && video1.srcObject) {
       console.log("🎬 Attempting to play participant 1 video");
+      video1.classList.remove('hidden');
+      participantCount++;
       playPromises.push(
         video1.play().then(() => {
           console.log("✅ Participant 1 video now playing");
+          return true;
         }).catch(err => {
           console.error("❌ Participant 1 video play failed:", err);
+          return false;
         })
       );
     }
     
     // Play participant 2 video if available
     const video2 = document.getElementById('spectator-participant-2');
-    if (video2 && video2.srcObject && !video2.classList.contains('hidden')) {
+    if (video2 && video2.srcObject) {
       console.log("🎬 Attempting to play participant 2 video");
+      video2.classList.remove('hidden');
+      participantCount++;
       playPromises.push(
         video2.play().then(() => {
           console.log("✅ Participant 2 video now playing");
+          return true;
         }).catch(err => {
           console.error("❌ Participant 2 video play failed:", err);
+          return false;
         })
       );
     }
     
-    // Show appropriate feedback
+    // Show appropriate feedback based on what's available
     if (playPromises.length > 0) {
-      Promise.allSettled(playPromises).then(() => {
-        showToast(`🎬 Video enabled! Watching ${playPromises.length} participant${playPromises.length > 1 ? 's' : ''}!`);
+      Promise.allSettled(playPromises).then((results) => {
+        const successCount = results.filter(r => r.status === 'fulfilled' && r.value).length;
+        if (successCount > 0) {
+          showToast(`🎬 Now watching ${successCount} participant${successCount > 1 ? 's' : ''}! 👀`);
+        } else {
+          showToast('🎬 Videos ready! They may start playing shortly...');
+        }
       });
     } else {
       console.log("🎬 No videos available yet, but user interaction registered");
-      showToast('🎬 Ready for video! Waiting for participants...');
+      showToast('🎬 Ready for video! Waiting for participants to join...');
+      
+      // Show click overlay again if no participants are available
+      setTimeout(() => {
+        if (participantCount === 0) {
+          clickOverlay.style.display = 'flex';
+          clickOverlay.style.opacity = '1';
+          clickOverlay.style.transform = 'scale(1)';
+        }
+      }, 2000);
     }
     
     // Also try to play any remote audio
     const remoteAudio = document.getElementById('remote-audio');
-    if (remoteAudio) {
-      remoteAudio.play().catch(err => console.log("Remote audio play attempt:", err));
+    if (remoteAudio && remoteAudio.srcObject) {
+      remoteAudio.play().then(() => {
+        console.log("✅ Remote audio now playing");
+      }).catch(err => {
+        console.log("Remote audio play attempt:", err);
+      });
     }
   }
 

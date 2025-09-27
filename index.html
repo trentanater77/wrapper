@@ -1647,11 +1647,19 @@
       nameElement.textContent = participantName;
       nameElement.classList.remove('hidden');
       
-      // Hide placeholder and show video
+      // Force hide placeholder and show video element
       placeholder.style.display = 'none';
+      placeholder.classList.add('hidden');
       videoElement.classList.remove('hidden');
+      videoElement.style.display = 'block';
       
       console.log(`✅ Spectator video set up for participant ${participantId} in slot ${participantSlot}`);
+      console.log(`📺 Video element for slot ${participantSlot}:`, {
+        hidden: videoElement.classList.contains('hidden'),
+        display: videoElement.style.display,
+        srcObject: !!videoElement.srcObject,
+        placeholderHidden: placeholder.style.display === 'none'
+      });
       
       // Check if we should auto-hide the click overlay
       checkAndHideClickOverlay();

@@ -1723,6 +1723,16 @@
         videoElement.style.border = '3px solid yellow'; // Debug border
         
         console.log(`🔴 Applied debug styles to slot 2`);
+      
+      // Check click overlay state
+      const clickOverlay = document.getElementById('spectator-click-overlay');
+      console.log(`🔴 Click overlay state:`, {
+        exists: !!clickOverlay,
+        display: clickOverlay ? clickOverlay.style.display : 'N/A',
+        computedDisplay: clickOverlay ? window.getComputedStyle(clickOverlay).display : 'N/A',
+        opacity: clickOverlay ? clickOverlay.style.opacity : 'N/A',
+        classList: clickOverlay ? clickOverlay.classList.toString() : 'N/A'
+      });
       }
       
       // Check if we should auto-hide the click overlay

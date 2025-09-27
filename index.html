@@ -1327,23 +1327,34 @@
   }
 
   function handleParticipantUpdated(event) {
-    console.log('🔄 Participant updated:', event.participant);
+    // Only log when there are meaningful changes, not constant updates
+    const participantId = event.participant.session_id;
+    const isLocalParticipant = event.participant.local;
+    
+    // Skip logging and processing for local participant updates
+    if (isLocalParticipant) return;
+    
+    console.log(`🔄 Remote participant updated: ${event.participant.user_name || participantId.slice(0,8)}`);
     
     const tracks = event.participant.tracks;
-    const participantId = event.participant.session_id;
     
-    // Only handle tracks for non-local participants
-    if (tracks && !event.participant.local) {
+    // For non-local participants only
+    if (tracks) {
       if (tracks.video && tracks.video.persistentTrack) {
         if (isSpectator) {
           setupSpectatorVideo(tracks.video.persistentTrack, participantId);
         } else {
-          // For participants, only set up video if we don't already have remote video
+          // For participants: NEVER overwrite existing video connections from spectator events
           const remoteVideo = document.getElementById('remote-video');
-          const remoteVideoVisible = remoteVideo && remoteVideo.style.display === 'block';
+          const hasActiveRemoteVideo = remoteVideo && remoteVideo.srcObject && remoteVideo.style.display === 'block';
           
-          if (!remoteVideoVisible) {
+          // Only set up if we truly don't have a remote connection
+          if (!hasActiveRemoteVideo) {
+            console.log('✅ Setting up remote video for participant');
             setupRemoteVideo(tracks.video.persistentTrack);
+            updateRemoteInfo(event.participant.user_name || 'Guest');
+          } else {
+            console.log('🔒 Remote video already active, ignoring update to prevent disruption');
           }
         }
       }
@@ -1388,7 +1399,16 @@
           if (isSpectator) {
             setupSpectatorVideo(event.track, participantId);
           } else {
-            setupRemoteVideo(event.track);
+            // CRITICAL: For participants, check if we already have a connection before setting up
+            const remoteVideo = document.getElementById('remote-video');
+            const hasActiveConnection = remoteVideo && remoteVideo.srcObject && remoteVideo.style.display === 'block';
+            
+            if (!hasActiveConnection) {
+              setupRemoteVideo(event.track);
+              updateRemoteInfo(event.participant.user_name || 'Guest');
+            } else {
+              console.log('🔒 BLOCKING track start - participant already has active remote video connection');
+            }
           }
         }
       } else if (event.track.kind === 'audio') {
@@ -1581,6 +1601,17 @@
     
     remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
+    
+    // CRITICAL: Check if we already have a stable video connection
+    const hasStableConnection = remoteVideo.srcObject && 
+                               remoteVideo.style.display === 'block' && 
+                               !remoteVideo.paused && 
+                               remoteVideo.readyState >= 2;
+    
+    if (hasStableConnection) {
+      console.log('🔒 BLOCKING video setup - stable connection already exists');
+      return;
+    }
     
     // Prevent overwriting existing video connections unless track is different
     if (remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0] === track) {

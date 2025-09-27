@@ -1654,30 +1654,76 @@
       videoElement.style.display = 'block';
       
       console.log(`✅ Spectator video set up for participant ${participantId} in slot ${participantSlot}`);
-      console.log(`📺 Video element for slot ${participantSlot}:`, {
-        hidden: videoElement.classList.contains('hidden'),
-        display: videoElement.style.display,
-        srcObject: !!videoElement.srcObject,
-        placeholderHidden: placeholder.style.display === 'none',
-        videoWidth: videoElement.videoWidth,
-        videoHeight: videoElement.videoHeight,
-        readyState: videoElement.readyState,
-        parentVisible: videoElement.parentElement.style.display !== 'none',
-        computedStyle: window.getComputedStyle(videoElement).display,
-        videoElement: videoElement,
-        placeholder: placeholder
-      });
       
-      // Force a DOM update
+      // Force styles to ensure visibility
+      videoElement.style.display = 'block';
       videoElement.style.visibility = 'visible';
       videoElement.style.opacity = '1';
+      videoElement.style.width = '100%';
+      videoElement.style.height = '100%';
+      videoElement.style.objectFit = 'cover';
       
-      // Also log the parent container
-      console.log(`📺 Parent container for slot ${participantSlot}:`, {
-        display: videoElement.parentElement.style.display,
-        computedDisplay: window.getComputedStyle(videoElement.parentElement).display,
-        classList: videoElement.parentElement.classList.toString()
-      });
+      // Force placeholder to hide
+      placeholder.style.display = 'none';
+      placeholder.classList.add('hidden');
+      
+      // Get comprehensive debugging info
+      const debugInfo = {
+        participantId: participantId,
+        slot: participantSlot,
+        videoElement: {
+          hidden: videoElement.classList.contains('hidden'),
+          display: videoElement.style.display,
+          computedDisplay: window.getComputedStyle(videoElement).display,
+          visibility: videoElement.style.visibility,
+          opacity: videoElement.style.opacity,
+          srcObject: !!videoElement.srcObject,
+          videoWidth: videoElement.videoWidth,
+          videoHeight: videoElement.videoHeight,
+          readyState: videoElement.readyState,
+          classList: videoElement.classList.toString(),
+          bounds: videoElement.getBoundingClientRect(),
+          hasVideoTracks: videoElement.srcObject ? videoElement.srcObject.getVideoTracks().length : 0
+        },
+        placeholder: {
+          hidden: placeholder.classList.contains('hidden'),
+          display: placeholder.style.display,
+          computedDisplay: window.getComputedStyle(placeholder).display
+        },
+        parent: {
+          classList: videoElement.parentElement.classList.toString(),
+          display: videoElement.parentElement.style.display,
+          computedDisplay: window.getComputedStyle(videoElement.parentElement).display,
+          bounds: videoElement.parentElement.getBoundingClientRect()
+        }
+      };
+      
+      console.log(`📺 COMPREHENSIVE DEBUG - Slot ${participantSlot}:`, debugInfo);
+      
+      // Special debugging for slot 2
+      if (participantSlot === 2) {
+        console.log(`🔴 SLOT 2 SPECIAL DEBUG:`);
+        console.log(`🔴 Video element:`, videoElement);
+        console.log(`🔴 Video bounds:`, videoElement.getBoundingClientRect());
+        console.log(`🔴 Video computed styles:`, {
+          display: window.getComputedStyle(videoElement).display,
+          visibility: window.getComputedStyle(videoElement).visibility,
+          opacity: window.getComputedStyle(videoElement).opacity,
+          position: window.getComputedStyle(videoElement).position,
+          zIndex: window.getComputedStyle(videoElement).zIndex,
+          transform: window.getComputedStyle(videoElement).transform
+        });
+        console.log(`🔴 Parent element:`, videoElement.parentElement);
+        console.log(`🔴 Parent bounds:`, videoElement.parentElement.getBoundingClientRect());
+        
+        // Force additional styles for slot 2
+        videoElement.style.backgroundColor = 'red'; // Temporary debug color
+        videoElement.style.minWidth = '100px';
+        videoElement.style.minHeight = '100px';
+        videoElement.style.border = '3px solid yellow'; // Debug border
+        
+        console.log(`🔴 Applied debug styles to slot 2`);
+      }
       
       // Check if we should auto-hide the click overlay
       checkAndHideClickOverlay();

@@ -1658,7 +1658,25 @@
         hidden: videoElement.classList.contains('hidden'),
         display: videoElement.style.display,
         srcObject: !!videoElement.srcObject,
-        placeholderHidden: placeholder.style.display === 'none'
+        placeholderHidden: placeholder.style.display === 'none',
+        videoWidth: videoElement.videoWidth,
+        videoHeight: videoElement.videoHeight,
+        readyState: videoElement.readyState,
+        parentVisible: videoElement.parentElement.style.display !== 'none',
+        computedStyle: window.getComputedStyle(videoElement).display,
+        videoElement: videoElement,
+        placeholder: placeholder
+      });
+      
+      // Force a DOM update
+      videoElement.style.visibility = 'visible';
+      videoElement.style.opacity = '1';
+      
+      // Also log the parent container
+      console.log(`📺 Parent container for slot ${participantSlot}:`, {
+        display: videoElement.parentElement.style.display,
+        computedDisplay: window.getComputedStyle(videoElement.parentElement).display,
+        classList: videoElement.parentElement.classList.toString()
       });
       
       // Check if we should auto-hide the click overlay

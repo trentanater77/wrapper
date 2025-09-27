@@ -1332,23 +1332,26 @@
     const tracks = event.participant.tracks;
     const participantId = event.participant.session_id;
     
-    if (tracks) {
+    // Only handle tracks for non-local participants
+    if (tracks && !event.participant.local) {
       if (tracks.video && tracks.video.persistentTrack) {
-        if (!event.participant.local) {
-          if (isSpectator) {
-            setupSpectatorVideo(tracks.video.persistentTrack, participantId);
-          } else {
+        if (isSpectator) {
+          setupSpectatorVideo(tracks.video.persistentTrack, participantId);
+        } else {
+          // For participants, only set up video if we don't already have remote video
+          const remoteVideo = document.getElementById('remote-video');
+          const remoteVideoVisible = remoteVideo && remoteVideo.style.display === 'block';
+          
+          if (!remoteVideoVisible) {
             setupRemoteVideo(tracks.video.persistentTrack);
           }
         }
       }
       if (tracks.screenVideo && tracks.screenVideo.persistentTrack) {
-        if (!event.participant.local) {
-          if (isSpectator) {
-            setupSpectatorScreenShare(tracks.screenVideo.persistentTrack);
-          } else {
-            setupScreenShareVideo(tracks.screenVideo.persistentTrack);
-          }
+        if (isSpectator) {
+          setupSpectatorScreenShare(tracks.screenVideo.persistentTrack);
+        } else {
+          setupScreenShareVideo(tracks.screenVideo.persistentTrack);
         }
       }
     }
@@ -1579,9 +1582,17 @@
     remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
     
+    // Prevent overwriting existing video connections unless track is different
+    if (remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0] === track) {
+      console.log('🎥 Remote video already set up with this track, skipping duplicate');
+      return;
+    }
+    
     remoteVideo.srcObject = new MediaStream([track]);
     remoteVideo.style.display = 'block';
     placeholder.style.display = 'none';
+    
+    console.log('✅ Remote video set up for participant');
   }
 
   // Track which participant slots are used (only 2 participants max)

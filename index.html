@@ -41,11 +41,48 @@
       background: linear-gradient(135deg, #22223B 0%, #2a2a4a 100%);
     }
     
-    /* Fix screen share orientation - ensure screen shares are never flipped */
+    /* Fix screen share orientation and display */
     #screen-share-video,
     #spectator-screen-share {
-      transform: none !important;
-      scale: none !important;
+      transform: scaleX(1) !important; /* Ensure no horizontal flip */
+      object-fit: contain !important; /* Show full screen content */
+      background-color: #000 !important; /* Black background for letterboxing */
+    }
+    
+    /* Full screen expansion styles */
+    .video-fullscreen {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+      background: #000 !important;
+    }
+    
+    .video-fullscreen video {
+      width: 100% !important;
+      height: 100% !important;
+      object-fit: contain !important;
+    }
+    
+    /* Fullscreen button styles */
+    .fullscreen-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      border: none;
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+      transition: background 0.2s;
+    }
+    
+    .fullscreen-btn:hover {
+      background: rgba(0, 0, 0, 0.9);
     }
     
     .chatspheres-pattern {
@@ -369,6 +406,13 @@
         <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
           <video id="remote-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
           <video id="screen-share-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+          
+          <!-- Fullscreen Button -->
+          <button class="fullscreen-btn" onclick="toggleFullscreen('remote-video')" title="Expand video">
+            <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M3 3a1 1 0 000 2h2.586L2.293 8.293a1 1 0 101.414 1.414L7 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1H3zM17 3a1 1 0 100 2h-2.586l3.293 3.293a1 1 0 01-1.414 1.414L13 6.414V9a1 1 0 11-2 0V4a1 1 0 011-1h5z"/>
+            </svg>
+          </button>
           
           <div id="remote-placeholder" class="absolute inset-0 flex items-center justify-center video-placeholder">
             <svg class="vesica-accent" viewBox="0 0 64 64" width="120" height="120" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1443,35 +1487,65 @@
     });
     
     if (!event.participant.local && event.track.kind === 'video') {
-      // Check if we currently have screen share active to determine if this is a screen share stopping
+      // IMPROVED: Better screen share detection
+      const screenShareVideo = document.getElementById('screen-share-video');
       const spectatorScreenShare = document.getElementById('spectator-screen-share');
-      const isCurrentlyScreenSharing = spectatorScreenShare && !spectatorScreenShare.classList.contains('hidden');
+      
+      const isCurrentlyScreenSharing = isSpectator ? 
+        (spectatorScreenShare && !spectatorScreenShare.classList.contains('hidden')) :
+        (screenShareVideo && screenShareVideo.style.display === 'block');
       
       // Enhanced screen share detection - check label OR if we're currently showing screen share
       const isScreenShareTrack = isCurrentlyScreenSharing || (event.track.label && (
         event.track.label.includes('screen') || 
         event.track.label.includes('Screen') ||
         event.track.label.includes('display') ||
-        event.track.label.includes('Display')
+        event.track.label.includes('Display') ||
+        event.track.label.includes('web-contents-media-stream')
       ));
       
       if (isScreenShareTrack) {
-        console.log('📺 Screen share track stopped - label:', event.track.label, 'wasScreenSharing:', isCurrentlyScreenSharing);
+        console.log('📺 Screen share track stopped - restoring camera feed');
         if (isSpectator) {
           hideSpectatorScreenShare();
         } else {
           hideScreenShareVideo();
+          // CRITICAL: Restore the camera feed after screen share stops
+          restoreParticipantCameraFeed();
         }
       } else {
         // For spectators, don't remove participant videos when regular video tracks stop
         // They should only be removed when participants actually leave
         if (!isSpectator) {
-          hideRemoteVideo();
+          // Only hide remote video if it's not a screen share track stopping
+          if (!isCurrentlyScreenSharing) {
+            hideRemoteVideo();
+          }
         } else {
           console.log('🎥 Spectator: Regular video track stopped, but keeping participant in view');
         }
       }
     }
+  }
+  
+  // CRITICAL: Restore camera feed after screen share stops
+  function restoreParticipantCameraFeed() {
+    console.log('🔄 Restoring participant camera feed after screen share');
+    
+    // Get the current participant's camera track
+    const participants = call.participants();
+    const remoteParticipants = Object.values(participants).filter(p => !p.local);
+    
+    remoteParticipants.forEach(participant => {
+      if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
+        const cameraTrack = participant.tracks.video.persistentTrack;
+        // Only restore if it's not a screen share track
+        if (!cameraTrack.label.includes('screen') && !cameraTrack.label.includes('web-contents-media-stream')) {
+          console.log('✅ Restoring camera track for participant:', participant.user_name);
+          setupRemoteVideo(cameraTrack);
+        }
+      }
+    });
   }
 
   function handleAppMessage(event) {
@@ -3011,6 +3085,40 @@
       remoteAudio.play().catch(err => console.log("Audio play attempt:", err));
     }
   }
+
+  // Fullscreen functionality
+  function toggleFullscreen(videoId) {
+    const video = document.getElementById(videoId === 'remote-video' ? 'screen-share-video' : videoId);
+    const container = video ? video.parentElement : null;
+    
+    if (!container) {
+      console.error('Video container not found for fullscreen');
+      return;
+    }
+    
+    if (container.classList.contains('video-fullscreen')) {
+      // Exit fullscreen
+      container.classList.remove('video-fullscreen');
+      showToast('📺 Exited fullscreen mode');
+    } else {
+      // Enter fullscreen
+      container.classList.add('video-fullscreen');
+      showToast('📺 Entered fullscreen mode - Press ESC or click again to exit');
+      
+      // Add escape key listener
+      const escapeHandler = (e) => {
+        if (e.key === 'Escape') {
+          container.classList.remove('video-fullscreen');
+          document.removeEventListener('keydown', escapeHandler);
+          showToast('📺 Exited fullscreen mode');
+        }
+      };
+      document.addEventListener('keydown', escapeHandler);
+    }
+  }
+
+  // Make fullscreen function global
+  window.toggleFullscreen = toggleFullscreen;
 
   // Initialize
   console.log("ChatSpheres Video Chat Room Loading... 🌟");

@@ -283,6 +283,85 @@
       backdrop-filter: blur(4px);
     }
 
+    /* Spectator Immersive View Styles */
+    .spectator-expanded {
+      grid-template-columns: 5fr 1fr !important; /* Expand video area, shrink chat */
+    }
+    
+    .spectator-video-expanded {
+      transform: scale(1.02);
+      transition: all 0.3s ease;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      border: 3px solid #e63946;
+    }
+    
+    .expand-button {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(230, 57, 70, 0.9);
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.2s;
+      font-size: 12px;
+      font-weight: bold;
+      backdrop-filter: blur(4px);
+    }
+    
+    .expand-button:hover {
+      background: rgba(230, 57, 70, 1);
+      transform: scale(1.05);
+    }
+    
+    .expand-button.expanded {
+      background: rgba(255, 209, 102, 0.9);
+      color: #22223B;
+    }
+    
+    .expand-button.expanded:hover {
+      background: rgba(255, 209, 102, 1);
+    }
+    
+    /* Immersive overlay for full focus */
+    .immersive-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 999;
+      display: none;
+      padding: 20px;
+    }
+    
+    .immersive-content {
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-columns: 4fr 1fr;
+      gap: 20px;
+      max-width: none;
+    }
+    
+    .immersive-video {
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .immersive-chat {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
     @media (max-width: 768px) {
       #waiting-overlay {
         width: 200px;
@@ -738,6 +817,22 @@
                 </div>
               </div>
             </div>
+            
+            <!-- Expand Button for Participants View -->
+            <button id="expand-participants-btn" class="expand-button hidden" onclick="toggleSpectatorExpansion('participants')">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+              </svg>
+              EXPAND
+            </button>
+
+            <!-- Expand Button for Screen Share -->
+            <button id="expand-screenshare-btn" class="expand-button hidden" onclick="toggleSpectatorExpansion('screenshare')" style="display: none;">
+              <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 15a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"/>
+              </svg>
+              EXPAND
+            </button>
             
             <!-- Click to Enable Overlay -->
             <div id="spectator-click-overlay" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80 z-10" onclick="enableSpectatorVideo()">
@@ -1931,6 +2026,9 @@
       // Check if we should auto-hide the click overlay
       checkAndHideClickOverlay();
       
+      // Update expand buttons availability
+      updateSpectatorExpandButtons();
+      
       // Ensure video plays - auto-play if user has already interacted
       if (userHasInteracted) {
         videoElement.play().then(() => {
@@ -2095,6 +2193,9 @@
     spectatorScreenShare.srcObject = new MediaStream([track]);
     spectatorScreenShare.classList.remove('hidden');
     participantsContainer.style.display = 'none';
+    
+    // Update expand buttons availability
+    updateSpectatorExpandButtons();
     
     console.log('✅ Spectator screen share started');
   }
@@ -3197,6 +3298,132 @@
 
   // Make fullscreen function global
   window.toggleFullscreen = toggleFullscreen;
+
+  // Spectator Immersive Viewing Functions
+  let isSpectatorExpanded = false;
+  let currentExpansionMode = null; // 'participants' or 'screenshare'
+
+  function toggleSpectatorExpansion(mode) {
+    if (!isSpectator) return;
+    
+    console.log(`🎬 Toggling spectator expansion mode: ${mode}`);
+    
+    const spectatorLayout = document.getElementById('spectator-layout');
+    const videoContainer = spectatorLayout.querySelector('.lg\\:col-span-3');
+    const participantsBtn = document.getElementById('expand-participants-btn');
+    const screenshareBtn = document.getElementById('expand-screenshare-btn');
+    
+    if (isSpectatorExpanded && currentExpansionMode === mode) {
+      // Exit expansion mode
+      console.log('📺 Exiting spectator expansion mode');
+      
+      isSpectatorExpanded = false;
+      currentExpansionMode = null;
+      
+      // Reset layout
+      spectatorLayout.classList.remove('spectator-expanded');
+      videoContainer.classList.remove('spectator-video-expanded');
+      
+      // Update button states
+      participantsBtn.classList.remove('expanded');
+      screenshareBtn.classList.remove('expanded');
+      participantsBtn.innerHTML = `
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+        </svg>
+        EXPAND
+      `;
+      screenshareBtn.innerHTML = `
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 15a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"/>
+        </svg>
+        EXPAND
+      `;
+      
+      showToast('📺 Exited immersive view');
+      
+    } else {
+      // Enter expansion mode
+      console.log(`🎬 Entering spectator expansion mode: ${mode}`);
+      
+      isSpectatorExpanded = true;
+      currentExpansionMode = mode;
+      
+      // Apply expansion layout
+      spectatorLayout.classList.add('spectator-expanded');
+      videoContainer.classList.add('spectator-video-expanded');
+      
+      // Update button states
+      if (mode === 'participants') {
+        participantsBtn.classList.add('expanded');
+        screenshareBtn.classList.remove('expanded');
+        participantsBtn.innerHTML = `
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13 7H7v6h6V7z"/>
+            <path fill-rule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v2a2 2 0 01-2 2h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H5a2 2 0 01-2-2v-2H2a1 1 0 110-2h1V9H2a1 1 0 110-2h1V5a2 2 0 012-2h2V2z" clip-rule="evenodd"/>
+          </svg>
+          COLLAPSE
+        `;
+        showToast('🎬 Immersive participant view activated! Chat remains visible.');
+      } else if (mode === 'screenshare') {
+        screenshareBtn.classList.add('expanded');
+        participantsBtn.classList.remove('expanded');
+        screenshareBtn.innerHTML = `
+          <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M13 7H7v6h6V7z"/>
+            <path fill-rule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v2a2 2 0 01-2 2h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H5a2 2 0 01-2-2v-2H2a1 1 0 110-2h1V9H2a1 1 0 110-2h1V5a2 2 0 012-2h2V2z" clip-rule="evenodd"/>
+          </svg>
+          COLLAPSE
+        `;
+        showToast('🎬 Immersive screen share view activated! Chat remains visible.');
+      }
+    }
+    
+    // Add keyboard shortcut to exit
+    if (isSpectatorExpanded) {
+      const escapeHandler = (e) => {
+        if (e.key === 'Escape') {
+          toggleSpectatorExpansion(currentExpansionMode);
+          document.removeEventListener('keydown', escapeHandler);
+        }
+      };
+      document.addEventListener('keydown', escapeHandler);
+    }
+  }
+
+  // Function to show/hide expand buttons based on content availability
+  function updateSpectatorExpandButtons() {
+    if (!isSpectator) return;
+    
+    const participantsBtn = document.getElementById('expand-participants-btn');
+    const screenshareBtn = document.getElementById('expand-screenshare-btn');
+    const spectatorScreenShare = document.getElementById('spectator-screen-share');
+    const video1 = document.getElementById('spectator-participant-1');
+    const video2 = document.getElementById('spectator-participant-2');
+    
+    // Show participants expand button if participants are available
+    const hasParticipants = (video1 && video1.srcObject) || (video2 && video2.srcObject);
+    if (hasParticipants && userHasInteracted) {
+      participantsBtn.classList.remove('hidden');
+    } else {
+      participantsBtn.classList.add('hidden');
+    }
+    
+    // Show screen share expand button if screen share is active
+    const hasScreenShare = spectatorScreenShare && !spectatorScreenShare.classList.contains('hidden');
+    if (hasScreenShare && userHasInteracted) {
+      screenshareBtn.style.display = 'flex';
+      screenshareBtn.classList.remove('hidden');
+    } else {
+      screenshareBtn.style.display = 'none';
+      screenshareBtn.classList.add('hidden');
+    }
+    
+    console.log(`🎬 Updated expand buttons - Participants: ${hasParticipants}, ScreenShare: ${hasScreenShare}`);
+  }
+
+  // Make functions global
+  window.toggleSpectatorExpansion = toggleSpectatorExpansion;
 
   // Initialize
   console.log("ChatSpheres Video Chat Room Loading... 🌟");

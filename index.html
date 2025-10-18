@@ -49,13 +49,24 @@
       background-color: #000 !important; /* Black background for letterboxing */
     }
     
-    /* Ensure local video is flipped but screen share is not */
+    /* Mirror local camera by default */
     #local-video {
-      transform: scaleX(-1) !important; /* Mirror local camera */
+      transform: scaleX(-1); /* Mirror local camera */
     }
     
-    /* Override any transform on screen share to prevent flipping */
+    /* Remove mirror when screen sharing (local user sees their own screen normally) */
+    #local-video.screen-sharing {
+      transform: none !important;
+    }
+    
+    /* Override any transform on screen share videos to prevent flipping */
     video[id*="screen"] {
+      transform: none !important;
+    }
+    
+    /* Ensure remote screen shares are never flipped */
+    #screen-share-video,
+    #spectator-screen-share {
       transform: none !important;
     }
     
@@ -1517,10 +1528,14 @@
           screenShareBtn.classList.remove('active');
         }
         
-        // Restore local video display
+        // CRITICAL: Restore local video display and remove screen-sharing class
         const localVideo = document.getElementById('local-video');
         const localPlaceholder = document.getElementById('local-placeholder');
         if (localVideo && localPlaceholder) {
+          // Remove screen-sharing class to restore mirror effect
+          localVideo.classList.remove('screen-sharing');
+          console.log('📹 Restored mirror transform for local video after screen share stopped');
+          
           if (isCameraOn) {
             localVideo.style.display = 'block';
             localPlaceholder.style.display = 'none';
@@ -2276,6 +2291,7 @@
     if (isSpectator) return;
     
     const screenShareBtn = document.getElementById('screen-share-btn');
+    const localVideo = document.getElementById('local-video');
     
     if (!isScreenSharing) {
       try {
@@ -2289,6 +2305,13 @@
         });
         isScreenSharing = true;
         screenShareBtn.classList.add('active');
+        
+        // CRITICAL: Remove mirror effect when screen sharing so user sees screen normally
+        if (localVideo) {
+          localVideo.classList.add('screen-sharing');
+          console.log('📺 Removed mirror transform for screen sharing');
+        }
+        
         showToast('🖥️ Screen sharing started');
       } catch (error) {
         console.error('Screen share failed:', error);
@@ -2299,6 +2322,13 @@
         await call.stopScreenShare();
         isScreenSharing = false;
         screenShareBtn.classList.remove('active');
+        
+        // CRITICAL: Restore mirror effect when screen sharing stops
+        if (localVideo) {
+          localVideo.classList.remove('screen-sharing');
+          console.log('📹 Restored mirror transform after screen sharing');
+        }
+        
         showToast('🖥️ Screen sharing stopped');
       } catch (error) {
         console.error('Stop screen share failed:', error);

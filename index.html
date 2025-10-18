@@ -3242,6 +3242,9 @@
     }
     
     console.log('🎬 User interaction complete, videos should automatically play and start when new participants join');
+    
+    // CRITICAL: Update expand buttons now that user has interacted
+    updateSpectatorExpandButtons();
   }
 
   // Enable audio context on user interaction

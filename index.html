@@ -3401,25 +3401,37 @@
     const video1 = document.getElementById('spectator-participant-1');
     const video2 = document.getElementById('spectator-participant-2');
     
-    // Show participants expand button if participants are available
-    const hasParticipants = (video1 && video1.srcObject) || (video2 && video2.srcObject);
-    if (hasParticipants && userHasInteracted) {
-      participantsBtn.classList.remove('hidden');
-    } else {
-      participantsBtn.classList.add('hidden');
-    }
+    // Check if screen share is actually active
+    const hasScreenShare = spectatorScreenShare && 
+                          spectatorScreenShare.srcObject && 
+                          !spectatorScreenShare.classList.contains('hidden');
     
-    // Show screen share expand button if screen share is active
-    const hasScreenShare = spectatorScreenShare && !spectatorScreenShare.classList.contains('hidden');
+    // Check if participants are available
+    const hasParticipants = (video1 && video1.srcObject && !video1.classList.contains('hidden')) || 
+                           (video2 && video2.srcObject && !video2.classList.contains('hidden'));
+    
+    console.log(`🎬 Button update check - Participants: ${hasParticipants}, ScreenShare: ${hasScreenShare}, UserInteracted: ${userHasInteracted}`);
+    
+    // PRIORITY: Screen share button takes precedence when active
     if (hasScreenShare && userHasInteracted) {
+      // Show ONLY screen share button when screen sharing
       screenshareBtn.style.display = 'flex';
       screenshareBtn.classList.remove('hidden');
-    } else {
+      participantsBtn.classList.add('hidden');
+      console.log('✅ Showing screen share expand button');
+    } else if (hasParticipants && userHasInteracted) {
+      // Show ONLY participants button when no screen share but participants available
+      participantsBtn.classList.remove('hidden');
       screenshareBtn.style.display = 'none';
       screenshareBtn.classList.add('hidden');
+      console.log('✅ Showing participants expand button');
+    } else {
+      // Hide both buttons when no content or no user interaction
+      participantsBtn.classList.add('hidden');
+      screenshareBtn.style.display = 'none';
+      screenshareBtn.classList.add('hidden');
+      console.log('❌ Hiding all expand buttons');
     }
-    
-    console.log(`🎬 Updated expand buttons - Participants: ${hasParticipants}, ScreenShare: ${hasScreenShare}`);
   }
 
   // Make functions global

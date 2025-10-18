@@ -49,6 +49,16 @@
       background-color: #000 !important; /* Black background for letterboxing */
     }
     
+    /* Ensure local video is flipped but screen share is not */
+    #local-video {
+      transform: scaleX(-1) !important; /* Mirror local camera */
+    }
+    
+    /* Override any transform on screen share to prevent flipping */
+    video[id*="screen"] {
+      transform: none !important;
+    }
+    
     /* Full screen expansion styles */
     .video-fullscreen {
       position: fixed !important;
@@ -1486,6 +1496,44 @@
       isSpectator: isSpectator
     });
     
+    // Handle LOCAL participant tracks (when they stop their own camera/screen)
+    if (event.participant.local && event.track.kind === 'video') {
+      console.log('🔄 Local participant stopped their own video track');
+      
+      // Check if it's the local user's screen share stopping
+      const isLocalScreenShare = event.track.label && (
+        event.track.label.includes('screen') || 
+        event.track.label.includes('Screen') ||
+        event.track.label.includes('display') ||
+        event.track.label.includes('Display') ||
+        event.track.label.includes('web-contents-media-stream')
+      );
+      
+      if (isLocalScreenShare) {
+        console.log('📺 Local screen share stopped');
+        isScreenSharing = false;
+        const screenShareBtn = document.getElementById('screen-share-btn');
+        if (screenShareBtn) {
+          screenShareBtn.classList.remove('active');
+        }
+        
+        // Restore local video display
+        const localVideo = document.getElementById('local-video');
+        const localPlaceholder = document.getElementById('local-placeholder');
+        if (localVideo && localPlaceholder) {
+          if (isCameraOn) {
+            localVideo.style.display = 'block';
+            localPlaceholder.style.display = 'none';
+          } else {
+            localVideo.style.display = 'none';
+            localPlaceholder.style.display = 'flex';
+          }
+        }
+      }
+      return; // Don't process further for local tracks
+    }
+    
+    // Handle REMOTE participant tracks only
     if (!event.participant.local && event.track.kind === 'video') {
       // IMPROVED: Better screen share detection
       const screenShareVideo = document.getElementById('screen-share-video');
@@ -1505,7 +1553,7 @@
       ));
       
       if (isScreenShareTrack) {
-        console.log('📺 Screen share track stopped - restoring camera feed');
+        console.log('📺 Remote screen share track stopped - restoring camera feed');
         if (isSpectator) {
           hideSpectatorScreenShare();
         } else {

@@ -2467,10 +2467,22 @@
       return;
     }
     
-    // Hide video, show placeholder
-    video.style.display = 'none';
+    // FORCE hide video and show placeholder with absolute positioning
+    video.style.display = 'none !important';
+    video.style.visibility = 'hidden';
     video.classList.add('hidden');
-    placeholder.style.display = 'flex';
+    
+    // FORCE show placeholder with all necessary styles
+    placeholder.style.display = 'flex !important';
+    placeholder.style.visibility = 'visible';
+    placeholder.style.opacity = '1';
+    placeholder.style.position = 'absolute';
+    placeholder.style.top = '0';
+    placeholder.style.left = '0';
+    placeholder.style.width = '100%';
+    placeholder.style.height = '100%';
+    placeholder.style.zIndex = '10';
+    placeholder.style.backgroundColor = 'rgba(34, 34, 59, 0.9)';
     placeholder.classList.remove('hidden');
     
     const participantName = participant.user_name || 'Guest';
@@ -2482,18 +2494,18 @@
     // Get avatar URL from participant data
     const avatarUrl = getParticipantAvatarUrl(participant);
     
-    // CRITICAL: Update placeholder content with proper avatar/initial fallback
+    // CRITICAL: Update placeholder content with MUCH MORE PROMINENT styling
     placeholder.innerHTML = `
-      <div class="text-center text-white">
-        <div class="w-20 h-20 mx-auto mb-3 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
+      <div class="text-center text-white" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
+        <div style="width: 120px; height: 120px; margin: 0 auto 16px; background: #4B5563; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 6px solid white; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
           ${avatarUrl ? 
-            `<img src="${avatarUrl}" alt="${displayName}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-             <span class="text-white font-bold text-2xl hidden">${firstLetter}</span>` :
-            `<span class="text-white font-bold text-2xl">${firstLetter}</span>`
+            `<img src="${avatarUrl}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+             <span style="color: white; font-weight: bold; font-size: 48px; display: none;">${firstLetter}</span>` :
+            `<span style="color: white; font-weight: bold; font-size: 48px;">${firstLetter}</span>`
           }
         </div>
-        <p class="text-sm font-bold">${displayName}</p>
-        <p class="text-xs text-gray-300 mt-1">📷 Camera off</p>
+        <p style="font-size: 18px; font-weight: bold; color: white; margin-bottom: 8px;">${displayName}</p>
+        <p style="font-size: 14px; color: #D1D5DB;">📷 Camera is off</p>
       </div>
     `;
     
@@ -2503,7 +2515,14 @@
       nameElement.classList.remove('hidden');
     }
     
-    console.log(`✅ Spectator placeholder updated for slot ${slot} with ${avatarUrl ? 'avatar' : 'initial (' + firstLetter + ')'}`);
+    console.log(`✅ FORCED spectator placeholder visible for slot ${slot} with ${avatarUrl ? 'avatar' : 'initial (' + firstLetter + ')'}`);
+    console.log(`🔍 Placeholder final styles:`, {
+      display: placeholder.style.display,
+      visibility: placeholder.style.visibility,
+      opacity: placeholder.style.opacity,
+      zIndex: placeholder.style.zIndex,
+      position: placeholder.style.position
+    });
   }
 
   // Get participant avatar URL from various sources

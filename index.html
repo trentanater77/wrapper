@@ -1927,17 +1927,33 @@
         (spectatorParticipant2 && spectatorParticipant2.participantId === participantId)) {
       const existingSlot = spectatorParticipant1?.participantId === participantId ? 1 : 2;
       const videoElement = document.getElementById(`spectator-participant-${existingSlot}`);
+      const placeholder = document.getElementById(`spectator-placeholder-${existingSlot}`);
       
-      // Only update if the video source is different or not set
-      if (videoElement && (!videoElement.srcObject || videoElement.srcObject.getVideoTracks()[0] !== track)) {
-        console.log(`🔄 Updating existing video for participant ${participantId} in slot ${existingSlot}`);
-        videoElement.srcObject = new MediaStream([track]);
-        videoElement.play().catch(err => {
+      // CRITICAL: Always update when camera turns back on (even if same track)
+      console.log(`🔄 Camera turned back on for participant ${participantId} in slot ${existingSlot}`);
+      videoElement.srcObject = new MediaStream([track]);
+      
+      // CRITICAL: Hide placeholder and show video when camera turns back on
+      placeholder.style.display = 'none';
+      placeholder.classList.add('hidden');
+      videoElement.classList.remove('hidden');
+      videoElement.style.display = 'block';
+      
+      // Force video visibility styles
+      videoElement.style.visibility = 'visible';
+      videoElement.style.opacity = '1';
+      
+      console.log(`✅ Spectator video restored for participant ${participantId} - camera back on`);
+      
+      // Try to play if user has interacted
+      if (userHasInteracted) {
+        videoElement.play().then(() => {
+          console.log(`✅ Participant ${participantId} video now playing after camera restoration`);
+        }).catch(err => {
           console.log(`🎥 Video will play after user interaction for participant ${participantId}`);
         });
-      } else {
-        console.log(`⚠️ Participant ${participantId} video already set up, skipping duplicate`);
       }
+      
       return;
     }
     

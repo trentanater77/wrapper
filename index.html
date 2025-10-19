@@ -1704,15 +1704,22 @@
           restoreParticipantCameraFeed();
         }
       } else {
-        // For spectators, don't remove participant videos when regular video tracks stop
-        // They should only be removed when participants actually leave
+        console.log('🎥 Regular video track stopped - participant turned off camera');
+        // DON'T automatically hide video - just show placeholder with avatar
         if (!isSpectator) {
-          // Only hide remote video if it's not a screen share track stopping
-          if (!isCurrentlyScreenSharing) {
-            hideRemoteVideo();
+          // Show placeholder but keep participant info
+          const remoteVideo = document.getElementById('remote-video');
+          const placeholder = document.getElementById('remote-placeholder');
+          if (remoteVideo && placeholder) {
+            remoteVideo.style.display = 'none';
+            placeholder.style.display = 'flex';
+            // Update placeholder to show it's just camera off, not disconnected
+            updateRemotePlaceholderForCameraOff(event.participant);
           }
         } else {
-          console.log('🎥 Spectator: Regular video track stopped, but keeping participant in view');
+          // For spectators, hide the video but keep placeholder with participant info
+          const participantId = event.participant.session_id;
+          updateSpectatorPlaceholderForCameraOff(participantId, event.participant);
         }
       }
     }
@@ -2385,6 +2392,95 @@
       avatar: '',
       isAuthenticated: false
     };
+  }
+
+  // Update placeholder to show participant with camera off (not disconnected)
+  function updateRemotePlaceholderForCameraOff(participant) {
+    const placeholder = document.getElementById('remote-placeholder');
+    if (!placeholder) return;
+    
+    const content = placeholder.querySelector('.text-center.text-white.relative.z-10');
+    if (!content) return;
+    
+    const participantName = participant.user_name || 'Guest';
+    const displayName = extractUserDisplayName(participantName);
+    const firstLetter = displayName.charAt(0).toUpperCase();
+    
+    // Get avatar URL from participant data or URL parameters
+    const avatarUrl = getParticipantAvatarUrl(participant);
+    
+    content.innerHTML = `
+      <div class="w-24 h-24 mx-auto mb-4 bg-gray-600 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+        ${avatarUrl ? 
+          `<img src="${avatarUrl}" alt="${displayName}" class="w-full h-full object-cover">` :
+          `<span class="text-white font-bold text-2xl">${firstLetter}</span>`
+        }
+      </div>
+      <p class="font-bold text-lg text-white">${displayName}</p>
+      <p class="text-sm text-gray-300 mt-1">📷 Camera is off</p>
+    `;
+  }
+
+  // Update spectator placeholder for camera off
+  function updateSpectatorPlaceholderForCameraOff(participantId, participant) {
+    // Find which slot this participant is in
+    let slot = null;
+    if (spectatorParticipant1 && spectatorParticipant1.participantId === participantId) {
+      slot = 1;
+    } else if (spectatorParticipant2 && spectatorParticipant2.participantId === participantId) {
+      slot = 2;
+    }
+    
+    if (!slot) return;
+    
+    const video = document.getElementById(`spectator-participant-${slot}`);
+    const placeholder = document.getElementById(`spectator-placeholder-${slot}`);
+    const nameElement = document.getElementById(`spectator-name-${slot}`);
+    
+    if (!video || !placeholder) return;
+    
+    // Hide video, show placeholder
+    video.style.display = 'none';
+    placeholder.style.display = 'flex';
+    
+    const participantName = participant.user_name || 'Guest';
+    const displayName = extractUserDisplayName(participantName);
+    const firstLetter = displayName.charAt(0).toUpperCase();
+    
+    // Get avatar URL from participant data
+    const avatarUrl = getParticipantAvatarUrl(participant);
+    
+    // Update placeholder content
+    placeholder.innerHTML = `
+      <div class="text-center text-white">
+        <div class="w-16 h-16 mx-auto mb-3 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
+          ${avatarUrl ? 
+            `<img src="${avatarUrl}" alt="${displayName}" class="w-full h-full object-cover">` :
+            `<span class="text-white font-bold text-xl">${firstLetter}</span>`
+          }
+        </div>
+        <p class="text-sm font-bold">${displayName}</p>
+        <p class="text-xs text-gray-300 mt-1">📷 Camera off</p>
+      </div>
+    `;
+    
+    // Update name element
+    if (nameElement) {
+      nameElement.textContent = displayName;
+      nameElement.classList.remove('hidden');
+    }
+  }
+
+  // Get participant avatar URL from various sources
+  function getParticipantAvatarUrl(participant) {
+    // First check if this is our own participant data
+    if (participant.user_name === window.currentUserData?.username) {
+      return window.currentUserData.avatar;
+    }
+    
+    // For now, we don't have avatar data from other participants
+    // This could be enhanced in the future to pass avatar URLs through Daily.co metadata
+    return '';
   }
 
   function updateSpectatorParticipants() {

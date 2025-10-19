@@ -2531,6 +2531,11 @@
     // STEP 2: Create a completely new camera-off placeholder element
     const newPlaceholder = document.createElement('div');
     newPlaceholder.id = `spectator-placeholder-${slot}`;
+    
+    // CRITICAL: Remove ALL classes to prevent Tailwind conflicts
+    newPlaceholder.className = '';
+    
+    // CRITICAL: Set cssText directly to override everything
     newPlaceholder.style.cssText = `
       position: absolute !important;
       top: 0 !important;
@@ -2545,6 +2550,8 @@
       border-radius: 0 !important;
       margin: 0 !important;
       padding: 0 !important;
+      visibility: visible !important;
+      opacity: 1 !important;
     `;
     
     // STEP 3: Add the placeholder content with inline styles for guaranteed visibility
@@ -2629,6 +2636,15 @@
     parentContainer.style.position = 'relative';
     parentContainer.appendChild(newVideo);
     parentContainer.appendChild(newPlaceholder);
+    
+    // STEP 6: Force immediate visibility with DOM manipulation
+    // Use display: flex instead of display: none to ensure visibility
+    newPlaceholder.style.setProperty('display', 'flex', 'important');
+    newPlaceholder.classList.remove('hidden');
+    
+    // Ensure parent container is visible and has dimensions
+    parentContainer.style.setProperty('display', 'block', 'important');
+    parentContainer.style.setProperty('position', 'relative', 'important');
     
     // STEP 6: Update name element
     if (nameElement) {

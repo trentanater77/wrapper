@@ -1013,17 +1013,43 @@
       </div>
     `;
   } else {
+    // Get user data from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const usernameFromURL = urlParams.get('username');
+    const userIdFromURL = urlParams.get('userId'); 
+    const avatarFromURL = urlParams.get('avatar');
+    const displayNameFromURL = urlParams.get('displayName');
+
     // Set user mode
     isSpectator = spectatorMode;
-    userName = isSpectator ? `Viewer_${Math.random().toString(36).slice(2, 8)}` : `User_${Math.random().toString(36).slice(2, 8)}`;
-    userId = `${isSpectator ? 'spectator' : 'participant'}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    
+    // Use real user data or fallback to generated names
+    userName = usernameFromURL || (isSpectator ? `Viewer_${Math.random().toString(36).slice(2, 8)}` : `User_${Math.random().toString(36).slice(2, 8)}`);
+    userId = userIdFromURL || `${isSpectator ? 'spectator' : 'participant'}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    
+    // Store additional user data for UI display
+    window.currentUserData = {
+      username: usernameFromURL || userName,
+      displayName: displayNameFromURL || usernameFromURL || userName,
+      avatar: avatarFromURL || '',
+      userId: userId,
+      isAuthenticated: !!(usernameFromURL && userIdFromURL)
+    };
     
     console.log(`🎭 User Mode: ${isSpectator ? 'Spectator' : 'Participant'}`);
     console.log(`👤 User Name: ${userName}`);
+    console.log(`✨ Display Name: ${window.currentUserData.displayName}`);
+    console.log(`🖼️ Avatar: ${window.currentUserData.avatar ? 'Yes' : 'None'}`);
+    console.log(`🔐 Authenticated: ${window.currentUserData.isAuthenticated ? 'Yes' : 'Guest'}`);
     
-    // Update waiting overlay
+    // Update waiting overlay with personalized info
     if (isSpectator) {
       document.getElementById('waiting-mode').textContent = 'joining as spectator...';
+    } else {
+      // Show personalized welcome for authenticated users
+      if (window.currentUserData.isAuthenticated) {
+        document.getElementById('waiting-mode').textContent = `welcome ${window.currentUserData.displayName}!`;
+      }
     }
     
     initializeVideoChat();
@@ -1379,9 +1405,12 @@
     const text = chatInput.value.trim();
     if (!text) return;
     
+    // Get current user display info for better chat experience
+    const userDisplayInfo = getCurrentUserDisplayInfo();
+    
     const message = {
       userId: userId,
-      userName: userName,
+      userName: userDisplayInfo.displayName, // Use display name instead of raw userName
       userType: isSpectator ? 'spectator' : 'participant',
       text: text,
       timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -1399,9 +1428,12 @@
     const text = chatInput.value.trim();
     if (!text) return;
     
+    // Get current user display info for better chat experience
+    const userDisplayInfo = getCurrentUserDisplayInfo();
+    
     const message = {
       userId: userId,
-      userName: userName,
+      userName: userDisplayInfo.displayName, // Use display name instead of raw userName
       userType: isSpectator ? 'spectator' : 'participant',
       text: text,
       timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -2314,8 +2346,45 @@
   function updateRemoteInfo(name) {
     const remoteNameEl = document.getElementById('remote-name');
     if (remoteNameEl) {
-      remoteNameEl.textContent = name;
+      // Use display name for better UI experience, fallback to username
+      const displayName = extractUserDisplayName(name);
+      remoteNameEl.textContent = displayName;
     }
+  }
+
+  // Helper function to extract and display user names in a UI-friendly way
+  function extractUserDisplayName(userName) {
+    // If no currentUserData or name is not provided, use name as-is
+    if (!userName) return 'Guest';
+    
+    // For authenticated users, prefer display name over username
+    // Check if this is our own name being displayed
+    if (window.currentUserData && userName === window.currentUserData.username) {
+      return window.currentUserData.displayName || userName;
+    }
+    
+    // For other users, check if they have displayName in their username format
+    // This assumes other users also have the same URL parameter structure
+    // For now, just clean up the username for better display
+    return userName.replace(/^(User_|Viewer_)/, '').replace(/[_-]/g, ' ') || userName;
+  }
+
+  // Helper function to get current user's display info
+  function getCurrentUserDisplayInfo() {
+    if (window.currentUserData && window.currentUserData.isAuthenticated) {
+      return {
+        displayName: window.currentUserData.displayName,
+        username: window.currentUserData.username,
+        avatar: window.currentUserData.avatar,
+        isAuthenticated: true
+      };
+    }
+    return {
+      displayName: userName,
+      username: userName,
+      avatar: '',
+      isAuthenticated: false
+    };
   }
 
   function updateSpectatorParticipants() {

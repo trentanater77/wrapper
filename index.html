@@ -2441,6 +2441,8 @@
 
   // Update spectator placeholder for camera off
   function updateSpectatorPlaceholderForCameraOff(participantId, participant) {
+    console.log('🎭 Updating spectator placeholder for camera off:', participantId, participant.user_name);
+    
     // Find which slot this participant is in
     let slot = null;
     if (spectatorParticipant1 && spectatorParticipant1.participantId === participantId) {
@@ -2449,26 +2451,38 @@
       slot = 2;
     }
     
-    if (!slot) return;
+    console.log(`📍 Found participant in slot: ${slot}`);
+    
+    if (!slot) {
+      console.log('⚠️ No slot found for participant:', participantId);
+      return;
+    }
     
     const video = document.getElementById(`spectator-participant-${slot}`);
     const placeholder = document.getElementById(`spectator-placeholder-${slot}`);
     const nameElement = document.getElementById(`spectator-name-${slot}`);
     
-    if (!video || !placeholder) return;
+    if (!video || !placeholder) {
+      console.error(`❌ Missing elements for slot ${slot}:`, { video: !!video, placeholder: !!placeholder });
+      return;
+    }
     
     // Hide video, show placeholder
     video.style.display = 'none';
+    video.classList.add('hidden');
     placeholder.style.display = 'flex';
+    placeholder.classList.remove('hidden');
     
     const participantName = participant.user_name || 'Guest';
     const displayName = extractUserDisplayName(participantName);
     const firstLetter = displayName.charAt(0).toUpperCase();
     
+    console.log(`👤 Creating placeholder for: ${displayName} (${firstLetter})`);
+    
     // Get avatar URL from participant data
     const avatarUrl = getParticipantAvatarUrl(participant);
     
-    // Update placeholder content
+    // CRITICAL: Update placeholder content with proper avatar/initial fallback
     placeholder.innerHTML = `
       <div class="text-center text-white">
         <div class="w-16 h-16 mx-auto mb-3 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
@@ -2487,6 +2501,8 @@
       nameElement.textContent = displayName;
       nameElement.classList.remove('hidden');
     }
+    
+    console.log(`✅ Spectator placeholder updated for slot ${slot} with ${avatarUrl ? 'avatar' : 'initial (' + firstLetter + ')'}`);
   }
 
   // Get participant avatar URL from various sources

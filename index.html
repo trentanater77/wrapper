@@ -1595,7 +1595,7 @@
       const participantId = event.participant.session_id;
       
       if (event.track.kind === 'video') {
-        if (event.track.label && event.track.label.includes('screen')) {
+        if (event.track.label && (event.track.label.includes('screen') || event.track.label.includes('Screen') || event.track.label.includes('display') || event.track.label.includes('Display') || event.track.label.includes('web-contents-media-stream'))) {
           console.log('📺 Setting up screen share for participant:', participantId);
           if (isSpectator) {
             setupSpectatorScreenShare(event.track);
@@ -1603,19 +1603,21 @@
             setupScreenShareVideo(event.track);
           }
         } else {
-          console.log('🎥 Setting up video for participant:', participantId);
+          console.log('🎥 Setting up regular video for participant:', participantId);
           if (isSpectator) {
             setupSpectatorVideo(event.track, participantId);
           } else {
-            // CRITICAL: For participants, check if we already have a connection before setting up
-            const remoteVideo = document.getElementById('remote-video');
-            const hasActiveConnection = remoteVideo && remoteVideo.srcObject && remoteVideo.style.display === 'block';
+            // IMPROVED: Always set up remote video when camera turns back on
+            console.log('🔄 Setting up remote video (camera turned back on)');
+            setupRemoteVideo(event.track);
+            updateRemoteInfo(event.participant.user_name || 'Guest');
             
-            if (!hasActiveConnection) {
-              setupRemoteVideo(event.track);
-              updateRemoteInfo(event.participant.user_name || 'Guest');
-            } else {
-              console.log('🔒 BLOCKING track start - participant already has active remote video connection');
+            // Hide the camera-off placeholder and show video
+            const remoteVideo = document.getElementById('remote-video');
+            const placeholder = document.getElementById('remote-placeholder');
+            if (remoteVideo && placeholder) {
+              remoteVideo.style.display = 'block';
+              placeholder.style.display = 'none';
             }
           }
         }
@@ -2483,6 +2485,31 @@
     return '';
   }
 
+  // Update local placeholder when you turn off your own camera
+  function updateLocalPlaceholderForCameraOff() {
+    const placeholder = document.getElementById('local-placeholder');
+    if (!placeholder) return;
+    
+    const content = placeholder.querySelector('.text-center.text-white.relative.z-10');
+    if (!content) return;
+    
+    const userDisplayInfo = getCurrentUserDisplayInfo();
+    const displayName = userDisplayInfo.displayName;
+    const firstLetter = displayName.charAt(0).toUpperCase();
+    const avatarUrl = userDisplayInfo.avatar;
+    
+    content.innerHTML = `
+      <div class="w-16 h-16 mx-auto mb-3 bg-gray-600 rounded-full flex items-center justify-center shadow-lg overflow-hidden">
+        ${avatarUrl ? 
+          `<img src="${avatarUrl}" alt="${displayName}" class="w-full h-full object-cover">` :
+          `<span class="text-white font-bold text-xl">${firstLetter}</span>`
+        }
+      </div>
+      <p class="font-bold text-gold">${displayName}</p>
+      <p class="text-sm text-gray-300 mt-1">📷 Camera is off</p>
+    `;
+  }
+
   function updateSpectatorParticipants() {
     const container = document.getElementById('spectator-participants');
     if (!container) return;
@@ -2549,6 +2576,10 @@
       cameraBtn.classList.add('active');
       localVideo.style.display = 'none';
       placeholder.style.display = 'flex';
+      
+      // Update local placeholder to show user avatar/initial when camera is off
+      updateLocalPlaceholderForCameraOff();
+      
       showToast('📷 Camera off');
     }
   }

@@ -2495,42 +2495,44 @@ const avatarUrl = getParticipantAvatarUrl(participant);
 
 console.log(`🖼️ Avatar URL for ${displayName}:`, avatarUrl || 'No avatar, using initial');
 
-// COMPLETELY RESTART the placeholder - remove all existing content and styling
-placeholder.removeAttribute('style');
-placeholder.className = 'absolute inset-0 flex items-center justify-center video-placeholder';
-
-// CRITICAL: Ensure video is completely hidden
-video.style.setProperty('display', 'none', 'important');
-video.style.setProperty('visibility', 'hidden', 'important');
-video.style.setProperty('opacity', '0', 'important');
+// FORCE video to be completely hidden - no exceptions
+video.srcObject = null;
+video.style.cssText = 'display: none !important; visibility: hidden !important; opacity: 0 !important; position: absolute !important; z-index: -1 !important;';
 video.classList.add('hidden');
 
-// CRITICAL: Force placeholder to be completely visible and on top
-placeholder.style.setProperty('display', 'flex', 'important');
-placeholder.style.setProperty('position', 'absolute', 'important');
-placeholder.style.setProperty('top', '0', 'important');
-placeholder.style.setProperty('left', '0', 'important');
-placeholder.style.setProperty('width', '100%', 'important');
-placeholder.style.setProperty('height', '100%', 'important');
-placeholder.style.setProperty('z-index', '1000', 'important');
-placeholder.style.setProperty('background', 'linear-gradient(135deg, #22223B 0%, #2a2a4a 100%)', 'important');
-placeholder.style.setProperty('align-items', 'center', 'important');
-placeholder.style.setProperty('justify-content', 'center', 'important');
-placeholder.style.setProperty('flex-direction', 'column', 'important');
+// FORCE placeholder to be completely visible - override everything
+placeholder.style.cssText = `
+    display: flex !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 999 !important;
+    background: linear-gradient(135deg, #22223B 0%, #2a2a4a 100%) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+`;
 
-// Create the camera-off content with inline styles to override everything
+// Remove any conflicting classes
+placeholder.className = 'spectator-camera-off-placeholder';
+
+// Create the camera-off content with comprehensive inline styles
 placeholder.innerHTML = `
-<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 1001; position: relative;">
-    <div style="width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 4px solid white; background: #4B5563; box-shadow: 0 8px 32px rgba(0,0,0,0.4); overflow: hidden;">
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 1000; position: relative; pointer-events: none;">
+    <div style="width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 4px solid white; background: #4B5563; box-shadow: 0 8px 32px rgba(0,0,0,0.4); overflow: hidden; flex-shrink: 0;">
         ${avatarUrl ? 
-            `<img src="${avatarUrl}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" 
+            `<img src="${avatarUrl}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 46px; display: block;" 
                  onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-             <span style="color: white; font-weight: bold; font-size: 36px; display: none;">${firstLetter}</span>` :
-            `<span style="color: white; font-weight: bold; font-size: 36px;">${firstLetter}</span>`
+             <span style="color: white; font-weight: bold; font-size: 36px; display: none; align-items: center; justify-content: center; width: 100%; height: 100%;">${firstLetter}</span>` :
+            `<span style="color: white; font-weight: bold; font-size: 36px; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;">${firstLetter}</span>`
         }
     </div>
-    <p style="color: white; font-size: 16px; font-weight: bold; margin: 0 0 8px 0;">${displayName}</p>
-    <p style="color: #D1D5DB; font-size: 14px; margin: 0;">📷 Camera is off</p>
+    <p style="color: white; font-size: 16px; font-weight: bold; margin: 0 0 8px 0; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${displayName}</p>
+    <p style="color: #D1D5DB; font-size: 14px; margin: 0; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">📷 Camera is off</p>
 </div>
 `;
 
@@ -2541,15 +2543,25 @@ nameElement.classList.remove('hidden');
 nameElement.style.setProperty('display', 'block', 'important');
 }
 
-// Force parent container positioning
+// Force parent container to allow our positioning
 const parent = placeholder.parentElement;
 if (parent) {
 parent.style.setProperty('position', 'relative', 'important');
+parent.style.setProperty('overflow', 'visible', 'important');
 }
 
-console.log(`✅ Spectator placeholder updated for slot ${slot} with ${avatarUrl ? 'avatar image' : 'initial letter (' + firstLetter + ')'}`);
+// Mark this participant as having camera off to prevent video restoration
+const participantData = slot === 1 ? spectatorParticipant1 : spectatorParticipant2;
+if (participantData) {
+participantData.cameraOff = true;
+}
 
-// Verify placeholder is showing after a brief delay
+console.log(`✅ Spectator placeholder created for slot ${slot} with ${avatarUrl ? 'avatar image' : 'initial letter (' + firstLetter + ')'}`);
+
+// Add a visible border for debugging if needed (temporary)
+placeholder.style.setProperty('border', '2px solid lime', 'important');
+
+// Verify placeholder is showing after DOM has settled
 setTimeout(() => {
 const rect = placeholder.getBoundingClientRect();
 const isVisible = rect.width > 0 && rect.height > 0 && 
@@ -2557,10 +2569,24 @@ const isVisible = rect.width > 0 && rect.height > 0 &&
                  window.getComputedStyle(placeholder).visibility !== 'hidden';
                  
 console.log(`🔍 Placeholder visibility check for slot ${slot}: ${isVisible ? 'VISIBLE ✅' : 'HIDDEN ❌'}`);
-if (!isVisible) {
-    console.error(`❌ Placeholder still not visible for slot ${slot}!`);
+
+if (isVisible) {
+    console.log(`✅ SUCCESS: Placeholder for slot ${slot} is now visible!`);
+    // Remove debug border after confirming visibility
+    setTimeout(() => {
+        placeholder.style.removeProperty('border');
+    }, 2000);
+} else {
+    console.error(`❌ FAILURE: Placeholder for slot ${slot} is still not visible!`);
+    console.error(`❌ Computed styles:`, {
+        display: window.getComputedStyle(placeholder).display,
+        visibility: window.getComputedStyle(placeholder).visibility,
+        opacity: window.getComputedStyle(placeholder).opacity,
+        zIndex: window.getComputedStyle(placeholder).zIndex,
+        position: window.getComputedStyle(placeholder).position
+    });
 }
-}, 100);
+}, 200);
 }
 
 // FIXED: Get participant avatar URL from userData or fallback to current user

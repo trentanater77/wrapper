@@ -2472,18 +2472,31 @@
     video.style.visibility = 'hidden';
     video.classList.add('hidden');
     
-    // FORCE show placeholder with all necessary styles
-    placeholder.style.display = 'flex !important';
-    placeholder.style.visibility = 'visible';
-    placeholder.style.opacity = '1';
-    placeholder.style.position = 'absolute';
-    placeholder.style.top = '0';
-    placeholder.style.left = '0';
-    placeholder.style.width = '100%';
-    placeholder.style.height = '100%';
-    placeholder.style.zIndex = '10';
-    placeholder.style.backgroundColor = 'rgba(34, 34, 59, 0.9)';
+    // SUPER AGGRESSIVE FORCE show placeholder
+    placeholder.style.setProperty('display', 'flex', 'important');
+    placeholder.style.setProperty('visibility', 'visible', 'important');
+    placeholder.style.setProperty('opacity', '1', 'important');
+    placeholder.style.setProperty('position', 'absolute', 'important');
+    placeholder.style.setProperty('top', '0', 'important');
+    placeholder.style.setProperty('left', '0', 'important');
+    placeholder.style.setProperty('right', '0', 'important');
+    placeholder.style.setProperty('bottom', '0', 'important');
+    placeholder.style.setProperty('width', '100%', 'important');
+    placeholder.style.setProperty('height', '100%', 'important');
+    placeholder.style.setProperty('z-index', '999', 'important');
+    placeholder.style.setProperty('background-color', 'rgba(230, 57, 70, 0.95)', 'important');
+    placeholder.style.setProperty('pointer-events', 'none', 'important');
     placeholder.classList.remove('hidden');
+    
+    // FORCE remove any conflicting classes
+    placeholder.className = placeholder.className.replace(/hidden/g, '');
+    
+    // FORCE parent container to allow absolute positioning
+    const parent = placeholder.parentElement;
+    if (parent) {
+      parent.style.setProperty('position', 'relative', 'important');
+      parent.style.setProperty('overflow', 'visible', 'important');
+    }
     
     const participantName = participant.user_name || 'Guest';
     const displayName = extractUserDisplayName(participantName);
@@ -2521,8 +2534,42 @@
       visibility: placeholder.style.visibility,
       opacity: placeholder.style.opacity,
       zIndex: placeholder.style.zIndex,
-      position: placeholder.style.position
+      position: placeholder.style.position,
+      backgroundColor: placeholder.style.backgroundColor,
+      width: placeholder.style.width,
+      height: placeholder.style.height
     });
+    
+    // EXTREME DEBUG: Take a screenshot of the placeholder state
+    setTimeout(() => {
+      console.log(`🔍 DELAYED DEBUG - Placeholder computed styles after ${slot}ms:`, {
+        display: window.getComputedStyle(placeholder).display,
+        visibility: window.getComputedStyle(placeholder).visibility,
+        opacity: window.getComputedStyle(placeholder).opacity,
+        zIndex: window.getComputedStyle(placeholder).zIndex,
+        position: window.getComputedStyle(placeholder).position,
+        backgroundColor: window.getComputedStyle(placeholder).backgroundColor,
+        width: window.getComputedStyle(placeholder).width,
+        height: window.getComputedStyle(placeholder).height,
+        transform: window.getComputedStyle(placeholder).transform,
+        left: window.getComputedStyle(placeholder).left,
+        top: window.getComputedStyle(placeholder).top
+      });
+      
+      console.log(`🔍 Placeholder bounding rect:`, placeholder.getBoundingClientRect());
+      console.log(`🔍 Placeholder innerHTML length:`, placeholder.innerHTML.length);
+      console.log(`🔍 Is placeholder in DOM:`, document.contains(placeholder));
+      
+      // Check if anything is covering the placeholder
+      const rect = placeholder.getBoundingClientRect();
+      const elementAtCenter = document.elementFromPoint(rect.left + rect.width/2, rect.top + rect.height/2);
+      console.log(`🔍 Element at placeholder center:`, elementAtCenter);
+      
+    }, 100 * slot);
+    
+    // EXTREME MEASURE: Add a visible border to the placeholder for debugging
+    placeholder.style.setProperty('border', '10px solid lime', 'important');
+    placeholder.style.setProperty('outline', '5px dashed yellow', 'important');
   }
 
   // Get participant avatar URL from various sources

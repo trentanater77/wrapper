@@ -819,7 +819,7 @@
             </div>
             
             <!-- Expand Button for Participants View -->
-            <button id="expand-participants-btn" class="expand-button hidden" onclick="toggleSpectatorExpansion('participants')">
+            <button id="expand-participants-btn" class="expand-button" onclick="toggleSpectatorExpansion('participants')" style="display: none;">
               <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
               </svg>
@@ -827,7 +827,7 @@
             </button>
 
             <!-- Expand Button for Screen Share -->
-            <button id="expand-screenshare-btn" class="expand-button hidden" onclick="toggleSpectatorExpansion('screenshare')" style="display: none;">
+            <button id="expand-screenshare-btn" class="expand-button" onclick="toggleSpectatorExpansion('screenshare')" style="display: none;">
               <svg width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 15a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z"/>
               </svg>
@@ -2119,44 +2119,57 @@
     if (hasVideo1 || hasVideo2) {
       console.log(`✅ Participants available (video1: ${hasVideo1}, video2: ${hasVideo2}), updating overlay`);
       
-      // Update overlay to show "ready to watch" instead of "waiting"
-      const overlayText = clickOverlay.querySelector('.text-center.text-white');
-      if (overlayText) {
-        const title = overlayText.querySelector('.font-bold.text-xl.text-white');
-        const subtitle = overlayText.querySelector('.text-sm.text-gold');
-        const button = overlayText.querySelector('.animate-bounce');
+      // ONLY hide overlay if user has successfully interacted and videos are playing
+      if (userHasInteracted && areVideosPlaying()) {
+        clickOverlay.style.display = 'none';
+        clickOverlay.style.opacity = '0';
+        clickOverlay.style.visibility = 'hidden';
+        clickOverlay.style.pointerEvents = 'none';
+        console.log('🎬 User has interacted and videos are playing, hiding overlay');
+      } else {
+        // Show the overlay prominently for user interaction
+        console.log('🎬 Showing click overlay for spectator interaction');
         
-        if (title) title.textContent = '🎬 Ready to Watch!';
-        if (subtitle) subtitle.textContent = `${hasVideo1 && hasVideo2 ? '2 participants' : '1 participant'} ready for viewing`;
-        if (button) {
-          button.textContent = '👆 CLICK HERE TO START WATCHING';
-          button.classList.add('bg-green-500', 'text-white', 'font-bold', 'text-lg', 'px-8', 'py-4');
-          button.classList.remove('bg-main-red');
-          button.style.fontSize = '18px';
-          button.style.fontWeight = 'bold';
-          button.style.padding = '16px 32px';
+        // Update overlay to show "ready to watch" instead of "waiting"
+        const overlayText = clickOverlay.querySelector('.text-center.text-white');
+        if (overlayText) {
+          const title = overlayText.querySelector('.font-bold.text-xl.text-white');
+          const subtitle = overlayText.querySelector('.text-sm.text-gold');
+          const button = overlayText.querySelector('.animate-bounce');
+          
+          if (title) title.textContent = '🎬 Ready to Watch!';
+          if (subtitle) subtitle.textContent = `${hasVideo1 && hasVideo2 ? '2 participants' : '1 participant'} ready for viewing`;
+          if (button) {
+            button.textContent = '👆 CLICK HERE TO START WATCHING';
+            button.classList.add('bg-green-500', 'text-white', 'font-bold', 'text-lg', 'px-8', 'py-4');
+            button.classList.remove('bg-main-red');
+            button.style.fontSize = '18px';
+            button.style.fontWeight = 'bold';
+            button.style.padding = '16px 32px';
+          }
+        }
+        
+        // Make the overlay more obvious and KEEP IT VISIBLE until user clicks
+        clickOverlay.style.backgroundColor = 'rgba(34, 34, 59, 0.95)';
+        clickOverlay.style.cursor = 'pointer';
+        clickOverlay.style.display = 'flex';
+        clickOverlay.style.opacity = '1';
+        clickOverlay.style.visibility = 'visible';
+        clickOverlay.style.pointerEvents = 'auto';
+        clickOverlay.style.zIndex = '999';
+        
+        // Add pulsing animation to make it more obvious
+        if (!clickOverlay.classList.contains('animate-pulse')) {
+          clickOverlay.classList.add('animate-pulse');
         }
       }
       
-      // Make the overlay more obvious and KEEP IT VISIBLE until user clicks
-      clickOverlay.style.backgroundColor = 'rgba(34, 34, 59, 0.95)';
-      clickOverlay.style.cursor = 'pointer';
-      clickOverlay.style.display = 'flex';
-      clickOverlay.style.zIndex = '999';
-      
-      // Add pulsing animation to make it more obvious
-      if (!clickOverlay.classList.contains('animate-pulse')) {
-        clickOverlay.classList.add('animate-pulse');
-      }
-      
-      // Only hide overlay if user has successfully interacted and videos are playing
-      if (userHasInteracted && areVideosPlaying()) {
-        clickOverlay.style.display = 'none';
-        console.log('🎬 User has interacted and videos are playing, hiding overlay');
-      }
-      
     } else {
-      console.log('⏳ No participants with video yet, keeping overlay');
+      console.log('⏳ No participants with video yet, showing waiting overlay');
+      clickOverlay.style.display = 'flex';
+      clickOverlay.style.opacity = '1';
+      clickOverlay.style.visibility = 'visible';
+      clickOverlay.style.pointerEvents = 'auto';
     }
   }
   
@@ -3710,25 +3723,38 @@
     
     console.log(`🎬 Button update check - Participants: ${hasParticipants}, ScreenShare: ${hasScreenShare}, UserInteracted: ${userHasInteracted}`);
     
-    // PRIORITY: Screen share button takes precedence when active
-    if (hasScreenShare && userHasInteracted) {
-      // Show ONLY screen share button when screen sharing
-      screenshareBtn.style.display = 'flex';
-      screenshareBtn.classList.remove('hidden');
-      participantsBtn.classList.add('hidden');
-      console.log('✅ Showing screen share expand button');
-    } else if (hasParticipants && userHasInteracted) {
-      // Show ONLY participants button when no screen share but participants available
-      participantsBtn.classList.remove('hidden');
-      screenshareBtn.style.display = 'none';
-      screenshareBtn.classList.add('hidden');
-      console.log('✅ Showing participants expand button');
+    // Show expand buttons only after user interaction AND content is available
+    if (userHasInteracted) {
+      // PRIORITY: Screen share button takes precedence when active
+      if (hasScreenShare) {
+        // Show ONLY screen share button when screen sharing
+        screenshareBtn.style.display = 'flex';
+        screenshareBtn.classList.remove('hidden');
+        participantsBtn.style.display = 'none';
+        participantsBtn.classList.add('hidden');
+        console.log('✅ Showing screen share expand button');
+      } else if (hasParticipants) {
+        // Show ONLY participants button when no screen share but participants available
+        participantsBtn.style.display = 'flex';
+        participantsBtn.classList.remove('hidden');
+        screenshareBtn.style.display = 'none';
+        screenshareBtn.classList.add('hidden');
+        console.log('✅ Showing participants expand button');
+      } else {
+        // Hide both buttons when no content available
+        participantsBtn.style.display = 'none';
+        participantsBtn.classList.add('hidden');
+        screenshareBtn.style.display = 'none';
+        screenshareBtn.classList.add('hidden');
+        console.log('❌ Hiding all expand buttons - no content');
+      }
     } else {
-      // Hide both buttons when no content or no user interaction
+      // Hide both buttons when user hasn't interacted yet
+      participantsBtn.style.display = 'none';
       participantsBtn.classList.add('hidden');
       screenshareBtn.style.display = 'none';
       screenshareBtn.classList.add('hidden');
-      console.log('❌ Hiding all expand buttons');
+      console.log('❌ Hiding all expand buttons - no user interaction');
     }
   }
 

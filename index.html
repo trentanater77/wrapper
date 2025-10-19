@@ -2485,10 +2485,11 @@
     // CRITICAL: Update placeholder content with proper avatar/initial fallback
     placeholder.innerHTML = `
       <div class="text-center text-white">
-        <div class="w-16 h-16 mx-auto mb-3 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden">
+        <div class="w-20 h-20 mx-auto mb-3 bg-gray-600 rounded-full flex items-center justify-center overflow-hidden border-4 border-white shadow-lg">
           ${avatarUrl ? 
-            `<img src="${avatarUrl}" alt="${displayName}" class="w-full h-full object-cover">` :
-            `<span class="text-white font-bold text-xl">${firstLetter}</span>`
+            `<img src="${avatarUrl}" alt="${displayName}" class="w-full h-full object-cover" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+             <span class="text-white font-bold text-2xl hidden">${firstLetter}</span>` :
+            `<span class="text-white font-bold text-2xl">${firstLetter}</span>`
           }
         </div>
         <p class="text-sm font-bold">${displayName}</p>

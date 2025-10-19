@@ -2484,37 +2484,6 @@ console.error(`❌ Missing elements for slot ${slot}:`, { video: !!video, placeh
 return;
 }
 
-// FORCE hide video and show placeholder with absolute positioning
-video.style.display = 'none !important';
-video.style.visibility = 'hidden';
-video.classList.add('hidden');
-
-// SUPER AGGRESSIVE FORCE show placeholder
-placeholder.style.setProperty('display', 'flex', 'important');
-placeholder.style.setProperty('visibility', 'visible', 'important');
-placeholder.style.setProperty('opacity', '1', 'important');
-placeholder.style.setProperty('position', 'absolute', 'important');
-placeholder.style.setProperty('top', '0', 'important');
-placeholder.style.setProperty('left', '0', 'important');
-placeholder.style.setProperty('right', '0', 'important');
-placeholder.style.setProperty('bottom', '0', 'important');
-placeholder.style.setProperty('width', '100%', 'important');
-placeholder.style.setProperty('height', '100%', 'important');
-placeholder.style.setProperty('z-index', '999', 'important');
-placeholder.style.setProperty('background-color', 'rgba(230, 57, 70, 0.95)', 'important');
-placeholder.style.setProperty('pointer-events', 'none', 'important');
-placeholder.classList.remove('hidden');
-
-// FORCE remove any conflicting classes
-placeholder.className = placeholder.className.replace(/hidden/g, '');
-
-// FORCE parent container to allow absolute positioning
-const parent = placeholder.parentElement;
-if (parent) {
-parent.style.setProperty('position', 'relative', 'important');
-parent.style.setProperty('overflow', 'visible', 'important');
-}
-
 const participantName = participant.user_name || 'Guest';
 const displayName = extractUserDisplayName(participantName);
 const firstLetter = displayName.charAt(0).toUpperCase();
@@ -2524,18 +2493,44 @@ console.log(`👤 Creating placeholder for: ${displayName} (${firstLetter})`);
 // Get avatar URL from participant data
 const avatarUrl = getParticipantAvatarUrl(participant);
 
-// CRITICAL: Update placeholder content with MUCH MORE PROMINENT styling
+console.log(`🖼️ Avatar URL for ${displayName}:`, avatarUrl || 'No avatar, using initial');
+
+// COMPLETELY RESTART the placeholder - remove all existing content and styling
+placeholder.removeAttribute('style');
+placeholder.className = 'absolute inset-0 flex items-center justify-center video-placeholder';
+
+// CRITICAL: Ensure video is completely hidden
+video.style.setProperty('display', 'none', 'important');
+video.style.setProperty('visibility', 'hidden', 'important');
+video.style.setProperty('opacity', '0', 'important');
+video.classList.add('hidden');
+
+// CRITICAL: Force placeholder to be completely visible and on top
+placeholder.style.setProperty('display', 'flex', 'important');
+placeholder.style.setProperty('position', 'absolute', 'important');
+placeholder.style.setProperty('top', '0', 'important');
+placeholder.style.setProperty('left', '0', 'important');
+placeholder.style.setProperty('width', '100%', 'important');
+placeholder.style.setProperty('height', '100%', 'important');
+placeholder.style.setProperty('z-index', '1000', 'important');
+placeholder.style.setProperty('background', 'linear-gradient(135deg, #22223B 0%, #2a2a4a 100%)', 'important');
+placeholder.style.setProperty('align-items', 'center', 'important');
+placeholder.style.setProperty('justify-content', 'center', 'important');
+placeholder.style.setProperty('flex-direction', 'column', 'important');
+
+// Create the camera-off content with inline styles to override everything
 placeholder.innerHTML = `
-<div class="text-center text-white" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
-<div style="width: 120px; height: 120px; margin: 0 auto 16px; background: #4B5563; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 6px solid white; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
-${avatarUrl ?
-`<img src="${avatarUrl}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-<span style="color: white; font-weight: bold; font-size: 48px; display: none;">${firstLetter}</span>` :
-`<span style="color: white; font-weight: bold; font-size: 48px;">${firstLetter}</span>`
-}
-</div>
-<p style="font-size: 18px; font-weight: bold; color: white; margin-bottom: 8px;">${displayName}</p>
-<p style="font-size: 14px; color: #D1D5DB;">📷 Camera is off</p>
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; z-index: 1001; position: relative;">
+    <div style="width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; border: 4px solid white; background: #4B5563; box-shadow: 0 8px 32px rgba(0,0,0,0.4); overflow: hidden;">
+        ${avatarUrl ? 
+            `<img src="${avatarUrl}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+             <span style="color: white; font-weight: bold; font-size: 36px; display: none;">${firstLetter}</span>` :
+            `<span style="color: white; font-weight: bold; font-size: 36px;">${firstLetter}</span>`
+        }
+    </div>
+    <p style="color: white; font-size: 16px; font-weight: bold; margin: 0 0 8px 0;">${displayName}</p>
+    <p style="color: #D1D5DB; font-size: 14px; margin: 0;">📷 Camera is off</p>
 </div>
 `;
 
@@ -2543,50 +2538,29 @@ ${avatarUrl ?
 if (nameElement) {
 nameElement.textContent = displayName;
 nameElement.classList.remove('hidden');
+nameElement.style.setProperty('display', 'block', 'important');
 }
 
-console.log(`✅ FORCED spectator placeholder visible for slot ${slot} with ${avatarUrl ? 'avatar' : 'initial (' + firstLetter + ')'}`);
-console.log(`🔍 Placeholder final styles:`, {
-display: placeholder.style.display,
-visibility: placeholder.style.visibility,
-opacity: placeholder.style.opacity,
-zIndex: placeholder.style.zIndex,
-position: placeholder.style.position,
-backgroundColor: placeholder.style.backgroundColor,
-width: placeholder.style.width,
-height: placeholder.style.height
-});
+// Force parent container positioning
+const parent = placeholder.parentElement;
+if (parent) {
+parent.style.setProperty('position', 'relative', 'important');
+}
 
-// EXTREME DEBUG: Take a screenshot of the placeholder state
+console.log(`✅ Spectator placeholder updated for slot ${slot} with ${avatarUrl ? 'avatar image' : 'initial letter (' + firstLetter + ')'}`);
+
+// Verify placeholder is showing after a brief delay
 setTimeout(() => {
-console.log(`🔍 DELAYED DEBUG - Placeholder computed styles after ${slot}ms:`, {
-display: window.getComputedStyle(placeholder).display,
-visibility: window.getComputedStyle(placeholder).visibility,
-opacity: window.getComputedStyle(placeholder).opacity,
-zIndex: window.getComputedStyle(placeholder).zIndex,
-position: window.getComputedStyle(placeholder).position,
-backgroundColor: window.getComputedStyle(placeholder).backgroundColor,
-width: window.getComputedStyle(placeholder).width,
-height: window.getComputedStyle(placeholder).height,
-transform: window.getComputedStyle(placeholder).transform,
-left: window.getComputedStyle(placeholder).left,
-top: window.getComputedStyle(placeholder).top
-});
-
-console.log(`🔍 Placeholder bounding rect:`, placeholder.getBoundingClientRect());
-console.log(`🔍 Placeholder innerHTML length:`, placeholder.innerHTML.length);
-console.log(`🔍 Is placeholder in DOM:`, document.contains(placeholder));
-
-// Check if anything is covering the placeholder
 const rect = placeholder.getBoundingClientRect();
-const elementAtCenter = document.elementFromPoint(rect.left + rect.width/2, rect.top + rect.height/2);
-console.log(`🔍 Element at placeholder center:`, elementAtCenter);
-
-}, 100 * slot);
-
-// EXTREME MEASURE: Add a visible border to the placeholder for debugging
-placeholder.style.setProperty('border', '10px solid lime', 'important');
-placeholder.style.setProperty('outline', '5px dashed yellow', 'important');
+const isVisible = rect.width > 0 && rect.height > 0 && 
+                 window.getComputedStyle(placeholder).display !== 'none' &&
+                 window.getComputedStyle(placeholder).visibility !== 'hidden';
+                 
+console.log(`🔍 Placeholder visibility check for slot ${slot}: ${isVisible ? 'VISIBLE ✅' : 'HIDDEN ❌'}`);
+if (!isVisible) {
+    console.error(`❌ Placeholder still not visible for slot ${slot}!`);
+}
+}, 100);
 }
 
 // FIXED: Get participant avatar URL from userData or fallback to current user

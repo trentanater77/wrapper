@@ -2480,9 +2480,9 @@
     `;
   }
 
-  // Update spectator placeholder for camera off
+  // COMPLETELY NEW APPROACH: Replace video element with guaranteed-visible placeholder
   function updateSpectatorPlaceholderForCameraOff(participantId, participant) {
-    console.log('🎭 Updating spectator placeholder for camera off:', participantId, participant.user_name);
+    console.log('🎭 NEW APPROACH: Creating guaranteed placeholder for camera off:', participantId, participant.user_name);
     
     // Find which slot this participant is in
     let slot = null;
@@ -2499,118 +2499,154 @@
       return;
     }
     
-    const video = document.getElementById(`spectator-participant-${slot}`);
-    const placeholder = document.getElementById(`spectator-placeholder-${slot}`);
+    const parentContainer = document.getElementById(`spectator-participant-${slot}`).parentElement;
     const nameElement = document.getElementById(`spectator-name-${slot}`);
     
-    if (!video || !placeholder) {
-      console.error(`❌ Missing elements for slot ${slot}:`, { video: !!video, placeholder: !!placeholder });
+    if (!parentContainer) {
+      console.error(`❌ Parent container not found for slot ${slot}`);
       return;
-    }
-    
-    // FORCE hide video and show placeholder with absolute positioning
-    video.style.display = 'none !important';
-    video.style.visibility = 'hidden';
-    video.classList.add('hidden');
-    
-    // SUPER AGGRESSIVE FORCE show placeholder
-    placeholder.style.setProperty('display', 'flex', 'important');
-    placeholder.style.setProperty('visibility', 'visible', 'important');
-    placeholder.style.setProperty('opacity', '1', 'important');
-    placeholder.style.setProperty('position', 'absolute', 'important');
-    placeholder.style.setProperty('top', '0', 'important');
-    placeholder.style.setProperty('left', '0', 'important');
-    placeholder.style.setProperty('right', '0', 'important');
-    placeholder.style.setProperty('bottom', '0', 'important');
-    placeholder.style.setProperty('width', '100%', 'important');
-    placeholder.style.setProperty('height', '100%', 'important');
-    placeholder.style.setProperty('z-index', '999', 'important');
-    placeholder.style.setProperty('background-color', 'rgba(230, 57, 70, 0.95)', 'important');
-    placeholder.style.setProperty('pointer-events', 'none', 'important');
-    placeholder.classList.remove('hidden');
-    
-    // FORCE remove any conflicting classes
-    placeholder.className = placeholder.className.replace(/hidden/g, '');
-    
-    // FORCE parent container to allow absolute positioning
-    const parent = placeholder.parentElement;
-    if (parent) {
-      parent.style.setProperty('position', 'relative', 'important');
-      parent.style.setProperty('overflow', 'visible', 'important');
     }
     
     const participantName = participant.user_name || 'Guest';
     const displayName = extractUserDisplayName(participantName);
     const firstLetter = displayName.charAt(0).toUpperCase();
-    
-    console.log(`👤 Creating placeholder for: ${displayName} (${firstLetter})`);
-    
-    // Get avatar URL from participant data
     const avatarUrl = getParticipantAvatarUrl(participant);
     
-    // CRITICAL: Update placeholder content with MUCH MORE PROMINENT styling
-    placeholder.innerHTML = `
-      <div class="text-center text-white" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 100%;">
-        <div style="width: 120px; height: 120px; margin: 0 auto 16px; background: #4B5563; border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 6px solid white; box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+    console.log(`👤 Creating NEW placeholder element for: ${displayName} (${firstLetter})`);
+    
+    // STEP 1: Remove the old video and placeholder entirely
+    const oldVideo = document.getElementById(`spectator-participant-${slot}`);
+    const oldPlaceholder = document.getElementById(`spectator-placeholder-${slot}`);
+    
+    if (oldVideo) {
+      oldVideo.remove();
+      console.log(`🗑️ Removed old video element for slot ${slot}`);
+    }
+    
+    if (oldPlaceholder) {
+      oldPlaceholder.remove();
+      console.log(`🗑️ Removed old placeholder element for slot ${slot}`);
+    }
+    
+    // STEP 2: Create a completely new camera-off placeholder element
+    const newPlaceholder = document.createElement('div');
+    newPlaceholder.id = `spectator-placeholder-${slot}`;
+    newPlaceholder.style.cssText = `
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      background: linear-gradient(135deg, #e63946 0%, #FFD166 100%) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      z-index: 1000 !important;
+      border-radius: 0 !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    `;
+    
+    // STEP 3: Add the placeholder content with inline styles for guaranteed visibility
+    newPlaceholder.innerHTML = `
+      <div style="
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        text-align: center !important;
+        width: 100% !important;
+        height: 100% !important;
+        color: white !important;
+      ">
+        <div style="
+          width: 100px !important;
+          height: 100px !important;
+          margin: 0 auto 16px !important;
+          background: rgba(255, 255, 255, 0.2) !important;
+          border-radius: 50% !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          overflow: hidden !important;
+          border: 4px solid white !important;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+        ">
           ${avatarUrl ? 
-            `<img src="${avatarUrl}" alt="${displayName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-             <span style="color: white; font-weight: bold; font-size: 48px; display: none;">${firstLetter}</span>` :
-            `<span style="color: white; font-weight: bold; font-size: 48px;">${firstLetter}</span>`
+            `<img src="${avatarUrl}" alt="${displayName}" style="
+              width: 100% !important;
+              height: 100% !important;
+              object-fit: cover !important;
+              display: block !important;
+            " onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+             <span style="
+               color: white !important;
+               font-weight: bold !important;
+               font-size: 36px !important;
+               display: none !important;
+               align-items: center !important;
+               justify-content: center !important;
+               width: 100% !important;
+               height: 100% !important;
+             ">${firstLetter}</span>` :
+            `<span style="
+              color: white !important;
+              font-weight: bold !important;
+              font-size: 36px !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              width: 100% !important;
+              height: 100% !important;
+            ">${firstLetter}</span>`
           }
         </div>
-        <p style="font-size: 18px; font-weight: bold; color: white; margin-bottom: 8px;">${displayName}</p>
-        <p style="font-size: 14px; color: #D1D5DB;">📷 Camera is off</p>
+        <p style="
+          font-size: 20px !important;
+          font-weight: bold !important;
+          color: white !important;
+          margin: 0 0 8px 0 !important;
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.5) !important;
+        ">${displayName}</p>
+        <p style="
+          font-size: 14px !important;
+          color: rgba(255,255,255,0.9) !important;
+          margin: 0 !important;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.5) !important;
+        ">📷 Camera is off</p>
       </div>
     `;
     
-    // Update name element
+    // STEP 4: Create a new video placeholder for future use
+    const newVideo = document.createElement('video');
+    newVideo.id = `spectator-participant-${slot}`;
+    newVideo.className = 'w-full h-full object-cover hidden';
+    newVideo.autoplay = true;
+    newVideo.playsInline = true;
+    newVideo.style.cssText = 'display: none !important;';
+    
+    // STEP 5: Insert both elements into the parent container
+    parentContainer.style.position = 'relative';
+    parentContainer.appendChild(newVideo);
+    parentContainer.appendChild(newPlaceholder);
+    
+    // STEP 6: Update name element
     if (nameElement) {
       nameElement.textContent = displayName;
+      nameElement.style.display = 'block';
       nameElement.classList.remove('hidden');
     }
     
-    console.log(`✅ FORCED spectator placeholder visible for slot ${slot} with ${avatarUrl ? 'avatar' : 'initial (' + firstLetter + ')'}`);
-    console.log(`🔍 Placeholder final styles:`, {
-      display: placeholder.style.display,
-      visibility: placeholder.style.visibility,
-      opacity: placeholder.style.opacity,
-      zIndex: placeholder.style.zIndex,
-      position: placeholder.style.position,
-      backgroundColor: placeholder.style.backgroundColor,
-      width: placeholder.style.width,
-      height: placeholder.style.height
-    });
+    console.log(`✅ GUARANTEED VISIBLE: Created new placeholder element for slot ${slot}`);
+    console.log(`🎯 Avatar: ${avatarUrl ? 'Using avatar image' : 'Using initial letter: ' + firstLetter}`);
+    console.log(`📦 Placeholder element:`, newPlaceholder);
+    console.log(`📦 Placeholder bounding rect:`, newPlaceholder.getBoundingClientRect());
     
-    // EXTREME DEBUG: Take a screenshot of the placeholder state
+    // Force a repaint to ensure the element is visible
     setTimeout(() => {
-      console.log(`🔍 DELAYED DEBUG - Placeholder computed styles after ${slot}ms:`, {
-        display: window.getComputedStyle(placeholder).display,
-        visibility: window.getComputedStyle(placeholder).visibility,
-        opacity: window.getComputedStyle(placeholder).opacity,
-        zIndex: window.getComputedStyle(placeholder).zIndex,
-        position: window.getComputedStyle(placeholder).position,
-        backgroundColor: window.getComputedStyle(placeholder).backgroundColor,
-        width: window.getComputedStyle(placeholder).width,
-        height: window.getComputedStyle(placeholder).height,
-        transform: window.getComputedStyle(placeholder).transform,
-        left: window.getComputedStyle(placeholder).left,
-        top: window.getComputedStyle(placeholder).top
-      });
-      
-      console.log(`🔍 Placeholder bounding rect:`, placeholder.getBoundingClientRect());
-      console.log(`🔍 Placeholder innerHTML length:`, placeholder.innerHTML.length);
-      console.log(`🔍 Is placeholder in DOM:`, document.contains(placeholder));
-      
-      // Check if anything is covering the placeholder
-      const rect = placeholder.getBoundingClientRect();
-      const elementAtCenter = document.elementFromPoint(rect.left + rect.width/2, rect.top + rect.height/2);
-      console.log(`🔍 Element at placeholder center:`, elementAtCenter);
-      
-    }, 100 * slot);
-    
-    // EXTREME MEASURE: Add a visible border to the placeholder for debugging
-    placeholder.style.setProperty('border', '10px solid lime', 'important');
-    placeholder.style.setProperty('outline', '5px dashed yellow', 'important');
+      newPlaceholder.style.opacity = '1';
+      console.log(`🔄 Forced repaint for slot ${slot} placeholder`);
+    }, 10);
   }
 
   // Get participant avatar URL from various sources

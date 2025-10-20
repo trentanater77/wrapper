@@ -375,6 +375,15 @@
         max-height: 300px;
       }
     }
+
+    /* CRITICAL: Force overlay visibility when cameras are off */
+    .spectator-overlay-force-visible {
+      display: flex !important;
+      opacity: 1 !important;
+      visibility: visible !important;
+      pointer-events: auto !important;
+      z-index: 9999 !important;
+    }
   </style>
 </head>
 <body class="bg-bg-light dark:bg-charcoal min-h-screen font-nunito">
@@ -835,7 +844,7 @@
             </button>
             
             <!-- Click to Enable Overlay -->
-            <div id="spectator-click-overlay" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80 z-10" onclick="enableSpectatorVideo()">
+            <div id="spectator-click-overlay" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80 z-10 spectator-overlay-force-visible" onclick="enableSpectatorVideo()">
               <div class="text-center text-white">
                 <div class="w-20 h-20 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg animate-pulse">
                   <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -843,7 +852,7 @@
                   </svg>
                 </div>
                 <p class="font-bold text-xl text-white mb-2">🎬 Click to Watch Conversation</p>
-                <p class="text-sm text-gold mt-2">Tap anywhere to start watching the 2 participants!</p>
+                <p class="text-sm text-gold mt-2">Tap anywhere to start watching when participants join!</p>
                 <div class="mt-4 px-4 py-2 bg-main-red rounded-full text-sm font-bold animate-bounce">
                   👆 Click Here to Enable Video
                 </div>
@@ -1725,12 +1734,73 @@
             updateRemotePlaceholderForCameraOff(event.participant);
           }
         } else {
-          // CRITICAL FIX: For spectators, show proper camera-off placeholder
+          // CRITICAL FIX: For spectators, show proper camera-off placeholder AND force overlay
           console.log(`🎭 SPECTATOR: Showing camera-off placeholder for ${participantName}`);
           updateSpectatorPlaceholderForCameraOff(participantId, event.participant);
+          
+          // CRITICAL: Force overlay to show when camera turns off
+          setTimeout(() => {
+            forceSpectatorOverlayVisible('camera-off');
+          }, 100);
         }
       }
     }
+  }
+  
+  // CRITICAL: New function to force overlay visibility when cameras turn off
+  function forceSpectatorOverlayVisible(reason = 'general') {
+    if (!isSpectator) return;
+    
+    const clickOverlay = document.getElementById('spectator-click-overlay');
+    if (!clickOverlay) return;
+    
+    console.log(`🎭 FORCING OVERLAY VISIBLE - Reason: ${reason}`);
+    
+    // Force overlay to be visible with maximum priority
+    clickOverlay.classList.add('spectator-overlay-force-visible');
+    clickOverlay.style.setProperty('display', 'flex', 'important');
+    clickOverlay.style.setProperty('opacity', '1', 'important');
+    clickOverlay.style.setProperty('visibility', 'visible', 'important');
+    clickOverlay.style.setProperty('pointer-events', 'auto', 'important');
+    clickOverlay.style.setProperty('z-index', '9999', 'important');
+    clickOverlay.classList.remove('hidden');
+    
+    // Update overlay content based on reason
+    const overlayText = clickOverlay.querySelector('.text-center.text-white');
+    if (overlayText) {
+      const participantCount = (spectatorParticipant1 ? 1 : 0) + (spectatorParticipant2 ? 1 : 0);
+      
+      if (reason === 'camera-off' && participantCount > 0) {
+        overlayText.innerHTML = `
+          <div class="w-20 h-20 mx-auto mb-4 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+            <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M4 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM6 8a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z"/>
+              <path d="M2.5 8.5l2-2 2 2M15.5 11.5l-2 2-2-2"/>
+            </svg>
+          </div>
+          <p class="font-bold text-2xl text-white mb-2">📷 Camera Turned Off</p>
+          <p class="text-lg text-gold mt-2">${participantCount} participant${participantCount > 1 ? 's' : ''} present, camera disabled</p>
+          <div class="mt-6 px-8 py-4 bg-yellow-500 rounded-full text-white text-lg font-bold animate-bounce">
+            👆 CLICK TO WATCH WHEN CAMERA TURNS ON
+          </div>
+        `;
+      } else {
+        overlayText.innerHTML = `
+          <div class="w-20 h-20 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg animate-pulse">
+            <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <p class="font-bold text-xl text-white mb-2">🎬 Click to Watch Conversation</p>
+          <p class="text-sm text-gold mt-2">Tap anywhere to start watching when participants join!</p>
+          <div class="mt-4 px-4 py-2 bg-main-red rounded-full text-sm font-bold animate-bounce">
+            👆 Click Here to Enable Video
+          </div>
+        `;
+      }
+    }
+    
+    console.log('✅ OVERLAY NOW FORCIBLY VISIBLE FOR SPECTATOR');
   }
   
   // CRITICAL: Restore camera feed after screen share stops
@@ -1960,6 +2030,11 @@
         });
       }
       
+      // CRITICAL: Hide overlay when camera turns back on
+      setTimeout(() => {
+        checkAndHideClickOverlay();
+      }, 100);
+      
       return;
     }
     
@@ -2111,7 +2186,7 @@
   // Global flag to track if user has interacted
   let userHasInteracted = false;
   
-  // FIXED: Ensure click overlay always shows for spectators
+  // FIXED: Ensure click overlay shows/hides properly based on camera status
   function checkAndHideClickOverlay() {
     const clickOverlay = document.getElementById('spectator-click-overlay');
     if (!clickOverlay) {
@@ -2122,14 +2197,27 @@
     // Count participants with video streams
     const video1 = document.getElementById('spectator-participant-1');
     const video2 = document.getElementById('spectator-participant-2');
-    const hasVideo1 = video1 && video1.srcObject && !video1.classList.contains('hidden');
-    const hasVideo2 = video2 && video2.srcObject && !video2.classList.contains('hidden');
+    const placeholder1 = document.getElementById('spectator-placeholder-1');
+    const placeholder2 = document.getElementById('spectator-placeholder-2');
     
-    console.log(`🎬 OVERLAY CHECK - HasVideo1: ${hasVideo1}, HasVideo2: ${hasVideo2}, UserInteracted: ${userHasInteracted}`);
+    // CRITICAL: Check for active videos (cameras ON, not just participants present)
+    const hasActiveVideo1 = video1 && video1.srcObject && !video1.classList.contains('hidden') && 
+                           video1.style.display !== 'none' && 
+                           (!placeholder1 || placeholder1.style.display === 'none');
+    const hasActiveVideo2 = video2 && video2.srcObject && !video2.classList.contains('hidden') && 
+                           video2.style.display !== 'none' && 
+                           (!placeholder2 || placeholder2.style.display === 'none');
     
-    // CRITICAL: ONLY hide overlay if user has clicked AND videos are actually playing
-    if (userHasInteracted && areVideosPlaying()) {
-      console.log('🎬 Hiding overlay - user interacted and videos playing');
+    console.log(`🎬 OVERLAY CHECK - ActiveVideo1: ${hasActiveVideo1}, ActiveVideo2: ${hasActiveVideo2}, UserInteracted: ${userHasInteracted}`);
+    
+    // CRITICAL: Check if participants exist but cameras are off
+    const hasParticipants = (spectatorParticipant1 !== null) || (spectatorParticipant2 !== null);
+    const camerasOff = hasParticipants && !hasActiveVideo1 && !hasActiveVideo2;
+    
+    // ONLY hide overlay if user has clicked AND videos are actually playing with cameras on
+    if (userHasInteracted && areVideosPlaying() && (hasActiveVideo1 || hasActiveVideo2)) {
+      console.log('🎬 Hiding overlay - user interacted and videos playing with cameras on');
+      clickOverlay.classList.remove('spectator-overlay-force-visible');
       clickOverlay.style.display = 'none';
       clickOverlay.style.opacity = '0';
       clickOverlay.style.visibility = 'hidden';
@@ -2137,32 +2225,39 @@
       return;
     }
     
-    // ALWAYS show the overlay if user hasn't interacted or videos aren't playing
+    // ALWAYS show the overlay if cameras are off OR user hasn't interacted
     console.log('🎬 FORCING overlay to be visible');
     
-    // FORCE the overlay to be visible with maximum priority
+    // FORCE the overlay to be visible
+    clickOverlay.classList.add('spectator-overlay-force-visible');
     clickOverlay.style.setProperty('display', 'flex', 'important');
     clickOverlay.style.setProperty('opacity', '1', 'important');
     clickOverlay.style.setProperty('visibility', 'visible', 'important');
     clickOverlay.style.setProperty('pointer-events', 'auto', 'important');
-    clickOverlay.style.setProperty('position', 'absolute', 'important');
-    clickOverlay.style.setProperty('top', '0', 'important');
-    clickOverlay.style.setProperty('left', '0', 'important');
-    clickOverlay.style.setProperty('right', '0', 'important');
-    clickOverlay.style.setProperty('bottom', '0', 'important');
     clickOverlay.style.setProperty('z-index', '9999', 'important');
-    clickOverlay.style.setProperty('background-color', 'rgba(34, 34, 59, 0.95)', 'important');
-    clickOverlay.style.setProperty('cursor', 'pointer', 'important');
-    
-    // Remove any conflicting classes
     clickOverlay.classList.remove('hidden');
     
-    // Update overlay content based on participant availability
+    // Update overlay content based on camera status
     const overlayText = clickOverlay.querySelector('.text-center.text-white');
     if (overlayText) {
-      if (hasVideo1 || hasVideo2) {
-        // Participants are available - show "Ready to Watch"
-        console.log('🎬 Updating overlay for ready-to-watch state');
+      if (camerasOff) {
+        // Participants exist but cameras are off
+        const participantCount = (spectatorParticipant1 ? 1 : 0) + (spectatorParticipant2 ? 1 : 0);
+        overlayText.innerHTML = `
+          <div class="w-20 h-20 mx-auto mb-4 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+            <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M4 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM6 8a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z"/>
+              <path d="M2.5 8.5l2-2 2 2M15.5 11.5l-2 2-2-2"/>
+            </svg>
+          </div>
+          <p class="font-bold text-2xl text-white mb-2">📷 Cameras Are Off</p>
+          <p class="text-lg text-gold mt-2">${participantCount} participant${participantCount > 1 ? 's' : ''} present, cameras disabled</p>
+          <div class="mt-6 px-8 py-4 bg-yellow-500 rounded-full text-white text-lg font-bold animate-bounce">
+            👆 CLICK TO WATCH WHEN CAMERAS TURN ON
+          </div>
+        `;
+      } else if (hasActiveVideo1 || hasActiveVideo2) {
+        // Cameras are on - ready to watch
         overlayText.innerHTML = `
           <div class="w-20 h-20 mx-auto mb-4 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
             <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -2170,14 +2265,13 @@
             </svg>
           </div>
           <p class="font-bold text-2xl text-white mb-2">🎬 Ready to Watch!</p>
-          <p class="text-lg text-gold mt-2">${hasVideo1 && hasVideo2 ? '2 participants' : '1 participant'} ready for viewing</p>
+          <p class="text-lg text-gold mt-2">${hasActiveVideo1 && hasActiveVideo2 ? '2 participants' : '1 participant'} ready for viewing</p>
           <div class="mt-6 px-8 py-4 bg-green-500 rounded-full text-white text-lg font-bold animate-bounce">
             👆 CLICK HERE TO START WATCHING
           </div>
         `;
       } else {
-        // No participants yet - show waiting state
-        console.log('🎬 Updating overlay for waiting state');
+        // No participants yet
         overlayText.innerHTML = `
           <div class="w-20 h-20 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg animate-pulse">
             <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -2193,21 +2287,23 @@
       }
     }
     
-    // Add pulsing animation for emphasis
-    if (!clickOverlay.classList.contains('animate-pulse')) {
-      clickOverlay.classList.add('animate-pulse');
-    }
-    
-    console.log('✅ Overlay is now forcibly visible and properly styled');
+    console.log('✅ Overlay is now properly configured');
   }
   
-  // Check if videos are actually playing
+  // Check if videos are actually playing (cameras must be on, not just participants present)
   function areVideosPlaying() {
     const video1 = document.getElementById('spectator-participant-1');
     const video2 = document.getElementById('spectator-participant-2');
+    const placeholder1 = document.getElementById('spectator-placeholder-1');
+    const placeholder2 = document.getElementById('spectator-placeholder-2');
     
-    const video1Playing = video1 && video1.srcObject && !video1.paused && video1.readyState >= 2;
-    const video2Playing = video2 && video2.srcObject && !video2.paused && video2.readyState >= 2;
+    // CRITICAL: Check if videos are playing AND placeholders are hidden (cameras on)
+    const video1Playing = video1 && video1.srcObject && !video1.paused && 
+                         video1.readyState >= 2 && video1.style.display !== 'none' &&
+                         (!placeholder1 || placeholder1.style.display === 'none');
+    const video2Playing = video2 && video2.srcObject && !video2.paused && 
+                         video2.readyState >= 2 && video2.style.display !== 'none' &&
+                         (!placeholder2 || placeholder2.style.display === 'none');
     
     return video1Playing || video2Playing;
   }
@@ -2259,7 +2355,7 @@
     
     // Show click overlay if no participants remain
     if (!spectatorParticipant1 && !spectatorParticipant2) {
-      clickOverlay.style.display = 'flex';
+      forceSpectatorOverlayVisible('no-participants');
       console.log('📺 All participants left, showing click overlay');
     }
   }
@@ -2398,15 +2494,8 @@
       console.log('✅ Restored participant 2 video');
     }
     
-    // Hide click overlay if participants are available
-    const clickOverlay = document.getElementById('spectator-click-overlay');
-    if ((video1 && video1.srcObject) || (video2 && video2.srcObject)) {
-      clickOverlay.style.display = 'none';
-      console.log('✅ Hiding click overlay - participants available');
-    } else {
-      clickOverlay.style.display = 'flex';
-      console.log('⚠️ No participants available - showing click overlay');
-    }
+    // Update overlay based on camera status
+    checkAndHideClickOverlay();
   }
 
   function updateRemoteInfo(name) {
@@ -3517,10 +3606,7 @@
     } else {
       console.log('📺 No participants found after retries, showing click overlay');
       // If no participants were found after retries, make sure click overlay is visible
-      const clickOverlay = document.getElementById('spectator-click-overlay');
-      if (clickOverlay) {
-        clickOverlay.style.display = 'flex';
-      }
+      forceSpectatorOverlayVisible('no-participants');
     }
   }
 
@@ -3633,6 +3719,11 @@
     
     // CRITICAL: Update expand buttons now that user has interacted
     updateSpectatorExpandButtons();
+    
+    // Check overlay status
+    setTimeout(() => {
+      checkAndHideClickOverlay();
+    }, 500);
   }
 
   // Enable audio context on user interaction

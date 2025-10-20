@@ -2297,15 +2297,16 @@
     const placeholder1 = document.getElementById('spectator-placeholder-1');
     const placeholder2 = document.getElementById('spectator-placeholder-2');
     
-    // CRITICAL: Check if videos are playing AND placeholders are hidden (cameras on)
-    const video1Playing = video1 && video1.srcObject && !video1.paused && 
-                         video1.readyState >= 2 && video1.style.display !== 'none' &&
-                         (!placeholder1 || placeholder1.style.display === 'none');
-    const video2Playing = video2 && video2.srcObject && !video2.paused && 
-                         video2.readyState >= 2 && video2.style.display !== 'none' &&
-                         (!placeholder2 || placeholder2.style.display === 'none');
+    // SIMPLIFIED: Just check if videos have sources and placeholders are hidden (cameras on)
+    // Don't check paused/readyState as these can be unreliable due to autoplay restrictions
+    const video1Active = video1 && video1.srcObject && video1.style.display !== 'none' &&
+                         (!placeholder1 || placeholder1.style.display === 'none' || placeholder1.classList.contains('hidden'));
+    const video2Active = video2 && video2.srcObject && video2.style.display !== 'none' &&
+                         (!placeholder2 || placeholder2.style.display === 'none' || placeholder2.classList.contains('hidden'));
     
-    return video1Playing || video2Playing;
+    console.log(`🎥 Video Status Check - Video1: ${video1Active}, Video2: ${video2Active}`);
+    
+    return video1Active || video2Active;
   }
 
   function getParticipantName(participantId) {

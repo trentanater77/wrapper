@@ -844,7 +844,7 @@
             </button>
             
             <!-- Click to Enable Overlay -->
-            <div id="spectator-click-overlay" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80 z-10 spectator-overlay-force-visible" onclick="enableSpectatorVideo()">
+            <div id="spectator-click-overlay" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80 spectator-overlay-force-visible" onclick="enableSpectatorVideo()" style="z-index: 9999 !important; display: flex !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;"
               <div class="text-center text-white">
                 <div class="w-20 h-20 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg animate-pulse">
                   <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">

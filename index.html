@@ -986,9 +986,27 @@
   let userName = '';
   let userId = '';
 
+  // Identity and participation tracking
+  // - participantIdentityById: maps Daily session_id -> { displayName, avatar, username }
+  // - participantsWithMedia: session_ids that have ever published audio/video (used to distinguish spectators)
+  const participantIdentityById = {};
+  const participantsWithMedia = new Set();
+
   // Chat system
   let chatRef = null;
   let viewerCountRef = null;
+
+  // Determine if a joined/updated user is a spectator (non-publishing observer)
+  function isNonPublishingSpectator(participant) {
+    if (!participant || participant.local) return false;
+    const tracks = participant.tracks || {};
+    const videoTrack = tracks.video && (tracks.video.track || tracks.video.persistentTrack);
+    const audioTrack = tracks.audio && (tracks.audio.track || tracks.audio.persistentTrack);
+    const hasEverPublished = participantsWithMedia.has(participant.session_id);
+    const nameHintsSpectator = typeof participant.user_name === 'string' && participant.user_name.includes('Viewer_');
+    // Treat as spectator only if they've never published any media and currently have none
+    return !hasEverPublished && !videoTrack && !audioTrack || nameHintsSpectator && !hasEverPublished;
+  }
 
   // Sparks data
   let currentSparks = [
@@ -1044,6 +1062,25 @@
       userId: userId,
       isAuthenticated: !!(usernameFromURL && userIdFromURL)
     };
+
+    // Advertise our identity to others when we join (so spectators can render avatars/names)
+    window.addEventListener('chatspheres:announce-identity', () => {
+      try {
+        if (call) {
+          call.sendAppMessage({
+            type: 'identity-announcement',
+            payload: {
+              userId,
+              username: window.currentUserData.username,
+              displayName: window.currentUserData.displayName,
+              avatar: window.currentUserData.avatar
+            }
+          });
+        }
+      } catch (e) {
+        console.log('Identity announcement failed (non-fatal):', e);
+      }
+    });
     
     console.log(`🎭 User Mode: ${isSpectator ? 'Spectator' : 'Participant'}`);
     console.log(`👤 User Name: ${userName}`);

@@ -1611,10 +1611,17 @@
     
     // For non-local participants only
     if (tracks) {
-      if (tracks.video && tracks.video.persistentTrack) {
-        try { participantsWithMedia.add(participantId); } catch (e) {}
+      if (tracks.video) {
+        const playable = tracks.video.state === 'playable' && tracks.video.persistentTrack && tracks.video.persistentTrack.readyState === 'live';
         if (isSpectator) {
-          setupSpectatorVideo(tracks.video.persistentTrack, participantId);
+          if (playable) {
+            try { participantsWithMedia.add(participantId); } catch (e) {}
+            setupSpectatorVideo(tracks.video.persistentTrack, participantId);
+          } else {
+            // Camera off or not playable yet: show the avatar placeholder instead of hiding it
+            updateSpectatorPlaceholderForCameraOff(participantId, event.participant);
+            setTimeout(() => forceSpectatorOverlayVisible('camera-off'), 50);
+          }
         } else {
           // For participants: NEVER overwrite existing video connections from spectator events
           const remoteVideo = document.getElementById('remote-video');
@@ -1623,7 +1630,9 @@
           // Only set up if we truly don't have a remote connection
           if (!hasActiveRemoteVideo) {
             console.log('✅ Setting up remote video for participant');
-            setupRemoteVideo(tracks.video.persistentTrack);
+            if (playable && tracks.video.persistentTrack) {
+              setupRemoteVideo(tracks.video.persistentTrack);
+            }
             updateRemoteInfo(event.participant.user_name || 'Guest');
           } else {
             console.log('🔒 Remote video already active, ignoring update to prevent disruption');
@@ -2389,12 +2398,11 @@
     const placeholder1 = document.getElementById('spectator-placeholder-1');
     const placeholder2 = document.getElementById('spectator-placeholder-2');
     
-    // SIMPLIFIED: Just check if videos have sources and placeholders are hidden (cameras on)
-    // Don't check paused/readyState as these can be unreliable due to autoplay restrictions
-    const video1Active = video1 && video1.srcObject && video1.style.display !== 'none' &&
-                         (!placeholder1 || placeholder1.style.display === 'none' || placeholder1.classList.contains('hidden'));
-    const video2Active = video2 && video2.srcObject && video2.style.display !== 'none' &&
-                         (!placeholder2 || placeholder2.style.display === 'none' || placeholder2.classList.contains('hidden'));
+    // Consider video active only if track is live and ready
+    const v1Live = video1 && video1.srcObject && video1.srcObject.getVideoTracks()[0] && video1.srcObject.getVideoTracks()[0].readyState === 'live';
+    const v2Live = video2 && video2.srcObject && video2.srcObject.getVideoTracks()[0] && video2.srcObject.getVideoTracks()[0].readyState === 'live';
+    const video1Active = v1Live && video1.style.display !== 'none' && (!placeholder1 || placeholder1.style.display === 'none' || placeholder1.classList.contains('hidden'));
+    const video2Active = v2Live && video2.style.display !== 'none' && (!placeholder2 || placeholder2.style.display === 'none' || placeholder2.classList.contains('hidden'));
     
     console.log(`🎥 Video Status Check - Video1: ${video1Active}, Video2: ${video2Active}`);
     

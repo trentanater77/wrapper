@@ -1204,7 +1204,7 @@
       // Join the call
       await call.join({ 
         url: roomUrl,
-        userName: userName
+        userName: isSpectator ? `Viewer_${(window.currentUserData?.displayName || userName)}` : userName
       });
       
       // Set up Firebase presence
@@ -1535,11 +1535,28 @@
     
     startTimer();
     showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
+
+    // Broadcast identity so spectators can render names/avatars
+    try {
+      call.sendAppMessage({
+        type: 'identity-announcement',
+        payload: {
+          userId,
+          username: window.currentUserData?.username || userName,
+          displayName: window.currentUserData?.displayName || userName,
+          avatar: window.currentUserData?.avatar || ''
+        }
+      });
+      // Ask others to announce as well
+      call.sendAppMessage({ type: 'identity-request' });
+    } catch (e) {
+      console.log('Identity broadcast failed (non-fatal):', e);
+    }
   }
 
   function handleParticipantJoined(event) {
     const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    const isSpectatorParticipant = participantName.includes('Viewer_') || isNonPublishingSpectator(event.participant);
     
     console.log('👋 Participant joined:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
     
@@ -1559,7 +1576,7 @@
 
   function handleParticipantLeft(event) {
     const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    const isSpectatorParticipant = participantName.includes('Viewer_') || isNonPublishingSpectator(event.participant);
     
     console.log('👋 Participant left:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
     
@@ -1595,6 +1612,7 @@
     // For non-local participants only
     if (tracks) {
       if (tracks.video && tracks.video.persistentTrack) {
+        try { participantsWithMedia.add(participantId); } catch (e) {}
         if (isSpectator) {
           setupSpectatorVideo(tracks.video.persistentTrack, participantId);
         } else {
@@ -1632,6 +1650,11 @@
       isSpectator: isSpectator
     });
     
+    // Track publish means this session_id is a true participant (not a spectator)
+    if (event.participant && (event.track.kind === 'video' || event.track.kind === 'audio')) {
+      try { participantsWithMedia.add(event.participant.session_id); } catch (e) {}
+    }
+
     if (event.participant.local && !isSpectator) {
       if (event.track.kind === 'video') {
         setupLocalVideo(event.track);
@@ -1863,7 +1886,34 @@
   function handleAppMessage(event) {
     console.log('📨 App message received:', event);
     
-    if (event.data.type === 'spark-selected') {
+    if (event.data.type === 'identity-announcement') {
+      const fromId = event.fromId || event.participant?.session_id;
+      if (fromId && event.data.payload) {
+        participantIdentityById[fromId] = { ...event.data.payload };
+        // Update any visible spectator nameplates for this id
+        if (spectatorParticipant1 && spectatorParticipant1.participantId === fromId) {
+          const el = document.getElementById('spectator-name-1');
+          if (el) { el.textContent = event.data.payload.displayName || spectatorParticipant1.participantName; el.classList.remove('hidden'); }
+        }
+        if (spectatorParticipant2 && spectatorParticipant2.participantId === fromId) {
+          const el = document.getElementById('spectator-name-2');
+          if (el) { el.textContent = event.data.payload.displayName || spectatorParticipant2.participantName; el.classList.remove('hidden'); }
+        }
+      }
+    } else if (event.data.type === 'identity-request') {
+      // Respond with our identity
+      try {
+        call.sendAppMessage({
+          type: 'identity-announcement',
+          payload: {
+            userId,
+            username: window.currentUserData?.username || userName,
+            displayName: window.currentUserData?.displayName || userName,
+            avatar: window.currentUserData?.avatar || ''
+          }
+        });
+      } catch (e) {}
+    } else if (event.data.type === 'spark-selected') {
       currentSparkIndex = event.data.sparkIndex;
       sparkIsSelected = event.data.isSelected;
       updateSparkDisplay();
@@ -2200,6 +2250,11 @@
       
       // Check if we should auto-hide the click overlay
       checkAndHideClickOverlay();
+
+      // Ask for identity if not cached
+      if (!participantIdentityById[participantId]) {
+        try { call.sendAppMessage({ type: 'identity-request' }); } catch (e) {}
+      }
       
       // Update expand buttons availability
       updateSpectatorExpandButtons();
@@ -2347,10 +2402,15 @@
   }
 
   function getParticipantName(participantId) {
+    // Prefer announced identity if available
+    const announced = participantIdentityById[participantId];
+    if (announced && announced.displayName) return announced.displayName;
+
+    // Fallback to Daily participant object
     const participants = call.participants();
     for (const [id, participant] of Object.entries(participants)) {
       if (id === participantId) {
-        return participant.user_name || 'Participant';
+        return extractUserDisplayName(participant.user_name || 'Participant');
       }
     }
     return 'Participant';
@@ -2387,6 +2447,9 @@
       videoElement.srcObject = null;
       placeholder.style.display = 'flex';
       nameElement.classList.add('hidden');
+      
+      // Ensure overlay is visible for spectators when a participant leaves
+      forceSpectatorOverlayVisible('participant-left');
       
       console.log(`✅ Cleaned up slot ${participantSlot}`);
     }
@@ -2634,10 +2697,12 @@
       return;
     }
     
-    const participantName = participant.user_name || 'Guest';
+    // Prefer announced identity if available
+    const announced = participantIdentityById[participant.session_id];
+    const participantName = (announced && announced.displayName) || participant.user_name || 'Guest';
     const displayName = extractUserDisplayName(participantName);
     const firstLetter = displayName.charAt(0).toUpperCase();
-    const avatarUrl = getParticipantAvatarUrl(participant);
+    const avatarUrl = (announced && announced.avatar) || getParticipantAvatarUrl(participant);
     
     console.log(`👤 Creating NEW placeholder element for: ${displayName} (${firstLetter})`);
     
@@ -2794,13 +2859,15 @@
 
   // Get participant avatar URL from various sources
   function getParticipantAvatarUrl(participant) {
-    // First check if this is our own participant data
+    // If it's our own participant
     if (participant.user_name === window.currentUserData?.username) {
       return window.currentUserData.avatar;
     }
-    
-    // For now, we don't have avatar data from other participants
-    // This could be enhanced in the future to pass avatar URLs through Daily.co metadata
+    // Try announced identity map using session_id
+    if (participant && participant.session_id && participantIdentityById[participant.session_id]) {
+      return participantIdentityById[participant.session_id].avatar || '';
+    }
+    // No known avatar
     return '';
   }
 

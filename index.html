@@ -1300,11 +1300,11 @@
     const remotePlaceholder = document.getElementById('remote-placeholder');
     const remoteVideo = document.getElementById('remote-video');
     
-    // Only update if no remote video is showing (no other participants)
+    // Only update if no remote video is showing (no other participants camera feed)
     if (remotePlaceholder && remoteVideo && remoteVideo.style.display !== 'block') {
-      // Check if there are any other participants (not spectators)
+      // Check for true remote participants who have ever published media
       const participants = call ? call.participants() : {};
-      const otherParticipants = Object.values(participants).filter(p => !p.local);
+      const otherParticipants = Object.values(participants).filter(p => !p.local && participantsWithMedia.has(p.session_id));
       
       // Only show spectator message if there are NO other participants
       if (otherParticipants.length === 0) {

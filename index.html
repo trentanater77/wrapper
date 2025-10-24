@@ -2125,6 +2125,9 @@
       placeholder.classList.add('hidden');
       videoElement.classList.remove('hidden');
       videoElement.style.display = 'block';
+      // Ensure any body-level overlay is removed
+      const slot = spectatorParticipant1?.participantId === participantId ? 1 : (spectatorParticipant2?.participantId === participantId ? 2 : null);
+      if (slot) removeSpectatorAvatarOverlay(slot);
       
       // Force video visibility styles
       videoElement.style.visibility = 'visible';
@@ -2202,7 +2205,10 @@
         placeholder.style.display = 'flex';
         spectatorPlaceholderHoldUntilBySlot[participantSlot] = Date.now() + 1500;
         // Ensure body overlay is visible/positioned
-        mountSpectatorAvatarOverlay(participantSlot, videoElement.parentElement, nameElement.textContent || participantName, null, (nameElement.textContent || participantName).charAt(0).toUpperCase());
+        const announced = participantIdentityById[participantId] || {};
+        const displayName = (nameElement.textContent || announced.displayName || participantName || 'Guest');
+        const avatarUrl = announced.avatar || '';
+        mountSpectatorAvatarOverlay(participantSlot, videoElement.parentElement, displayName, avatarUrl, displayName.charAt(0).toUpperCase());
       }
       
       console.log(`✅ Spectator video set up for participant ${participantId} in slot ${participantSlot}`);
@@ -2792,6 +2798,7 @@
     `;
     
     // STEP 3: Add the placeholder content with inline styles for guaranteed visibility
+    // IMPORTANT: Do NOT render the avatar here to avoid overlap with the body-level overlay.
     newPlaceholder.innerHTML = `
       <div style="
         display: flex !important;
@@ -2803,48 +2810,6 @@
         height: 100% !important;
         color: white !important;
       ">
-        <div style="
-          width: 100px !important;
-          height: 100px !important;
-          margin: 0 auto 16px !important;
-          background: rgba(255, 255, 255, 0.2) !important;
-          border-radius: 50% !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          overflow: hidden !important;
-          border: 4px solid white !important;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
-        ">
-          ${avatarUrl ? 
-            `<img src="${avatarUrl}" alt="${displayName}" style="
-              width: 100% !important;
-              height: 100% !important;
-              object-fit: cover !important;
-              display: block !important;
-            " onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-             <span style="
-               color: white !important;
-               font-weight: bold !important;
-               font-size: 36px !important;
-               display: none !important;
-               align-items: center !important;
-               justify-content: center !important;
-               width: 100% !important;
-               height: 100% !important;
-             ">${firstLetter}</span>` :
-            `<span style="
-              color: white !important;
-              font-weight: bold !important;
-              font-size: 36px !important;
-              display: flex !important;
-              align-items: center !important;
-              justify-content: center !important;
-              width: 100% !important;
-              height: 100% !important;
-            ">${firstLetter}</span>`
-          }
-        </div>
         <p style="
           font-size: 20px !important;
           font-weight: bold !important;
@@ -2884,7 +2849,7 @@
             el.style.setProperty('display', 'flex', 'important');
             el.style.setProperty('visibility', 'visible', 'important');
             el.style.setProperty('opacity', '1', 'important');
-            el.style.setProperty('z-index', '1000', 'important');
+            el.style.setProperty('z-index', '99999', 'important');
           } catch (_) {}
         }, delay);
       });
@@ -2931,8 +2896,8 @@
           position: fixed !important;
           top: 0 !important;
           left: 0 !important;
-          width: 200px !important;
-          height: 200px !important;
+          width: 160px !important;
+          height: 160px !important;
           display: flex !important;
           align-items: center !important;
           justify-content: center !important;
@@ -2943,14 +2908,20 @@
         `;
         overlay.innerHTML = `
           <div style="
-            width: 140px; height: 140px; border-radius: 50%;
-            background: rgba(0,0,0,0.35); border: 3px solid white;
+            width: 100%; height: 100%; border-radius: 50%;
+            background: linear-gradient(135deg, rgba(230,57,70,0.9) 0%, rgba(255,209,102,0.9) 100%);
+            border: 3px solid rgba(255,255,255,0.9);
             overflow: hidden; display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
           ">
             ${avatarUrl ? `<img src="${avatarUrl}" alt="${displayName}"
               style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
-            <span style="display:${avatarUrl ? 'none' : 'flex'};color:white;font-weight:800;font-size:56px;align-items:center;justify-content:center;">${firstLetter}</span>
+            <span style="display:${avatarUrl ? 'none' : 'flex'};color:white;font-weight:800;font-size:64px;letter-spacing:1px;align-items:center;justify-content:center;text-shadow:0 2px 6px rgba(0,0,0,0.5);">${firstLetter}</span>
+          </div>
+          <div style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);
+            background: rgba(0,0,0,0.6); color:white; padding:6px 12px; border-radius:9999px;
+            font-size:12px; font-weight:600; max-width: 80vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${displayName}
           </div>
         `;
         document.body.appendChild(overlay);
@@ -2959,7 +2930,7 @@
       const positionOverlay = () => {
         try {
           const rect = parentContainer.getBoundingClientRect();
-          const size = Math.min(rect.width, rect.height) * 0.35; // scale avatar within slot
+          const size = Math.min(rect.width, rect.height) * 0.32; // scale avatar within slot
           overlay.style.width = `${size}px`;
           overlay.style.height = `${size}px`;
           overlay.style.left = `${Math.round(rect.left + (rect.width - size) / 2)}px`;
@@ -2971,6 +2942,7 @@
       };
 
       positionOverlay();
+      ensureSingleSpectatorOverlay(slot);
       setTimeout(positionOverlay, 50);
       setTimeout(positionOverlay, 200);
       window.addEventListener('resize', positionOverlay, { passive: true });
@@ -2995,6 +2967,19 @@
         overlay.remove();
       }
     } catch (_) {}
+  }
+
+  // Ensure we do not duplicate overlays per slot
+  function ensureSingleSpectatorOverlay(slot) {
+    const overlay = document.getElementById(`spectator-avatar-overlay-slot-${slot}`);
+    if (!overlay) return;
+    // Remove any stray duplicates with same prefix (defensive)
+    const all = document.querySelectorAll(`[id^="spectator-avatar-overlay-slot-${slot}"]`);
+    all.forEach((node, idx) => {
+      if (node.id !== `spectator-avatar-overlay-slot-${slot}`) {
+        try { node.remove(); } catch(_) {}
+      }
+    });
   }
 
   // Get participant avatar URL from various sources

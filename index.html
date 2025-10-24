@@ -2193,12 +2193,16 @@
         placeholder.classList.add('hidden');
         videoElement.classList.remove('hidden');
         videoElement.style.display = 'block';
+        // Remove body-level avatar overlay for this slot
+        removeSpectatorAvatarOverlay(participantSlot);
       } else {
         // Keep placeholder visible; defer showing video until it’s live
         videoElement.classList.add('hidden');
         videoElement.style.display = 'none';
         placeholder.style.display = 'flex';
         spectatorPlaceholderHoldUntilBySlot[participantSlot] = Date.now() + 1500;
+        // Ensure body overlay is visible/positioned
+        mountSpectatorAvatarOverlay(participantSlot, videoElement.parentElement, nameElement.textContent || participantName, null, (nameElement.textContent || participantName).charAt(0).toUpperCase());
       }
       
       console.log(`✅ Spectator video set up for participant ${participantId} in slot ${participantSlot}`);
@@ -2485,6 +2489,10 @@
       
       // Ensure overlay is visible for spectators when a participant leaves
       forceSpectatorOverlayVisible('participant-left');
+      // And remove any body-level avatar overlay tied to this slot
+      if (participantSlot) {
+        removeSpectatorAvatarOverlay(participantSlot);
+      }
       
       console.log(`✅ Cleaned up slot ${participantSlot}`);
     }
@@ -2773,12 +2781,14 @@
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      z-index: 1000 !important;
+      z-index: 99999 !important;
       border-radius: 0 !important;
       margin: 0 !important;
       padding: 0 !important;
       visibility: visible !important;
       opacity: 1 !important;
+      transform: translateZ(0) !important;
+      -webkit-backface-visibility: hidden !important;
     `;
     
     // STEP 3: Add the placeholder content with inline styles for guaranteed visibility
@@ -2880,6 +2890,9 @@
       });
     }
     enforceVisible(newPlaceholder);
+
+    // Also mount a body-level overlay to guarantee visibility over any stacking context issues
+    mountSpectatorAvatarOverlay(slot, parentContainer, displayName, avatarUrl, firstLetter);
     
     // Ensure parent container is visible and has dimensions
     parentContainer.style.setProperty('display', 'block', 'important');
@@ -2904,6 +2917,84 @@
       newPlaceholder.style.setProperty('display', 'flex', 'important');
       console.log(`🔄 Forced repaint for slot ${slot} placeholder`);
     }, 10);
+  }
+
+  // Body-level overlay to avoid stacking/context races in some browsers
+  function mountSpectatorAvatarOverlay(slot, parentContainer, displayName, avatarUrl, firstLetter) {
+    try {
+      const overlayId = `spectator-avatar-overlay-slot-${slot}`;
+      let overlay = document.getElementById(overlayId);
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = overlayId;
+        overlay.style.cssText = `
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 200px !important;
+          height: 200px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          pointer-events: none !important;
+          z-index: 999999 !important;
+          transform: translateZ(0) !important;
+          -webkit-backface-visibility: hidden !important;
+        `;
+        overlay.innerHTML = `
+          <div style="
+            width: 140px; height: 140px; border-radius: 50%;
+            background: rgba(0,0,0,0.35); border: 3px solid white;
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+          ">
+            ${avatarUrl ? `<img src="${avatarUrl}" alt="${displayName}"
+              style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            <span style="display:${avatarUrl ? 'none' : 'flex'};color:white;font-weight:800;font-size:56px;align-items:center;justify-content:center;">${firstLetter}</span>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+      }
+
+      const positionOverlay = () => {
+        try {
+          const rect = parentContainer.getBoundingClientRect();
+          const size = Math.min(rect.width, rect.height) * 0.35; // scale avatar within slot
+          overlay.style.width = `${size}px`;
+          overlay.style.height = `${size}px`;
+          overlay.style.left = `${Math.round(rect.left + (rect.width - size) / 2)}px`;
+          overlay.style.top = `${Math.round(rect.top + (rect.height - size) / 2)}px`;
+          overlay.style.display = 'flex';
+          overlay.style.visibility = 'visible';
+          overlay.style.opacity = '1';
+        } catch(_) {}
+      };
+
+      positionOverlay();
+      setTimeout(positionOverlay, 50);
+      setTimeout(positionOverlay, 200);
+      window.addEventListener('resize', positionOverlay, { passive: true });
+      window.addEventListener('scroll', positionOverlay, { passive: true });
+
+      // Store on element for cleanup
+      overlay._cleanup = () => {
+        window.removeEventListener('resize', positionOverlay);
+        window.removeEventListener('scroll', positionOverlay);
+      };
+
+    } catch (e) {
+      console.log('Body overlay mount failed (non-fatal):', e);
+    }
+  }
+
+  function removeSpectatorAvatarOverlay(slot) {
+    try {
+      const overlay = document.getElementById(`spectator-avatar-overlay-slot-${slot}`);
+      if (overlay) {
+        if (overlay._cleanup) overlay._cleanup();
+        overlay.remove();
+      }
+    } catch (_) {}
   }
 
   // Get participant avatar URL from various sources

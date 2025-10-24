@@ -2084,14 +2084,18 @@
     remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
     
-    // CRITICAL: Check if we already have a stable video connection
-    const hasStableConnection = remoteVideo.srcObject && 
-                               remoteVideo.style.display === 'block' && 
-                               !remoteVideo.paused && 
-                               remoteVideo.readyState >= 2;
+    // CRITICAL: Determine existing track state (only block if the current track is live)
+    let currentTrackIsLive = false;
+    try {
+      const currentTrack = remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0];
+      currentTrackIsLive = !!(currentTrack && currentTrack.readyState === 'live');
+    } catch (_) {}
     
-    if (hasStableConnection) {
-      console.log('🔒 BLOCKING video setup - stable connection already exists');
+    const elementLooksPlaying = remoteVideo.style.display === 'block' && !remoteVideo.paused && remoteVideo.readyState >= 2;
+    const hasStableConnection = currentTrackIsLive && elementLooksPlaying;
+    
+    if (hasStableConnection && remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0] === track) {
+      console.log('🔒 BLOCKING video setup - stable connection already exists with same track');
       return;
     }
     
@@ -2124,7 +2128,11 @@
       
       // CRITICAL: Always update when camera turns back on (even if same track)
       console.log(`🔄 Camera turned back on for participant ${participantId} in slot ${existingSlot}`);
-      videoElement.srcObject = new MediaStream([track]);
+      const currentTrack = videoElement.srcObject && videoElement.srcObject.getVideoTracks()[0];
+      const isSameTrack = currentTrack && currentTrack.id === track.id;
+      if (!isSameTrack) {
+        videoElement.srcObject = new MediaStream([track]);
+      }
       
       // CRITICAL: Hide placeholder and show video when camera turns back on
       placeholder.style.display = 'none';
@@ -2211,12 +2219,13 @@
         videoElement.style.display = 'block';
         // Remove body-level avatar overlay for this slot
         removeSpectatorAvatarOverlay(participantSlot);
+        spectatorPlaceholderHoldUntilBySlot[participantSlot] = 0;
       } else {
         // Keep placeholder visible; defer showing video until it’s live
         videoElement.classList.add('hidden');
         videoElement.style.display = 'none';
         placeholder.style.display = 'flex';
-        spectatorPlaceholderHoldUntilBySlot[participantSlot] = Date.now() + 1500;
+        spectatorPlaceholderHoldUntilBySlot[participantSlot] = Date.now() + 2000;
         // Ensure body overlay is visible/positioned
         const announced = participantIdentityById[participantId] || {};
         const displayName = (nameElement.textContent || announced.displayName || participantName || 'Guest');

@@ -997,6 +997,11 @@
   // Chat system
   let chatRef = null;
   let viewerCountRef = null;
+  // Synced timer (room-wide)
+  let timerRef = null;
+  let serverTimeOffsetMs = 0;
+  let timerEndAtMs = null; // absolute ms (based on server time)
+  let timerStatus = 'idle';
 
   // Determine if a joined/updated user is a spectator (non-publishing observer)
   function isNonPublishingSpectator(participant) {
@@ -1172,6 +1177,8 @@
     const roomId = btoa(roomUrl);
     chatRef = db.ref(`chats/${roomId}`);
     viewerCountRef = db.ref(`viewers/${roomId}`);
+    initServerTimeOffset(roomId);
+    bindTimer(roomId);
     
     // Set up user role display
     setupUserRoleDisplay();
@@ -1548,7 +1555,10 @@
     document.getElementById('waiting-overlay').style.display = 'none';
     document.getElementById('video-interface').classList.remove('hidden');
     
-    startTimer();
+      // Attempt to start synced timer once there are two true participants
+      setTimeout(() => {
+        try { maybeStartRoomTimer(btoa(roomUrl)); } catch(_) {}
+      }, 1200);
     showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
 
     // Broadcast identity so spectators can render names/avatars
@@ -1581,6 +1591,8 @@
       if (!isSpectatorParticipant) {
         updateRemoteInfo(participantName);
         showToast(`👋 ${participantName} joined the call!`);
+        // Re-evaluate timer start condition on join
+        try { maybeStartRoomTimer(btoa(roomUrl)); } catch(_) {}
       } else {
         console.log('🔒 Ignoring spectator join event to prevent participant disruption');
       }
@@ -1601,6 +1613,7 @@
       if (!isSpectatorParticipant) {
         hideRemoteVideo();
         showToast(`👋 ${participantName} left the call`);
+        // No change to timer on leave; it remains authoritative via Firebase
       } else {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
@@ -3619,25 +3632,107 @@
   }
 
   // Timer functions
-  function startTimer() {
-    timerInterval = setInterval(updateTimer, 1000);
+  // ===== Synced Timer (1 hour default) =====
+  function computeServerNow() {
+    return Date.now() + serverTimeOffsetMs;
   }
 
-  function updateTimer() {
-    const minutes = Math.floor(timeRemaining / 60);
-    const seconds = timeRemaining % 60;
+  function initServerTimeOffset(roomId) {
+    try {
+      const offsetRef = db.ref(`serverTimeSync/${roomId}`);
+      // Write a timestamp to get server time
+      const clientSend = Date.now();
+      offsetRef.set({ ping: firebase.database.ServerValue.TIMESTAMP });
+      offsetRef.once('value').then(snap => {
+        const serverPing = (snap.val() && snap.val().ping) || clientSend;
+        serverTimeOffsetMs = serverPing - clientSend;
+        console.log('🕒 Server time offset(ms):', serverTimeOffsetMs);
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  function bindTimer(roomId) {
+    timerRef = db.ref(`timers/${roomId}`);
+    timerRef.on('value', (snap) => {
+      const val = snap.val();
+      if (!val) return;
+      timerStatus = val.status || 'idle';
+      timerEndAtMs = typeof val.endsAt === 'number' ? val.endsAt : null;
+      console.log('⏱️ Timer update:', { timerStatus, timerEndAtMs });
+      if (timerStatus === 'running' && timerEndAtMs) {
+        ensureTicking();
+      }
+      if (timerStatus === 'ended') {
+        onTimerEndedUI();
+      }
+    });
+  }
+
+  function maybeStartRoomTimer(roomId) {
+    if (isSpectator) return; // only participants can start the timer
+    const participants = call ? Object.values(call.participants()).filter(p => !p.local && !isNonPublishingSpectator(p)) : [];
+    const haveTwo = participants.length >= 1; // one remote + me => 2 users in conversation
+    if (!haveTwo) return;
+
+    // Attempt to atomically create a 1hr timer if none exists
+    const ref = db.ref(`timers/${roomId}`);
+    ref.transaction(current => {
+      if (current && current.status === 'running') return current; // already running
+      const now = computeServerNow();
+      const endsAt = now + 60 * 60 * 1000; // 1 hour
+      return { status: 'running', endsAt };
+    });
+  }
+
+  function ensureTicking() {
+    if (timerInterval) return;
+    timerInterval = setInterval(updateSyncedTimerUI, 1000);
+    updateSyncedTimerUI();
+  }
+
+  function updateSyncedTimerUI() {
+    if (!timerEndAtMs) return;
+    const msLeft = Math.max(0, timerEndAtMs - computeServerNow());
+    const totalSeconds = Math.floor(msLeft / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
     const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
-    document.getElementById('timer').textContent = timeString;
-    document.getElementById('timer-header').textContent = timeString;
-    
-    if (timeRemaining > 0) {
-      timeRemaining--;
-    } else {
+    const t = document.getElementById('timer');
+    const th = document.getElementById('timer-header');
+    if (t) t.textContent = timeString;
+    if (th) th.textContent = timeString;
+
+    if (msLeft <= 0) {
       clearInterval(timerInterval);
-      showToast('⏰ Time\'s up! Thanks for chatting!');
-      if (call) call.leave();
+      timerInterval = null;
+      onTimerEndedUI();
+      // idempotent set
+      const roomId = btoa(roomUrl);
+      try { db.ref(`timers/${roomId}`).update({ status: 'ended' }); } catch(_) {}
     }
+  }
+
+  function onTimerEndedUI() {
+    // Nice end modal and graceful leave
+    try {
+      const overlayId = 'session-end-overlay';
+      if (!document.getElementById(overlayId)) {
+        const ov = document.createElement('div');
+        ov.id = overlayId;
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;padding:24px;';
+        ov.innerHTML = `
+          <div style="max-width:520px;width:min(520px,92vw);background:white;border-radius:20px;box-shadow:0 20px 70px rgba(0,0,0,0.35);border:1px solid rgba(0,0,0,0.08);padding:24px;text-align:center;font-family:'Nunito',system-ui;">
+            <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:#e63946;display:flex;align-items:center;justify-content:center;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 2v4M18 2v4M4 7h16M7 11h10M7 15h10M7 19h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <h3 style="font-weight:900;font-size:20px;color:#22223B;margin:0 0 6px;">Session ended</h3>
+            <p style="color:#4a4a55;font-size:14px;margin:0 0 16px;">The 60-minute conversation has finished. Thanks for joining!</p>
+            <button id="end-ok" style="padding:10px 14px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;font-weight:800;cursor:pointer;">Close</button>
+          </div>`;
+        document.body.appendChild(ov);
+        document.getElementById('end-ok').onclick = () => { try { call && call.leave(); } catch(_) {}; window.location.reload(); };
+      }
+    } catch(_) {}
   }
 
   // Sticky timer scroll handler

@@ -2865,9 +2865,21 @@
     parentContainer.appendChild(newPlaceholder);
     
     // STEP 6: Force immediate visibility with DOM manipulation
-    // Use display: flex instead of display: none to ensure visibility
-    newPlaceholder.style.setProperty('display', 'flex', 'important');
-    newPlaceholder.classList.remove('hidden');
+    // Use display: flex and continually enforce it to beat any later toggles
+    function enforceVisible(el, attempts = [0, 40, 120, 300, 600]) {
+      attempts.forEach(delay => {
+        setTimeout(() => {
+          try {
+            el.classList.remove('hidden');
+            el.style.setProperty('display', 'flex', 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('z-index', '1000', 'important');
+          } catch (_) {}
+        }, delay);
+      });
+    }
+    enforceVisible(newPlaceholder);
     
     // Ensure parent container is visible and has dimensions
     parentContainer.style.setProperty('display', 'block', 'important');
@@ -2885,9 +2897,11 @@
     console.log(`📦 Placeholder element:`, newPlaceholder);
     console.log(`📦 Placeholder bounding rect:`, newPlaceholder.getBoundingClientRect());
     
-    // Force a repaint to ensure the element is visible
+    // Force a repaint to ensure the element is visible and ensure no residual hidden classes remain
     setTimeout(() => {
       newPlaceholder.style.opacity = '1';
+      newPlaceholder.classList.remove('hidden');
+      newPlaceholder.style.setProperty('display', 'flex', 'important');
       console.log(`🔄 Forced repaint for slot ${slot} placeholder`);
     }, 10);
   }

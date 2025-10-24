@@ -844,7 +844,7 @@
             </button>
             
             <!-- Click to Enable Overlay -->
-            <div id="spectator-click-overlay" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80 spectator-overlay-force-visible" onclick="enableSpectatorVideo()" style="z-index: 9999 !important; display: flex !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;"
+            <div id="spectator-click-overlay" class="absolute inset-0 flex items-center justify-center video-placeholder cursor-pointer transition-all hover:bg-opacity-80 spectator-overlay-force-visible" onclick="enableSpectatorVideo()" style="z-index: 9999 !important; display: flex !important; opacity: 1 !important; visibility: visible !important; pointer-events: auto !important;">
               <div class="text-center text-white">
                 <div class="w-20 h-20 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg animate-pulse">
                   <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -986,9 +986,34 @@
   let userName = '';
   let userId = '';
 
+  // Identity and participation tracking
+  // - participantIdentityById: maps Daily session_id -> { displayName, avatar, username }
+  // - participantsWithMedia: session_ids that have ever published audio/video (used to distinguish spectators)
+  const participantIdentityById = {};
+  const participantsWithMedia = new Set();
+  // Hold avatar placeholder on screen briefly after camera turns off (ms)
+  const spectatorPlaceholderHoldUntilBySlot = { 1: 0, 2: 0 };
+
   // Chat system
   let chatRef = null;
   let viewerCountRef = null;
+  // Synced timer (room-wide)
+  let timerRef = null;
+  let serverTimeOffsetMs = 0;
+  let timerEndAtMs = null; // absolute ms (based on server time)
+  let timerStatus = 'idle';
+
+  // Determine if a joined/updated user is a spectator (non-publishing observer)
+  function isNonPublishingSpectator(participant) {
+    if (!participant || participant.local) return false;
+    const tracks = participant.tracks || {};
+    const videoTrack = tracks.video && (tracks.video.track || tracks.video.persistentTrack);
+    const audioTrack = tracks.audio && (tracks.audio.track || tracks.audio.persistentTrack);
+    const hasEverPublished = participantsWithMedia.has(participant.session_id);
+    const nameHintsSpectator = typeof participant.user_name === 'string' && participant.user_name.includes('Viewer_');
+    // Treat as spectator only if they've never published any media and currently have none
+    return !hasEverPublished && !videoTrack && !audioTrack || nameHintsSpectator && !hasEverPublished;
+  }
 
   // Sparks data
   let currentSparks = [
@@ -1044,6 +1069,25 @@
       userId: userId,
       isAuthenticated: !!(usernameFromURL && userIdFromURL)
     };
+
+    // Advertise our identity to others when we join (so spectators can render avatars/names)
+    window.addEventListener('chatspheres:announce-identity', () => {
+      try {
+        if (call) {
+          call.sendAppMessage({
+            type: 'identity-announcement',
+            payload: {
+              userId,
+              username: window.currentUserData.username,
+              displayName: window.currentUserData.displayName,
+              avatar: window.currentUserData.avatar
+            }
+          });
+        }
+      } catch (e) {
+        console.log('Identity announcement failed (non-fatal):', e);
+      }
+    });
     
     console.log(`🎭 User Mode: ${isSpectator ? 'Spectator' : 'Participant'}`);
     console.log(`👤 User Name: ${userName}`);
@@ -1133,6 +1177,8 @@
     const roomId = btoa(roomUrl);
     chatRef = db.ref(`chats/${roomId}`);
     viewerCountRef = db.ref(`viewers/${roomId}`);
+    initServerTimeOffset(roomId);
+    bindTimer(roomId);
     
     // Set up user role display
     setupUserRoleDisplay();
@@ -1167,7 +1213,7 @@
       // Join the call
       await call.join({ 
         url: roomUrl,
-        userName: userName
+        userName: isSpectator ? `Viewer_${(window.currentUserData?.displayName || userName)}` : userName
       });
       
       // Set up Firebase presence
@@ -1233,6 +1279,18 @@
       const spectators = Object.values(users).filter(user => user.type === 'spectator');
       const participants = Object.values(users).filter(user => user.type === 'participant');
       
+      // Map presence records by sessionId into identity cache (if available)
+      Object.values(users).forEach(u => {
+        if (u.sessionId) {
+          participantIdentityById[u.sessionId] = {
+            userId: u.userId,
+            username: u.username || u.name,
+            displayName: u.displayName || u.name,
+            avatar: u.avatar || ''
+          };
+        }
+      });
+      
       updateViewerCount(spectators.length);
       
       console.log(`👥 Room stats: ${participants.length} participants, ${spectators.length} spectators`);
@@ -1263,11 +1321,12 @@
     const remotePlaceholder = document.getElementById('remote-placeholder');
     const remoteVideo = document.getElementById('remote-video');
     
-    // Only update if no remote video is showing (no other participants)
-    if (remotePlaceholder && remoteVideo && remoteVideo.style.display !== 'block') {
-      // Check if there are any other participants (not spectators)
+    // Only update if we truly have no active participant camera feed
+    const hasActiveRemoteVideo = remoteVideo && remoteVideo.srcObject && remoteVideo.style.display === 'block';
+    if (remotePlaceholder && remoteVideo && !hasActiveRemoteVideo) {
+      // Check for true remote participants who have ever published media
       const participants = call ? call.participants() : {};
-      const otherParticipants = Object.values(participants).filter(p => !p.local);
+      const otherParticipants = Object.values(participants).filter(p => !p.local && participantsWithMedia.has(p.session_id));
       
       // Only show spectator message if there are NO other participants
       if (otherParticipants.length === 0) {
@@ -1496,13 +1555,34 @@
     document.getElementById('waiting-overlay').style.display = 'none';
     document.getElementById('video-interface').classList.remove('hidden');
     
-    startTimer();
+      // Attempt to start synced timer once there are two true participants
+      setTimeout(() => {
+        try { maybeStartRoomTimer(btoa(roomUrl)); } catch(_) {}
+      }, 1200);
     showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
+
+    // Broadcast identity so spectators can render names/avatars
+    try {
+      call.sendAppMessage({
+        type: 'identity-announcement',
+        payload: {
+          userId,
+          username: window.currentUserData?.username || userName,
+          displayName: window.currentUserData?.displayName || userName,
+          avatar: window.currentUserData?.avatar || '',
+          role: isSpectator ? 'spectator' : 'participant'
+        }
+      });
+      // Ask others to announce as well
+      call.sendAppMessage({ type: 'identity-request' });
+    } catch (e) {
+      console.log('Identity broadcast failed (non-fatal):', e);
+    }
   }
 
   function handleParticipantJoined(event) {
     const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    const isSpectatorParticipant = participantName.includes('Viewer_') || isNonPublishingSpectator(event.participant);
     
     console.log('👋 Participant joined:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
     
@@ -1511,6 +1591,8 @@
       if (!isSpectatorParticipant) {
         updateRemoteInfo(participantName);
         showToast(`👋 ${participantName} joined the call!`);
+        // Re-evaluate timer start condition on join
+        try { maybeStartRoomTimer(btoa(roomUrl)); } catch(_) {}
       } else {
         console.log('🔒 Ignoring spectator join event to prevent participant disruption');
       }
@@ -1522,7 +1604,7 @@
 
   function handleParticipantLeft(event) {
     const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    const isSpectatorParticipant = participantName.includes('Viewer_') || isNonPublishingSpectator(event.participant);
     
     console.log('👋 Participant left:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
     
@@ -1531,6 +1613,7 @@
       if (!isSpectatorParticipant) {
         hideRemoteVideo();
         showToast(`👋 ${participantName} left the call`);
+        // No change to timer on leave; it remains authoritative via Firebase
       } else {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
@@ -1557,9 +1640,17 @@
     
     // For non-local participants only
     if (tracks) {
-      if (tracks.video && tracks.video.persistentTrack) {
+      if (tracks.video) {
+        const playable = tracks.video.state === 'playable' && tracks.video.persistentTrack && tracks.video.persistentTrack.readyState === 'live';
         if (isSpectator) {
-          setupSpectatorVideo(tracks.video.persistentTrack, participantId);
+          if (playable) {
+            try { participantsWithMedia.add(participantId); } catch (e) {}
+            setupSpectatorVideo(tracks.video.persistentTrack, participantId);
+          } else {
+            // Camera off or not playable yet: show the avatar placeholder instead of hiding it
+            updateSpectatorPlaceholderForCameraOff(participantId, event.participant);
+            setTimeout(() => forceSpectatorOverlayVisible('camera-off'), 50);
+          }
         } else {
           // For participants: NEVER overwrite existing video connections from spectator events
           const remoteVideo = document.getElementById('remote-video');
@@ -1568,7 +1659,9 @@
           // Only set up if we truly don't have a remote connection
           if (!hasActiveRemoteVideo) {
             console.log('✅ Setting up remote video for participant');
-            setupRemoteVideo(tracks.video.persistentTrack);
+            if (playable && tracks.video.persistentTrack) {
+              setupRemoteVideo(tracks.video.persistentTrack);
+            }
             updateRemoteInfo(event.participant.user_name || 'Guest');
           } else {
             console.log('🔒 Remote video already active, ignoring update to prevent disruption');
@@ -1595,6 +1688,11 @@
       isSpectator: isSpectator
     });
     
+    // Track publish means this session_id is a true participant (not a spectator)
+    if (event.participant && (event.track.kind === 'video' || event.track.kind === 'audio')) {
+      try { participantsWithMedia.add(event.participant.session_id); } catch (e) {}
+    }
+
     if (event.participant.local && !isSpectator) {
       if (event.track.kind === 'video') {
         setupLocalVideo(event.track);
@@ -1815,7 +1913,7 @@
       if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
         const cameraTrack = participant.tracks.video.persistentTrack;
         // Only restore if it's not a screen share track
-        if (!cameraTrack.label.includes('screen') && !cameraTrack.label.includes('web-contents-media-stream')) {
+        if (!isScreenShareLabel(cameraTrack.label)) {
           console.log('✅ Restoring camera track for participant:', participant.user_name);
           setupRemoteVideo(cameraTrack);
         }
@@ -1823,10 +1921,43 @@
     });
   }
 
+  function isScreenShareLabel(label) {
+    if (!label) return false;
+    const l = String(label);
+    return l.includes('screen') || l.includes('Screen') || l.includes('display') || l.includes('Display') || l.includes('web-contents-media-stream');
+  }
+
   function handleAppMessage(event) {
     console.log('📨 App message received:', event);
     
-    if (event.data.type === 'spark-selected') {
+    if (event.data.type === 'identity-announcement') {
+      const fromId = event.fromId || event.participant?.session_id;
+      if (fromId && event.data.payload) {
+        participantIdentityById[fromId] = { ...event.data.payload };
+        // Update any visible spectator nameplates for this id
+        if (spectatorParticipant1 && spectatorParticipant1.participantId === fromId) {
+          const el = document.getElementById('spectator-name-1');
+          if (el) { el.textContent = event.data.payload.displayName || spectatorParticipant1.participantName; el.classList.remove('hidden'); }
+        }
+        if (spectatorParticipant2 && spectatorParticipant2.participantId === fromId) {
+          const el = document.getElementById('spectator-name-2');
+          if (el) { el.textContent = event.data.payload.displayName || spectatorParticipant2.participantName; el.classList.remove('hidden'); }
+        }
+      }
+    } else if (event.data.type === 'identity-request') {
+      // Respond with our identity
+      try {
+        call.sendAppMessage({
+          type: 'identity-announcement',
+          payload: {
+            userId,
+            username: window.currentUserData?.username || userName,
+            displayName: window.currentUserData?.displayName || userName,
+            avatar: window.currentUserData?.avatar || ''
+          }
+        });
+      } catch (e) {}
+    } else if (event.data.type === 'spark-selected') {
       currentSparkIndex = event.data.sparkIndex;
       sparkIsSelected = event.data.isSelected;
       updateSparkDisplay();
@@ -1967,14 +2098,18 @@
     remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
     
-    // CRITICAL: Check if we already have a stable video connection
-    const hasStableConnection = remoteVideo.srcObject && 
-                               remoteVideo.style.display === 'block' && 
-                               !remoteVideo.paused && 
-                               remoteVideo.readyState >= 2;
+    // CRITICAL: Determine existing track state (only block if the current track is live)
+    let currentTrackIsLive = false;
+    try {
+      const currentTrack = remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0];
+      currentTrackIsLive = !!(currentTrack && currentTrack.readyState === 'live');
+    } catch (_) {}
     
-    if (hasStableConnection) {
-      console.log('🔒 BLOCKING video setup - stable connection already exists');
+    const elementLooksPlaying = remoteVideo.style.display === 'block' && !remoteVideo.paused && remoteVideo.readyState >= 2;
+    const hasStableConnection = currentTrackIsLive && elementLooksPlaying;
+    
+    if (hasStableConnection && remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0] === track) {
+      console.log('🔒 BLOCKING video setup - stable connection already exists with same track');
       return;
     }
     
@@ -1994,6 +2129,8 @@
   // Track which participant slots are used (only 2 participants max)
   let spectatorParticipant1 = null; // { participantId, participantName }
   let spectatorParticipant2 = null; // { participantId, participantName }
+  // Track recently-left participants to suppress spurious camera-off updates
+  const spectatorRecentlyLeftById = Object.create(null);
 
   function setupSpectatorVideo(track, participantId) {
     console.log('🎬 Setting up spectator video for participant:', participantId);
@@ -2007,13 +2144,20 @@
       
       // CRITICAL: Always update when camera turns back on (even if same track)
       console.log(`🔄 Camera turned back on for participant ${participantId} in slot ${existingSlot}`);
-      videoElement.srcObject = new MediaStream([track]);
+      const currentTrack = videoElement.srcObject && videoElement.srcObject.getVideoTracks()[0];
+      const isSameTrack = currentTrack && currentTrack.id === track.id;
+      if (!isSameTrack) {
+        videoElement.srcObject = new MediaStream([track]);
+      }
       
       // CRITICAL: Hide placeholder and show video when camera turns back on
       placeholder.style.display = 'none';
       placeholder.classList.add('hidden');
       videoElement.classList.remove('hidden');
       videoElement.style.display = 'block';
+      // Ensure any body-level overlay is removed
+      const slot = spectatorParticipant1?.participantId === participantId ? 1 : (spectatorParticipant2?.participantId === participantId ? 2 : null);
+      if (slot) removeSpectatorAvatarOverlay(slot);
       
       // Force video visibility styles
       videoElement.style.visibility = 'visible';
@@ -2057,6 +2201,13 @@
     
     console.log(`📍 Assigned participant ${participantId} to slot ${participantSlot}`);
     
+    // If screen share is active, do not attempt to show camera until it's hidden
+    const spectatorScreenShare = document.getElementById('spectator-screen-share');
+    if (spectatorScreenShare && !spectatorScreenShare.classList.contains('hidden')) {
+      console.log('⏸️ Screen share active; deferring spectator camera setup');
+      return;
+    }
+
     // Get the video element and placeholder for this slot
     const videoElement = document.getElementById(`spectator-participant-${participantSlot}`);
     const placeholder = document.getElementById(`spectator-placeholder-${participantSlot}`);
@@ -2075,11 +2226,28 @@
       nameElement.textContent = participantName;
       nameElement.classList.remove('hidden');
       
-      // Force hide placeholder and show video element
-      placeholder.style.display = 'none';
-      placeholder.classList.add('hidden');
-      videoElement.classList.remove('hidden');
-      videoElement.style.display = 'block';
+      // Only hide placeholder if track is live (avoids flicker)
+      const trackIsLive = track && track.readyState === 'live';
+      if (trackIsLive) {
+        placeholder.style.display = 'none';
+        placeholder.classList.add('hidden');
+        videoElement.classList.remove('hidden');
+        videoElement.style.display = 'block';
+        // Remove body-level avatar overlay for this slot
+        removeSpectatorAvatarOverlay(participantSlot);
+        spectatorPlaceholderHoldUntilBySlot[participantSlot] = 0;
+      } else {
+        // Keep placeholder visible; defer showing video until it’s live
+        videoElement.classList.add('hidden');
+        videoElement.style.display = 'none';
+        placeholder.style.display = 'flex';
+        spectatorPlaceholderHoldUntilBySlot[participantSlot] = Date.now() + 2000;
+        // Ensure body overlay is visible/positioned
+        const announced = participantIdentityById[participantId] || {};
+        const displayName = (nameElement.textContent || announced.displayName || participantName || 'Guest');
+        const avatarUrl = announced.avatar || '';
+        mountSpectatorAvatarOverlay(participantSlot, videoElement.parentElement, displayName, avatarUrl, displayName.charAt(0).toUpperCase());
+      }
       
       console.log(`✅ Spectator video set up for participant ${participantId} in slot ${participantSlot}`);
       
@@ -2163,6 +2331,11 @@
       
       // Check if we should auto-hide the click overlay
       checkAndHideClickOverlay();
+
+      // Ask for identity if not cached
+      if (!participantIdentityById[participantId]) {
+        try { call.sendAppMessage({ type: 'identity-request' }); } catch (e) {}
+      }
       
       // Update expand buttons availability
       updateSpectatorExpandButtons();
@@ -2297,12 +2470,14 @@
     const placeholder1 = document.getElementById('spectator-placeholder-1');
     const placeholder2 = document.getElementById('spectator-placeholder-2');
     
-    // SIMPLIFIED: Just check if videos have sources and placeholders are hidden (cameras on)
-    // Don't check paused/readyState as these can be unreliable due to autoplay restrictions
-    const video1Active = video1 && video1.srcObject && video1.style.display !== 'none' &&
-                         (!placeholder1 || placeholder1.style.display === 'none' || placeholder1.classList.contains('hidden'));
-    const video2Active = video2 && video2.srcObject && video2.style.display !== 'none' &&
-                         (!placeholder2 || placeholder2.style.display === 'none' || placeholder2.classList.contains('hidden'));
+    // Consider video active only if track is live and ready
+    const v1Live = video1 && video1.srcObject && video1.srcObject.getVideoTracks()[0] && video1.srcObject.getVideoTracks()[0].readyState === 'live';
+    const v2Live = video2 && video2.srcObject && video2.srcObject.getVideoTracks()[0] && video2.srcObject.getVideoTracks()[0].readyState === 'live';
+    const now = Date.now();
+    const hold1 = spectatorPlaceholderHoldUntilBySlot[1] || 0;
+    const hold2 = spectatorPlaceholderHoldUntilBySlot[2] || 0;
+    const video1Active = v1Live && (now > hold1) && video1.style.display !== 'none' && (!placeholder1 || placeholder1.style.display === 'none' || placeholder1.classList.contains('hidden'));
+    const video2Active = v2Live && (now > hold2) && video2.style.display !== 'none' && (!placeholder2 || placeholder2.style.display === 'none' || placeholder2.classList.contains('hidden'));
     
     console.log(`🎥 Video Status Check - Video1: ${video1Active}, Video2: ${video2Active}`);
     
@@ -2310,10 +2485,15 @@
   }
 
   function getParticipantName(participantId) {
+    // Prefer announced identity if available
+    const announced = participantIdentityById[participantId];
+    if (announced && announced.displayName) return announced.displayName;
+
+    // Fallback to Daily participant object
     const participants = call.participants();
     for (const [id, participant] of Object.entries(participants)) {
       if (id === participantId) {
-        return participant.user_name || 'Participant';
+        return extractUserDisplayName(participant.user_name || 'Participant');
       }
     }
     return 'Participant';
@@ -2345,19 +2525,48 @@
     const clickOverlay = document.getElementById('spectator-click-overlay');
     
     if (videoElement && placeholder && nameElement) {
-      // Hide video and show placeholder
+      // Hide video and clear stream
+      try { videoElement.pause(); } catch(_) {}
       videoElement.classList.add('hidden');
       videoElement.srcObject = null;
+
+      // Mark recently left to suppress stale camera-off updates
+      spectatorRecentlyLeftById[participantId] = Date.now();
+
+      // Show explicit disconnected UI
       placeholder.style.display = 'flex';
+      placeholder.classList.remove('hidden');
+      placeholder.innerHTML = `
+        <div style=\"display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;width:100%;height:100%;color:white;\">\n\
+          <div style=\"width:72px;height:72px;margin:0 auto 12px;border-radius:50%;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.9);box-shadow:0 6px 20px rgba(0,0,0,0.35);\">\n\
+            <svg width=\"34\" height=\"34\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n\
+              <path d=\"M3 21v-2a4 4 0 014-4h6a4 4 0 014 4v2\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n\
+              <circle cx=\"12\" cy=\"7\" r=\"4\" stroke=\"#fff\" stroke-width=\"2\"/>\n\
+            </svg>\n\
+          </div>\n\
+          <p style=\"font-size:18px;font-weight:800;color:white;margin:0 0 6px 0;text-shadow:1px 2px 4px rgba(0,0,0,0.45);\">Disconnected</p>\n\
+          <p style=\"font-size:13px;color:rgba(255,255,255,0.9);margin:0;\">Participant left the conversation</p>\n\
+        </div>`;
+
+      // Hide the slot name label
       nameElement.classList.add('hidden');
-      
+
+      // Ensure overlay is visible for spectators when a participant leaves
+      forceSpectatorOverlayVisible('participant-left');
+      // And remove any body-level avatar overlay tied to this slot
+      if (participantSlot) {
+        removeSpectatorAvatarOverlay(participantSlot);
+      }
+
       console.log(`✅ Cleaned up slot ${participantSlot}`);
     }
     
-    // Show click overlay if no participants remain
+    // Show click overlay if no participants remain, otherwise re-evaluate overlay state
     if (!spectatorParticipant1 && !spectatorParticipant2) {
       forceSpectatorOverlayVisible('no-participants');
       console.log('📺 All participants left, showing click overlay');
+    } else {
+      checkAndHideClickOverlay();
     }
   }
 
@@ -2387,7 +2596,15 @@
     console.log('📺 Setting up spectator screen share');
     spectatorScreenShare.srcObject = new MediaStream([track]);
     spectatorScreenShare.classList.remove('hidden');
+    // Hide both participant videos and their placeholders to avoid overlap/confusion
     participantsContainer.style.display = 'none';
+    ['1','2'].forEach(s => {
+      const v = document.getElementById(`spectator-participant-${s}`);
+      const p = document.getElementById(`spectator-placeholder-${s}`);
+      if (v) { v.classList.add('hidden'); v.style.display = 'none'; }
+      if (p) { p.classList.add('hidden'); p.style.display = 'none'; }
+      removeSpectatorAvatarOverlay(Number(s));
+    });
     
     // Update expand buttons availability
     updateSpectatorExpandButtons();
@@ -2450,6 +2667,17 @@
     
     screenShareVideo.style.display = 'none';
     remoteVideo.style.display = 'block';
+    // If remote video is not yet live, avoid showing a stale black frame
+    try {
+      const track = remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0];
+      if (!track || track.readyState !== 'live') {
+        console.log('🔍 Remote camera not live yet after screen share; keeping placeholder visible');
+        const placeholder = document.getElementById('remote-placeholder');
+        if (placeholder) placeholder.style.display = 'flex';
+        remoteVideo.classList.add('hidden');
+        remoteVideo.style.display = 'none';
+      }
+    } catch (_) {}
   }
 
   function hideSpectatorScreenShare() {
@@ -2468,6 +2696,9 @@
     
     // Ensure participant videos are visible and playing
     restoreSpectatorParticipantVideos();
+    // After restore, ensure avatars are cleared (camera presumed on)
+    removeSpectatorAvatarOverlay(1);
+    removeSpectatorAvatarOverlay(2);
     
     console.log('✅ Spectator screen share hidden, participants view restored');
   }
@@ -2573,6 +2804,14 @@
   // COMPLETELY NEW APPROACH: Replace video element with guaranteed-visible placeholder
   function updateSpectatorPlaceholderForCameraOff(participantId, participant) {
     console.log('🎭 NEW APPROACH: Creating guaranteed placeholder for camera off:', participantId, participant.user_name);
+    // Ignore camera-off events briefly after a participant leaves to avoid wrong state
+    try {
+      const leftAt = spectatorRecentlyLeftById[participantId];
+      if (leftAt && Date.now() - leftAt < 5000) {
+        console.log('⏳ Ignoring camera-off for recently left participant:', participantId);
+        return;
+      }
+    } catch (_) {}
     
     // Find which slot this participant is in
     let slot = null;
@@ -2597,10 +2836,12 @@
       return;
     }
     
-    const participantName = participant.user_name || 'Guest';
+    // Prefer announced identity if available
+    const announced = participantIdentityById[participant.session_id];
+    const participantName = (announced && announced.displayName) || participant.user_name || 'Guest';
     const displayName = extractUserDisplayName(participantName);
     const firstLetter = displayName.charAt(0).toUpperCase();
-    const avatarUrl = getParticipantAvatarUrl(participant);
+    const avatarUrl = (announced && announced.avatar) || getParticipantAvatarUrl(participant);
     
     console.log(`👤 Creating NEW placeholder element for: ${displayName} (${firstLetter})`);
     
@@ -2636,15 +2877,18 @@
       display: flex !important;
       align-items: center !important;
       justify-content: center !important;
-      z-index: 1000 !important;
+      z-index: 99999 !important;
       border-radius: 0 !important;
       margin: 0 !important;
       padding: 0 !important;
       visibility: visible !important;
       opacity: 1 !important;
+      transform: translateZ(0) !important;
+      -webkit-backface-visibility: hidden !important;
     `;
     
     // STEP 3: Add the placeholder content with inline styles for guaranteed visibility
+    // IMPORTANT: Do NOT render the avatar here to avoid overlap with the body-level overlay.
     newPlaceholder.innerHTML = `
       <div style="
         display: flex !important;
@@ -2656,48 +2900,6 @@
         height: 100% !important;
         color: white !important;
       ">
-        <div style="
-          width: 100px !important;
-          height: 100px !important;
-          margin: 0 auto 16px !important;
-          background: rgba(255, 255, 255, 0.2) !important;
-          border-radius: 50% !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          overflow: hidden !important;
-          border: 4px solid white !important;
-          box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
-        ">
-          ${avatarUrl ? 
-            `<img src="${avatarUrl}" alt="${displayName}" style="
-              width: 100% !important;
-              height: 100% !important;
-              object-fit: cover !important;
-              display: block !important;
-            " onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-             <span style="
-               color: white !important;
-               font-weight: bold !important;
-               font-size: 36px !important;
-               display: none !important;
-               align-items: center !important;
-               justify-content: center !important;
-               width: 100% !important;
-               height: 100% !important;
-             ">${firstLetter}</span>` :
-            `<span style="
-              color: white !important;
-              font-weight: bold !important;
-              font-size: 36px !important;
-              display: flex !important;
-              align-items: center !important;
-              justify-content: center !important;
-              width: 100% !important;
-              height: 100% !important;
-            ">${firstLetter}</span>`
-          }
-        </div>
         <p style="
           font-size: 20px !important;
           font-weight: bold !important;
@@ -2728,9 +2930,24 @@
     parentContainer.appendChild(newPlaceholder);
     
     // STEP 6: Force immediate visibility with DOM manipulation
-    // Use display: flex instead of display: none to ensure visibility
-    newPlaceholder.style.setProperty('display', 'flex', 'important');
-    newPlaceholder.classList.remove('hidden');
+    // Use display: flex and continually enforce it to beat any later toggles
+    function enforceVisible(el, attempts = [0, 40, 120, 300, 600]) {
+      attempts.forEach(delay => {
+        setTimeout(() => {
+          try {
+            el.classList.remove('hidden');
+            el.style.setProperty('display', 'flex', 'important');
+            el.style.setProperty('visibility', 'visible', 'important');
+            el.style.setProperty('opacity', '1', 'important');
+            el.style.setProperty('z-index', '99999', 'important');
+          } catch (_) {}
+        }, delay);
+      });
+    }
+    enforceVisible(newPlaceholder);
+
+    // Also mount a body-level overlay to guarantee visibility over any stacking context issues
+    mountSpectatorAvatarOverlay(slot, parentContainer, displayName, avatarUrl, firstLetter);
     
     // Ensure parent container is visible and has dimensions
     parentContainer.style.setProperty('display', 'block', 'important');
@@ -2748,22 +2965,124 @@
     console.log(`📦 Placeholder element:`, newPlaceholder);
     console.log(`📦 Placeholder bounding rect:`, newPlaceholder.getBoundingClientRect());
     
-    // Force a repaint to ensure the element is visible
+    // Force a repaint to ensure the element is visible and ensure no residual hidden classes remain
     setTimeout(() => {
       newPlaceholder.style.opacity = '1';
+      newPlaceholder.classList.remove('hidden');
+      newPlaceholder.style.setProperty('display', 'flex', 'important');
       console.log(`🔄 Forced repaint for slot ${slot} placeholder`);
     }, 10);
   }
 
+  // Body-level overlay to avoid stacking/context races in some browsers
+  function mountSpectatorAvatarOverlay(slot, parentContainer, displayName, avatarUrl, firstLetter) {
+    try {
+      const overlayId = `spectator-avatar-overlay-slot-${slot}`;
+      let overlay = document.getElementById(overlayId);
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = overlayId;
+        overlay.style.cssText = `
+          position: fixed !important;
+          top: 0 !important;
+          left: 0 !important;
+          width: 160px !important;
+          height: 160px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          pointer-events: none !important;
+          z-index: 999999 !important;
+          transform: translateZ(0) !important;
+          -webkit-backface-visibility: hidden !important;
+        `;
+        overlay.innerHTML = `
+          <div style="
+            width: 100%; height: 100%; border-radius: 50%;
+            background: linear-gradient(135deg, rgba(230,57,70,0.9) 0%, rgba(255,209,102,0.9) 100%);
+            border: 3px solid rgba(255,255,255,0.9);
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+          ">
+            ${avatarUrl ? `<img src="${avatarUrl}" alt="${displayName}"
+              style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">` : ''}
+            <span style="display:${avatarUrl ? 'none' : 'flex'};color:white;font-weight:800;font-size:64px;letter-spacing:1px;align-items:center;justify-content:center;text-shadow:0 2px 6px rgba(0,0,0,0.5);">${firstLetter}</span>
+          </div>
+          <div style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);
+            background: rgba(0,0,0,0.6); color:white; padding:6px 12px; border-radius:9999px;
+            font-size:12px; font-weight:600; max-width: 80vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            ${displayName}
+          </div>
+        `;
+        document.body.appendChild(overlay);
+      }
+
+      const positionOverlay = () => {
+        try {
+          const rect = parentContainer.getBoundingClientRect();
+          const size = Math.min(rect.width, rect.height) * 0.32; // scale avatar within slot
+          overlay.style.width = `${size}px`;
+          overlay.style.height = `${size}px`;
+          overlay.style.left = `${Math.round(rect.left + (rect.width - size) / 2)}px`;
+          overlay.style.top = `${Math.round(rect.top + (rect.height - size) / 2)}px`;
+          overlay.style.display = 'flex';
+          overlay.style.visibility = 'visible';
+          overlay.style.opacity = '1';
+        } catch(_) {}
+      };
+
+      positionOverlay();
+      ensureSingleSpectatorOverlay(slot);
+      setTimeout(positionOverlay, 50);
+      setTimeout(positionOverlay, 200);
+      window.addEventListener('resize', positionOverlay, { passive: true });
+      window.addEventListener('scroll', positionOverlay, { passive: true });
+
+      // Store on element for cleanup
+      overlay._cleanup = () => {
+        window.removeEventListener('resize', positionOverlay);
+        window.removeEventListener('scroll', positionOverlay);
+      };
+
+    } catch (e) {
+      console.log('Body overlay mount failed (non-fatal):', e);
+    }
+  }
+
+  function removeSpectatorAvatarOverlay(slot) {
+    try {
+      const overlay = document.getElementById(`spectator-avatar-overlay-slot-${slot}`);
+      if (overlay) {
+        if (overlay._cleanup) overlay._cleanup();
+        overlay.remove();
+      }
+    } catch (_) {}
+  }
+
+  // Ensure we do not duplicate overlays per slot
+  function ensureSingleSpectatorOverlay(slot) {
+    const overlay = document.getElementById(`spectator-avatar-overlay-slot-${slot}`);
+    if (!overlay) return;
+    // Remove any stray duplicates with same prefix (defensive)
+    const all = document.querySelectorAll(`[id^="spectator-avatar-overlay-slot-${slot}"]`);
+    all.forEach((node, idx) => {
+      if (node.id !== `spectator-avatar-overlay-slot-${slot}`) {
+        try { node.remove(); } catch(_) {}
+      }
+    });
+  }
+
   // Get participant avatar URL from various sources
   function getParticipantAvatarUrl(participant) {
-    // First check if this is our own participant data
+    // If it's our own participant
     if (participant.user_name === window.currentUserData?.username) {
       return window.currentUserData.avatar;
     }
-    
-    // For now, we don't have avatar data from other participants
-    // This could be enhanced in the future to pass avatar URLs through Daily.co metadata
+    // Try announced identity map using session_id
+    if (participant && participant.session_id && participantIdentityById[participant.session_id]) {
+      return participantIdentityById[participant.session_id].avatar || '';
+    }
+    // No known avatar
     return '';
   }
 
@@ -3076,10 +3395,13 @@
       
       if (error.name === 'NotAllowedError') {
         showToast('❌ Please allow camera and microphone access and reload the page');
+        try { showDeviceTroubleshooter('permissions-denied'); } catch(_) {}
       } else if (error.name === 'NotFoundError') {
         showToast('❌ No camera or microphone found. Please check your devices.');
+        try { showDeviceTroubleshooter('no-devices'); } catch(_) {}
       } else {
         showToast('❌ Camera/mic permissions needed. Error: ' + error.name);
+        try { showDeviceTroubleshooter('generic'); } catch(_) {}
       }
       
       setTimeout(setupDeviceSelectors, 1000);
@@ -3112,6 +3434,9 @@
       cameraSelector.innerHTML = '<option disabled selected>Select camera...</option>';
       const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
       console.log("📹 Video devices found:", videoDevices.length);
+      if (videoDevices.length === 0) {
+        try { showDeviceTroubleshooter('no-camera'); } catch(_) {}
+      }
       
       videoDevices.forEach(device => {
         const option = new Option(
@@ -3128,6 +3453,9 @@
       micSelector.innerHTML = '<option disabled selected>Select microphone...</option>';
       const audioDevices = allDevices.filter(d => d.kind === 'audioinput');
       console.log("🎤 Audio devices found:", audioDevices.length);
+      if (audioDevices.length === 0) {
+        try { showDeviceTroubleshooter('no-mic'); } catch(_) {}
+      }
       
       audioDevices.forEach(device => {
         const option = new Option(
@@ -3147,6 +3475,7 @@
           try {
             await call.setInputDevicesAsync({ videoDeviceId: e.target.value });
             showToast('📹 Camera changed');
+            try { hideDeviceTroubleshooter(); } catch(_) {}
           } catch (error) {
             console.error("❌ Camera change failed:", error);
             showToast('❌ Camera change failed');
@@ -3160,6 +3489,7 @@
           try {
             await call.setInputDevicesAsync({ audioDeviceId: e.target.value });
             showToast('🎤 Microphone changed');
+            try { hideDeviceTroubleshooter(); } catch(_) {}
           } catch (error) {
             console.error("❌ Microphone change failed:", error);
             showToast('❌ Microphone change failed');
@@ -3172,7 +3502,112 @@
     } catch (error) {
       console.error('❌ Error setting up device selectors:', error);
       showToast('❌ Device settings unavailable');
+      try { showDeviceTroubleshooter('generic'); } catch(_) {}
     }
+  }
+
+  // Minimal DOM-based device troubleshooter (overlay)
+  function showDeviceTroubleshooter(reason) {
+    try {
+      let overlay = document.getElementById('device-troubleshooter');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'device-troubleshooter';
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.75)';
+        overlay.style.zIndex = '99999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.innerHTML = `
+          <div id="dt-panel" style="width:min(720px,92vw);max-width:720px;background:white;border-radius:20px;box-shadow:0 20px 70px rgba(0,0,0,0.35);border:1px solid rgba(0,0,0,0.08);padding:24px;font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,Arial;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+              <div style="width:46px;height:46px;border-radius:50%;background:#e63946;display:flex;align-items:center;justify-content:center;color:white;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 9v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="12" cy="17" r="1.25" fill="#fff"/>
+                  <path d="M12 3l9 18H3L12 3z" stroke="#fff" stroke-width="1.6" fill="none"/>
+                </svg>
+              </div>
+              <div>
+                <div id="dt-title" style="font-weight:900;color:#22223B;font-size:20px;line-height:1.1;">We can’t access your camera/mic</div>
+                <div id="dt-subtitle" style="color:#4a4a55;font-size:13.5px;margin-top:2px;">Follow these steps to get set up.</div>
+              </div>
+              <button id="dt-close" aria-label="Close" style="margin-left:auto;border:none;background:transparent;color:#6b7280;font-size:22px;cursor:pointer;">×</button>
+            </div>
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div style="background:#f9fafb;border:1px solid #eef2f7;border-radius:12px;padding:14px;">
+                <div style="font-weight:800;color:#111827;margin-bottom:6px;">Check browser permissions</div>
+                <ul style="margin:0;padding-left:16px;color:#374151;font-size:13.5px;line-height:1.5;">
+                  <li>Allow camera and microphone for this site.</li>
+                  <li>Click the lock icon in the address bar.</li>
+                  <li>Reload the page after changing permissions.</li>
+                </ul>
+              </div>
+              <div style="background:#f9fafb;border:1px solid #eef2f7;border-radius:12px;padding:14px;">
+                <div style="font-weight:800;color:#111827;margin-bottom:6px;">Choose your devices</div>
+                <ul style="margin:0;padding-left:16px;color:#374151;font-size:13.5px;line-height:1.5;">
+                  <li>Open Settings → select a Camera and Microphone.</li>
+                  <li>If none appear, connect a USB webcam or headset.</li>
+                  <li>Close other apps using your camera/mic.</li>
+                </ul>
+              </div>
+              <div style="background:#f9fafb;border:1px solid #eef2f7;border-radius:12px;padding:14px;">
+                <div style="font-weight:800;color:#111827;margin-bottom:6px;">Still not working?</div>
+                <ul style="margin:0;padding-left:16px;color:#374151;font-size:13.5px;line-height:1.5;">
+                  <li>On Windows: Settings → Privacy → Camera/Microphone.</li>
+                  <li>On macOS: System Settings → Privacy & Security.</li>
+                  <li>Try an incognito/private window.</li>
+                </ul>
+              </div>
+              <div style="background:#f9fafb;border:1px solid #eef2f7;border-radius:12px;padding:14px;">
+                <div style="font-weight:800;color:#111827;margin-bottom:6px;">Quick actions</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button id="dt-open-settings" style="padding:8px 10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer;">Open Settings</button>
+                  <button id="dt-retry" style="padding:8px 10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer;">Retry devices</button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        document.getElementById('dt-close').onclick = hideDeviceTroubleshooter;
+        document.getElementById('dt-open-settings').onclick = () => { try { toggleSettings(); } catch(_) {} };
+        document.getElementById('dt-retry').onclick = async () => {
+          try { const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:true }); s.getTracks().forEach(t=>t.stop()); } catch(_) {}
+          setupDeviceSelectors();
+        };
+      }
+      const title = document.getElementById('dt-title');
+      const subtitle = document.getElementById('dt-subtitle');
+      switch (reason) {
+        case 'permissions-denied':
+          title.textContent = "We can't access your camera/mic";
+          subtitle.textContent = "Please allow permissions in your browser and reload.";
+          break;
+        case 'no-devices':
+          title.textContent = "No camera or microphone detected";
+          subtitle.textContent = "Connect a device, then choose it in Settings.";
+          break;
+        case 'no-camera':
+          title.textContent = "No camera detected";
+          subtitle.textContent = "Connect a camera or use a virtual webcam.";
+          break;
+        case 'no-mic':
+          title.textContent = "No microphone detected";
+          subtitle.textContent = "Connect a mic or use a headset.";
+          break;
+        default:
+          title.textContent = "Having trouble with your devices?";
+          subtitle.textContent = "Let's get your camera and mic working.";
+      }
+      document.getElementById('device-troubleshooter').style.display = 'flex';
+    } catch(_) {}
+  }
+
+  function hideDeviceTroubleshooter() {
+    const overlay = document.getElementById('device-troubleshooter');
+    if (overlay) overlay.style.display = 'none';
   }
 
   // Audio level monitoring for microphone confirmation (participants only)
@@ -3197,25 +3632,107 @@
   }
 
   // Timer functions
-  function startTimer() {
-    timerInterval = setInterval(updateTimer, 1000);
+  // ===== Synced Timer (1 hour default) =====
+  function computeServerNow() {
+    return Date.now() + serverTimeOffsetMs;
   }
 
-  function updateTimer() {
-    const minutes = Math.floor(timeRemaining / 60);
-    const seconds = timeRemaining % 60;
+  function initServerTimeOffset(roomId) {
+    try {
+      const offsetRef = db.ref(`serverTimeSync/${roomId}`);
+      // Write a timestamp to get server time
+      const clientSend = Date.now();
+      offsetRef.set({ ping: firebase.database.ServerValue.TIMESTAMP });
+      offsetRef.once('value').then(snap => {
+        const serverPing = (snap.val() && snap.val().ping) || clientSend;
+        serverTimeOffsetMs = serverPing - clientSend;
+        console.log('🕒 Server time offset(ms):', serverTimeOffsetMs);
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
+  function bindTimer(roomId) {
+    timerRef = db.ref(`timers/${roomId}`);
+    timerRef.on('value', (snap) => {
+      const val = snap.val();
+      if (!val) return;
+      timerStatus = val.status || 'idle';
+      timerEndAtMs = typeof val.endsAt === 'number' ? val.endsAt : null;
+      console.log('⏱️ Timer update:', { timerStatus, timerEndAtMs });
+      if (timerStatus === 'running' && timerEndAtMs) {
+        ensureTicking();
+      }
+      if (timerStatus === 'ended') {
+        onTimerEndedUI();
+      }
+    });
+  }
+
+  function maybeStartRoomTimer(roomId) {
+    if (isSpectator) return; // only participants can start the timer
+    const participants = call ? Object.values(call.participants()).filter(p => !p.local && !isNonPublishingSpectator(p)) : [];
+    const haveTwo = participants.length >= 1; // one remote + me => 2 users in conversation
+    if (!haveTwo) return;
+
+    // Attempt to atomically create a 1hr timer if none exists
+    const ref = db.ref(`timers/${roomId}`);
+    ref.transaction(current => {
+      if (current && current.status === 'running') return current; // already running
+      const now = computeServerNow();
+      const endsAt = now + 60 * 60 * 1000; // 1 hour
+      return { status: 'running', endsAt };
+    });
+  }
+
+  function ensureTicking() {
+    if (timerInterval) return;
+    timerInterval = setInterval(updateSyncedTimerUI, 1000);
+    updateSyncedTimerUI();
+  }
+
+  function updateSyncedTimerUI() {
+    if (!timerEndAtMs) return;
+    const msLeft = Math.max(0, timerEndAtMs - computeServerNow());
+    const totalSeconds = Math.floor(msLeft / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
     const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
-    document.getElementById('timer').textContent = timeString;
-    document.getElementById('timer-header').textContent = timeString;
-    
-    if (timeRemaining > 0) {
-      timeRemaining--;
-    } else {
+    const t = document.getElementById('timer');
+    const th = document.getElementById('timer-header');
+    if (t) t.textContent = timeString;
+    if (th) th.textContent = timeString;
+
+    if (msLeft <= 0) {
       clearInterval(timerInterval);
-      showToast('⏰ Time\'s up! Thanks for chatting!');
-      if (call) call.leave();
+      timerInterval = null;
+      onTimerEndedUI();
+      // idempotent set
+      const roomId = btoa(roomUrl);
+      try { db.ref(`timers/${roomId}`).update({ status: 'ended' }); } catch(_) {}
     }
+  }
+
+  function onTimerEndedUI() {
+    // Nice end modal and graceful leave
+    try {
+      const overlayId = 'session-end-overlay';
+      if (!document.getElementById(overlayId)) {
+        const ov = document.createElement('div');
+        ov.id = overlayId;
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999999;display:flex;align-items:center;justify-content:center;padding:24px;';
+        ov.innerHTML = `
+          <div style="max-width:520px;width:min(520px,92vw);background:white;border-radius:20px;box-shadow:0 20px 70px rgba(0,0,0,0.35);border:1px solid rgba(0,0,0,0.08);padding:24px;text-align:center;font-family:'Nunito',system-ui;">
+            <div style="width:64px;height:64px;margin:0 auto 12px;border-radius:50%;background:#e63946;display:flex;align-items:center;justify-content:center;">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6 2v4M18 2v4M4 7h16M7 11h10M7 15h10M7 19h10" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <h3 style="font-weight:900;font-size:20px;color:#22223B;margin:0 0 6px;">Session ended</h3>
+            <p style="color:#4a4a55;font-size:14px;margin:0 0 16px;">The 60-minute conversation has finished. Thanks for joining!</p>
+            <button id="end-ok" style="padding:10px 14px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;font-weight:800;cursor:pointer;">Close</button>
+          </div>`;
+        document.body.appendChild(ov);
+        document.getElementById('end-ok').onclick = () => { try { call && call.leave(); } catch(_) {}; window.location.reload(); };
+      }
+    } catch(_) {}
   }
 
   // Sticky timer scroll handler

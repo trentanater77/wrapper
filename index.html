@@ -1559,7 +1559,8 @@
           userId,
           username: window.currentUserData?.username || userName,
           displayName: window.currentUserData?.displayName || userName,
-          avatar: window.currentUserData?.avatar || ''
+          avatar: window.currentUserData?.avatar || '',
+          role: isSpectator ? 'spectator' : 'participant'
         }
       });
       // Ask others to announce as well
@@ -3381,10 +3382,13 @@
       
       if (error.name === 'NotAllowedError') {
         showToast('❌ Please allow camera and microphone access and reload the page');
+        try { showDeviceTroubleshooter('permissions-denied'); } catch(_) {}
       } else if (error.name === 'NotFoundError') {
         showToast('❌ No camera or microphone found. Please check your devices.');
+        try { showDeviceTroubleshooter('no-devices'); } catch(_) {}
       } else {
         showToast('❌ Camera/mic permissions needed. Error: ' + error.name);
+        try { showDeviceTroubleshooter('generic'); } catch(_) {}
       }
       
       setTimeout(setupDeviceSelectors, 1000);
@@ -3417,6 +3421,9 @@
       cameraSelector.innerHTML = '<option disabled selected>Select camera...</option>';
       const videoDevices = allDevices.filter(d => d.kind === 'videoinput');
       console.log("📹 Video devices found:", videoDevices.length);
+      if (videoDevices.length === 0) {
+        try { showDeviceTroubleshooter('no-camera'); } catch(_) {}
+      }
       
       videoDevices.forEach(device => {
         const option = new Option(
@@ -3433,6 +3440,9 @@
       micSelector.innerHTML = '<option disabled selected>Select microphone...</option>';
       const audioDevices = allDevices.filter(d => d.kind === 'audioinput');
       console.log("🎤 Audio devices found:", audioDevices.length);
+      if (audioDevices.length === 0) {
+        try { showDeviceTroubleshooter('no-mic'); } catch(_) {}
+      }
       
       audioDevices.forEach(device => {
         const option = new Option(
@@ -3452,6 +3462,7 @@
           try {
             await call.setInputDevicesAsync({ videoDeviceId: e.target.value });
             showToast('📹 Camera changed');
+            try { hideDeviceTroubleshooter(); } catch(_) {}
           } catch (error) {
             console.error("❌ Camera change failed:", error);
             showToast('❌ Camera change failed');
@@ -3465,6 +3476,7 @@
           try {
             await call.setInputDevicesAsync({ audioDeviceId: e.target.value });
             showToast('🎤 Microphone changed');
+            try { hideDeviceTroubleshooter(); } catch(_) {}
           } catch (error) {
             console.error("❌ Microphone change failed:", error);
             showToast('❌ Microphone change failed');
@@ -3477,7 +3489,112 @@
     } catch (error) {
       console.error('❌ Error setting up device selectors:', error);
       showToast('❌ Device settings unavailable');
+      try { showDeviceTroubleshooter('generic'); } catch(_) {}
     }
+  }
+
+  // Minimal DOM-based device troubleshooter (overlay)
+  function showDeviceTroubleshooter(reason) {
+    try {
+      let overlay = document.getElementById('device-troubleshooter');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'device-troubleshooter';
+        overlay.style.position = 'fixed';
+        overlay.style.inset = '0';
+        overlay.style.background = 'rgba(0,0,0,0.75)';
+        overlay.style.zIndex = '99999';
+        overlay.style.display = 'flex';
+        overlay.style.alignItems = 'center';
+        overlay.style.justifyContent = 'center';
+        overlay.innerHTML = `
+          <div id="dt-panel" style="width:min(720px,92vw);max-width:720px;background:white;border-radius:20px;box-shadow:0 20px 70px rgba(0,0,0,0.35);border:1px solid rgba(0,0,0,0.08);padding:24px;font-family:'Nunito',system-ui,-apple-system,Segoe UI,Roboto,Arial;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+              <div style="width:46px;height:46px;border-radius:50%;background:#e63946;display:flex;align-items:center;justify-content:center;color:white;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 9v4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+                  <circle cx="12" cy="17" r="1.25" fill="#fff"/>
+                  <path d="M12 3l9 18H3L12 3z" stroke="#fff" stroke-width="1.6" fill="none"/>
+                </svg>
+              </div>
+              <div>
+                <div id="dt-title" style="font-weight:900;color:#22223B;font-size:20px;line-height:1.1;">We can’t access your camera/mic</div>
+                <div id="dt-subtitle" style="color:#4a4a55;font-size:13.5px;margin-top:2px;">Follow these steps to get set up.</div>
+              </div>
+              <button id="dt-close" aria-label="Close" style="margin-left:auto;border:none;background:transparent;color:#6b7280;font-size:22px;cursor:pointer;">×</button>
+            </div>
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div style="background:#f9fafb;border:1px solid #eef2f7;border-radius:12px;padding:14px;">
+                <div style="font-weight:800;color:#111827;margin-bottom:6px;">Check browser permissions</div>
+                <ul style="margin:0;padding-left:16px;color:#374151;font-size:13.5px;line-height:1.5;">
+                  <li>Allow camera and microphone for this site.</li>
+                  <li>Click the lock icon in the address bar.</li>
+                  <li>Reload the page after changing permissions.</li>
+                </ul>
+              </div>
+              <div style="background:#f9fafb;border:1px solid #eef2f7;border-radius:12px;padding:14px;">
+                <div style="font-weight:800;color:#111827;margin-bottom:6px;">Choose your devices</div>
+                <ul style="margin:0;padding-left:16px;color:#374151;font-size:13.5px;line-height:1.5;">
+                  <li>Open Settings → select a Camera and Microphone.</li>
+                  <li>If none appear, connect a USB webcam or headset.</li>
+                  <li>Close other apps using your camera/mic.</li>
+                </ul>
+              </div>
+              <div style="background:#f9fafb;border:1px solid #eef2f7;border-radius:12px;padding:14px;">
+                <div style="font-weight:800;color:#111827;margin-bottom:6px;">Still not working?</div>
+                <ul style="margin:0;padding-left:16px;color:#374151;font-size:13.5px;line-height:1.5;">
+                  <li>On Windows: Settings → Privacy → Camera/Microphone.</li>
+                  <li>On macOS: System Settings → Privacy & Security.</li>
+                  <li>Try an incognito/private window.</li>
+                </ul>
+              </div>
+              <div style="background:#f9fafb;border:1px solid #eef2f7;border-radius:12px;padding:14px;">
+                <div style="font-weight:800;color:#111827;margin-bottom:6px;">Quick actions</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                  <button id="dt-open-settings" style="padding:8px 10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer;">Open Settings</button>
+                  <button id="dt-retry" style="padding:8px 10px;border-radius:10px;border:1px solid #e5e7eb;background:#fff;font-weight:700;cursor:pointer;">Retry devices</button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        document.body.appendChild(overlay);
+        document.getElementById('dt-close').onclick = hideDeviceTroubleshooter;
+        document.getElementById('dt-open-settings').onclick = () => { try { toggleSettings(); } catch(_) {} };
+        document.getElementById('dt-retry').onclick = async () => {
+          try { const s = await navigator.mediaDevices.getUserMedia({ video:true, audio:true }); s.getTracks().forEach(t=>t.stop()); } catch(_) {}
+          setupDeviceSelectors();
+        };
+      }
+      const title = document.getElementById('dt-title');
+      const subtitle = document.getElementById('dt-subtitle');
+      switch (reason) {
+        case 'permissions-denied':
+          title.textContent = "We can't access your camera/mic";
+          subtitle.textContent = "Please allow permissions in your browser and reload.";
+          break;
+        case 'no-devices':
+          title.textContent = "No camera or microphone detected";
+          subtitle.textContent = "Connect a device, then choose it in Settings.";
+          break;
+        case 'no-camera':
+          title.textContent = "No camera detected";
+          subtitle.textContent = "Connect a camera or use a virtual webcam.";
+          break;
+        case 'no-mic':
+          title.textContent = "No microphone detected";
+          subtitle.textContent = "Connect a mic or use a headset.";
+          break;
+        default:
+          title.textContent = "Having trouble with your devices?";
+          subtitle.textContent = "Let's get your camera and mic working.";
+      }
+      document.getElementById('device-troubleshooter').style.display = 'flex';
+    } catch(_) {}
+  }
+
+  function hideDeviceTroubleshooter() {
+    const overlay = document.getElementById('device-troubleshooter');
+    if (overlay) overlay.style.display = 'none';
   }
 
   // Audio level monitoring for microphone confirmation (participants only)

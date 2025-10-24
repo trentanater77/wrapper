@@ -1899,12 +1899,18 @@
       if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
         const cameraTrack = participant.tracks.video.persistentTrack;
         // Only restore if it's not a screen share track
-        if (!cameraTrack.label.includes('screen') && !cameraTrack.label.includes('web-contents-media-stream')) {
+        if (!isScreenShareLabel(cameraTrack.label)) {
           console.log('✅ Restoring camera track for participant:', participant.user_name);
           setupRemoteVideo(cameraTrack);
         }
       }
     });
+  }
+
+  function isScreenShareLabel(label) {
+    if (!label) return false;
+    const l = String(label);
+    return l.includes('screen') || l.includes('Screen') || l.includes('display') || l.includes('Display') || l.includes('web-contents-media-stream');
   }
 
   function handleAppMessage(event) {
@@ -2171,6 +2177,13 @@
     
     console.log(`📍 Assigned participant ${participantId} to slot ${participantSlot}`);
     
+    // If screen share is active, do not attempt to show camera until it's hidden
+    const spectatorScreenShare = document.getElementById('spectator-screen-share');
+    if (spectatorScreenShare && !spectatorScreenShare.classList.contains('hidden')) {
+      console.log('⏸️ Screen share active; deferring spectator camera setup');
+      return;
+    }
+
     // Get the video element and placeholder for this slot
     const videoElement = document.getElementById(`spectator-participant-${participantSlot}`);
     const placeholder = document.getElementById(`spectator-placeholder-${participantSlot}`);
@@ -2536,7 +2549,15 @@
     console.log('📺 Setting up spectator screen share');
     spectatorScreenShare.srcObject = new MediaStream([track]);
     spectatorScreenShare.classList.remove('hidden');
+    // Hide both participant videos and their placeholders to avoid overlap/confusion
     participantsContainer.style.display = 'none';
+    ['1','2'].forEach(s => {
+      const v = document.getElementById(`spectator-participant-${s}`);
+      const p = document.getElementById(`spectator-placeholder-${s}`);
+      if (v) { v.classList.add('hidden'); v.style.display = 'none'; }
+      if (p) { p.classList.add('hidden'); p.style.display = 'none'; }
+      removeSpectatorAvatarOverlay(Number(s));
+    });
     
     // Update expand buttons availability
     updateSpectatorExpandButtons();
@@ -2599,6 +2620,17 @@
     
     screenShareVideo.style.display = 'none';
     remoteVideo.style.display = 'block';
+    // If remote video is not yet live, avoid showing a stale black frame
+    try {
+      const track = remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0];
+      if (!track || track.readyState !== 'live') {
+        console.log('🔍 Remote camera not live yet after screen share; keeping placeholder visible');
+        const placeholder = document.getElementById('remote-placeholder');
+        if (placeholder) placeholder.style.display = 'flex';
+        remoteVideo.classList.add('hidden');
+        remoteVideo.style.display = 'none';
+      }
+    } catch (_) {}
   }
 
   function hideSpectatorScreenShare() {
@@ -2617,6 +2649,9 @@
     
     // Ensure participant videos are visible and playing
     restoreSpectatorParticipantVideos();
+    // After restore, ensure avatars are cleared (camera presumed on)
+    removeSpectatorAvatarOverlay(1);
+    removeSpectatorAvatarOverlay(2);
     
     console.log('✅ Spectator screen share hidden, participants view restored');
   }

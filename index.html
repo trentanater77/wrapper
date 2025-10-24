@@ -2115,6 +2115,8 @@
   // Track which participant slots are used (only 2 participants max)
   let spectatorParticipant1 = null; // { participantId, participantName }
   let spectatorParticipant2 = null; // { participantId, participantName }
+  // Track recently-left participants to suppress spurious camera-off updates
+  const spectatorRecentlyLeftById = Object.create(null);
 
   function setupSpectatorVideo(track, participantId) {
     console.log('🎬 Setting up spectator video for participant:', participantId);
@@ -2509,26 +2511,48 @@
     const clickOverlay = document.getElementById('spectator-click-overlay');
     
     if (videoElement && placeholder && nameElement) {
-      // Hide video and show placeholder
+      // Hide video and clear stream
+      try { videoElement.pause(); } catch(_) {}
       videoElement.classList.add('hidden');
       videoElement.srcObject = null;
+
+      // Mark recently left to suppress stale camera-off updates
+      spectatorRecentlyLeftById[participantId] = Date.now();
+
+      // Show explicit disconnected UI
       placeholder.style.display = 'flex';
+      placeholder.classList.remove('hidden');
+      placeholder.innerHTML = `
+        <div style=\"display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;width:100%;height:100%;color:white;\">\n\
+          <div style=\"width:72px;height:72px;margin:0 auto 12px;border-radius:50%;background:rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;border:3px solid rgba(255,255,255,0.9);box-shadow:0 6px 20px rgba(0,0,0,0.35);\">\n\
+            <svg width=\"34\" height=\"34\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n\
+              <path d=\"M3 21v-2a4 4 0 014-4h6a4 4 0 014 4v2\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\"/>\n\
+              <circle cx=\"12\" cy=\"7\" r=\"4\" stroke=\"#fff\" stroke-width=\"2\"/>\n\
+            </svg>\n\
+          </div>\n\
+          <p style=\"font-size:18px;font-weight:800;color:white;margin:0 0 6px 0;text-shadow:1px 2px 4px rgba(0,0,0,0.45);\">Disconnected</p>\n\
+          <p style=\"font-size:13px;color:rgba(255,255,255,0.9);margin:0;\">Participant left the conversation</p>\n\
+        </div>`;
+
+      // Hide the slot name label
       nameElement.classList.add('hidden');
-      
+
       // Ensure overlay is visible for spectators when a participant leaves
       forceSpectatorOverlayVisible('participant-left');
       // And remove any body-level avatar overlay tied to this slot
       if (participantSlot) {
         removeSpectatorAvatarOverlay(participantSlot);
       }
-      
+
       console.log(`✅ Cleaned up slot ${participantSlot}`);
     }
     
-    // Show click overlay if no participants remain
+    // Show click overlay if no participants remain, otherwise re-evaluate overlay state
     if (!spectatorParticipant1 && !spectatorParticipant2) {
       forceSpectatorOverlayVisible('no-participants');
       console.log('📺 All participants left, showing click overlay');
+    } else {
+      checkAndHideClickOverlay();
     }
   }
 
@@ -2766,6 +2790,14 @@
   // COMPLETELY NEW APPROACH: Replace video element with guaranteed-visible placeholder
   function updateSpectatorPlaceholderForCameraOff(participantId, participant) {
     console.log('🎭 NEW APPROACH: Creating guaranteed placeholder for camera off:', participantId, participant.user_name);
+    // Ignore camera-off events briefly after a participant leaves to avoid wrong state
+    try {
+      const leftAt = spectatorRecentlyLeftById[participantId];
+      if (leftAt && Date.now() - leftAt < 5000) {
+        console.log('⏳ Ignoring camera-off for recently left participant:', participantId);
+        return;
+      }
+    } catch (_) {}
     
     // Find which slot this participant is in
     let slot = null;

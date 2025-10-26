@@ -1001,6 +1001,11 @@
 
   const roomUrl = new URLSearchParams(window.location.search).get('room');
   const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+  
+  // Normalize the room URL to a stable presence key (must match WeWeb)
+  const rawRoomParam = (roomUrl || '').trim();
+  const normalizedRoomBase = rawRoomParam.split('?')[0].split('#')[0].replace(/\/+$/,'').toLowerCase();
+  const presenceKey = btoa(normalizedRoomBase || '');
 
   // Check if valid room URL
   if (!roomUrl) {
@@ -1130,9 +1135,9 @@
     await loadRoomInfo();
     
     // Set up Firebase for chat and presence
-    const roomId = btoa(roomUrl);
-    chatRef = db.ref(`chats/${roomId}`);
-    viewerCountRef = db.ref(`viewers/${roomId}`);
+    const chatRoomId = btoa(roomUrl);
+    chatRef = db.ref(`chats/${chatRoomId}`);
+    viewerCountRef = db.ref(`viewers/${chatRoomId}`);
     
     // Set up user role display
     setupUserRoleDisplay();
@@ -1170,8 +1175,8 @@
         userName: userName
       });
       
-      // Set up Firebase presence
-      await setupPresence(roomId);
+      // Set up Firebase presence using normalized presenceKey
+      await setupPresence(presenceKey);
       
       // Set up chat listeners
       setupChatListeners();
@@ -1216,8 +1221,8 @@
     console.log('🎤 Participant mode enabled');
   }
 
-  async function setupPresence(roomId) {
-    const presenceRef = db.ref(`presence/${roomId}/${userId}`);
+  async function setupPresence(pKey) {
+    const presenceRef = db.ref(`presence/${pKey}/${userId}`);
     
     // Set user online
     await presenceRef.set({
@@ -1227,7 +1232,7 @@
     });
     
     // Listen for viewer count changes
-    const allPresenceRef = db.ref(`presence/${roomId}`);
+    const allPresenceRef = db.ref(`presence/${pKey}`);
     allPresenceRef.on('value', (snapshot) => {
       const users = snapshot.val() || {};
       const spectators = Object.values(users).filter(user => user.type === 'spectator');
@@ -3020,8 +3025,8 @@
   }
 
   function cleanup() {
-    const roomId = btoa(roomUrl);
-    db.ref(`presence/${roomId}/${userId}`).remove();
+    // Remove this user from normalized presence node
+    db.ref(`presence/${presenceKey}/${userId}`).remove();
     
     if (call) {
       call.leave();

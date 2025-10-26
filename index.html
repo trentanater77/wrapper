@@ -1001,6 +1001,11 @@
 
   const roomUrl = new URLSearchParams(window.location.search).get('room');
   const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+  // Normalize the room URL to a stable presence key (must match WeWeb)
+  const rawRoomParam = (roomUrl || '').trim();
+  const decodedRoomParam = decodeURIComponent(rawRoomParam);
+  const normalizedRoomBase = decodedRoomParam.split('?')[0].split('#')[0].replace(/\/+$/,'').toLowerCase();
+  const presenceKey = btoa(normalizedRoomBase || '');
 
   // Check if valid room URL
   if (!roomUrl) {
@@ -1170,8 +1175,8 @@
         userName: userName
       });
       
-      // Set up Firebase presence
-      await setupPresence(roomId);
+      // Set up Firebase presence using normalized presenceKey
+      await setupPresence(presenceKey);
       
       // Set up chat listeners
       setupChatListeners();
@@ -3020,8 +3025,8 @@
   }
 
   function cleanup() {
-    const roomId = btoa(roomUrl);
-    db.ref(`presence/${roomId}/${userId}`).remove();
+    // Remove this user from normalized presence node
+    db.ref(`presence/${presenceKey}/${userId}`).remove();
     
     if (call) {
       call.leave();

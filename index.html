@@ -985,6 +985,7 @@
   let recordingId = null;
   let userName = '';
   let userId = '';
+  let presenceClientId = '';
 
   // Chat system
   let chatRef = null;
@@ -1003,8 +1004,8 @@
   const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
   
   // Normalize the room URL to a stable presence key (must match WeWeb)
-  const rawRoomParam = (roomUrl || '').trim();
-  const normalizedRoomBase = rawRoomParam.split('?')[0].split('#')[0].replace(/\/+$/,'').toLowerCase();
+  const roomUrlDecoded = decodeURIComponent((roomUrl || '').trim());
+  const normalizedRoomBase = roomUrlDecoded.split('?')[0].split('#')[0].replace(/\/+$/,'').toLowerCase();
   const presenceKey = btoa(normalizedRoomBase || '');
 
   // Check if valid room URL
@@ -1040,6 +1041,21 @@
     // Use real user data or fallback to generated names
     userName = usernameFromURL || (isSpectator ? `Viewer_${Math.random().toString(36).slice(2, 8)}` : `User_${Math.random().toString(36).slice(2, 8)}`);
     userId = userIdFromURL || `${isSpectator ? 'spectator' : 'participant'}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    // Generate a unique presence client id per-tab to avoid key collisions across sessions
+    try {
+      const existing = sessionStorage.getItem('presenceClientId');
+      if (existing) {
+        presenceClientId = existing;
+      } else {
+        const rand = (crypto && crypto.randomUUID) ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}_${Date.now()}`;
+        presenceClientId = `${(userId || 'guest').slice(0, 40)}__${rand}`;
+        sessionStorage.setItem('presenceClientId', presenceClientId);
+      }
+    } catch {
+      // Fallback if sessionStorage not available
+      const rand = (crypto && crypto.randomUUID) ? crypto.randomUUID() : `${Math.random().toString(36).slice(2)}_${Date.now()}`;
+      presenceClientId = `${(userId || 'guest').slice(0, 40)}__${rand}`;
+    }
     
     // Store additional user data for UI display
     window.currentUserData = {
@@ -1171,7 +1187,7 @@
     try {
       // Join the call
       await call.join({ 
-        url: roomUrl,
+        url: roomUrlDecoded || roomUrl,
         userName: userName
       });
       
@@ -1222,7 +1238,7 @@
   }
 
   async function setupPresence(pKey) {
-    const presenceRef = db.ref(`presence/${pKey}/${userId}`);
+    const presenceRef = db.ref(`presence/${pKey}/${presenceClientId}`);
     
     // Set user online
     await presenceRef.set({
@@ -3025,8 +3041,8 @@
   }
 
   function cleanup() {
-    // Remove this user from normalized presence node
-    db.ref(`presence/${presenceKey}/${userId}`).remove();
+    // Remove this tab's presence from normalized presence node
+    db.ref(`presence/${presenceKey}/${presenceClientId}`).remove();
     
     if (call) {
       call.leave();

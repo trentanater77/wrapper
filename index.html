@@ -1031,19 +1031,44 @@
 
     // Set user mode
     isSpectator = spectatorMode;
-    
-    // Use real user data or fallback to generated names
-    userName = usernameFromURL || (isSpectator ? `Viewer_${Math.random().toString(36).slice(2, 8)}` : `User_${Math.random().toString(36).slice(2, 8)}`);
-    userId = userIdFromURL || `${isSpectator ? 'spectator' : 'participant'}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
-    
-    // Store additional user data for UI display
-    window.currentUserData = {
-      username: usernameFromURL || userName,
-      displayName: displayNameFromURL || usernameFromURL || userName,
-      avatar: avatarFromURL || '',
-      userId: userId,
-      isAuthenticated: !!(usernameFromURL && userIdFromURL)
-    };
+
+    const randomSuffix = Math.random().toString(36).slice(2, 10);
+    const trimmedUsername = usernameFromURL ? usernameFromURL.trim() : '';
+    const trimmedDisplayName = displayNameFromURL ? displayNameFromURL.trim() : '';
+    const fallbackDisplayName = trimmedDisplayName || trimmedUsername || (isSpectator ? `Viewer ${randomSuffix}` : `User ${randomSuffix}`);
+    const originalUserId = userIdFromURL ? userIdFromURL.trim() : '';
+    const sanitizedBaseNameForCall = (trimmedUsername || trimmedDisplayName || '').replace(/\s+/g, '_');
+
+    if (isSpectator) {
+      const callNameCore = sanitizedBaseNameForCall ? sanitizedBaseNameForCall : `Viewer_${randomSuffix}`;
+      userName = callNameCore.startsWith('Viewer_') ? callNameCore : `Viewer_${callNameCore}`;
+      const spectatorIdSeed = originalUserId ? `spectator-${originalUserId}` : `spectator-${randomSuffix}`;
+      userId = `${spectatorIdSeed}-${Date.now()}`;
+
+      window.currentUserData = {
+        username: fallbackDisplayName,
+        displayName: fallbackDisplayName,
+        avatar: avatarFromURL || '',
+        userId: originalUserId || userId,
+        originalUserId: originalUserId || null,
+        presenceId: userId,
+        isAuthenticated: !!(trimmedUsername && originalUserId)
+      };
+    } else {
+      const participantCallName = sanitizedBaseNameForCall || `User_${randomSuffix}`;
+      userName = participantCallName;
+      userId = originalUserId || `participant_${randomSuffix}_${Date.now()}`;
+
+      window.currentUserData = {
+        username: trimmedUsername || participantCallName,
+        displayName: trimmedDisplayName || trimmedUsername || participantCallName,
+        avatar: avatarFromURL || '',
+        userId: userId,
+        originalUserId: originalUserId || null,
+        presenceId: userId,
+        isAuthenticated: !!(trimmedUsername && originalUserId)
+      };
+    }
     
     console.log(`🎭 User Mode: ${isSpectator ? 'Spectator' : 'Participant'}`);
     console.log(`👤 User Name: ${userName}`);
@@ -1217,7 +1242,8 @@
   }
 
   async function setupPresence(roomId) {
-    const presenceRef = db.ref(`presence/${roomId}/${userId}`);
+    const presenceKey = (window.currentUserData && window.currentUserData.presenceId) ? window.currentUserData.presenceId : userId;
+    const presenceRef = db.ref(`presence/${roomId}/${presenceKey}`);
     
     // Set user online
     await presenceRef.set({
@@ -1267,7 +1293,7 @@
     if (remotePlaceholder && remoteVideo && remoteVideo.style.display !== 'block') {
       // Check if there are any other participants (not spectators)
       const participants = call ? call.participants() : {};
-      const otherParticipants = Object.values(participants).filter(p => !p.local);
+      const otherParticipants = Object.values(participants).filter(p => !p.local && !isSpectatorAttendee(p));
       
       // Only show spectator message if there are NO other participants
       if (otherParticipants.length === 0) {
@@ -1418,7 +1444,7 @@
     const userDisplayInfo = getCurrentUserDisplayInfo();
     
     const message = {
-      userId: userId,
+      userId: (window.currentUserData && window.currentUserData.userId) ? window.currentUserData.userId : userId,
       userName: userDisplayInfo.displayName, // Use display name instead of raw userName
       userType: isSpectator ? 'spectator' : 'participant',
       text: text,
@@ -1441,7 +1467,7 @@
     const userDisplayInfo = getCurrentUserDisplayInfo();
     
     const message = {
-      userId: userId,
+      userId: (window.currentUserData && window.currentUserData.userId) ? window.currentUserData.userId : userId,
       userName: userDisplayInfo.displayName, // Use display name instead of raw userName
       userType: isSpectator ? 'spectator' : 'participant',
       text: text,
@@ -1500,60 +1526,122 @@
     showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
   }
 
+  function isSpectatorAttendee(participant) {
+    if (!participant) return false;
+
+    if (participant.participantType === 'spectator' || participant.type === 'spectator' || participant.spectator === true) {
+      return true;
+    }
+
+    if (participant.permissions) {
+      if (participant.permissions.hasPresence === false) {
+        return true;
+      }
+      const canSend = participant.permissions.canSend || {};
+      const sendFields = ['audio', 'video', 'screen', 'screenVideo', 'screenAudio'];
+      const sendValues = sendFields
+        .map((field) => canSend[field])
+        .filter((value) => value !== undefined);
+      if (sendValues.length) {
+        const anyTrue = sendValues.some((value) => value === true);
+        const allFalse = sendValues.every((value) => value === false);
+        if (!anyTrue && allFalse) {
+          return true;
+        }
+      }
+    }
+
+    const videoTrack = participant.tracks && participant.tracks.video;
+    if (videoTrack) {
+      if (videoTrack.state === 'blocked' && !videoTrack.persistentTrack) {
+        return true;
+      }
+      if (videoTrack.blocked) {
+        const blocked = videoTrack.blocked;
+        if (
+          blocked.reason === 'spectator' ||
+          blocked.reason === 'permissions' ||
+          blocked.byPermissions === true ||
+          blocked.byPermission === true
+        ) {
+          return true;
+        }
+      }
+    }
+
+    const name = participant.user_name || '';
+    return name.includes('Viewer_');
+  }
+
   function handleParticipantJoined(event) {
-    const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    const participant = event.participant;
+    const participantName = participant.user_name || 'Guest';
+    const spectatorAttendee = isSpectatorAttendee(participant);
     
-    console.log('👋 Participant joined:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant joined:', participantName, spectatorAttendee ? '(spectator)' : '(participant)');
     
     if (!isSpectator) {
       // Only process actual participants, not spectators
-      if (!isSpectatorParticipant) {
+      if (!spectatorAttendee) {
         updateRemoteInfo(participantName);
         showToast(`👋 ${participantName} joined the call!`);
       } else {
         console.log('🔒 Ignoring spectator join event to prevent participant disruption');
       }
     } else {
-      // Update spectator participants list
-      updateSpectatorParticipants();
+      if (!spectatorAttendee) {
+        updateSpectatorParticipants();
+      } else {
+        console.log('👀 Spectator joined in view-only mode - no layout changes needed');
+      }
     }
   }
 
   function handleParticipantLeft(event) {
-    const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    const participant = event.participant;
+    const participantName = participant.user_name || 'Guest';
+    const spectatorAttendee = isSpectatorAttendee(participant);
     
-    console.log('👋 Participant left:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant left:', participantName, spectatorAttendee ? '(spectator)' : '(participant)');
     
     if (!isSpectator) {
       // Only process actual participants leaving, not spectators
-      if (!isSpectatorParticipant) {
+      if (!spectatorAttendee) {
         hideRemoteVideo();
         showToast(`👋 ${participantName} left the call`);
       } else {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
     } else {
-      // Remove the participant's video from spectator view
-      const participantId = event.participant.session_id;
-      removeSpectatorParticipant(participantId);
-      updateSpectatorParticipants();
-      showToast(`👋 ${participantName} left the conversation`);
+      // Remove the participant's video from spectator view if needed
+      const participantId = participant.session_id;
+      if (!spectatorAttendee) {
+        removeSpectatorParticipant(participantId);
+        updateSpectatorParticipants();
+        showToast(`👋 ${participantName} left the conversation`);
+      } else {
+        console.log('👀 Spectator left view-only session');
+      }
     }
   }
 
   function handleParticipantUpdated(event) {
     // Only log when there are meaningful changes, not constant updates
-    const participantId = event.participant.session_id;
-    const isLocalParticipant = event.participant.local;
+    const participant = event.participant;
+    const participantId = participant.session_id;
+    const isLocalParticipant = participant.local;
     
     // Skip logging and processing for local participant updates
     if (isLocalParticipant) return;
+
+    if (isSpectatorAttendee(participant)) {
+      console.log(`👀 Ignoring spectator-only participant update: ${participant.user_name || participantId.slice(0,8)}`);
+      return;
+    }
     
-    console.log(`🔄 Remote participant updated: ${event.participant.user_name || participantId.slice(0,8)}`);
+    console.log(`🔄 Remote participant updated: ${participant.user_name || participantId.slice(0,8)}`);
     
-    const tracks = event.participant.tracks;
+    const tracks = participant.tracks;
     
     // For non-local participants only
     if (tracks) {
@@ -1569,7 +1657,7 @@
           if (!hasActiveRemoteVideo) {
             console.log('✅ Setting up remote video for participant');
             setupRemoteVideo(tracks.video.persistentTrack);
-            updateRemoteInfo(event.participant.user_name || 'Guest');
+            updateRemoteInfo(participant.user_name || 'Guest');
           } else {
             console.log('🔒 Remote video already active, ignoring update to prevent disruption');
           }
@@ -1595,13 +1683,19 @@
       isSpectator: isSpectator
     });
     
-    if (event.participant.local && !isSpectator) {
+    const participant = event.participant;
+    if (!participant.local && isSpectatorAttendee(participant)) {
+      console.log('👀 Ignoring spectator attendee track start event');
+      return;
+    }
+    
+    if (participant.local && !isSpectator) {
       if (event.track.kind === 'video') {
         setupLocalVideo(event.track);
       }
     } else {
       // Handle remote participant tracks
-      const participantId = event.participant.session_id;
+      const participantId = participant.session_id;
       
       if (event.track.kind === 'video') {
         if (event.track.label && (event.track.label.includes('screen') || event.track.label.includes('Screen') || event.track.label.includes('display') || event.track.label.includes('Display') || event.track.label.includes('web-contents-media-stream'))) {
@@ -1619,7 +1713,7 @@
             // IMPROVED: Always set up remote video when camera turns back on
             console.log('🔄 Setting up remote video (camera turned back on)');
             setupRemoteVideo(event.track);
-            updateRemoteInfo(event.participant.user_name || 'Guest');
+            updateRemoteInfo(participant.user_name || 'Guest');
             
             // Hide the camera-off placeholder and show video
             const remoteVideo = document.getElementById('remote-video');
@@ -1646,8 +1740,14 @@
       isSpectator: isSpectator
     });
     
+    const participant = event.participant;
+    if (!participant.local && isSpectatorAttendee(participant)) {
+      console.log('👀 Ignoring spectator attendee track stop event');
+      return;
+    }
+    
     // Handle LOCAL participant tracks (when they stop their own camera/screen)
-    if (event.participant.local && event.track.kind === 'video') {
+    if (participant.local && event.track.kind === 'video') {
       console.log('🔄 Local participant stopped their own video track');
       
       // Check if it's the local user's screen share stopping
@@ -1688,9 +1788,9 @@
     }
     
     // Handle REMOTE participant tracks only
-    if (!event.participant.local && event.track.kind === 'video') {
-      const participantId = event.participant.session_id;
-      const participantName = event.participant.user_name || 'Participant';
+    if (!participant.local && event.track.kind === 'video') {
+      const participantId = participant.session_id;
+      const participantName = participant.user_name || 'Participant';
       
       console.log(`🎥 Remote video track stopped for: ${participantName} (${participantId})`);
       
@@ -1731,12 +1831,12 @@
             remoteVideo.style.display = 'none';
             placeholder.style.display = 'flex';
             // Update placeholder to show it's just camera off, not disconnected
-            updateRemotePlaceholderForCameraOff(event.participant);
+            updateRemotePlaceholderForCameraOff(participant);
           }
         } else {
           // CRITICAL FIX: For spectators, show proper camera-off placeholder AND force overlay
           console.log(`🎭 SPECTATOR: Showing camera-off placeholder for ${participantName}`);
-          updateSpectatorPlaceholderForCameraOff(participantId, event.participant);
+          updateSpectatorPlaceholderForCameraOff(participantId, participant);
           
           // CRITICAL: Force overlay to show when camera turns off
           setTimeout(() => {
@@ -1809,13 +1909,14 @@
     
     // Get the current participant's camera track
     const participants = call.participants();
-    const remoteParticipants = Object.values(participants).filter(p => !p.local);
+    const remoteParticipants = Object.values(participants).filter(p => !p.local && !isSpectatorAttendee(p));
     
     remoteParticipants.forEach(participant => {
       if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
         const cameraTrack = participant.tracks.video.persistentTrack;
+        const trackLabel = (cameraTrack && typeof cameraTrack.label === 'string') ? cameraTrack.label : '';
         // Only restore if it's not a screen share track
-        if (!cameraTrack.label.includes('screen') && !cameraTrack.label.includes('web-contents-media-stream')) {
+        if (!trackLabel.includes('screen') && !trackLabel.includes('web-contents-media-stream')) {
           console.log('✅ Restoring camera track for participant:', participant.user_name);
           setupRemoteVideo(cameraTrack);
         }
@@ -2313,6 +2414,9 @@
     const participants = call.participants();
     for (const [id, participant] of Object.entries(participants)) {
       if (id === participantId) {
+        if (isSpectatorAttendee(participant)) {
+          continue;
+        }
         return participant.user_name || 'Participant';
       }
     }
@@ -2797,7 +2901,7 @@
     if (!container) return;
     
     const participants = call.participants();
-    const activeParticipants = Object.values(participants).filter(p => !p.local);
+    const activeParticipants = Object.values(participants).filter(p => !p.local && !isSpectatorAttendee(p));
     
     container.innerHTML = '';
     
@@ -2981,7 +3085,9 @@
       recordingId: recordingId,
       roomUrl: roomUrl,
       topic: currentTopic,
-      participants: Object.values(call.participants()).map(p => p.user_name || 'Guest'),
+      participants: Object.values(call.participants())
+        .filter(p => !isSpectatorAttendee(p))
+        .map(p => p.user_name || 'Guest'),
       privacy: preferences.privacy,
       autoDelete: preferences.autoDelete,
       status: 'processing',
@@ -3021,7 +3127,8 @@
 
   function cleanup() {
     const roomId = btoa(roomUrl);
-    db.ref(`presence/${roomId}/${userId}`).remove();
+    const presenceKey = (window.currentUserData && window.currentUserData.presenceId) ? window.currentUserData.presenceId : userId;
+    db.ref(`presence/${roomId}/${presenceKey}`).remove();
     
     if (call) {
       call.leave();
@@ -3526,7 +3633,7 @@
     console.log('🔄 Setting up existing participants for participant refresh');
     
     const participants = call.participants();
-    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
+    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local && !isSpectatorAttendee(participant));
     
     console.log('👥 Found remote participants:', remoteParticipants.length);
     
@@ -3563,7 +3670,7 @@
     console.log(`🔄 Setting up existing participants for spectator (attempt ${retryCount + 1}/5)`);
     
     const participants = call.participants();
-    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
+    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local && !isSpectatorAttendee(participant));
     
     console.log('👥 Found participants:', remoteParticipants.length);
     

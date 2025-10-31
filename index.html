@@ -967,6 +967,15 @@
 
   const promptsApp = firebase.initializeApp(promptsFirebaseConfig, "prompts");
   const promptsDb = promptsApp.database();
+  const REALTIME_DB_BASE_URL = "https://chatspheresfirebasedb-default-rtdb.firebaseio.com";
+  const urlParams = new URLSearchParams(window.location.search);
+  const rawRoomParam = urlParams.get('room');
+  const roomUrl = rawRoomParam ? safeDecodeURIComponent(rawRoomParam) : null;
+  const spectatorMode = urlParams.get('mode') === 'spectator';
+  const roomId = roomUrl ? encodeRoomId(roomUrl) : null;
+  let presenceCleanupTriggered = false;
+  let presenceCleanupHandlersRegistered = false;
+  let presenceSetupComplete = false;
 
   // Global variables
   let call = null;
@@ -998,9 +1007,38 @@
   ];
   let currentSparkIndex = 0;
   let sparkIsSelected = false;
+  let hasJoinedMeeting = false;
 
-  const roomUrl = new URLSearchParams(window.location.search).get('room');
-  const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+  function safeDecodeURIComponent(value) {
+    if (!value) return value;
+    try {
+      return decodeURIComponent(value);
+    } catch (error) {
+      console.warn("Failed to decode room parameter from URL", error);
+      return value;
+    }
+  }
+
+  function encodeRoomId(value) {
+    if (!value) return null;
+    try {
+      return btoa(value);
+    } catch (error) {
+      console.warn("Standard base64 encoding failed, using TextEncoder fallback", error);
+      try {
+        const utf8Bytes = new TextEncoder().encode(value);
+        let binary = "";
+        utf8Bytes.forEach((byte) => {
+          binary += String.fromCharCode(byte);
+        });
+        return btoa(binary);
+      } catch (fallbackError) {
+        console.error("Failed to encode room URL to base64", fallbackError);
+        return null;
+      }
+    }
+  }
+
 
   // Check if valid room URL
   if (!roomUrl) {
@@ -1023,7 +1061,6 @@
     `;
   } else {
     // Get user data from URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
     const usernameFromURL = urlParams.get('username');
     const userIdFromURL = urlParams.get('userId'); 
     const avatarFromURL = urlParams.get('avatar');
@@ -1129,10 +1166,15 @@
   async function initializeVideoChat() {
     await loadRoomInfo();
     
+    if (!roomId) {
+      console.error('Unable to initialize video chat: missing room identifier');
+      showToast('Unable to load the room. Please verify your link and try again.');
+      return;
+    }
+    
     // Set up Firebase for chat and presence
-    const roomId = btoa(roomUrl);
-    chatRef = db.ref(`chats/${roomId}`);
-    viewerCountRef = db.ref(`viewers/${roomId}`);
+    chatRef = db.ref('chats/' + roomId);
+    viewerCountRef = db.ref('viewers/' + roomId);
     
     // Set up user role display
     setupUserRoleDisplay();
@@ -1146,8 +1188,8 @@
     
     // Create Daily call object
     call = Daily.createCallObject({
-      audioSource: !isSpectator,  // Spectators don't need audio
-      videoSource: !isSpectator   // Spectators don't need video
+      audioSource: !isSpectator,
+      videoSource: !isSpectator
     });
     
     // Set up event listeners
@@ -1164,21 +1206,21 @@
     call.on('recording-stopped', handleRecordingStopped);
 
     try {
-      // Join the call
-      await call.join({ 
+      const displayNameForJoin = (window.currentUserData && window.currentUserData.displayName) ? window.currentUserData.displayName : userName;
+
+      await call.join({
         url: roomUrl,
-        userName: userName
+        userName: userName,
+        userData: {
+          role: isSpectator ? 'spectator' : 'participant',
+          displayName: displayNameForJoin
+        }
       });
       
-      // Set up Firebase presence
       await setupPresence(roomId);
+      setupPresenceCleanupHandlers();
       
-      // Set up chat listeners
       setupChatListeners();
-      
-      // Clean up on page unload
-      window.addEventListener('beforeunload', cleanup);
-
     } catch (error) {
       console.error('Failed to join call:', error);
       showToast('Failed to join the video call. Please try refreshing the page.');
@@ -1217,17 +1259,20 @@
   }
 
   async function setupPresence(roomId) {
-    const presenceRef = db.ref(`presence/${roomId}/${userId}`);
+    if (!roomId || !userId) {
+      console.warn('Skipping presence setup: missing identifiers', { roomId, userId });
+      return;
+    }
     
-    // Set user online
+    const presenceRef = db.ref('presence/' + roomId + '/' + userId);
+    
     await presenceRef.set({
       name: userName,
       type: isSpectator ? 'spectator' : 'participant',
       joinedAt: firebase.database.ServerValue.TIMESTAMP
     });
     
-    // Listen for viewer count changes
-    const allPresenceRef = db.ref(`presence/${roomId}`);
+    const allPresenceRef = db.ref('presence/' + roomId);
     allPresenceRef.on('value', (snapshot) => {
       const users = snapshot.val() || {};
       const spectators = Object.values(users).filter(user => user.type === 'spectator');
@@ -1238,8 +1283,93 @@
       console.log(`👥 Room stats: ${participants.length} participants, ${spectators.length} spectators`);
     });
     
-    // Clean up presence on disconnect
     presenceRef.onDisconnect().remove();
+    
+    try {
+      db.ref('presence/' + roomId + '/__claims/' + userId).onDisconnect().remove();
+    } catch (error) {
+      console.warn('Failed to register onDisconnect cleanup for presence claims', error);
+    }
+    
+    presenceSetupComplete = true;
+    presenceCleanupTriggered = false;
+  }
+
+  function setupPresenceCleanupHandlers() {
+    if (presenceCleanupHandlersRegistered) {
+      return;
+    }
+    presenceCleanupHandlersRegistered = true;
+    
+    const beforeUnloadHandler = () => {
+      cleanup({ reason: 'beforeunload' });
+    };
+    
+    window.addEventListener('beforeunload', beforeUnloadHandler);
+  }
+
+  function cleanupPresenceRecords(reason = 'manual') {
+    if (!presenceSetupComplete) {
+      console.debug('Presence cleanup skipped: setup not complete', { reason });
+      return;
+    }
+    
+    if (!roomId || !userId) {
+      console.warn('Presence cleanup skipped: missing identifiers', { roomId, userId, reason });
+      return;
+    }
+    
+    if (presenceCleanupTriggered) {
+      console.debug('Presence cleanup already triggered, skipping duplicate request', { reason });
+      return;
+    }
+    
+    presenceCleanupTriggered = true;
+    
+    const paths = [
+      'presence/' + roomId + '/' + userId,
+      'presence/' + roomId + '/__claims/' + userId
+    ];
+    
+    paths.forEach((path) => {
+      queuePresenceDelete(path, reason);
+      
+      try {
+        db.ref(path).remove().catch((error) => {
+          console.warn('Firebase SDK failed to remove ' + path, error);
+        });
+      } catch (sdkError) {
+        console.warn('Unable to schedule Firebase SDK removal for ' + path, sdkError);
+      }
+    });
+
+    presenceSetupComplete = false;
+  }
+
+  function queuePresenceDelete(path, reason) {
+    const url = REALTIME_DB_BASE_URL + '/' + path + '.json';
+    
+    try {
+      fetch(url, {
+        method: 'DELETE',
+        keepalive: true,
+        mode: 'cors',
+        cache: 'no-store'
+      }).then((response) => {
+        if (!response.ok) {
+          console.warn('Failed to delete presence record via REST', {
+            path: path,
+            status: response.status,
+            statusText: response.statusText,
+            reason: reason
+          });
+        }
+      }).catch((error) => {
+        console.error('Error deleting presence record via REST', { path, error });
+      });
+    } catch (error) {
+      console.error('Unable to queue presence deletion', { path, error });
+    }
   }
 
   function updateViewerCount(count) {
@@ -1454,6 +1584,7 @@
   }
 
   function handleJoinedMeeting(event) {
+    hasJoinedMeeting = true;
     console.log('✅ Joined meeting successfully');
     
     if (!isSpectator) {
@@ -1501,10 +1632,20 @@
   }
 
   function handleParticipantJoined(event) {
-    const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    if (!event || !event.participant) {
+      return;
+    }
+
+    if (event.participant.local) {
+      return;
+    }
+
+    const participant = event.participant;
+    const participantName = getParticipantDisplayName(participant);
+    const isSpectatorParticipant = isSpectatorEntity(participant);
+    const roleLabel = isSpectatorParticipant ? 'spectator' : 'participant';
     
-    console.log('👋 Participant joined:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant joined:', participantName, `(${roleLabel})`);
     
     if (!isSpectator) {
       // Only process actual participants, not spectators
@@ -1521,10 +1662,20 @@
   }
 
   function handleParticipantLeft(event) {
-    const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    if (!event || !event.participant) {
+      return;
+    }
+
+    if (event.participant.local) {
+      return;
+    }
+
+    const participant = event.participant;
+    const participantName = getParticipantDisplayName(participant);
+    const isSpectatorParticipant = isSpectatorEntity(participant);
+    const roleLabel = isSpectatorParticipant ? 'spectator' : 'participant';
     
-    console.log('👋 Participant left:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant left:', participantName, `(${roleLabel})`);
     
     if (!isSpectator) {
       // Only process actual participants leaving, not spectators
@@ -1536,7 +1687,7 @@
       }
     } else {
       // Remove the participant's video from spectator view
-      const participantId = event.participant.session_id;
+      const participantId = participant.session_id;
       removeSpectatorParticipant(participantId);
       updateSpectatorParticipants();
       showToast(`👋 ${participantName} left the conversation`);
@@ -1544,16 +1695,27 @@
   }
 
   function handleParticipantUpdated(event) {
+    if (!event || !event.participant) {
+      return;
+    }
+
     // Only log when there are meaningful changes, not constant updates
-    const participantId = event.participant.session_id;
-    const isLocalParticipant = event.participant.local;
+    const participant = event.participant;
+    const participantId = participant.session_id;
+    const isLocalParticipant = participant.local;
     
     // Skip logging and processing for local participant updates
     if (isLocalParticipant) return;
+
+    if (isSpectatorEntity(participant)) {
+      console.log('🔒 Skipping spectator participant update to prevent disruption');
+      return;
+    }
+
+    const participantName = getParticipantDisplayName(participant);
+    console.log(`🔄 Remote participant updated: ${participantName || participantId.slice(0,8)}`);
     
-    console.log(`🔄 Remote participant updated: ${event.participant.user_name || participantId.slice(0,8)}`);
-    
-    const tracks = event.participant.tracks;
+    const tracks = participant.tracks;
     
     // For non-local participants only
     if (tracks) {
@@ -1569,7 +1731,7 @@
           if (!hasActiveRemoteVideo) {
             console.log('✅ Setting up remote video for participant');
             setupRemoteVideo(tracks.video.persistentTrack);
-            updateRemoteInfo(event.participant.user_name || 'Guest');
+            updateRemoteInfo(participantName);
           } else {
             console.log('🔒 Remote video already active, ignoring update to prevent disruption');
           }
@@ -1601,10 +1763,26 @@
       }
     } else {
       // Handle remote participant tracks
-      const participantId = event.participant.session_id;
+      const participant = event.participant;
+      const participantId = participant.session_id;
+
+      if (isSpectatorEntity(participant)) {
+        console.log('🔒 Skipping track start for spectator participant:', participantId);
+        return;
+      }
+
+      const participantName = getParticipantDisplayName(participant);
       
       if (event.track.kind === 'video') {
-        if (event.track.label && (event.track.label.includes('screen') || event.track.label.includes('Screen') || event.track.label.includes('display') || event.track.label.includes('Display') || event.track.label.includes('web-contents-media-stream'))) {
+        const isScreenShareTrack = event.track.label && (
+          event.track.label.includes('screen') ||
+          event.track.label.includes('Screen') ||
+          event.track.label.includes('display') ||
+          event.track.label.includes('Display') ||
+          event.track.label.includes('web-contents-media-stream')
+        );
+
+        if (isScreenShareTrack) {
           console.log('📺 Setting up screen share for participant:', participantId);
           if (isSpectator) {
             setupSpectatorScreenShare(event.track);
@@ -1616,10 +1794,9 @@
           if (isSpectator) {
             setupSpectatorVideo(event.track, participantId);
           } else {
-            // IMPROVED: Always set up remote video when camera turns back on
             console.log('🔄 Setting up remote video (camera turned back on)');
             setupRemoteVideo(event.track);
-            updateRemoteInfo(event.participant.user_name || 'Guest');
+            updateRemoteInfo(participantName);
             
             // Hide the camera-off placeholder and show video
             const remoteVideo = document.getElementById('remote-video');
@@ -2313,7 +2490,7 @@
     const participants = call.participants();
     for (const [id, participant] of Object.entries(participants)) {
       if (id === participantId) {
-        return participant.user_name || 'Participant';
+        return getParticipantDisplayName(participant) || 'Participant';
       }
     }
     return 'Participant';
@@ -2797,14 +2974,16 @@
     if (!container) return;
     
     const participants = call.participants();
-    const activeParticipants = Object.values(participants).filter(p => !p.local);
+    const activeParticipants = Object.values(participants).filter(participant => {
+      return !participant.local && !isSpectatorEntity(participant);
+    });
     
     container.innerHTML = '';
     
     activeParticipants.forEach((participant, index) => {
       const badge = document.createElement('div');
       badge.className = 'bg-main-red text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg';
-      badge.textContent = participant.user_name || `Participant ${index + 1}`;
+      badge.textContent = getParticipantDisplayName(participant) || `Participant ${index + 1}`;
       container.appendChild(badge);
     });
   }
@@ -2973,7 +3152,10 @@
   }
 
   async function saveRecordingMetadata(event) {
-    const roomId = btoa(roomUrl);
+    if (!roomId) {
+      console.warn('Skipping recording metadata save: missing room identifier');
+      return;
+    }
     const currentTopic = document.getElementById('topic-display').textContent || 'General Chat';
     const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
     
@@ -2986,11 +3168,11 @@
       autoDelete: preferences.autoDelete,
       status: 'processing',
       createdAt: firebase.database.ServerValue.TIMESTAMP,
-      downloadUrl: null // Will be updated when Daily.co provides the URL
+      downloadUrl: null
     };
     
     try {
-      await db.ref(`recordings/${roomId}/${recordingId}`).set(recordingData);
+      await db.ref('recordings/' + roomId + '/' + recordingId).set(recordingData);
       console.log('💾 Recording metadata saved to Firebase');
       
       showToast('💾 Recording saved! You\'ll receive a download link soon.');
@@ -3013,18 +3195,30 @@
   }
 
   function leaveCall() {
-    if (call) {
-      call.leave();
-    }
+    cleanup({ reason: 'leave-call' });
     window.location.reload();
   }
 
-  function cleanup() {
-    const roomId = btoa(roomUrl);
-    db.ref(`presence/${roomId}/${userId}`).remove();
+  function cleanup(detail) {
+    const reason = typeof detail === 'string'
+      ? detail
+      : (detail && detail.reason) || (detail && detail.type) || 'manual';
     
-    if (call) {
-      call.leave();
+    console.log('Cleaning up presence before exit', { reason });
+    const shouldLeaveCall = ['leave-call', 'beforeunload', 'manual'].includes(reason);
+    const shouldCleanupPresence = shouldLeaveCall;
+
+    if (shouldCleanupPresence && presenceSetupComplete) {
+      cleanupPresenceRecords(reason);
+    }
+    
+    if (shouldLeaveCall && call && hasJoinedMeeting) {
+      try {
+        call.leave();
+        hasJoinedMeeting = false;
+      } catch (error) {
+        console.error('Failed to leave call during cleanup', error);
+      }
     }
   }
 
@@ -3243,6 +3437,41 @@
       toast.classList.add('translate-y-full');
       setTimeout(() => toast.classList.add('hidden'), 300);
     }, 3000);
+  }
+
+
+  function getParticipantRole(participant) {
+    if (participant && participant.userData && participant.userData.role) {
+      return participant.userData.role;
+    }
+    return null;
+  }
+
+  function isSpectatorEntity(participant) {
+    const role = getParticipantRole(participant);
+    if (role) {
+      return role === 'spectator';
+    }
+
+    const name = participant && participant.user_name;
+    if (!name) {
+      return false;
+    }
+
+    return name.startsWith('Viewer_') || name.startsWith('Spectator_');
+  }
+
+  function getParticipantDisplayName(participant) {
+    if (!participant) {
+      return 'Guest';
+    }
+
+    const displayName = participant.userData && participant.userData.displayName;
+    if (displayName) {
+      return displayName;
+    }
+
+    return participant.user_name || 'Guest';
   }
 
   // Spark functions (available to all users but only participants can generate new ones)
@@ -3526,18 +3755,21 @@
     console.log('🔄 Setting up existing participants for participant refresh');
     
     const participants = call.participants();
-    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
+    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => {
+      return !participant.local && !isSpectatorEntity(participant);
+    });
     
     console.log('👥 Found remote participants:', remoteParticipants.length);
     
     remoteParticipants.forEach(([participantId, participant]) => {
-      console.log('🎭 Processing remote participant for participant view:', participantId, participant.user_name);
+      const participantName = getParticipantDisplayName(participant);
+      console.log('🎭 Processing remote participant for participant view:', participantId, participantName);
       
       // Set up video tracks if available
       if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
         console.log('🎥 Setting up remote video for existing participant:', participantId);
         setupRemoteVideo(participant.tracks.video.persistentTrack);
-        updateRemoteInfo(participant.user_name || 'Guest');
+        updateRemoteInfo(participantName);
       }
       
       // Set up screen share tracks if available

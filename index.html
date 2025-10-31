@@ -975,6 +975,7 @@
   const roomId = roomUrl ? encodeRoomId(roomUrl) : null;
   let presenceCleanupTriggered = false;
   let presenceCleanupHandlersRegistered = false;
+  let presenceSetupComplete = false;
 
   // Global variables
   let call = null;
@@ -1006,6 +1007,7 @@
   ];
   let currentSparkIndex = 0;
   let sparkIsSelected = false;
+  let hasJoinedMeeting = false;
 
   function safeDecodeURIComponent(value) {
     if (!value) return value;
@@ -1283,6 +1285,7 @@
       console.warn('Failed to register onDisconnect cleanup for presence claims', error);
     }
     
+    presenceSetupComplete = true;
     presenceCleanupTriggered = false;
   }
 
@@ -1308,6 +1311,11 @@
   }
 
   function cleanupPresenceRecords(reason = 'manual') {
+    if (!presenceSetupComplete) {
+      console.debug('Presence cleanup skipped: setup not complete', { reason });
+      return;
+    }
+    
     if (!roomId || !userId) {
       console.warn('Presence cleanup skipped: missing identifiers', { roomId, userId, reason });
       return;
@@ -1336,6 +1344,8 @@
         console.warn('Unable to schedule Firebase SDK removal for ' + path, sdkError);
       }
     });
+
+    presenceSetupComplete = false;
   }
 
   function queuePresenceDelete(path, reason) {
@@ -1576,6 +1586,7 @@
   }
 
   function handleJoinedMeeting(event) {
+    hasJoinedMeeting = true;
     console.log('✅ Joined meeting successfully');
     
     if (!isSpectator) {
@@ -3148,11 +3159,14 @@
       : (detail && detail.reason) || (detail && detail.type) || 'manual';
     
     console.log('Cleaning up presence before exit', { reason });
-    cleanupPresenceRecords(reason);
+    if (presenceSetupComplete) {
+      cleanupPresenceRecords(reason);
+    }
     
-    if (call) {
+    if (call && hasJoinedMeeting) {
       try {
         call.leave();
+        hasJoinedMeeting = false;
       } catch (error) {
         console.error('Failed to leave call during cleanup', error);
       }

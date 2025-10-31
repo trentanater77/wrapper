@@ -1295,19 +1295,11 @@
     }
     presenceCleanupHandlersRegistered = true;
     
-    const unloadHandler = (event) => {
-      cleanup({ reason: event && event.type ? event.type : 'unload' });
+    const beforeUnloadHandler = () => {
+      cleanup({ reason: 'beforeunload' });
     };
     
-    ['beforeunload', 'unload', 'pagehide'].forEach((eventName) => {
-      window.addEventListener(eventName, unloadHandler);
-    });
-    
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        cleanup({ reason: 'visibilitychange' });
-      }
-    });
+    window.addEventListener('beforeunload', beforeUnloadHandler);
   }
 
   function cleanupPresenceRecords(reason = 'manual') {
@@ -3159,9 +3151,8 @@
       : (detail && detail.reason) || (detail && detail.type) || 'manual';
     
     console.log('Cleaning up presence before exit', { reason });
-    const shouldLeaveCall = ['leave-call', 'beforeunload', 'unload', 'pagehide', 'manual'].includes(reason);
-    const meetingState = call && typeof call.meetingState === 'function' ? call.meetingState() : null;
-    const shouldCleanupPresence = shouldLeaveCall || (reason === 'visibilitychange' && document.visibilityState === 'hidden' && meetingState !== 'joined');
+    const shouldLeaveCall = ['leave-call', 'beforeunload', 'manual'].includes(reason);
+    const shouldCleanupPresence = shouldLeaveCall;
 
     if (shouldCleanupPresence && presenceSetupComplete) {
       cleanupPresenceRecords(reason);

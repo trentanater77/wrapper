@@ -3159,11 +3159,15 @@
       : (detail && detail.reason) || (detail && detail.type) || 'manual';
     
     console.log('Cleaning up presence before exit', { reason });
-    if (presenceSetupComplete) {
+    const shouldLeaveCall = ['leave-call', 'beforeunload', 'unload', 'pagehide', 'manual'].includes(reason);
+    const meetingState = call && typeof call.meetingState === 'function' ? call.meetingState() : null;
+    const shouldCleanupPresence = shouldLeaveCall || (reason === 'visibilitychange' && document.visibilityState === 'hidden' && meetingState !== 'joined');
+
+    if (shouldCleanupPresence && presenceSetupComplete) {
       cleanupPresenceRecords(reason);
     }
     
-    if (call && hasJoinedMeeting) {
+    if (shouldLeaveCall && call && hasJoinedMeeting) {
       try {
         call.leave();
         hasJoinedMeeting = false;

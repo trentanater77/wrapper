@@ -1206,9 +1206,15 @@
     call.on('recording-stopped', handleRecordingStopped);
 
     try {
+      const displayNameForJoin = (window.currentUserData && window.currentUserData.displayName) ? window.currentUserData.displayName : userName;
+
       await call.join({
         url: roomUrl,
-        userName: userName
+        userName: userName,
+        userData: {
+          role: isSpectator ? 'spectator' : 'participant',
+          displayName: displayNameForJoin
+        }
       });
       
       await setupPresence(roomId);
@@ -1626,10 +1632,20 @@
   }
 
   function handleParticipantJoined(event) {
-    const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    if (!event || !event.participant) {
+      return;
+    }
+
+    if (event.participant.local) {
+      return;
+    }
+
+    const participant = event.participant;
+    const participantName = getParticipantDisplayName(participant);
+    const isSpectatorParticipant = isSpectatorEntity(participant);
+    const roleLabel = isSpectatorParticipant ? 'spectator' : 'participant';
     
-    console.log('👋 Participant joined:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant joined:', participantName, `(${roleLabel})`);
     
     if (!isSpectator) {
       // Only process actual participants, not spectators
@@ -1646,10 +1662,20 @@
   }
 
   function handleParticipantLeft(event) {
-    const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    if (!event || !event.participant) {
+      return;
+    }
+
+    if (event.participant.local) {
+      return;
+    }
+
+    const participant = event.participant;
+    const participantName = getParticipantDisplayName(participant);
+    const isSpectatorParticipant = isSpectatorEntity(participant);
+    const roleLabel = isSpectatorParticipant ? 'spectator' : 'participant';
     
-    console.log('👋 Participant left:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant left:', participantName, `(${roleLabel})`);
     
     if (!isSpectator) {
       // Only process actual participants leaving, not spectators
@@ -1661,7 +1687,7 @@
       }
     } else {
       // Remove the participant's video from spectator view
-      const participantId = event.participant.session_id;
+      const participantId = participant.session_id;
       removeSpectatorParticipant(participantId);
       updateSpectatorParticipants();
       showToast(`👋 ${participantName} left the conversation`);
@@ -1669,16 +1695,27 @@
   }
 
   function handleParticipantUpdated(event) {
+    if (!event || !event.participant) {
+      return;
+    }
+
     // Only log when there are meaningful changes, not constant updates
-    const participantId = event.participant.session_id;
-    const isLocalParticipant = event.participant.local;
+    const participant = event.participant;
+    const participantId = participant.session_id;
+    const isLocalParticipant = participant.local;
     
     // Skip logging and processing for local participant updates
     if (isLocalParticipant) return;
+
+    if (isSpectatorEntity(participant)) {
+      console.log('🔒 Skipping spectator participant update to prevent disruption');
+      return;
+    }
+
+    const participantName = getParticipantDisplayName(participant);
+    console.log(`🔄 Remote participant updated: ${participantName || participantId.slice(0,8)}`);
     
-    console.log(`🔄 Remote participant updated: ${event.participant.user_name || participantId.slice(0,8)}`);
-    
-    const tracks = event.participant.tracks;
+    const tracks = participant.tracks;
     
     // For non-local participants only
     if (tracks) {
@@ -1694,7 +1731,7 @@
           if (!hasActiveRemoteVideo) {
             console.log('✅ Setting up remote video for participant');
             setupRemoteVideo(tracks.video.persistentTrack);
-            updateRemoteInfo(event.participant.user_name || 'Guest');
+            updateRemoteInfo(participantName);
           } else {
             console.log('🔒 Remote video already active, ignoring update to prevent disruption');
           }
@@ -1726,10 +1763,26 @@
       }
     } else {
       // Handle remote participant tracks
-      const participantId = event.participant.session_id;
+      const participant = event.participant;
+      const participantId = participant.session_id;
+
+      if (isSpectatorEntity(participant)) {
+        console.log('🔒 Skipping track start for spectator participant:', participantId);
+        return;
+      }
+
+      const participantName = getParticipantDisplayName(participant);
       
       if (event.track.kind === 'video') {
-        if (event.track.label && (event.track.label.includes('screen') || event.track.label.includes('Screen') || event.track.label.includes('display') || event.track.label.includes('Display') || event.track.label.includes('web-contents-media-stream'))) {
+        const isScreenShareTrack = event.track.label && (
+          event.track.label.includes('screen') ||
+          event.track.label.includes('Screen') ||
+          event.track.label.includes('display') ||
+          event.track.label.includes('Display') ||
+          event.track.label.includes('web-contents-media-stream')
+        );
+
+        if (isScreenShareTrack) {
           console.log('📺 Setting up screen share for participant:', participantId);
           if (isSpectator) {
             setupSpectatorScreenShare(event.track);
@@ -1741,10 +1794,9 @@
           if (isSpectator) {
             setupSpectatorVideo(event.track, participantId);
           } else {
-            // IMPROVED: Always set up remote video when camera turns back on
             console.log('🔄 Setting up remote video (camera turned back on)');
             setupRemoteVideo(event.track);
-            updateRemoteInfo(event.participant.user_name || 'Guest');
+            updateRemoteInfo(participantName);
             
             // Hide the camera-off placeholder and show video
             const remoteVideo = document.getElementById('remote-video');
@@ -2438,7 +2490,7 @@
     const participants = call.participants();
     for (const [id, participant] of Object.entries(participants)) {
       if (id === participantId) {
-        return participant.user_name || 'Participant';
+        return getParticipantDisplayName(participant) || 'Participant';
       }
     }
     return 'Participant';
@@ -2922,14 +2974,16 @@
     if (!container) return;
     
     const participants = call.participants();
-    const activeParticipants = Object.values(participants).filter(p => !p.local);
+    const activeParticipants = Object.values(participants).filter(participant => {
+      return !participant.local && !isSpectatorEntity(participant);
+    });
     
     container.innerHTML = '';
     
     activeParticipants.forEach((participant, index) => {
       const badge = document.createElement('div');
       badge.className = 'bg-main-red text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg';
-      badge.textContent = participant.user_name || `Participant ${index + 1}`;
+      badge.textContent = getParticipantDisplayName(participant) || `Participant ${index + 1}`;
       container.appendChild(badge);
     });
   }
@@ -3385,6 +3439,41 @@
     }, 3000);
   }
 
+
+  function getParticipantRole(participant) {
+    if (participant && participant.userData && participant.userData.role) {
+      return participant.userData.role;
+    }
+    return null;
+  }
+
+  function isSpectatorEntity(participant) {
+    const role = getParticipantRole(participant);
+    if (role) {
+      return role === 'spectator';
+    }
+
+    const name = participant && participant.user_name;
+    if (!name) {
+      return false;
+    }
+
+    return name.startsWith('Viewer_') || name.startsWith('Spectator_');
+  }
+
+  function getParticipantDisplayName(participant) {
+    if (!participant) {
+      return 'Guest';
+    }
+
+    const displayName = participant.userData && participant.userData.displayName;
+    if (displayName) {
+      return displayName;
+    }
+
+    return participant.user_name || 'Guest';
+  }
+
   // Spark functions (available to all users but only participants can generate new ones)
   function navigateSpark(direction) {
     if (direction === 'next') {
@@ -3666,18 +3755,21 @@
     console.log('🔄 Setting up existing participants for participant refresh');
     
     const participants = call.participants();
-    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
+    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => {
+      return !participant.local && !isSpectatorEntity(participant);
+    });
     
     console.log('👥 Found remote participants:', remoteParticipants.length);
     
     remoteParticipants.forEach(([participantId, participant]) => {
-      console.log('🎭 Processing remote participant for participant view:', participantId, participant.user_name);
+      const participantName = getParticipantDisplayName(participant);
+      console.log('🎭 Processing remote participant for participant view:', participantId, participantName);
       
       // Set up video tracks if available
       if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
         console.log('🎥 Setting up remote video for existing participant:', participantId);
         setupRemoteVideo(participant.tracks.video.persistentTrack);
-        updateRemoteInfo(participant.user_name || 'Guest');
+        updateRemoteInfo(participantName);
       }
       
       // Set up screen share tracks if available

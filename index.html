@@ -3129,7 +3129,7 @@
       await db.ref('recordings/' + roomId + '/' + recordingId).set(recordingData);
       console.log('💾 Recording metadata saved to Firebase');
       
-      showToast('💾 Recording saved! You'll receive a download link soon.');
+      showToast('💾 Recording saved! You\'ll receive a download link soon.');
       
     } catch (error) {
       console.error('❌ Failed to save recording metadata:', error);

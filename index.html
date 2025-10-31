@@ -967,6 +967,14 @@
 
   const promptsApp = firebase.initializeApp(promptsFirebaseConfig, "prompts");
   const promptsDb = promptsApp.database();
+  const REALTIME_DB_BASE_URL = "https://chatspheresfirebasedb-default-rtdb.firebaseio.com";
+  const urlParams = new URLSearchParams(window.location.search);
+  const rawRoomParam = urlParams.get('room');
+  const roomUrl = rawRoomParam ? safeDecodeURIComponent(rawRoomParam) : null;
+  const spectatorMode = urlParams.get('mode') === 'spectator';
+  const roomId = roomUrl ? encodeRoomId(roomUrl) : null;
+  let presenceCleanupTriggered = false;
+  let presenceCleanupHandlersRegistered = false;
 
   // Global variables
   let call = null;
@@ -999,8 +1007,36 @@
   let currentSparkIndex = 0;
   let sparkIsSelected = false;
 
-  const roomUrl = new URLSearchParams(window.location.search).get('room');
-  const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+  function safeDecodeURIComponent(value) {
+    if (!value) return value;
+    try {
+      return decodeURIComponent(value);
+    } catch (error) {
+      console.warn("Failed to decode room parameter from URL", error);
+      return value;
+    }
+  }
+
+  function encodeRoomId(value) {
+    if (!value) return null;
+    try {
+      return btoa(value);
+    } catch (error) {
+      console.warn("Standard base64 encoding failed, using TextEncoder fallback", error);
+      try {
+        const utf8Bytes = new TextEncoder().encode(value);
+        let binary = "";
+        utf8Bytes.forEach((byte) => {
+          binary += String.fromCharCode(byte);
+        });
+        return btoa(binary);
+      } catch (fallbackError) {
+        console.error("Failed to encode room URL to base64", fallbackError);
+        return null;
+      }
+    }
+  }
+
 
   // Check if valid room URL
   if (!roomUrl) {
@@ -1023,7 +1059,6 @@
     `;
   } else {
     // Get user data from URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
     const usernameFromURL = urlParams.get('username');
     const userIdFromURL = urlParams.get('userId'); 
     const avatarFromURL = urlParams.get('avatar');
@@ -1129,10 +1164,15 @@
   async function initializeVideoChat() {
     await loadRoomInfo();
     
+    if (!roomId) {
+      console.error('Unable to initialize video chat: missing room identifier');
+      showToast('Unable to load the room. Please verify your link and try again.');
+      return;
+    }
+    
     // Set up Firebase for chat and presence
-    const roomId = btoa(roomUrl);
-    chatRef = db.ref(`chats/${roomId}`);
-    viewerCountRef = db.ref(`viewers/${roomId}`);
+    chatRef = db.ref('chats/' + roomId);
+    viewerCountRef = db.ref('viewers/' + roomId);
     
     // Set up user role display
     setupUserRoleDisplay();
@@ -1146,8 +1186,8 @@
     
     // Create Daily call object
     call = Daily.createCallObject({
-      audioSource: !isSpectator,  // Spectators don't need audio
-      videoSource: !isSpectator   // Spectators don't need video
+      audioSource: !isSpectator,
+      videoSource: !isSpectator
     });
     
     // Set up event listeners
@@ -1164,21 +1204,15 @@
     call.on('recording-stopped', handleRecordingStopped);
 
     try {
-      // Join the call
-      await call.join({ 
+      await call.join({
         url: roomUrl,
         userName: userName
       });
       
-      // Set up Firebase presence
       await setupPresence(roomId);
+      setupPresenceCleanupHandlers();
       
-      // Set up chat listeners
       setupChatListeners();
-      
-      // Clean up on page unload
-      window.addEventListener('beforeunload', cleanup);
-
     } catch (error) {
       console.error('Failed to join call:', error);
       showToast('Failed to join the video call. Please try refreshing the page.');
@@ -1217,17 +1251,20 @@
   }
 
   async function setupPresence(roomId) {
-    const presenceRef = db.ref(`presence/${roomId}/${userId}`);
+    if (!roomId || !userId) {
+      console.warn('Skipping presence setup: missing identifiers', { roomId, userId });
+      return;
+    }
     
-    // Set user online
+    const presenceRef = db.ref('presence/' + roomId + '/' + userId);
+    
     await presenceRef.set({
       name: userName,
       type: isSpectator ? 'spectator' : 'participant',
       joinedAt: firebase.database.ServerValue.TIMESTAMP
     });
     
-    // Listen for viewer count changes
-    const allPresenceRef = db.ref(`presence/${roomId}`);
+    const allPresenceRef = db.ref('presence/' + roomId);
     allPresenceRef.on('value', (snapshot) => {
       const users = snapshot.val() || {};
       const spectators = Object.values(users).filter(user => user.type === 'spectator');
@@ -1238,8 +1275,93 @@
       console.log(`👥 Room stats: ${participants.length} participants, ${spectators.length} spectators`);
     });
     
-    // Clean up presence on disconnect
     presenceRef.onDisconnect().remove();
+    
+    try {
+      db.ref('presence/' + roomId + '/__claims/' + userId).onDisconnect().remove();
+    } catch (error) {
+      console.warn('Failed to register onDisconnect cleanup for presence claims', error);
+    }
+    
+    presenceCleanupTriggered = false;
+  }
+
+  function setupPresenceCleanupHandlers() {
+    if (presenceCleanupHandlersRegistered) {
+      return;
+    }
+    presenceCleanupHandlersRegistered = true;
+    
+    const unloadHandler = (event) => {
+      cleanup({ reason: event && event.type ? event.type : 'unload' });
+    };
+    
+    ['beforeunload', 'unload', 'pagehide'].forEach((eventName) => {
+      window.addEventListener(eventName, unloadHandler);
+    });
+    
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        cleanup({ reason: 'visibilitychange' });
+      }
+    });
+  }
+
+  function cleanupPresenceRecords(reason = 'manual') {
+    if (!roomId || !userId) {
+      console.warn('Presence cleanup skipped: missing identifiers', { roomId, userId, reason });
+      return;
+    }
+    
+    if (presenceCleanupTriggered) {
+      console.debug('Presence cleanup already triggered, skipping duplicate request', { reason });
+      return;
+    }
+    
+    presenceCleanupTriggered = true;
+    
+    const paths = [
+      'presence/' + roomId + '/' + userId,
+      'presence/' + roomId + '/__claims/' + userId
+    ];
+    
+    paths.forEach((path) => {
+      queuePresenceDelete(path, reason);
+      
+      try {
+        db.ref(path).remove().catch((error) => {
+          console.warn('Firebase SDK failed to remove ' + path, error);
+        });
+      } catch (sdkError) {
+        console.warn('Unable to schedule Firebase SDK removal for ' + path, sdkError);
+      }
+    });
+  }
+
+  function queuePresenceDelete(path, reason) {
+    const url = REALTIME_DB_BASE_URL + '/' + path + '.json';
+    
+    try {
+      fetch(url, {
+        method: 'DELETE',
+        keepalive: true,
+        mode: 'cors',
+        cache: 'no-store'
+      }).then((response) => {
+        if (!response.ok) {
+          console.warn('Failed to delete presence record via REST', {
+            path: path,
+            status: response.status,
+            statusText: response.statusText,
+            reason: reason
+          });
+        }
+      }).catch((error) => {
+        console.error('Error deleting presence record via REST', { path, error });
+      });
+    } catch (error) {
+      console.error('Unable to queue presence deletion', { path, error });
+    }
   }
 
   function updateViewerCount(count) {
@@ -2973,7 +3095,10 @@
   }
 
   async function saveRecordingMetadata(event) {
-    const roomId = btoa(roomUrl);
+    if (!roomId) {
+      console.warn('Skipping recording metadata save: missing room identifier');
+      return;
+    }
     const currentTopic = document.getElementById('topic-display').textContent || 'General Chat';
     const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
     
@@ -2986,14 +3111,14 @@
       autoDelete: preferences.autoDelete,
       status: 'processing',
       createdAt: firebase.database.ServerValue.TIMESTAMP,
-      downloadUrl: null // Will be updated when Daily.co provides the URL
+      downloadUrl: null
     };
     
     try {
-      await db.ref(`recordings/${roomId}/${recordingId}`).set(recordingData);
+      await db.ref('recordings/' + roomId + '/' + recordingId).set(recordingData);
       console.log('💾 Recording metadata saved to Firebase');
       
-      showToast('💾 Recording saved! You\'ll receive a download link soon.');
+      showToast('💾 Recording saved! You'll receive a download link soon.');
       
     } catch (error) {
       console.error('❌ Failed to save recording metadata:', error);
@@ -3013,18 +3138,24 @@
   }
 
   function leaveCall() {
-    if (call) {
-      call.leave();
-    }
+    cleanup({ reason: 'leave-call' });
     window.location.reload();
   }
 
-  function cleanup() {
-    const roomId = btoa(roomUrl);
-    db.ref(`presence/${roomId}/${userId}`).remove();
+  function cleanup(detail) {
+    const reason = typeof detail === 'string'
+      ? detail
+      : (detail && detail.reason) || (detail && detail.type) || 'manual';
+    
+    console.log('Cleaning up presence before exit', { reason });
+    cleanupPresenceRecords(reason);
     
     if (call) {
-      call.leave();
+      try {
+        call.leave();
+      } catch (error) {
+        console.error('Failed to leave call during cleanup', error);
+      }
     }
   }
 

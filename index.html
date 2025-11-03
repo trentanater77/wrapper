@@ -485,13 +485,16 @@
           <span>REC</span>
         </div>
       </div>
-      
+
       <!-- Timer -->
-      <div class="flex items-center space-x-2">
+      <div class="flex items-center space-x-3">
         <div class="timer-glow bg-main-red text-white px-4 py-2 rounded-full font-bold text-lg">
           <span id="timer-header">60:00</span>
         </div>
-        <span class="text-sm text-gray-600 dark:text-gray-300 hidden sm:block">time remaining</span>
+        <div class="flex flex-col leading-tight">
+          <span class="text-sm text-gray-600 dark:text-gray-300">time remaining</span>
+          <span id="minutes-balance" class="text-xs text-gray-500 dark:text-gray-400">balance: -- min</span>
+        </div>
       </div>
     </div>
   </header>
@@ -937,6 +940,7 @@
 </div>
 
 <script src="https://unpkg.com/@daily-co/daily-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
   // Firebase config - Main database
   const firebaseConfig = {
@@ -979,12 +983,369 @@
   let timeRemaining = 60 * 60; // 1 hour
   let timerInterval = null;
 
-  // User mode and recording
-  let isSpectator = false;
-  let isRecording = false;
-  let recordingId = null;
-  let userName = '';
-  let userId = '';
+    // Supabase configuration (can be overridden by window.__CHATSPHERES_CONFIG__)
+    const SUPABASE_PUBLIC_CONFIG = (() => {
+      const injected = window.__CHATSPHERES_CONFIG__?.supabase;
+      if (injected && injected.supabaseUrl && injected.supabaseAnonKey) {
+        return {
+          url: injected.supabaseUrl,
+          anonKey: injected.supabaseAnonKey
+        };
+      }
+
+      const fallbackUrlSegments = [
+        'https://',
+        'farih',
+        'wlzjieqmgvhagxt',
+        '.supabase.co'
+      ];
+
+      const fallbackAnonKeySegments = [
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+        'eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhcmlod2x6amllcW1ndmhhZ3h0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4OTYyNzEsImV4cCI6MjA2OTQ3MjI3MX0',
+        'rlZiUqfFfJSGrS5dVcm-s96L4v7Fb4cgvLUnJeOtYEE'
+      ];
+
+      return {
+        url: fallbackUrlSegments.join(''),
+        anonKey: fallbackAnonKeySegments.join('.')
+      };
+    })();
+
+    let supabaseClient = null;
+    let supabaseInitializationError = null;
+    let currentUserStats = null;
+    let conversationSessionId = null;
+    let sessionStartTimestamp = null;
+    let sessionMaxDurationSeconds = 60 * 60;
+    let roomExpiryWarningShown = false;
+    let roomExpiryWarningTimeoutId = null;
+    let roomExpiryTimeoutId = null;
+    let sessionFinalizing = false;
+    let roomExpiryAnnounced = false;
+
+    async function ensureSupabaseClient() {
+      if (supabaseInitializationError) {
+        throw supabaseInitializationError;
+      }
+
+      if (supabaseClient) {
+        return supabaseClient;
+      }
+
+      if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+        const error = new Error('Supabase client library did not load');
+        supabaseInitializationError = error;
+        throw error;
+      }
+
+      try {
+        supabaseClient = window.supabase.createClient(
+          SUPABASE_PUBLIC_CONFIG.url,
+          SUPABASE_PUBLIC_CONFIG.anonKey,
+          {
+            auth: { persistSession: false },
+            global: {
+              headers: {
+                'x-client-info': 'chatspheres-web/1.0.0'
+              }
+            }
+          }
+        );
+        return supabaseClient;
+      } catch (error) {
+        supabaseInitializationError = error;
+        throw error;
+      }
+    }
+
+    async function fetchUserStatsFromSupabase(userIdValue) {
+      const client = await ensureSupabaseClient();
+      const { data, error } = await client
+        .from('user_stats')
+        .select('minutes_remaining, account_tier, total_conversations, total_minutes')
+        .eq('user_id', userIdValue)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    }
+
+    function updateRemainingMinutesUI(minutesValue) {
+      const balanceEl = document.getElementById('minutes-balance');
+      if (!balanceEl) return;
+
+      if (typeof minutesValue === 'number' && Number.isFinite(minutesValue)) {
+        const normalized = Math.max(0, Math.floor(minutesValue));
+        balanceEl.textContent = `balance: ${normalized} min`;
+      } else {
+        balanceEl.textContent = 'balance: -- min';
+      }
+    }
+
+    function renderTime(seconds) {
+      const safeSeconds = Math.max(0, Math.floor(seconds || 0));
+      const minutes = Math.floor(safeSeconds / 60);
+      const secs = safeSeconds % 60;
+      const timeString = `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+      const timerEl = document.getElementById('timer');
+      const headerEl = document.getElementById('timer-header');
+
+      if (timerEl) timerEl.textContent = timeString;
+      if (headerEl) headerEl.textContent = timeString;
+    }
+
+    function setTimerDisplayFromSeconds(seconds) {
+      timeRemaining = Math.max(0, Math.floor(seconds || 0));
+      renderTime(timeRemaining);
+    }
+
+    function parseRoomIdentifiers(urlString) {
+      try {
+        const decodedUrl = urlString ? decodeURIComponent(urlString) : '';
+        const parsedUrl = new URL(decodedUrl);
+        const pathSegments = parsedUrl.pathname.split('/').filter(Boolean);
+        const roomSlug = pathSegments[pathSegments.length - 1] || '';
+        const normalizedRoomSlug = roomSlug.split('?')[0];
+        const sphereId = normalizedRoomSlug.startsWith('sphere-')
+          ? normalizedRoomSlug.replace('sphere-', '')
+          : null;
+
+        return {
+          roomSlug: normalizedRoomSlug,
+          sphereId
+        };
+      } catch (error) {
+        console.error('Failed to parse room identifiers from URL', error);
+        return {
+          roomSlug: null,
+          sphereId: null
+        };
+      }
+    }
+
+    function showJoinBlockedView(message, options = {}) {
+      const overlay = document.getElementById('waiting-overlay');
+      if (!overlay) return;
+
+      const titleEl = overlay.querySelector('.waiting-title');
+      const subtitleEl = document.getElementById('waiting-mode');
+      const badgeEl = overlay.querySelector('.status-badge');
+
+      if (titleEl) {
+        titleEl.textContent = options.title || 'unable to join';
+      }
+
+      if (subtitleEl) {
+        subtitleEl.textContent = message;
+      }
+
+      if (badgeEl) {
+        badgeEl.textContent = options.badgeText || 'check your plan';
+        badgeEl.style.background = '#e63946';
+        badgeEl.style.color = '#fff';
+      }
+    }
+
+    async function prepareParticipantSession() {
+      if (isSpectator) {
+        return true;
+      }
+
+      if (!providedUserId) {
+        showJoinBlockedView('Your invite link is missing your account id. Please sign in again.', {
+          title: 'missing account information'
+        });
+        return false;
+      }
+
+      try {
+        const stats = await fetchUserStatsFromSupabase(providedUserId);
+
+        if (!stats) {
+          showJoinBlockedView('We could not find your usage stats. Please contact support.');
+          return false;
+        }
+
+        currentUserStats = stats;
+        updateRemainingMinutesUI(stats.minutes_remaining);
+
+        sessionMaxDurationSeconds = Math.min(
+          60 * 60,
+          Math.max(0, (stats.minutes_remaining || 0)) * 60
+        );
+
+        if (sessionMaxDurationSeconds <= 0) {
+          showJoinBlockedView('You are out of minutes. Upgrade your plan to keep chatting.', {
+            badgeText: 'add minutes to continue'
+          });
+          return false;
+        }
+
+        setTimerDisplayFromSeconds(sessionMaxDurationSeconds);
+        return true;
+      } catch (error) {
+        console.error('Failed to load user stats from Supabase', error);
+        showJoinBlockedView('We could not verify your remaining minutes. Please refresh and try again.');
+        return false;
+      }
+    }
+
+    async function startParticipantSessionTracking() {
+      if (isSpectator) {
+        return null;
+      }
+
+      if (conversationSessionId) {
+        return conversationSessionId;
+      }
+
+      try {
+        const client = await ensureSupabaseClient();
+        const nowIso = new Date().toISOString();
+        const identifiers = parseRoomIdentifiers(roomUrl);
+
+        const payload = {
+          user_id: providedUserId,
+          room_id: identifiers.roomSlug || roomUrl,
+          sphere_id: identifiers.sphereId,
+          started_at: nowIso,
+          joined_at: nowIso,
+          status: 'active'
+        };
+
+        const { data, error } = await client
+          .from('conversation_sessions')
+          .insert(payload)
+          .select('id, started_at')
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        conversationSessionId = data?.id || null;
+        sessionStartTimestamp = data?.started_at ? Date.parse(data.started_at) : Date.now();
+        roomExpiryWarningShown = false;
+        scheduleRoomExpiryGuard();
+
+        return conversationSessionId;
+      } catch (error) {
+        console.error('Failed to create conversation session in Supabase', error);
+        throw error;
+      }
+    }
+
+    function scheduleRoomExpiryGuard() {
+      clearTimeout(roomExpiryWarningTimeoutId);
+      clearTimeout(roomExpiryTimeoutId);
+
+      if (sessionMaxDurationSeconds <= 0) {
+        return;
+      }
+
+      if (sessionMaxDurationSeconds >= 3600) {
+        const warningDelayMs = (sessionMaxDurationSeconds - 300) * 1000;
+        roomExpiryWarningTimeoutId = setTimeout(() => {
+          if (!roomExpiryWarningShown) {
+            showToast('Room expires in 5 minutes');
+            roomExpiryWarningShown = true;
+          }
+        }, warningDelayMs);
+      }
+
+      roomExpiryTimeoutId = setTimeout(() => {
+        if (!roomExpiryAnnounced) {
+          roomExpiryAnnounced = true;
+          showToast('Room expired');
+        }
+        finalizeConversationSession('room_expired').finally(() => {
+          if (call) {
+            call.leave();
+          }
+        });
+      }, sessionMaxDurationSeconds * 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
+
+    async function refreshUserMinutes() {
+      if (!providedUserId) return;
+
+      try {
+        const stats = await fetchUserStatsFromSupabase(providedUserId);
+        if (stats) {
+          currentUserStats = stats;
+          updateRemainingMinutesUI(stats.minutes_remaining);
+        }
+      } catch (error) {
+        console.error('Failed to refresh user minutes', error);
+      }
+    }
+
+    async function finalizeConversationSession(reason = 'user_left') {
+      if (isSpectator) {
+        return;
+      }
+
+      if (!conversationSessionId || sessionFinalizing) {
+        return;
+      }
+
+      sessionFinalizing = true;
+
+      try {
+        const client = await ensureSupabaseClient();
+        const { data, error } = await client.rpc('end_conversation_session', {
+          p_session_id: conversationSessionId
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data && typeof data.minutes_charged === 'number') {
+          const updatedRemaining = Math.max(
+            0,
+            (currentUserStats?.minutes_remaining ?? 0) - data.minutes_charged
+          );
+          currentUserStats = {
+            ...(currentUserStats || {}),
+            minutes_remaining: updatedRemaining
+          };
+          updateRemainingMinutesUI(updatedRemaining);
+        } else {
+          await refreshUserMinutes();
+        }
+      } catch (error) {
+        console.error(`Failed to finalize conversation session (${reason})`, error);
+      } finally {
+        conversationSessionId = null;
+        sessionFinalizing = false;
+        clearTimeout(roomExpiryWarningTimeoutId);
+        clearTimeout(roomExpiryTimeoutId);
+        sessionStartTimestamp = null;
+        roomExpiryAnnounced = false;
+        stopTimer();
+      }
+    }
+
+    // User mode and recording
+    let isSpectator = false;
+    let isRecording = false;
+    let recordingId = null;
+    let userName = '';
+    let userId = '';
+    let providedUserId = null;
 
   // Chat system
   let chatRef = null;
@@ -1035,6 +1396,7 @@
     // Use real user data or fallback to generated names
     userName = usernameFromURL || (isSpectator ? `Viewer_${Math.random().toString(36).slice(2, 8)}` : `User_${Math.random().toString(36).slice(2, 8)}`);
     userId = userIdFromURL || `${isSpectator ? 'spectator' : 'participant'}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    providedUserId = userIdFromURL || null;
     
     // Store additional user data for UI display
     window.currentUserData = {
@@ -1126,64 +1488,78 @@
     console.log("✅ Updated description:", description);
   }
 
-  async function initializeVideoChat() {
-    await loadRoomInfo();
-    
-    // Set up Firebase for chat and presence
-    const roomId = btoa(roomUrl);
-    chatRef = db.ref(`chats/${roomId}`);
-    viewerCountRef = db.ref(`viewers/${roomId}`);
-    
-    // Set up user role display
-    setupUserRoleDisplay();
-    
-    // Set up layout based on user type
-    if (isSpectator) {
-      setupSpectatorMode();
-    } else {
-      setupParticipantMode();
-    }
-    
-    // Create Daily call object
-    call = Daily.createCallObject({
-      audioSource: !isSpectator,  // Spectators don't need audio
-      videoSource: !isSpectator   // Spectators don't need video
-    });
-    
-    // Set up event listeners
-    call.on('joined-meeting', handleJoinedMeeting);
-    call.on('participant-joined', handleParticipantJoined);
-    call.on('participant-left', handleParticipantLeft);
-    call.on('participant-updated', handleParticipantUpdated);
-    call.on('track-started', handleTrackStarted);
-    call.on('track-stopped', handleTrackStopped);
-    call.on('app-message', handleAppMessage);
-    call.on('error', handleError);
-    call.on('camera-error', handleCameraError);
-    call.on('recording-started', handleRecordingStarted);
-    call.on('recording-stopped', handleRecordingStopped);
+    async function initializeVideoChat() {
+      await loadRoomInfo();
 
-    try {
-      // Join the call
-      await call.join({ 
-        url: roomUrl,
-        userName: userName
+      // Reset timers and warning state before joining a new room
+        stopTimer();
+        roomExpiryWarningShown = false;
+        roomExpiryAnnounced = false;
+
+      // Set up Firebase for chat and presence
+      const roomId = btoa(roomUrl);
+      chatRef = db.ref(`chats/${roomId}`);
+      viewerCountRef = db.ref(`viewers/${roomId}`);
+
+      // Set up user role display
+      setupUserRoleDisplay();
+
+      // Set up layout based on user type and verify account minutes when needed
+      if (isSpectator) {
+        setupSpectatorMode();
+        timeRemaining = 60 * 60;
+        setTimerDisplayFromSeconds(timeRemaining);
+        updateRemainingMinutesUI(null);
+      } else {
+        setupParticipantMode();
+        const canJoin = await prepareParticipantSession();
+        if (!canJoin) {
+          console.warn('✅ Blocking Daily join - user has no minutes remaining');
+          return;
+        }
+      }
+
+      // Create Daily call object
+      call = Daily.createCallObject({
+        audioSource: !isSpectator,  // Spectators don't need audio
+        videoSource: !isSpectator   // Spectators don't need video
       });
-      
-      // Set up Firebase presence
-      await setupPresence(roomId);
-      
-      // Set up chat listeners
-      setupChatListeners();
-      
-      // Clean up on page unload
-      window.addEventListener('beforeunload', cleanup);
 
-    } catch (error) {
-      console.error('Failed to join call:', error);
-      showToast('Failed to join the video call. Please try refreshing the page.');
+      // Set up event listeners
+      call.on('joined-meeting', handleJoinedMeeting);
+      call.on('participant-joined', handleParticipantJoined);
+      call.on('participant-left', handleParticipantLeft);
+      call.on('participant-updated', handleParticipantUpdated);
+      call.on('track-started', handleTrackStarted);
+      call.on('track-stopped', handleTrackStopped);
+      call.on('app-message', handleAppMessage);
+      call.on('error', handleError);
+      call.on('camera-error', handleCameraError);
+      call.on('recording-started', handleRecordingStarted);
+      call.on('recording-stopped', handleRecordingStopped);
+      call.on('left-meeting', handleLeftMeeting);
+
+      try {
+        // Join the call
+        await call.join({
+          url: roomUrl,
+          userName: userName
+        });
+
+        // Set up Firebase presence
+        await setupPresence(roomId);
+
+        // Set up chat listeners
+        setupChatListeners();
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', cleanup);
+
+      } catch (error) {
+        console.error('Failed to join call:', error);
+        showToast('Failed to join the video call. Please try refreshing the page.');
+      }
     }
-  }
 
   function setupUserRoleDisplay() {
     const roleBadge = document.getElementById('user-role-badge');
@@ -1453,52 +1829,67 @@
     document.getElementById('participant-char-count').textContent = '0';
   }
 
-  function handleJoinedMeeting(event) {
-    console.log('✅ Joined meeting successfully');
-    
-    if (!isSpectator) {
-      // Update mic/camera states for participants
-      isMicOn = call.localAudio();
-      isCameraOn = call.localVideo();
-      
-      const micBtn = document.getElementById('mic-btn');
-      const cameraBtn = document.getElementById('camera-btn');
-      
-      if (isMicOn) {
-        micBtn.classList.remove('active');
+    async function handleJoinedMeeting(event) {
+      console.log('✅ Joined meeting successfully');
+
+      if (!isSpectator) {
+        // Update mic/camera states for participants
+        isMicOn = call.localAudio();
+        isCameraOn = call.localVideo();
+
+        const micBtn = document.getElementById('mic-btn');
+        const cameraBtn = document.getElementById('camera-btn');
+
+        if (isMicOn) {
+          micBtn.classList.remove('active');
+        } else {
+          micBtn.classList.add('active');
+        }
+
+        if (isCameraOn) {
+          cameraBtn.classList.remove('active');
+        } else {
+          cameraBtn.classList.add('active');
+        }
+
+        setupLocalVideo();
+
+        if (isMicOn) {
+          startAudioLevelMonitoring();
+        }
+
+        requestPermissionsAndSetupDevices();
+        initializeSparks();
+
+        // For participants, also set up existing participants after joining (for refresh case)
+        setTimeout(setupExistingParticipantsForParticipant, 1000);
       } else {
-        micBtn.classList.add('active');
+        // For spectators, set up existing participants after joining - but wait longer for better user experience
+        setTimeout(setupExistingParticipants, 3000);
       }
-      
-      if (isCameraOn) {
-        cameraBtn.classList.remove('active');
-      } else {
-        cameraBtn.classList.add('active');
+
+      // Hide waiting overlay and show video interface
+      document.getElementById('waiting-overlay').style.display = 'none';
+      document.getElementById('video-interface').classList.remove('hidden');
+
+      if (!isSpectator) {
+        try {
+          await startParticipantSessionTracking();
+          setTimerDisplayFromSeconds(sessionMaxDurationSeconds);
+        } catch (error) {
+          console.error('Failed to start Supabase session tracking', error);
+          showToast('We could not start session tracking. Ending the call.');
+          await finalizeConversationSession('session_init_failed');
+          if (call) {
+            call.leave();
+          }
+          return;
+        }
       }
-      
-      setupLocalVideo();
-      
-      if (isMicOn) {
-        startAudioLevelMonitoring();
-      }
-      
-      requestPermissionsAndSetupDevices();
-      initializeSparks();
-      
-      // For participants, also set up existing participants after joining (for refresh case)
-      setTimeout(setupExistingParticipantsForParticipant, 1000);
-    } else {
-      // For spectators, set up existing participants after joining - but wait longer for better user experience
-      setTimeout(setupExistingParticipants, 3000);
+
+      startTimer();
+      showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
     }
-    
-    // Hide waiting overlay and show video interface
-    document.getElementById('waiting-overlay').style.display = 'none';
-    document.getElementById('video-interface').classList.remove('hidden');
-    
-    startTimer();
-    showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
-  }
 
   function handleParticipantJoined(event) {
     const participantName = event.participant.user_name || 'Guest';
@@ -1542,6 +1933,20 @@
       showToast(`👋 ${participantName} left the conversation`);
     }
   }
+
+    async function handleLeftMeeting(event) {
+      console.log('👋 Local participant left meeting', event);
+
+      if (!isSpectator) {
+        try {
+          await finalizeConversationSession('left_meeting');
+        } catch (error) {
+          console.error('Failed to finalize session after leaving meeting', error);
+        }
+      }
+
+      stopTimer();
+    }
 
   function handleParticipantUpdated(event) {
     // Only log when there are meaningful changes, not constant updates
@@ -3012,17 +3417,38 @@
     }
   }
 
-  function leaveCall() {
-    if (call) {
-      call.leave();
+  async function leaveCall() {
+    if (!isSpectator) {
+      try {
+        await finalizeConversationSession('user_left');
+      } catch (error) {
+        console.error('Failed to finalize session on leave', error);
+      }
     }
+
+    if (call) {
+      try {
+        await call.leave();
+      } catch (error) {
+        console.error('Failed to leave Daily call cleanly', error);
+      }
+    }
+
     window.location.reload();
   }
 
   function cleanup() {
     const roomId = btoa(roomUrl);
     db.ref(`presence/${roomId}/${userId}`).remove();
-    
+
+    if (!isSpectator) {
+      finalizeConversationSession('page_unload').catch((error) => {
+        console.error('Failed to finalize session during cleanup', error);
+      });
+    }
+
+    stopTimer();
+
     if (call) {
       call.leave();
     }
@@ -3198,23 +3624,53 @@
 
   // Timer functions
   function startTimer() {
+    stopTimer();
+    updateTimer();
     timerInterval = setInterval(updateTimer, 1000);
   }
 
   function updateTimer() {
-    const minutes = Math.floor(timeRemaining / 60);
-    const seconds = timeRemaining % 60;
-    const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
-    document.getElementById('timer').textContent = timeString;
-    document.getElementById('timer-header').textContent = timeString;
-    
-    if (timeRemaining > 0) {
-      timeRemaining--;
+    let secondsLeft;
+
+    if (!isSpectator && sessionStartTimestamp) {
+      const elapsedSeconds = Math.floor((Date.now() - sessionStartTimestamp) / 1000);
+      secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
     } else {
-      clearInterval(timerInterval);
-      showToast('⏰ Time\'s up! Thanks for chatting!');
-      if (call) call.leave();
+      secondsLeft = Math.max(timeRemaining, 0);
+      if (secondsLeft > 0) {
+        secondsLeft -= 1;
+      }
+    }
+
+    timeRemaining = secondsLeft;
+    renderTime(secondsLeft);
+
+    if (!isSpectator && sessionMaxDurationSeconds >= 3600 && secondsLeft === 300 && !roomExpiryWarningShown) {
+      roomExpiryWarningShown = true;
+      showToast('Room expires in 5 minutes');
+    }
+
+    if (secondsLeft <= 0) {
+      stopTimer();
+      if (!isSpectator) {
+        if (!roomExpiryAnnounced) {
+          roomExpiryAnnounced = true;
+          showToast('Room expired');
+        }
+        finalizeConversationSession('time_expired').finally(() => {
+          if (call) {
+            call.leave();
+          }
+        });
+      } else {
+        if (!roomExpiryAnnounced) {
+          roomExpiryAnnounced = true;
+          showToast('Room expired');
+        }
+        if (call) {
+          call.leave();
+        }
+      }
     }
   }
 

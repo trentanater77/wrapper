@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   
   <script>
@@ -968,6 +969,45 @@
   const promptsApp = firebase.initializeApp(promptsFirebaseConfig, "prompts");
   const promptsDb = promptsApp.database();
 
+  // Supabase client setup for session tracking
+  function resolveSupabaseConfig() {
+    var metaUrlTag = document.querySelector('meta[name="supabase-url"]');
+    var metaKeyTag = document.querySelector('meta[name="supabase-anon-key"]');
+    var configSources = [
+      { url: window.SUPABASE_URL, key: window.SUPABASE_ANON_KEY },
+      { url: window.__SUPABASE_URL__, key: window.__SUPABASE_ANON_KEY__ },
+      { url: window.__SUPABASE_CONFIG__ ? window.__SUPABASE_CONFIG__.url : null, key: window.__SUPABASE_CONFIG__ ? window.__SUPABASE_CONFIG__.anonKey : null },
+      { url: window.__ENV__ ? (window.__ENV__.SUPABASE_URL || window.__ENV__.supabaseUrl || (window.__ENV__.supabase ? window.__ENV__.supabase.url : null)) : null, key: window.__ENV__ ? (window.__ENV__.SUPABASE_ANON_KEY || window.__ENV__.supabaseAnonKey || (window.__ENV__.supabase ? window.__ENV__.supabase.anonKey : null)) : null },
+      { url: window.ENV ? (window.ENV.SUPABASE_URL || window.ENV.supabaseUrl || (window.ENV.supabase ? window.ENV.supabase.url : null)) : null, key: window.ENV ? (window.ENV.SUPABASE_ANON_KEY || window.ENV.supabaseAnonKey || (window.ENV.supabase ? window.ENV.supabase.anonKey : null)) : null },
+      { url: window.__APP_CONFIG__ ? (window.__APP_CONFIG__.SUPABASE_URL || window.__APP_CONFIG__.supabaseUrl || (window.__APP_CONFIG__.supabase ? window.__APP_CONFIG__.supabase.url : null)) : null, key: window.__APP_CONFIG__ ? (window.__APP_CONFIG__.SUPABASE_ANON_KEY || window.__APP_CONFIG__.supabaseAnonKey || (window.__APP_CONFIG__.supabase ? window.__APP_CONFIG__.supabase.anonKey : null)) : null },
+      { url: metaUrlTag ? metaUrlTag.getAttribute('content') : null, key: metaKeyTag ? metaKeyTag.getAttribute('content') : null }
+    ];
+
+    for (var i = 0; i < configSources.length; i++) {
+      var candidate = configSources[i];
+      if (candidate && candidate.url && candidate.key) {
+        return { url: candidate.url, anonKey: candidate.key };
+      }
+    }
+
+    return null;
+  }
+
+  var supabaseClient = null;
+  var resolvedSupabaseConfig = resolveSupabaseConfig();
+
+  if (window.supabase && resolvedSupabaseConfig) {
+    supabaseClient = window.supabase.createClient(resolvedSupabaseConfig.url, resolvedSupabaseConfig.anonKey, {
+      auth: { persistSession: false }
+    });
+    console.log('✅ Supabase client initialized for session tracking');
+  } else {
+    console.warn('⚠️ Supabase client not configured. Conversation session billing updates will be skipped.', {
+      hasLibrary: !!window.supabase,
+      hasConfig: !!resolvedSupabaseConfig
+    });
+  }
+
   // Global variables
   let call = null;
   let localVideo = null;
@@ -985,6 +1025,12 @@
   let recordingId = null;
   let userName = '';
   let userId = '';
+  let conversationRoomId = null;
+  let firebaseRoomId = '';
+  const conversationSessionEndState = {
+    inFlight: false,
+    ended: false
+  };
 
   // Chat system
   let chatRef = null;
@@ -999,8 +1045,158 @@
   let currentSparkIndex = 0;
   let sparkIsSelected = false;
 
-  const roomUrl = new URLSearchParams(window.location.search).get('room');
-  const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+    const roomUrl = new URLSearchParams(window.location.search).get('room');
+    const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+
+    function extractRoomIdentifier(url) {
+      if (!url) return null;
+
+      try {
+        var parsed = new URL(url);
+        var pathname = parsed.pathname || '';
+        var segments = pathname.split('/').filter(function(segment) {
+          return segment && segment.trim().length > 0;
+        });
+
+        if (segments.length > 0) {
+          return segments[segments.length - 1];
+        }
+
+        return pathname || url;
+      } catch (error) {
+        var sanitized = url.split('?')[0].split('#')[0];
+        var fallbackSegments = sanitized.split('/').filter(function(segment) {
+          return segment && segment.trim().length > 0;
+        });
+
+        if (fallbackSegments.length > 0) {
+          return fallbackSegments[fallbackSegments.length - 1];
+        }
+
+        return sanitized || url;
+      }
+    }
+
+    function getConversationSessionIdentifiers() {
+      var identifiers = [];
+
+      if (conversationRoomId) {
+        identifiers.push(conversationRoomId);
+      }
+
+      if (roomUrl) {
+        identifiers.push(roomUrl);
+
+        try {
+          var encoded = btoa(roomUrl);
+          if (encoded) {
+            identifiers.push(encoded);
+          }
+        } catch (encodeError) {
+          console.debug('Supabase room identifier base64 encoding failed (non-blocking).', encodeError);
+        }
+      }
+
+      return identifiers.filter(function(value, index, array) {
+        return value && array.indexOf(value) === index;
+      });
+    }
+
+    async function endConversationSession(reason) {
+      if (isSpectator) {
+        conversationSessionEndState.ended = true;
+        return;
+      }
+
+      if (!supabaseClient) {
+        console.warn('⚠️ Supabase client unavailable. Skipping conversation session end update.', {
+          reason: reason || 'unspecified'
+        });
+        conversationSessionEndState.ended = true;
+        return;
+      }
+
+      if (conversationSessionEndState.ended || conversationSessionEndState.inFlight) {
+        return;
+      }
+
+      if (!userId) {
+        console.warn('⚠️ Cannot end conversation session without a userId.', {
+          reason: reason || 'unspecified'
+        });
+        return;
+      }
+
+      var identifiers = getConversationSessionIdentifiers();
+      if (!identifiers.length) {
+        console.warn('⚠️ No room identifiers available for conversation session update.', {
+          reason: reason || 'unspecified'
+        });
+        conversationSessionEndState.ended = true;
+        return;
+      }
+
+      conversationSessionEndState.inFlight = true;
+      var endedSuccessfully = false;
+      var endedAtValue = new Date().toISOString();
+      var hadSupabaseError = false;
+
+      try {
+        for (var i = 0; i < identifiers.length; i++) {
+          var identifier = identifiers[i];
+
+          const { data, error } = await supabaseClient
+            .from('conversation_sessions')
+            .update({
+              ended_at: endedAtValue,
+              status: 'completed'
+            })
+            .eq('user_id', userId)
+            .eq('room_id', identifier)
+            .is('ended_at', null)
+            .select('id');
+
+          if (error) {
+            console.error('Error ending session via Supabase:', {
+              reason: reason || 'unspecified',
+              roomIdentifier: identifier,
+              error: error
+            });
+            continue;
+          }
+
+          var rowsUpdated = Array.isArray(data) ? data.length : (data ? 1 : 0);
+
+          if (rowsUpdated > 0) {
+            console.log('Session ended successfully - minutes will be charged', {
+              reason: reason || 'unspecified',
+              roomIdentifier: identifier,
+              rowsUpdated: rowsUpdated
+            });
+            endedSuccessfully = true;
+            break;
+          }
+        }
+
+        if (!endedSuccessfully) {
+          console.warn('⚠️ No matching conversation session found to end (it may already be completed).', {
+            reason: reason || 'unspecified',
+            identifiersTried: identifiers
+          });
+        }
+      } catch (err) {
+        console.error('Failed to end conversation session:', {
+          reason: reason || 'unspecified',
+          error: err
+        });
+        hadSupabaseError = true;
+      } finally {
+        conversationSessionEndState.inFlight = false;
+        if (endedSuccessfully || !hadSupabaseError) {
+          conversationSessionEndState.ended = true;
+        }
+      }
+    }
 
   // Check if valid room URL
   if (!roomUrl) {
@@ -1021,7 +1217,14 @@
         </div>
       </div>
     `;
-  } else {
+    } else {
+      conversationRoomId = extractRoomIdentifier(roomUrl);
+      if (conversationRoomId) {
+        console.log('🆔 Conversation session room identifier resolved:', conversationRoomId);
+      } else {
+        console.warn('⚠️ Unable to derive conversation room identifier from room URL.', { roomUrl: roomUrl });
+      }
+
     // Get user data from URL parameters
     const urlParams = new URLSearchParams(window.location.search);
     const usernameFromURL = urlParams.get('username');
@@ -1126,14 +1329,15 @@
     console.log("✅ Updated description:", description);
   }
 
-  async function initializeVideoChat() {
-    await loadRoomInfo();
-    
-    // Set up Firebase for chat and presence
-    const roomId = btoa(roomUrl);
-    chatRef = db.ref(`chats/${roomId}`);
-    viewerCountRef = db.ref(`viewers/${roomId}`);
-    
+    async function initializeVideoChat() {
+      await loadRoomInfo();
+      
+      // Set up Firebase for chat and presence
+      firebaseRoomId = btoa(roomUrl);
+      const roomId = firebaseRoomId;
+      chatRef = db.ref(`chats/${roomId}`);
+      viewerCountRef = db.ref(`viewers/${roomId}`);
+      
     // Set up user role display
     setupUserRoleDisplay();
     
@@ -1156,12 +1360,13 @@
     call.on('participant-left', handleParticipantLeft);
     call.on('participant-updated', handleParticipantUpdated);
     call.on('track-started', handleTrackStarted);
-    call.on('track-stopped', handleTrackStopped);
-    call.on('app-message', handleAppMessage);
-    call.on('error', handleError);
-    call.on('camera-error', handleCameraError);
-    call.on('recording-started', handleRecordingStarted);
-    call.on('recording-stopped', handleRecordingStopped);
+      call.on('track-stopped', handleTrackStopped);
+      call.on('app-message', handleAppMessage);
+      call.on('error', handleError);
+      call.on('camera-error', handleCameraError);
+      call.on('recording-started', handleRecordingStarted);
+      call.on('recording-stopped', handleRecordingStopped);
+      call.on('left-meeting', handleLeftMeeting);
 
     try {
       // Join the call
@@ -1176,8 +1381,9 @@
       // Set up chat listeners
       setupChatListeners();
       
-      // Clean up on page unload
-      window.addEventListener('beforeunload', cleanup);
+        // Clean up on page unload
+        window.addEventListener('beforeunload', cleanup);
+        window.addEventListener('pagehide', cleanup);
 
     } catch (error) {
       console.error('Failed to join call:', error);
@@ -1499,6 +1705,11 @@
     startTimer();
     showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
   }
+
+    function handleLeftMeeting() {
+      console.log('👋 Local participant left the meeting');
+      endConversationSession('left-meeting');
+    }
 
   function handleParticipantJoined(event) {
     const participantName = event.participant.user_name || 'Guest';
@@ -3012,21 +3223,43 @@
     }
   }
 
-  function leaveCall() {
-    if (call) {
-      call.leave();
-    }
-    window.location.reload();
-  }
+    async function leaveCall(event) {
+      if (event && typeof event.preventDefault === 'function') {
+        event.preventDefault();
+      }
 
-  function cleanup() {
-    const roomId = btoa(roomUrl);
-    db.ref(`presence/${roomId}/${userId}`).remove();
-    
-    if (call) {
-      call.leave();
+      if (call) {
+        try {
+          await call.leave();
+        } catch (error) {
+          console.error('Error while leaving Daily call:', error);
+        }
+      }
+
+      if (firebaseRoomId && userId) {
+        db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
+      }
+
+      await endConversationSession('leave-button');
+
+      window.location.reload();
     }
-  }
+
+    function cleanup() {
+      if (firebaseRoomId && userId) {
+        db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
+      }
+      
+      if (call) {
+        try {
+          call.leave();
+        } catch (error) {
+          console.error('Error while leaving Daily call during cleanup:', error);
+        }
+      }
+
+      endConversationSession('cleanup');
+    }
 
   // Event listeners for controls (only set up for participants)
   if (!isSpectator) {

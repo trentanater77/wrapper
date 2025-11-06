@@ -1016,10 +1016,17 @@
   let currentRoomSlug = null;
   let sessionRpcConsumed = false;
   let roomStartTimestamp = null;
+  let sessionInitialMinutes = null;
+  let sessionFinalizationBeaconPromise = null;
+  let sessionBeaconTriggered = false;
+  let sessionBeaconMinutesCharged = null;
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') {
-      finalizeConversationSession('visibility_hidden');
+  window.addEventListener('pagehide', () => {
+    if (!isSpectator && conversationSessionId) {
+      sendFallbackBeacon('pagehide');
+      finalizeConversationSession('pagehide').catch((error) => {
+        console.error('Failed to finalize session on pagehide', error);
+      });
     }
   });
 
@@ -1278,6 +1285,7 @@
         updateRemainingMinutesUI(null);
         setTimerDisplayFromSeconds(MAX_SESSION_SECONDS);
         sessionMaxDurationSeconds = MAX_SESSION_SECONDS;
+        sessionInitialMinutes = null;
         return true;
       }
 
@@ -1306,6 +1314,7 @@
 
         const minutesRemaining = Math.max(0, stats.minutes_remaining || 0);
         updateRemainingMinutesUI(minutesRemaining);
+        sessionInitialMinutes = minutesRemaining;
 
         sessionMaxDurationSeconds = Math.min(MAX_SESSION_SECONDS, minutesRemaining * 60);
 
@@ -1504,7 +1513,7 @@
 
       sessionFinalizing = true;
 
-      const runFallbackFinalization = async (minutesFromRpc = null) => {
+    const runFallbackFinalization = async (minutesFromRpc = null, { skipDbUpdates = false } = {}) => {
         try {
           const client = await ensureSupabaseClient();
           const endTime = new Date();
@@ -1523,6 +1532,7 @@
             updated_at: endIso
           };
 
+        if (!skipDbUpdates) {
           await client
             .from('conversation_sessions')
             .update(sessionUpdate)
@@ -1533,11 +1543,14 @@
             stats = await fetchUserStatsFromSupabase(providedUserId);
           }
 
-          if (stats) {
-            const remaining = Math.max(0, coerceToNumber(stats.minutes_remaining) - minutesCharged);
-            const totalMinutes = coerceToNumber(stats.total_minutes) + minutesCharged;
-            const totalConversations = coerceToNumber(stats.total_conversations) + 1;
-            const minutesThisMonth = coerceToNumber(stats.minutes_used_this_month) + minutesCharged;
+          if (stats || sessionInitialMinutes != null) {
+            const baselineMinutes = sessionInitialMinutes != null
+              ? sessionInitialMinutes
+              : coerceToNumber(stats?.minutes_remaining);
+            const remaining = Math.max(0, baselineMinutes - minutesCharged);
+            const totalMinutes = coerceToNumber(stats?.total_minutes) + minutesCharged;
+            const totalConversations = coerceToNumber(stats?.total_conversations) + 1;
+            const minutesThisMonth = coerceToNumber(stats?.minutes_used_this_month) + minutesCharged;
 
             await client
               .from('user_stats')
@@ -1552,7 +1565,7 @@
               .eq('user_id', providedUserId);
 
             currentUserStats = {
-              ...stats,
+              ...(stats || currentUserStats || {}),
               minutes_remaining: remaining,
               total_minutes: totalMinutes,
               total_conversations: totalConversations,
@@ -1563,8 +1576,9 @@
 
             updateRemainingMinutesUI(remaining);
           }
+        }
 
-          await refreshUserMinutes();
+        await refreshUserMinutes();
         } catch (fallbackError) {
           console.error('Failed during fallback session finalization', fallbackError);
         }
@@ -1575,43 +1589,66 @@
         let shouldFallback = false;
         let rpcMinutesCharged = null;
 
-        try {
-          const { data, error } = await client.rpc('end_conversation_session', {
-            p_session_id: conversationSessionId
-          });
-
-          if (error) {
-            throw error;
-          }
-
-          if (data && data.success !== false && typeof data.minutes_charged === 'number') {
-            rpcMinutesCharged = data.minutes_charged;
-            const remaining = Math.max(0, coerceToNumber(currentUserStats?.minutes_remaining) - rpcMinutesCharged);
-            if (currentUserStats) {
-              currentUserStats = {
-                ...currentUserStats,
-                minutes_remaining: remaining
-              };
+        if (sessionFinalizationBeaconPromise) {
+          try {
+            const beaconResults = await sessionFinalizationBeaconPromise;
+            const beaconSuccess = Array.isArray(beaconResults) && beaconResults.every((result) => result.status === 'fulfilled');
+            if (beaconSuccess) {
+              sessionRpcConsumed = true;
+              rpcMinutesCharged = sessionBeaconMinutesCharged;
+              shouldFallback = false;
+            } else {
+              shouldFallback = true;
             }
-            updateRemainingMinutesUI(remaining);
-            await refreshUserMinutes();
-          } else {
-            console.warn('Supabase session RPC returned unexpected payload, running fallback update');
+          } catch (beaconError) {
+            console.warn('Beacon finalization did not complete successfully', beaconError);
             shouldFallback = true;
           }
-        } catch (rpcError) {
-          console.error(`Failed to finalize conversation session via RPC (${reason})`, rpcError);
-          shouldFallback = true;
+        }
+
+        if (!sessionRpcConsumed) {
+          try {
+            const { data, error } = await client.rpc('end_conversation_session', {
+              p_session_id: conversationSessionId
+            });
+
+            if (error) {
+              throw error;
+            }
+
+            if (data && data.success !== false && typeof data.minutes_charged === 'number') {
+              rpcMinutesCharged = data.minutes_charged;
+              const remaining = Math.max(0, coerceToNumber(currentUserStats?.minutes_remaining) - rpcMinutesCharged);
+              if (currentUserStats) {
+                currentUserStats = {
+                  ...currentUserStats,
+                  minutes_remaining: remaining
+                };
+              }
+              updateRemainingMinutesUI(remaining);
+              await refreshUserMinutes();
+            } else {
+              console.warn('Supabase session RPC returned unexpected payload, running fallback update');
+              shouldFallback = true;
+            }
+          } catch (rpcError) {
+            console.error(`Failed to finalize conversation session via RPC (${reason})`, rpcError);
+            shouldFallback = true;
+          }
         }
 
         if (shouldFallback) {
-          await runFallbackFinalization(rpcMinutesCharged);
+          await runFallbackFinalization(rpcMinutesCharged, {
+            skipDbUpdates: sessionBeaconTriggered && sessionRpcConsumed
+          });
         } else {
           sessionRpcConsumed = true;
         }
       } catch (error) {
         console.error('Unexpected error during session finalization handling', error);
-        await runFallbackFinalization();
+        await runFallbackFinalization(null, {
+          skipDbUpdates: sessionBeaconTriggered && sessionRpcConsumed
+        });
       } finally {
         conversationSessionId = null;
         sessionFinalizing = false;
@@ -1625,6 +1662,10 @@
         roomExpiryAnnounced = false;
         currentRoomSlug = null;
         sessionRpcConsumed = false;
+        sessionInitialMinutes = null;
+        sessionFinalizationBeaconPromise = null;
+        sessionBeaconTriggered = false;
+        sessionBeaconMinutesCharged = null;
         roomStartTimestamp = null;
         stopTimer();
       }
@@ -1823,6 +1864,94 @@
     const elapsedSeconds = Math.max(0, Math.floor((Date.now() - sessionStartTimestamp) / 1000));
     const secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
     setTimerDisplayFromSeconds(secondsLeft);
+  }
+
+  async function sendFallbackBeacon(reason = 'beacon') {
+    if (isSpectator || !conversationSessionId || sessionBeaconTriggered) {
+      return sessionBeaconMinutesCharged;
+    }
+
+    const { url, anonKey } = getSupabaseCredentials();
+    if (!url || !anonKey) {
+      return null;
+    }
+
+    const endIso = new Date().toISOString();
+    const durationSeconds = calculateElapsedSeconds();
+    const durationMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+    const initialMinutes = sessionInitialMinutes != null
+      ? sessionInitialMinutes
+      : coerceToNumber(currentUserStats?.minutes_remaining);
+    const minutesAllowance = Math.max(1, Math.min(Math.ceil(MAX_SESSION_SECONDS / 60), initialMinutes || durationMinutes));
+    const minutesCharged = Math.min(durationMinutes, minutesAllowance);
+    const newRemaining = Math.max(0, (initialMinutes || 0) - minutesCharged);
+    const totalMinutes = coerceToNumber(currentUserStats?.total_minutes) + minutesCharged;
+    const totalConversations = coerceToNumber(currentUserStats?.total_conversations) + 1;
+    const minutesThisMonth = coerceToNumber(currentUserStats?.minutes_used_this_month) + minutesCharged;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+      Prefer: 'return=minimal'
+    };
+
+    const sessionUpdate = {
+      ended_at: endIso,
+      left_at: endIso,
+      duration_seconds: durationSeconds,
+      duration_minutes: durationMinutes,
+      minutes_charged: minutesCharged,
+      status: 'completed',
+      updated_at: endIso
+    };
+
+    const statsUpdate = {
+      minutes_remaining: newRemaining,
+      total_minutes: totalMinutes,
+      total_conversations: totalConversations,
+      minutes_used_this_month: minutesThisMonth,
+      last_active_date: endIso,
+      updated_at: endIso
+    };
+
+    sessionBeaconTriggered = true;
+    sessionBeaconMinutesCharged = minutesCharged;
+
+    currentUserStats = {
+      ...(currentUserStats || {}),
+      minutes_remaining: newRemaining,
+      total_minutes: totalMinutes,
+      total_conversations: totalConversations,
+      minutes_used_this_month: minutesThisMonth,
+      last_active_date: endIso,
+      updated_at: endIso
+    };
+    updateRemainingMinutesUI(newRemaining);
+
+    const sessionUrl = `${url}/rest/v1/conversation_sessions?id=eq.${conversationSessionId}`;
+    const statsUrl = `${url}/rest/v1/user_stats?user_id=eq.${providedUserId}`;
+
+    sessionFinalizationBeaconPromise = Promise.allSettled([
+      fetch(sessionUrl, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(sessionUpdate),
+        keepalive: true
+      }),
+      fetch(statsUrl, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(statsUpdate),
+        keepalive: true
+      })
+    ]);
+
+    sessionFinalizationBeaconPromise.catch((error) => {
+      console.warn('Fallback beacon failed', error);
+    });
+
+    return minutesCharged;
   }
 
   function setupUserRoleDisplay() {
@@ -3712,6 +3841,7 @@
     db.ref(`presence/${roomId}/${userId}`).remove();
     
     if (!isSpectator) {
+      sendFallbackBeacon('page_unload');
       finalizeConversationSession('page_unload').catch((error) => {
         console.error('Failed to finalize session during cleanup', error);
       });

@@ -1020,6 +1020,7 @@
   let sessionFinalizationBeaconPromise = null;
   let sessionBeaconTriggered = false;
   let sessionBeaconMinutesCharged = null;
+  let roomSyncIntervalId = null;
 
   window.addEventListener('pagehide', () => {
     if (!isSpectator && conversationSessionId) {
@@ -1418,6 +1419,17 @@
         setTimerDisplayFromSeconds(secondsLeft);
         timeRemaining = secondsLeft;
 
+        if (roomSyncIntervalId) {
+          clearInterval(roomSyncIntervalId);
+        }
+        roomSyncIntervalId = setInterval(() => {
+          syncRoomStartTimestamp(client, sessionStartTimestamp || Date.now());
+        }, 5000);
+
+        setTimeout(() => {
+          syncRoomStartTimestamp(client, sessionStartTimestamp || Date.now());
+        }, 2000);
+
         return conversationSessionId;
       };
 
@@ -1715,6 +1727,10 @@
         sessionBeaconTriggered = false;
         sessionBeaconMinutesCharged = null;
         roomStartTimestamp = null;
+        if (roomSyncIntervalId) {
+          clearInterval(roomSyncIntervalId);
+          roomSyncIntervalId = null;
+        }
         stopTimer();
       }
     }
@@ -1811,6 +1827,18 @@
       timeRemaining = MAX_SESSION_SECONDS;
       setTimerDisplayFromSeconds(timeRemaining);
       updateRemainingMinutesUI(null);
+        try {
+          const client = await ensureSupabaseClient();
+          await syncRoomStartTimestamp(client, Date.now());
+          if (roomSyncIntervalId) {
+            clearInterval(roomSyncIntervalId);
+          }
+          roomSyncIntervalId = setInterval(() => {
+            syncRoomStartTimestamp(client, roomStartTimestamp || Date.now());
+          }, 5000);
+        } catch (error) {
+          console.warn('Failed to sync spectator timer', error);
+        }
     } else {
       setupParticipantMode();
       const canJoin = await prepareParticipantSession();
@@ -3891,6 +3919,11 @@
     if (call) {
       call.leave();
     }
+
+    if (roomSyncIntervalId) {
+      clearInterval(roomSyncIntervalId);
+      roomSyncIntervalId = null;
+    }
   }
 
   // Event listeners for controls (only set up for participants)
@@ -4068,50 +4101,49 @@
     timerInterval = setInterval(updateTimer, 1000);
   }
 
-  function updateTimer() {
-    let secondsLeft;
+    function updateTimer() {
+      let secondsLeft;
 
-    if (!isSpectator) {
-      const elapsedSeconds = calculateElapsedSeconds();
-      secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
-
-      if (sessionMaxDurationSeconds >= MAX_SESSION_SECONDS && secondsLeft === 300 && !roomExpiryWarningShown) {
-        roomExpiryWarningShown = true;
-        showToast('Room expires in 5 minutes');
-      }
-    } else {
-      secondsLeft = Math.max(timeRemaining, 0);
-      if (secondsLeft > 0) {
-        secondsLeft -= 1;
-      }
-      timeRemaining = secondsLeft;
-    }
-
-    setTimerDisplayFromSeconds(secondsLeft);
-
-    if (secondsLeft <= 0) {
-      stopTimer();
       if (!isSpectator) {
-        if (!roomExpiryAnnounced) {
-          roomExpiryAnnounced = true;
-          showToast('Room expired');
+        const elapsedSeconds = calculateElapsedSeconds();
+        secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
+
+        if (sessionMaxDurationSeconds >= MAX_SESSION_SECONDS && secondsLeft === 300 && !roomExpiryWarningShown) {
+          roomExpiryWarningShown = true;
+          showToast('Room expires in 5 minutes');
         }
-        finalizeConversationSession('time_expired').finally(() => {
+      } else {
+        const elapsedSeconds = calculateElapsedSeconds();
+        secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
+        timeRemaining = secondsLeft;
+      }
+
+      setTimerDisplayFromSeconds(secondsLeft);
+      timeRemaining = secondsLeft;
+
+      if (secondsLeft <= 0) {
+        stopTimer();
+        if (!isSpectator) {
+          if (!roomExpiryAnnounced) {
+            roomExpiryAnnounced = true;
+            showToast('Room expired');
+          }
+          finalizeConversationSession('time_expired').finally(() => {
+            if (call) {
+              call.leave();
+            }
+          });
+        } else {
+          if (!roomExpiryAnnounced) {
+            roomExpiryAnnounced = true;
+            showToast('Room expired');
+          }
           if (call) {
             call.leave();
           }
-        });
-      } else {
-        if (!roomExpiryAnnounced) {
-          roomExpiryAnnounced = true;
-          showToast('Room expired');
-        }
-        if (call) {
-          call.leave();
         }
       }
     }
-  }
 
   // Sticky timer scroll handler
   window.addEventListener('scroll', function() {

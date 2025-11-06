@@ -1462,28 +1462,112 @@
 
       sessionFinalizing = true;
 
+      const runFallbackFinalization = async (minutesFromRpc = null) => {
+        try {
+          const client = await ensureSupabaseClient();
+          const endTime = new Date();
+          const endIso = endTime.toISOString();
+          const durationSeconds = calculateElapsedSeconds();
+          const durationMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
+          const minutesCharged = minutesFromRpc != null ? minutesFromRpc : Math.min(durationMinutes, 60);
+
+          const sessionUpdate = {
+            ended_at: endIso,
+            left_at: endIso,
+            duration_seconds: durationSeconds,
+            duration_minutes: durationMinutes,
+            minutes_charged: minutesCharged,
+            status: 'completed',
+            updated_at: endIso
+          };
+
+          await client
+            .from('conversation_sessions')
+            .update(sessionUpdate)
+            .eq('id', conversationSessionId);
+
+          let stats = currentUserStats;
+          if (!stats) {
+            stats = await fetchUserStatsFromSupabase(providedUserId);
+          }
+
+          if (stats) {
+            const remaining = Math.max(0, coerceToNumber(stats.minutes_remaining) - minutesCharged);
+            const totalMinutes = coerceToNumber(stats.total_minutes) + minutesCharged;
+            const totalConversations = coerceToNumber(stats.total_conversations) + 1;
+            const minutesThisMonth = coerceToNumber(stats.minutes_used_this_month) + minutesCharged;
+
+            await client
+              .from('user_stats')
+              .update({
+                minutes_remaining: remaining,
+                total_minutes: totalMinutes,
+                total_conversations: totalConversations,
+                minutes_used_this_month: minutesThisMonth,
+                last_active_date: endIso,
+                updated_at: endIso
+              })
+              .eq('user_id', providedUserId);
+
+            currentUserStats = {
+              ...stats,
+              minutes_remaining: remaining,
+              total_minutes: totalMinutes,
+              total_conversations: totalConversations,
+              minutes_used_this_month: minutesThisMonth,
+              last_active_date: endIso,
+              updated_at: endIso
+            };
+
+            updateRemainingMinutesUI(remaining);
+          }
+
+          await refreshUserMinutes();
+        } catch (fallbackError) {
+          console.error('Failed during fallback session finalization', fallbackError);
+        }
+      };
+
       try {
         const client = await ensureSupabaseClient();
-        const { data, error } = await client.rpc('end_conversation_session', {
-          p_session_id: conversationSessionId
-        });
+        let shouldFallback = false;
+        let rpcMinutesCharged = null;
 
-        if (error) {
-          throw error;
+        try {
+          const { data, error } = await client.rpc('end_conversation_session', {
+            p_session_id: conversationSessionId
+          });
+
+          if (error) {
+            throw error;
+          }
+
+          if (data && data.success !== false && typeof data.minutes_charged === 'number') {
+            rpcMinutesCharged = data.minutes_charged;
+            const remaining = Math.max(0, coerceToNumber(currentUserStats?.minutes_remaining) - rpcMinutesCharged);
+            if (currentUserStats) {
+              currentUserStats = {
+                ...currentUserStats,
+                minutes_remaining: remaining
+              };
+            }
+            updateRemainingMinutesUI(remaining);
+            await refreshUserMinutes();
+          } else {
+            console.warn('Supabase session RPC returned unexpected payload, running fallback update');
+            shouldFallback = true;
+          }
+        } catch (rpcError) {
+          console.error(`Failed to finalize conversation session via RPC (${reason})`, rpcError);
+          shouldFallback = true;
         }
 
-        if (data && typeof data.minutes_charged === 'number') {
-          const updatedRemaining = Math.max(0, (currentUserStats?.minutes_remaining ?? 0) - data.minutes_charged);
-          currentUserStats = {
-            ...(currentUserStats || {}),
-            minutes_remaining: updatedRemaining
-          };
-          updateRemainingMinutesUI(updatedRemaining);
+        if (shouldFallback) {
+          await runFallbackFinalization(rpcMinutesCharged);
         }
-
-        await refreshUserMinutes();
       } catch (error) {
-        console.error(`Failed to finalize conversation session (${reason})`, error);
+        console.error('Unexpected error during session finalization handling', error);
+        await runFallbackFinalization();
       } finally {
         conversationSessionId = null;
         sessionFinalizing = false;
@@ -1495,6 +1579,7 @@
         roomExpiryTimeoutId = null;
         roomExpiryWarningShown = false;
         roomExpiryAnnounced = false;
+        currentRoomSlug = null;
         stopTimer();
       }
     }
@@ -1641,6 +1726,27 @@
       console.error('Failed to join call:', error);
       showToast('Failed to join the video call. Please try refreshing the page.');
     }
+  }
+
+  function coerceToNumber(value, fallback = 0) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    }
+    return fallback;
+  }
+
+  function calculateElapsedSeconds() {
+    if (sessionStartTimestamp) {
+      const elapsed = Math.floor((Date.now() - sessionStartTimestamp) / 1000);
+      if (Number.isFinite(elapsed) && elapsed > 0) {
+        return Math.min(MAX_SESSION_SECONDS, elapsed);
+      }
+    }
+    return MAX_SESSION_SECONDS;
   }
 
   function setupUserRoleDisplay() {

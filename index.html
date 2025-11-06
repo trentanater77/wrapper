@@ -1901,13 +1901,14 @@
 
   function calculateElapsedSeconds() {
     const referenceStart = roomStartTimestamp || sessionStartTimestamp;
-    if (referenceStart) {
-      const elapsed = Math.floor((Date.now() - referenceStart) / 1000);
-      if (Number.isFinite(elapsed) && elapsed > 0) {
-        return Math.min(MAX_SESSION_SECONDS, elapsed);
-      }
+    if (!referenceStart) {
+      return 0;
     }
-    return MAX_SESSION_SECONDS;
+    const elapsed = Math.floor((Date.now() - referenceStart) / 1000);
+    if (!Number.isFinite(elapsed) || elapsed <= 0) {
+      return 0;
+    }
+    return Math.min(MAX_SESSION_SECONDS, elapsed);
   }
 
   async function syncRoomStartTimestamp(client, fallbackStartMs) {

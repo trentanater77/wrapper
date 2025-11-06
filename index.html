@@ -1014,17 +1014,12 @@
   let roomExpiryAnnounced = false;
   let joinBlocked = false;
   let currentRoomSlug = null;
-  let sessionRpcConsumed = false;
   let roomStartTimestamp = null;
   let sessionInitialMinutes = null;
-  let sessionFinalizationBeaconPromise = null;
-  let sessionBeaconTriggered = false;
-  let sessionBeaconMinutesCharged = null;
   let roomSyncIntervalId = null;
 
   window.addEventListener('pagehide', () => {
     if (!isSpectator && conversationSessionId) {
-      sendFallbackBeacon('pagehide');
       finalizeConversationSession('pagehide').catch((error) => {
         console.error('Failed to finalize session on pagehide', error);
       });
@@ -1033,7 +1028,17 @@
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && !isSpectator && conversationSessionId) {
-      sendFallbackBeacon('visibility_hidden');
+      finalizeConversationSession('visibility_hidden').catch((error) => {
+        console.error('Failed to finalize session on visibility change', error);
+      });
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    if (!isSpectator && conversationSessionId) {
+      finalizeConversationSession('aborted').catch((error) => {
+        console.error('Failed to finalize session before unload', error);
+      });
     }
   });
 
@@ -1384,7 +1389,6 @@
         sessionStartTimestamp = fallbackStart;
         roomExpiryWarningShown = false;
         roomExpiryAnnounced = false;
-        sessionRpcConsumed = false;
 
         if (sessionInitialMinutes == null) {
           sessionInitialMinutes = Math.max(0, coerceToNumber(currentUserStats?.minutes_remaining));
@@ -1499,7 +1503,11 @@
       const remainingSeconds = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
 
       if (remainingSeconds <= 0) {
-        finalizeConversationSession('time_expired_immediate');
+        finalizeConversationSession('time_expired_immediate').then((sessionId) => {
+          if (sessionId) {
+            setTimeout(() => updateUserMinutesUsed(sessionId), 500);
+          }
+        });
         return;
       }
 
@@ -1516,212 +1524,105 @@
         }
       }
 
-      roomExpiryTimeoutId = setTimeout(() => {
-        if (!roomExpiryAnnounced) {
-          roomExpiryAnnounced = true;
-          showToast('Room expired');
-        }
-        finalizeConversationSession('room_expired').finally(() => {
-          if (call) {
-            call.leave();
+        roomExpiryTimeoutId = setTimeout(() => {
+          if (!roomExpiryAnnounced) {
+            roomExpiryAnnounced = true;
+            showToast('Room expired');
           }
-        });
-      }, remainingSeconds * 1000);
+          finalizeConversationSession('room_expired')
+            .then((sessionId) => {
+              if (sessionId) {
+                setTimeout(() => updateUserMinutesUsed(sessionId), 500);
+              }
+            })
+            .finally(() => {
+              if (call) {
+                call.leave();
+              }
+            });
+        }, remainingSeconds * 1000);
     }
 
-    async function finalizeConversationSession(reason = 'user_left') {
-      if (isSpectator) {
+  async function finalizeConversationSession(status = 'completed') {
+    if (isSpectator || !conversationSessionId || sessionFinalizing) {
+      return null;
+    }
+
+    sessionFinalizing = true;
+    const sessionId = conversationSessionId;
+
+    try {
+      const client = await ensureSupabaseClient();
+      const { error } = await client
+        .from('conversation_sessions')
+        .update({
+          status,
+          ended_at: new Date().toISOString()
+        })
+        .eq('id', sessionId);
+
+      if (error) {
+        console.error('❌ Failed to finalize session:', error);
+        return null;
+      }
+
+      console.log(`✅ Session ${sessionId} finalized with status: ${status}`);
+      return sessionId;
+    } catch (error) {
+      console.error('❌ Error finalizing session:', error);
+      return null;
+    } finally {
+      sessionFinalizing = false;
+    }
+  }
+
+  async function updateUserMinutesUsed(sessionId) {
+    if (!sessionId || isSpectator) {
+      console.log('⏭️ Skipping minute deduction (spectator or no session)');
+      return;
+    }
+
+    try {
+      const client = await ensureSupabaseClient();
+
+      const { data: session, error: sessionError } = await client
+        .from('conversation_sessions')
+        .select('duration_seconds, user_id')
+        .eq('id', sessionId)
+        .single();
+
+      if (sessionError) {
+        console.error('❌ Could not fetch session duration:', sessionError);
         return;
       }
 
-      if (!conversationSessionId || sessionFinalizing) {
+      if (!session || !session.duration_seconds) {
+        console.error('❌ Session has no duration calculated yet');
         return;
       }
 
-      sessionFinalizing = true;
+      const minutesUsed = Math.ceil(session.duration_seconds / 60);
 
-      const runFallbackFinalization = async (minutesFromRpc = null, { skipDbUpdates = false } = {}) => {
-        try {
-          const client = await ensureSupabaseClient();
-          const endTime = new Date();
-          const endIso = endTime.toISOString();
-          const durationSeconds = calculateElapsedSeconds();
-          const durationMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
-          let minutesCharged = minutesFromRpc != null ? minutesFromRpc : Math.min(durationMinutes, 60);
+      console.log(`📊 Session ${sessionId}: ${session.duration_seconds}s = ${minutesUsed} minutes`);
 
-          let manualUpdateNeeded = !skipDbUpdates;
+      const { error: deductError } = await client.rpc('deduct_user_minutes', {
+        p_user_id: session.user_id,
+        p_minutes: minutesUsed
+      });
 
-          if (!skipDbUpdates) {
-            try {
-              const { data: rpcData, error: rpcError } = await client.rpc('end_conversation_session', {
-                p_session_id: conversationSessionId
-              });
+      if (deductError) {
+        console.error('❌ Failed to deduct minutes:', deductError);
+        return;
+      }
 
-              if (rpcError) {
-                throw rpcError;
-              }
+      console.log(`✅ Deducted ${minutesUsed} minutes from user ${session.user_id}`);
 
-              if (rpcData && typeof rpcData.minutes_charged === 'number') {
-                minutesCharged = rpcData.minutes_charged;
-              }
+      await refreshUserMinutes();
 
-              manualUpdateNeeded = false;
-            } catch (rpcRetryError) {
-              console.error('Fallback RPC execution failed', rpcRetryError);
-              manualUpdateNeeded = true;
-            }
-          }
-
-          if (manualUpdateNeeded) {
-            const sessionUpdate = {
-              ended_at: endIso,
-              left_at: endIso,
-              duration_seconds: durationSeconds,
-              duration_minutes: durationMinutes,
-              minutes_charged: minutesCharged,
-              status: 'completed',
-              updated_at: endIso
-            };
-
-            await client
-              .from('conversation_sessions')
-              .update(sessionUpdate)
-              .eq('id', conversationSessionId);
-
-            let stats = currentUserStats;
-            if (!stats) {
-              stats = await fetchUserStatsFromSupabase(providedUserId);
-            }
-
-            if (stats || sessionInitialMinutes != null) {
-              const baselineMinutes = sessionInitialMinutes != null
-                ? sessionInitialMinutes
-                : coerceToNumber(stats?.minutes_remaining);
-              const remaining = Math.max(0, baselineMinutes - minutesCharged);
-              const totalMinutes = coerceToNumber(stats?.total_minutes) + minutesCharged;
-              const totalConversations = coerceToNumber(stats?.total_conversations) + 1;
-              const minutesThisMonth = coerceToNumber(stats?.minutes_used_this_month) + minutesCharged;
-
-              await client
-                .from('user_stats')
-                .update({
-                  minutes_remaining: remaining,
-                  total_minutes: totalMinutes,
-                  total_conversations: totalConversations,
-                  minutes_used_this_month: minutesThisMonth,
-                  last_active_date: endIso,
-                  updated_at: endIso
-                })
-                .eq('user_id', providedUserId);
-
-              currentUserStats = {
-                ...(stats || currentUserStats || {}),
-                minutes_remaining: remaining,
-                total_minutes: totalMinutes,
-                total_conversations: totalConversations,
-                minutes_used_this_month: minutesThisMonth,
-                last_active_date: endIso,
-                updated_at: endIso
-              };
-
-              updateRemainingMinutesUI(remaining);
-              sessionInitialMinutes = remaining;
-            }
-          }
-
-          await refreshUserMinutes();
-        } catch (fallbackError) {
-          console.error('Failed during fallback session finalization', fallbackError);
-        }
-      };
-
-      try {
-        const client = await ensureSupabaseClient();
-        let shouldFallback = false;
-        let rpcMinutesCharged = null;
-
-        if (sessionFinalizationBeaconPromise) {
-          try {
-            const beaconResults = await sessionFinalizationBeaconPromise;
-            const beaconSuccess = Array.isArray(beaconResults) && beaconResults.every((result) => result.status === 'fulfilled');
-            if (beaconSuccess) {
-              sessionRpcConsumed = true;
-              rpcMinutesCharged = sessionBeaconMinutesCharged;
-              shouldFallback = false;
-            } else {
-              shouldFallback = true;
-            }
-          } catch (beaconError) {
-            console.warn('Beacon finalization did not complete successfully', beaconError);
-            shouldFallback = true;
-          }
-        }
-
-        if (!sessionRpcConsumed) {
-          try {
-            const { data, error } = await client.rpc('end_conversation_session', {
-              p_session_id: conversationSessionId
-            });
-
-            if (error) {
-              throw error;
-            }
-
-            if (data && data.success !== false && typeof data.minutes_charged === 'number') {
-              rpcMinutesCharged = data.minutes_charged;
-              const remaining = Math.max(0, coerceToNumber(currentUserStats?.minutes_remaining) - rpcMinutesCharged);
-              if (currentUserStats) {
-                currentUserStats = {
-                  ...currentUserStats,
-                  minutes_remaining: remaining
-                };
-              }
-              updateRemainingMinutesUI(remaining);
-              await refreshUserMinutes();
-            } else {
-              console.warn('Supabase session RPC returned unexpected payload, running fallback update');
-              shouldFallback = true;
-            }
-          } catch (rpcError) {
-            console.error(`Failed to finalize conversation session via RPC (${reason})`, rpcError);
-            shouldFallback = true;
-          }
-        }
-
-        const minutesForFallback = typeof rpcMinutesCharged === 'number' && rpcMinutesCharged > 0 ? rpcMinutesCharged : null;
-
-        if (shouldFallback) {
-          await runFallbackFinalization(minutesForFallback, {
-            skipDbUpdates: sessionBeaconTriggered && sessionRpcConsumed
-          });
-        } else {
-          sessionRpcConsumed = true;
-          await runFallbackFinalization(minutesForFallback, {
-            skipDbUpdates: sessionBeaconTriggered && sessionRpcConsumed
-          });
-        }
-      } catch (error) {
-        console.error('Unexpected error during session finalization handling', error);
-        await runFallbackFinalization(null, {
-          skipDbUpdates: sessionBeaconTriggered && sessionRpcConsumed
-        });
-      } finally {
+      if (conversationSessionId === sessionId) {
         conversationSessionId = null;
-        sessionFinalizing = false;
         sessionStartTimestamp = null;
-        sessionMaxDurationSeconds = MAX_SESSION_SECONDS;
-        clearTimeout(roomExpiryWarningTimeoutId);
-        clearTimeout(roomExpiryTimeoutId);
-        roomExpiryWarningTimeoutId = null;
-        roomExpiryTimeoutId = null;
-        roomExpiryWarningShown = false;
-        roomExpiryAnnounced = false;
-        currentRoomSlug = null;
-        sessionRpcConsumed = false;
         sessionInitialMinutes = null;
-        sessionFinalizationBeaconPromise = null;
-        sessionBeaconTriggered = false;
-        sessionBeaconMinutesCharged = null;
         roomStartTimestamp = null;
         if (roomSyncIntervalId) {
           clearInterval(roomSyncIntervalId);
@@ -1729,14 +1630,18 @@
         }
         stopTimer();
       }
-    }
 
-    function stopTimer() {
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
+    } catch (error) {
+      console.error('❌ Error updating user minutes:', error);
     }
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
 
     // Load room info
   async function loadRoomInfo() {
@@ -1967,54 +1872,6 @@
     const secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
     setTimerDisplayFromSeconds(secondsLeft);
     timeRemaining = secondsLeft;
-  }
-
-  async function sendFallbackBeacon(reason = 'beacon') {
-    if (isSpectator || !conversationSessionId || sessionBeaconTriggered) {
-      return sessionBeaconMinutesCharged;
-    }
-
-    const { url, anonKey } = getSupabaseCredentials();
-    if (!url || !anonKey) {
-      return null;
-    }
-
-    sessionBeaconTriggered = true;
-    const headers = {
-      'Content-Type': 'application/json',
-      apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`
-    };
-
-    const rpcUrl = `${url}/rest/v1/rpc/end_conversation_session`;
-
-    sessionFinalizationBeaconPromise = fetch(rpcUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ p_session_id: conversationSessionId }),
-      keepalive: true
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          const errText = await response.text();
-          throw new Error(errText || `RPC failed with status ${response.status}`);
-        }
-        try {
-          const payload = await response.json();
-          if (payload && typeof payload.minutes_charged === 'number') {
-            sessionBeaconMinutesCharged = payload.minutes_charged;
-          }
-        } catch (parseError) {
-          // No JSON body; ignore
-        }
-      })
-      .catch((error) => {
-        console.warn('Fallback beacon RPC failed', error);
-        sessionBeaconMinutesCharged = null;
-        throw error;
-      });
-
-    return sessionBeaconMinutesCharged;
   }
 
   function setupUserRoleDisplay() {
@@ -2339,6 +2196,10 @@
         console.error('Failed to start Supabase session tracking', error);
         showToast('We could not start session tracking. Ending the call.');
         await finalizeConversationSession('session_init_failed');
+        conversationSessionId = null;
+        sessionStartTimestamp = null;
+        sessionInitialMinutes = null;
+        roomStartTimestamp = null;
         if (call) {
           call.leave();
         }
@@ -2398,14 +2259,6 @@
 
   async function handleLeftMeeting(event) {
     console.log('👋 Local participant left meeting', event);
-
-    if (!isSpectator) {
-      try {
-        await finalizeConversationSession('left_meeting');
-      } catch (error) {
-        console.error('Failed to finalize session after leaving meeting', error);
-      }
-    }
 
     stopTimer();
   }
@@ -3879,10 +3732,25 @@
     }
   }
 
-  async function leaveCall() {
-    if (!isSpectator) {
+  async function handleLeaveRoom() {
+    console.log('👋 User leaving room...');
+
+    stopTimer();
+
+    if (roomSyncIntervalId) {
+      clearInterval(roomSyncIntervalId);
+      roomSyncIntervalId = null;
+    }
+
+    const sessionId = conversationSessionId;
+
+    if (!isSpectator && sessionId) {
       try {
-        await finalizeConversationSession('user_left');
+        const finalized = await finalizeConversationSession('completed');
+        if (finalized) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          await updateUserMinutesUsed(finalized);
+        }
       } catch (error) {
         console.error('Failed to finalize session on leave', error);
       }
@@ -3896,6 +3764,19 @@
       }
     }
 
+    clearTimeout(roomExpiryWarningTimeoutId);
+    clearTimeout(roomExpiryTimeoutId);
+    roomExpiryWarningTimeoutId = null;
+    roomExpiryTimeoutId = null;
+    roomExpiryWarningShown = false;
+    roomExpiryAnnounced = false;
+    currentRoomSlug = null;
+
+    conversationSessionId = null;
+    sessionStartTimestamp = null;
+    roomStartTimestamp = null;
+    sessionInitialMinutes = null;
+
     window.location.reload();
   }
 
@@ -3903,11 +3784,15 @@
     const roomId = btoa(roomUrl);
     db.ref(`presence/${roomId}/${userId}`).remove();
     
-    if (!isSpectator) {
-      sendFallbackBeacon('page_unload');
+    if (!isSpectator && conversationSessionId) {
       finalizeConversationSession('page_unload').catch((error) => {
         console.error('Failed to finalize session during cleanup', error);
       });
+      conversationSessionId = null;
+      sessionStartTimestamp = null;
+      sessionInitialMinutes = null;
+      roomStartTimestamp = null;
+      currentRoomSlug = null;
     }
 
     stopTimer();
@@ -3920,6 +3805,14 @@
       clearInterval(roomSyncIntervalId);
       roomSyncIntervalId = null;
     }
+
+    clearTimeout(roomExpiryWarningTimeoutId);
+    clearTimeout(roomExpiryTimeoutId);
+    roomExpiryWarningTimeoutId = null;
+    roomExpiryTimeoutId = null;
+    roomExpiryWarningShown = false;
+    roomExpiryAnnounced = false;
+    currentRoomSlug = null;
   }
 
   // Event listeners for controls (only set up for participants)
@@ -3929,7 +3822,7 @@
     document.getElementById('screen-share-btn').addEventListener('click', toggleScreenShare);
     document.getElementById('record-btn').addEventListener('click', toggleRecording);
     document.getElementById('settings-btn').addEventListener('click', toggleSettings);
-    document.getElementById('leave-btn').addEventListener('click', leaveCall);
+    document.getElementById('leave-btn').addEventListener('click', handleLeaveRoom);
     document.getElementById('close-settings').addEventListener('click', toggleSettings);
   } else {
     // Hide participant-only controls for spectators
@@ -4097,49 +3990,55 @@
     timerInterval = setInterval(updateTimer, 1000);
   }
 
-    function updateTimer() {
-      let secondsLeft;
+  function updateTimer() {
+    let secondsLeft;
 
-      if (!isSpectator) {
-        const elapsedSeconds = calculateElapsedSeconds();
-        secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
+    if (!isSpectator) {
+      const elapsedSeconds = calculateElapsedSeconds();
+      secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
 
-        if (sessionMaxDurationSeconds >= MAX_SESSION_SECONDS && secondsLeft === 300 && !roomExpiryWarningShown) {
-          roomExpiryWarningShown = true;
-          showToast('Room expires in 5 minutes');
-        }
-      } else {
-        const elapsedSeconds = calculateElapsedSeconds();
-        secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
-        timeRemaining = secondsLeft;
+      if (sessionMaxDurationSeconds >= MAX_SESSION_SECONDS && secondsLeft === 300 && !roomExpiryWarningShown) {
+        roomExpiryWarningShown = true;
+        showToast('Room expires in 5 minutes');
       }
-
-      setTimerDisplayFromSeconds(secondsLeft);
+    } else {
+      const elapsedSeconds = calculateElapsedSeconds();
+      secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
       timeRemaining = secondsLeft;
+    }
 
-      if (secondsLeft <= 0) {
-        stopTimer();
-        if (!isSpectator) {
-          if (!roomExpiryAnnounced) {
-            roomExpiryAnnounced = true;
-            showToast('Room expired');
-          }
-          finalizeConversationSession('time_expired').finally(() => {
+    setTimerDisplayFromSeconds(secondsLeft);
+    timeRemaining = secondsLeft;
+
+    if (secondsLeft <= 0) {
+      stopTimer();
+      if (!isSpectator) {
+        if (!roomExpiryAnnounced) {
+          roomExpiryAnnounced = true;
+          showToast('Room expired');
+        }
+        finalizeConversationSession('time_expired')
+          .then((sessionId) => {
+            if (sessionId) {
+              setTimeout(() => updateUserMinutesUsed(sessionId), 500);
+            }
+          })
+          .finally(() => {
             if (call) {
               call.leave();
             }
           });
-        } else {
-          if (!roomExpiryAnnounced) {
-            roomExpiryAnnounced = true;
-            showToast('Room expired');
-          }
-          if (call) {
-            call.leave();
-          }
+      } else {
+        if (!roomExpiryAnnounced) {
+          roomExpiryAnnounced = true;
+          showToast('Room expired');
+        }
+        if (call) {
+          call.leave();
         }
       }
     }
+  }
 
   // Sticky timer scroll handler
   window.addEventListener('scroll', function() {

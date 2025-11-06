@@ -1099,32 +1099,59 @@
       conversationSessionEndState.inFlight = true;
 
       try {
-        const endedAtValue = new Date().toISOString();
-        
-        const { data, error } = await supabaseClient
+        const debugResult = await supabaseClient
           .from('conversation_sessions')
-          .update({
-            ended_at: endedAtValue,
-            status: 'completed'
-          })
+          .select('id, room_id, ended_at, status, joined_at')
           .eq('user_id', userId)
-          .eq('room_id', roomIdentifier)
-          .is('ended_at', null)
-          .select('id');
+          .order('joined_at', { ascending: false })
+          .limit(5);
 
-        if (error) {
-          console.error('❌ Supabase error ending session:', error);
-          throw error;
+        console.log('🔍 Current sessions for user:', debugResult);
+
+        const endedAtValue = new Date().toISOString();
+        const roomCandidates = Array.from(new Set(
+          [roomIdentifier, roomUrl, firebaseRoomId].filter((value) => typeof value === 'string' && value.length > 0)
+        ));
+
+        let rowsUpdated = 0;
+        let lastError = null;
+
+        for (const candidate of roomCandidates) {
+          console.log(`🔁 Attempting to end session using room identifier: ${candidate}`);
+
+          const { data, error } = await supabaseClient
+            .from('conversation_sessions')
+            .update({
+              ended_at: endedAtValue,
+              status: 'completed'
+            })
+            .eq('user_id', userId)
+            .eq('room_id', candidate)
+            .is('ended_at', null)
+            .select('id');
+
+          if (error) {
+            console.error('❌ Supabase error ending session for identifier:', candidate, error);
+            lastError = error;
+            continue;
+          }
+
+          rowsUpdated = Array.isArray(data) ? data.length : 0;
+
+          if (rowsUpdated > 0) {
+            console.log(`✅ SUCCESS: Session ended - ${rowsUpdated} row(s) updated (identifier: ${candidate})`);
+            console.log('💰 Minutes will be charged via database trigger');
+            conversationSessionEndState.ended = true;
+            break;
+          }
         }
 
-        const rowsUpdated = Array.isArray(data) ? data.length : 0;
-
-        if (rowsUpdated > 0) {
-          console.log(`✅ SUCCESS: Session ended - ${rowsUpdated} row(s) updated`);
-          console.log('💰 Minutes will be charged via database trigger');
-          conversationSessionEndState.ended = true;
-        } else {
-          console.warn('⚠️ No matching session found (may already be completed)');
+        if (rowsUpdated === 0) {
+          if (lastError) {
+            console.warn('⚠️ Session end attempts finished with errors. See logs above for details.');
+          } else {
+            console.warn('⚠️ No matching session found (identifier mismatch or already completed). Tried identifiers:', roomCandidates);
+          }
           conversationSessionEndState.ended = true;
         }
 

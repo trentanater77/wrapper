@@ -1030,6 +1030,12 @@
     }
   });
 
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && !isSpectator && conversationSessionId) {
+      sendFallbackBeacon('visibility_hidden');
+    }
+  });
+
   // Chat system
   let chatRef = null;
   let viewerCountRef = null;
@@ -1178,6 +1184,7 @@
         if (stats && typeof stats.minutes_remaining === 'number') {
           currentUserStats = stats;
           updateRemainingMinutesUI(stats.minutes_remaining);
+          sessionInitialMinutes = Math.max(0, coerceToNumber(stats.minutes_remaining));
         }
         return stats;
       } catch (error) {
@@ -1374,7 +1381,14 @@
         roomExpiryAnnounced = false;
         sessionRpcConsumed = false;
 
-        const minutesAllowanceSeconds = Math.max(1, coerceToNumber(currentUserStats?.minutes_remaining) * 60);
+        if (sessionInitialMinutes == null) {
+          sessionInitialMinutes = Math.max(0, coerceToNumber(currentUserStats?.minutes_remaining));
+        }
+
+        const baselineMinutesAllowance = sessionInitialMinutes != null
+          ? sessionInitialMinutes
+          : coerceToNumber(currentUserStats?.minutes_remaining || 60);
+        const minutesAllowanceSeconds = Math.max(1, baselineMinutesAllowance * 60);
         sessionMaxDurationSeconds = Math.min(MAX_SESSION_SECONDS, minutesAllowanceSeconds);
 
         await syncRoomStartTimestamp(client, fallbackStart);
@@ -1522,61 +1536,25 @@
           const durationMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
           const minutesCharged = minutesFromRpc != null ? minutesFromRpc : Math.min(durationMinutes, 60);
 
-          const sessionUpdate = {
-            ended_at: endIso,
-            left_at: endIso,
-            duration_seconds: durationSeconds,
-            duration_minutes: durationMinutes,
-            minutes_charged: minutesCharged,
-            status: 'completed',
-            updated_at: endIso
-          };
-
         if (!skipDbUpdates) {
-          await client
-            .from('conversation_sessions')
-            .update(sessionUpdate)
-            .eq('id', conversationSessionId);
+          try {
+            const { data: rpcData, error: rpcError } = await client.rpc('end_conversation_session', {
+              p_session_id: conversationSessionId
+            });
 
-          let stats = currentUserStats;
-          if (!stats) {
-            stats = await fetchUserStatsFromSupabase(providedUserId);
-          }
+            if (rpcError) {
+              throw rpcError;
+            }
 
-          if (stats || sessionInitialMinutes != null) {
-            const baselineMinutes = sessionInitialMinutes != null
-              ? sessionInitialMinutes
-              : coerceToNumber(stats?.minutes_remaining);
-            const remaining = Math.max(0, baselineMinutes - minutesCharged);
-            const totalMinutes = coerceToNumber(stats?.total_minutes) + minutesCharged;
-            const totalConversations = coerceToNumber(stats?.total_conversations) + 1;
-            const minutesThisMonth = coerceToNumber(stats?.minutes_used_this_month) + minutesCharged;
-
-            await client
-              .from('user_stats')
-              .update({
-                minutes_remaining: remaining,
-                total_minutes: totalMinutes,
-                total_conversations: totalConversations,
-                minutes_used_this_month: minutesThisMonth,
-                last_active_date: endIso,
-                updated_at: endIso
-              })
-              .eq('user_id', providedUserId);
-
-            currentUserStats = {
-              ...(stats || currentUserStats || {}),
-              minutes_remaining: remaining,
-              total_minutes: totalMinutes,
-              total_conversations: totalConversations,
-              minutes_used_this_month: minutesThisMonth,
-              last_active_date: endIso,
-              updated_at: endIso
-            };
-
-            updateRemainingMinutesUI(remaining);
+            if (!minutesFromRpc && rpcData && typeof rpcData.minutes_charged === 'number') {
+              minutesFromRpc = rpcData.minutes_charged;
+            }
+          } catch (rpcRetryError) {
+            console.error('Fallback RPC execution failed', rpcRetryError);
           }
         }
+
+        minutesCharged = minutesFromRpc != null ? minutesFromRpc : minutesCharged;
 
         await refreshUserMinutes();
         } catch (fallbackError) {
@@ -1637,12 +1615,17 @@
           }
         }
 
+        const minutesForFallback = typeof rpcMinutesCharged === 'number' && rpcMinutesCharged > 0 ? rpcMinutesCharged : null;
+
         if (shouldFallback) {
-          await runFallbackFinalization(rpcMinutesCharged, {
+          await runFallbackFinalization(minutesForFallback, {
             skipDbUpdates: sessionBeaconTriggered && sessionRpcConsumed
           });
         } else {
           sessionRpcConsumed = true;
+          await runFallbackFinalization(minutesForFallback, {
+            skipDbUpdates: sessionBeaconTriggered && sessionRpcConsumed
+          });
         }
       } catch (error) {
         console.error('Unexpected error during session finalization handling', error);
@@ -1844,8 +1827,9 @@
       try {
         const { data, error } = await client
           .from('conversation_sessions')
-          .select('started_at')
-          .eq('room_id', currentRoomSlug)
+            .select('started_at, status')
+            .eq('room_id', currentRoomSlug)
+            .in('status', ['active', 'pending', 'in_progress'])
           .not('started_at', 'is', null)
           .order('started_at', { ascending: true })
           .limit(1);
@@ -1876,82 +1860,42 @@
       return null;
     }
 
-    const endIso = new Date().toISOString();
-    const durationSeconds = calculateElapsedSeconds();
-    const durationMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
-    const initialMinutes = sessionInitialMinutes != null
-      ? sessionInitialMinutes
-      : coerceToNumber(currentUserStats?.minutes_remaining);
-    const minutesAllowance = Math.max(1, Math.min(Math.ceil(MAX_SESSION_SECONDS / 60), initialMinutes || durationMinutes));
-    const minutesCharged = Math.min(durationMinutes, minutesAllowance);
-    const newRemaining = Math.max(0, (initialMinutes || 0) - minutesCharged);
-    const totalMinutes = coerceToNumber(currentUserStats?.total_minutes) + minutesCharged;
-    const totalConversations = coerceToNumber(currentUserStats?.total_conversations) + 1;
-    const minutesThisMonth = coerceToNumber(currentUserStats?.minutes_used_this_month) + minutesCharged;
-
+    sessionBeaconTriggered = true;
     const headers = {
       'Content-Type': 'application/json',
       apikey: anonKey,
-      Authorization: `Bearer ${anonKey}`,
-      Prefer: 'return=minimal'
+      Authorization: `Bearer ${anonKey}`
     };
 
-    const sessionUpdate = {
-      ended_at: endIso,
-      left_at: endIso,
-      duration_seconds: durationSeconds,
-      duration_minutes: durationMinutes,
-      minutes_charged: minutesCharged,
-      status: 'completed',
-      updated_at: endIso
-    };
+    const rpcUrl = `${url}/rest/v1/rpc/end_conversation_session`;
 
-    const statsUpdate = {
-      minutes_remaining: newRemaining,
-      total_minutes: totalMinutes,
-      total_conversations: totalConversations,
-      minutes_used_this_month: minutesThisMonth,
-      last_active_date: endIso,
-      updated_at: endIso
-    };
-
-    sessionBeaconTriggered = true;
-    sessionBeaconMinutesCharged = minutesCharged;
-
-    currentUserStats = {
-      ...(currentUserStats || {}),
-      minutes_remaining: newRemaining,
-      total_minutes: totalMinutes,
-      total_conversations: totalConversations,
-      minutes_used_this_month: minutesThisMonth,
-      last_active_date: endIso,
-      updated_at: endIso
-    };
-    updateRemainingMinutesUI(newRemaining);
-
-    const sessionUrl = `${url}/rest/v1/conversation_sessions?id=eq.${conversationSessionId}`;
-    const statsUrl = `${url}/rest/v1/user_stats?user_id=eq.${providedUserId}`;
-
-    sessionFinalizationBeaconPromise = Promise.allSettled([
-      fetch(sessionUrl, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(sessionUpdate),
-        keepalive: true
-      }),
-      fetch(statsUrl, {
-        method: 'PATCH',
-        headers,
-        body: JSON.stringify(statsUpdate),
-        keepalive: true
+    sessionFinalizationBeaconPromise = fetch(rpcUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ p_session_id: conversationSessionId }),
+      keepalive: true
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(errText || `RPC failed with status ${response.status}`);
+        }
+        try {
+          const payload = await response.json();
+          if (payload && typeof payload.minutes_charged === 'number') {
+            sessionBeaconMinutesCharged = payload.minutes_charged;
+          }
+        } catch (parseError) {
+          // No JSON body; ignore
+        }
       })
-    ]);
+      .catch((error) => {
+        console.warn('Fallback beacon RPC failed', error);
+        sessionBeaconMinutesCharged = null;
+        throw error;
+      });
 
-    sessionFinalizationBeaconPromise.catch((error) => {
-      console.warn('Fallback beacon failed', error);
-    });
-
-    return minutesCharged;
+    return sessionBeaconMinutesCharged;
   }
 
   function setupUserRoleDisplay() {

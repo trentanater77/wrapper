@@ -1264,6 +1264,30 @@
       }
     }
 
+    async function resolveSphereId(rawSphereId) {
+      if (!rawSphereId) {
+        return null;
+      }
+
+      try {
+        const client = await ensureSupabaseClient();
+        const { data, error } = await client
+          .from('forum_topics')
+          .select('id')
+          .eq('id', rawSphereId)
+          .maybeSingle();
+
+        if (error) {
+          throw error;
+        }
+
+        return data?.id || null;
+      } catch (error) {
+        console.warn('Could not verify sphere_id against forum_topics, defaulting to null', error);
+        return null;
+      }
+    }
+
     async function prepareParticipantSession() {
       if (isSpectator) {
         updateRemainingMinutesUI(null);
@@ -1333,72 +1357,94 @@
       const client = await ensureSupabaseClient();
       const identifiers = parseRoomIdentifiers(roomUrl);
       const nowIso = new Date().toISOString();
+      const verifiedSphereId = await resolveSphereId(identifiers.sphereId);
 
-      const payload = {
+      const basePayload = {
         user_id: providedUserId,
         room_id: identifiers.roomSlug || roomUrl,
-        sphere_id: identifiers.sphereId,
         started_at: nowIso,
         joined_at: nowIso,
         status: 'active'
       };
 
-      try {
+      if (verifiedSphereId) {
+        basePayload.sphere_id = verifiedSphereId;
+      }
+
+      const attemptInsert = async (payload) => {
         const { data, error } = await client
           .from('conversation_sessions')
           .insert(payload, { returning: 'representation' })
-          .select('id, started_at');
+          .select('id, started_at, status');
 
         if (error) {
           throw error;
         }
 
-        const insertedRow = Array.isArray(data) ? data[0] : data;
-        conversationSessionId = insertedRow?.id || null;
-        sessionStartTimestamp = insertedRow?.started_at ? Date.parse(insertedRow.started_at) : Date.now();
+        return Array.isArray(data) ? data[0] : data;
+      };
+
+      const applyInsertedRow = (row) => {
+        conversationSessionId = row?.id || null;
+        sessionStartTimestamp = row?.started_at ? Date.parse(row.started_at) : Date.now();
         roomExpiryWarningShown = false;
         roomExpiryAnnounced = false;
-
         scheduleRoomExpiryGuard();
         return conversationSessionId;
-      } catch (error) {
-        const isConflict = error?.code === '23505' || error?.status === 409 || (typeof error?.message === 'string' && error.message.toLowerCase().includes('duplicate key'));
+      };
 
-        if (isConflict) {
-          console.warn('Session conflict detected when creating conversation session, attempting to reuse existing record');
-          try {
-            const { data: existingRows, error: existingError } = await client
-              .from('conversation_sessions')
-              .select('id, started_at, status')
-              .eq('user_id', providedUserId)
-              .eq('room_id', identifiers.roomSlug || roomUrl)
-              .order('created_at', { ascending: false })
-              .limit(1);
+      const attemptPayloads = [basePayload];
+      if (basePayload.sphere_id) {
+        const { sphere_id: _sphereId, ...payloadWithoutSphere } = basePayload;
+        attemptPayloads.push(payloadWithoutSphere);
+      }
+
+      for (const payload of attemptPayloads) {
+        try {
+          const insertedRow = await attemptInsert(payload);
+          return applyInsertedRow(insertedRow);
+        } catch (error) {
+          const isFkViolation = error?.code === '23503' || (typeof error?.message === 'string' && error.message.toLowerCase().includes('foreign key'));
+          const isConflict = error?.code === '23505' || error?.status === 409 || (typeof error?.message === 'string' && error.message.toLowerCase().includes('duplicate key'));
+
+          if (isFkViolation && payload.sphere_id) {
+            console.warn('Foreign key violation for sphere_id; retrying without sphere reference');
+            continue;
+          }
+
+          if (isConflict) {
+            console.warn('Session conflict detected when creating conversation session, attempting to reuse existing record');
+            try {
+              const { data: existingRows, error: existingError } = await client
+                .from('conversation_sessions')
+                .select('id, started_at, status')
+                .eq('user_id', providedUserId)
+                .eq('room_id', identifiers.roomSlug || roomUrl)
+                .order('created_at', { ascending: false })
+                .limit(1);
 
               if (!existingError && Array.isArray(existingRows) && existingRows.length > 0) {
                 const existing = existingRows[0];
                 const reusableStatuses = ['active', 'pending', 'in_progress'];
                 if (!existing.status || reusableStatuses.includes(existing.status)) {
-                  conversationSessionId = existing.id;
-                  sessionStartTimestamp = existing.started_at ? Date.parse(existing.started_at) : Date.now();
-                  roomExpiryWarningShown = false;
-                  roomExpiryAnnounced = false;
-                  scheduleRoomExpiryGuard();
-                  return conversationSessionId;
+                  return applyInsertedRow(existing);
                 }
               }
 
-            if (existingError) {
-              console.error('Failed to load existing session after conflict', existingError);
+              if (existingError) {
+                console.error('Failed to load existing session after conflict', existingError);
+              }
+            } catch (fallbackError) {
+              console.error('Unexpected error while recovering session after conflict', fallbackError);
             }
-          } catch (fallbackError) {
-            console.error('Unexpected error while recovering session after conflict', fallbackError);
           }
-        }
 
-        console.error('Failed to create conversation session in Supabase', error);
-        throw error;
+          console.error('Failed to create conversation session in Supabase', error);
+          throw error;
+        }
       }
+
+      throw new Error('Unable to create conversation session');
     }
 
     function scheduleRoomExpiryGuard() {
@@ -3843,35 +3889,31 @@
   // Load existing sparks for this room on join
   async function loadExistingSparks() {
     try {
-        console.log("🔍 Loading existing sparks for room...");
-        console.log("🔗 Room URL from params:", roomUrl);
-        
-        // Build Firebase query with properly encoded room URL filter
-        const encodedEqualTo = encodeURIComponent(`"${roomUrl}"`);
-        const firebaseUrl = `https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy=%22room_url%22&equalTo=${encodedEqualTo}&limitToLast=1`;
-      console.log("🔍 Firebase query URL:", firebaseUrl);
-      const response = await fetch(firebaseUrl);
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data && Object.keys(data).length > 0) {
-          const latestSparkEntry = Object.values(data)[0];
-          
-          if (latestSparkEntry.sparks && latestSparkEntry.sparks.length > 0) {
-            console.log("✅ Found existing sparks:", latestSparkEntry.sparks);
-            currentSparks = latestSparkEntry.sparks;
-            currentSparkIndex = 0;
-            updateSparkDisplay();
-            showToast(`📚 Loaded ${latestSparkEntry.sparks.length} saved sparks for "${latestSparkEntry.topic}"!`);
-            return;
-          }
+      console.log("🔍 Loading existing sparks for room...");
+      console.log("🔗 Room URL from params:", roomUrl);
+
+      const snapshot = await promptsDb
+        .ref('sparks')
+        .orderByChild('room_url')
+        .equalTo(roomUrl)
+        .limitToLast(1)
+        .once('value');
+
+      const data = snapshot.val();
+
+      if (data && Object.keys(data).length > 0) {
+        const latestSparkEntry = Object.values(data)[0];
+
+        if (latestSparkEntry.sparks && latestSparkEntry.sparks.length > 0) {
+          console.log("✅ Found existing sparks:", latestSparkEntry.sparks);
+          currentSparks = latestSparkEntry.sparks;
+          currentSparkIndex = 0;
+          updateSparkDisplay();
+          showToast(`📚 Loaded ${latestSparkEntry.sparks.length} saved sparks for "${latestSparkEntry.topic}"!`);
+          return;
         }
-      } else {
-        console.error("❌ Firebase response not ok:", response.status, response.statusText);
-        console.error("❌ Request URL was:", response.url);
       }
-      
+
       console.log("📝 No existing sparks found, using defaults");
     } catch (error) {
       console.error("❌ Error loading existing sparks:", error);

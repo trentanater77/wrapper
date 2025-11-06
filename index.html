@@ -1014,6 +1014,14 @@
   let roomExpiryAnnounced = false;
   let joinBlocked = false;
   let currentRoomSlug = null;
+  let sessionRpcConsumed = false;
+  let roomStartTimestamp = null;
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      finalizeConversationSession('visibility_hidden');
+    }
+  });
 
   // Chat system
   let chatRef = null;
@@ -1335,7 +1343,8 @@
       const identifiers = parseRoomIdentifiers(roomUrl);
       currentRoomSlug = identifiers.roomSlug || currentRoomSlug || roomUrl;
       const nowIso = new Date().toISOString();
-      const payload = {
+
+      const basePayload = {
         user_id: providedUserId,
         room_id: currentRoomSlug,
         started_at: nowIso,
@@ -1344,22 +1353,50 @@
       };
 
       if (identifiers.sphereId) {
-        payload.sphere_id = identifiers.sphereId;
+        basePayload.sphere_id = identifiers.sphereId;
       }
 
-      const applyInsertedRow = (row) => {
+      const applyInsertedRow = async (row) => {
         conversationSessionId = row?.id || null;
-        sessionStartTimestamp = row?.started_at ? Date.parse(row.started_at) : Date.now();
+
+        const fallbackStart = row?.started_at ? Date.parse(row.started_at) : Date.now();
+        sessionStartTimestamp = fallbackStart;
         roomExpiryWarningShown = false;
         roomExpiryAnnounced = false;
+        sessionRpcConsumed = false;
+
+        const minutesAllowanceSeconds = Math.max(1, coerceToNumber(currentUserStats?.minutes_remaining) * 60);
+        sessionMaxDurationSeconds = Math.min(MAX_SESSION_SECONDS, minutesAllowanceSeconds);
+
+        await syncRoomStartTimestamp(client, fallbackStart);
+
+        try {
+          await client
+            .from('conversation_sessions')
+            .update({
+              status: 'abandoned',
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', providedUserId)
+            .neq('id', conversationSessionId)
+            .is('ended_at', null);
+        } catch (cleanupError) {
+          console.warn('Failed to clean up stale conversation sessions for user', cleanupError);
+        }
+
         scheduleRoomExpiryGuard();
+
+        const elapsedSeconds = Math.max(0, Math.floor((Date.now() - sessionStartTimestamp) / 1000));
+        const secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
+        setTimerDisplayFromSeconds(secondsLeft);
+
         return conversationSessionId;
       };
 
-      const insertSession = async (overridePayload = payload) => {
+      const insertSession = async (payload) => {
         const { data, error } = await client
           .from('conversation_sessions')
-          .insert(overridePayload, { returning: 'representation' })
+          .insert(payload, { returning: 'representation' })
           .select('id, started_at, status');
 
         if (error) {
@@ -1367,18 +1404,18 @@
         }
 
         const insertedRow = Array.isArray(data) ? data[0] : data;
-        return applyInsertedRow(insertedRow);
+        return await applyInsertedRow(insertedRow);
       };
 
       try {
-        return await insertSession(payload);
+        return await insertSession(basePayload);
       } catch (error) {
         const isFkViolation = error?.code === '23503' || (typeof error?.message === 'string' && error.message.toLowerCase().includes('foreign key'));
         const isConflict = error?.code === '23505' || error?.status === 409 || (typeof error?.message === 'string' && error.message.toLowerCase().includes('duplicate key'));
 
-        if (isFkViolation && payload.sphere_id) {
+        if (isFkViolation && basePayload.sphere_id) {
           console.warn('Sphere reference not found; retrying session insert without sphere_id');
-          const { sphere_id, ...payloadWithoutSphere } = payload;
+          const { sphere_id, ...payloadWithoutSphere } = basePayload;
           return await insertSession(payloadWithoutSphere);
         }
 
@@ -1387,17 +1424,17 @@
           try {
             const { data: existingRows, error: existingError } = await client
               .from('conversation_sessions')
-              .select('id, started_at, status')
-              .eq('user_id', providedUserId)
+              .select('id, started_at, status, user_id')
               .eq('room_id', currentRoomSlug)
               .order('created_at', { ascending: false })
-              .limit(1);
+              .limit(10);
 
             if (!existingError && Array.isArray(existingRows) && existingRows.length > 0) {
-              const existing = existingRows[0];
               const reusableStatuses = ['active', 'pending', 'in_progress'];
-              if (!existing.status || reusableStatuses.includes(existing.status)) {
-                return applyInsertedRow(existing);
+              const existing = existingRows.find((row) => row.user_id === providedUserId && (!row.status || reusableStatuses.includes(row.status)));
+
+              if (existing) {
+                return await applyInsertedRow(existing);
               }
             }
 
@@ -1422,12 +1459,17 @@
         return;
       }
 
-      if (sessionMaxDurationSeconds <= 0) {
+      const elapsedSeconds = calculateElapsedSeconds();
+      const remainingSeconds = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
+
+      if (remainingSeconds <= 0) {
+        finalizeConversationSession('time_expired_immediate');
         return;
       }
 
       if (sessionMaxDurationSeconds >= MAX_SESSION_SECONDS) {
-        const warningDelayMs = (sessionMaxDurationSeconds - 300) * 1000;
+        const warningSeconds = Math.max(remainingSeconds - 300, 0);
+        const warningDelayMs = warningSeconds * 1000;
         if (warningDelayMs > 0) {
           roomExpiryWarningTimeoutId = setTimeout(() => {
             if (!roomExpiryWarningShown) {
@@ -1448,7 +1490,7 @@
             call.leave();
           }
         });
-      }, sessionMaxDurationSeconds * 1000);
+      }, remainingSeconds * 1000);
     }
 
     async function finalizeConversationSession(reason = 'user_left') {
@@ -1564,6 +1606,8 @@
 
         if (shouldFallback) {
           await runFallbackFinalization(rpcMinutesCharged);
+        } else {
+          sessionRpcConsumed = true;
         }
       } catch (error) {
         console.error('Unexpected error during session finalization handling', error);
@@ -1580,6 +1624,8 @@
         roomExpiryWarningShown = false;
         roomExpiryAnnounced = false;
         currentRoomSlug = null;
+        sessionRpcConsumed = false;
+        roomStartTimestamp = null;
         stopTimer();
       }
     }
@@ -1740,13 +1786,43 @@
   }
 
   function calculateElapsedSeconds() {
-    if (sessionStartTimestamp) {
-      const elapsed = Math.floor((Date.now() - sessionStartTimestamp) / 1000);
+    const referenceStart = roomStartTimestamp || sessionStartTimestamp;
+    if (referenceStart) {
+      const elapsed = Math.floor((Date.now() - referenceStart) / 1000);
       if (Number.isFinite(elapsed) && elapsed > 0) {
         return Math.min(MAX_SESSION_SECONDS, elapsed);
       }
     }
     return MAX_SESSION_SECONDS;
+  }
+
+  async function syncRoomStartTimestamp(client, fallbackStartMs) {
+    let referenceStart = fallbackStartMs;
+
+    if (currentRoomSlug) {
+      try {
+        const { data, error } = await client
+          .from('conversation_sessions')
+          .select('started_at')
+          .eq('room_id', currentRoomSlug)
+          .not('started_at', 'is', null)
+          .order('started_at', { ascending: true })
+          .limit(1);
+
+        if (!error && Array.isArray(data) && data.length > 0 && data[0].started_at) {
+          referenceStart = Date.parse(data[0].started_at);
+        }
+      } catch (error) {
+        console.warn('Failed to sync room start timestamp from Supabase', error);
+      }
+    }
+
+    roomStartTimestamp = referenceStart;
+    sessionStartTimestamp = referenceStart;
+
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - sessionStartTimestamp) / 1000));
+    const secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
+    setTimerDisplayFromSeconds(secondsLeft);
   }
 
   function setupUserRoleDisplay() {

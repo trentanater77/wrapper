@@ -1013,6 +1013,7 @@
   let roomExpiryWarningShown = false;
   let roomExpiryAnnounced = false;
   let joinBlocked = false;
+  let currentRoomSlug = null;
 
   // Chat system
   let chatRef = null;
@@ -1264,30 +1265,6 @@
       }
     }
 
-    async function resolveSphereId(rawSphereId) {
-      if (!rawSphereId) {
-        return null;
-      }
-
-      try {
-        const client = await ensureSupabaseClient();
-        const { data, error } = await client
-          .from('forum_topics')
-          .select('id')
-          .eq('id', rawSphereId)
-          .maybeSingle();
-
-        if (error) {
-          throw error;
-        }
-
-        return data?.id || null;
-      } catch (error) {
-        console.warn('Could not verify sphere_id against forum_topics, defaulting to null', error);
-        return null;
-      }
-    }
-
     async function prepareParticipantSession() {
       if (isSpectator) {
         updateRemainingMinutesUI(null);
@@ -1356,33 +1333,19 @@
 
       const client = await ensureSupabaseClient();
       const identifiers = parseRoomIdentifiers(roomUrl);
+      currentRoomSlug = identifiers.roomSlug || currentRoomSlug || roomUrl;
       const nowIso = new Date().toISOString();
-      const verifiedSphereId = await resolveSphereId(identifiers.sphereId);
-
-      const basePayload = {
+      const payload = {
         user_id: providedUserId,
-        room_id: identifiers.roomSlug || roomUrl,
+        room_id: currentRoomSlug,
         started_at: nowIso,
         joined_at: nowIso,
         status: 'active'
       };
 
-      if (verifiedSphereId) {
-        basePayload.sphere_id = verifiedSphereId;
+      if (identifiers.sphereId) {
+        payload.sphere_id = identifiers.sphereId;
       }
-
-      const attemptInsert = async (payload) => {
-        const { data, error } = await client
-          .from('conversation_sessions')
-          .insert(payload, { returning: 'representation' })
-          .select('id, started_at, status');
-
-        if (error) {
-          throw error;
-        }
-
-        return Array.isArray(data) ? data[0] : data;
-      };
 
       const applyInsertedRow = (row) => {
         conversationSessionId = row?.id || null;
@@ -1393,58 +1356,62 @@
         return conversationSessionId;
       };
 
-      const attemptPayloads = [basePayload];
-      if (basePayload.sphere_id) {
-        const { sphere_id: _sphereId, ...payloadWithoutSphere } = basePayload;
-        attemptPayloads.push(payloadWithoutSphere);
-      }
+      const insertSession = async (overridePayload = payload) => {
+        const { data, error } = await client
+          .from('conversation_sessions')
+          .insert(overridePayload, { returning: 'representation' })
+          .select('id, started_at, status');
 
-      for (const payload of attemptPayloads) {
-        try {
-          const insertedRow = await attemptInsert(payload);
-          return applyInsertedRow(insertedRow);
-        } catch (error) {
-          const isFkViolation = error?.code === '23503' || (typeof error?.message === 'string' && error.message.toLowerCase().includes('foreign key'));
-          const isConflict = error?.code === '23505' || error?.status === 409 || (typeof error?.message === 'string' && error.message.toLowerCase().includes('duplicate key'));
-
-          if (isFkViolation && payload.sphere_id) {
-            console.warn('Foreign key violation for sphere_id; retrying without sphere reference');
-            continue;
-          }
-
-          if (isConflict) {
-            console.warn('Session conflict detected when creating conversation session, attempting to reuse existing record');
-            try {
-              const { data: existingRows, error: existingError } = await client
-                .from('conversation_sessions')
-                .select('id, started_at, status')
-                .eq('user_id', providedUserId)
-                .eq('room_id', identifiers.roomSlug || roomUrl)
-                .order('created_at', { ascending: false })
-                .limit(1);
-
-              if (!existingError && Array.isArray(existingRows) && existingRows.length > 0) {
-                const existing = existingRows[0];
-                const reusableStatuses = ['active', 'pending', 'in_progress'];
-                if (!existing.status || reusableStatuses.includes(existing.status)) {
-                  return applyInsertedRow(existing);
-                }
-              }
-
-              if (existingError) {
-                console.error('Failed to load existing session after conflict', existingError);
-              }
-            } catch (fallbackError) {
-              console.error('Unexpected error while recovering session after conflict', fallbackError);
-            }
-          }
-
-          console.error('Failed to create conversation session in Supabase', error);
+        if (error) {
           throw error;
         }
-      }
 
-      throw new Error('Unable to create conversation session');
+        const insertedRow = Array.isArray(data) ? data[0] : data;
+        return applyInsertedRow(insertedRow);
+      };
+
+      try {
+        return await insertSession(payload);
+      } catch (error) {
+        const isFkViolation = error?.code === '23503' || (typeof error?.message === 'string' && error.message.toLowerCase().includes('foreign key'));
+        const isConflict = error?.code === '23505' || error?.status === 409 || (typeof error?.message === 'string' && error.message.toLowerCase().includes('duplicate key'));
+
+        if (isFkViolation && payload.sphere_id) {
+          console.warn('Sphere reference not found; retrying session insert without sphere_id');
+          const { sphere_id, ...payloadWithoutSphere } = payload;
+          return await insertSession(payloadWithoutSphere);
+        }
+
+        if (isConflict) {
+          console.warn('Session conflict detected when creating conversation session, attempting to reuse existing record');
+          try {
+            const { data: existingRows, error: existingError } = await client
+              .from('conversation_sessions')
+              .select('id, started_at, status')
+              .eq('user_id', providedUserId)
+              .eq('room_id', currentRoomSlug)
+              .order('created_at', { ascending: false })
+              .limit(1);
+
+            if (!existingError && Array.isArray(existingRows) && existingRows.length > 0) {
+              const existing = existingRows[0];
+              const reusableStatuses = ['active', 'pending', 'in_progress'];
+              if (!existing.status || reusableStatuses.includes(existing.status)) {
+                return applyInsertedRow(existing);
+              }
+            }
+
+            if (existingError) {
+              console.error('Failed to load existing session after conflict', existingError);
+            }
+          } catch (fallbackError) {
+            console.error('Unexpected error while recovering session after conflict', fallbackError);
+          }
+        }
+
+        console.error('Failed to create conversation session in Supabase', error);
+        throw error;
+      }
     }
 
     function scheduleRoomExpiryGuard() {
@@ -1512,16 +1479,16 @@
             minutes_remaining: updatedRemaining
           };
           updateRemainingMinutesUI(updatedRemaining);
-        } else {
-          await refreshUserMinutes();
         }
+
+        await refreshUserMinutes();
       } catch (error) {
         console.error(`Failed to finalize conversation session (${reason})`, error);
       } finally {
         conversationSessionId = null;
         sessionFinalizing = false;
         sessionStartTimestamp = null;
-          sessionMaxDurationSeconds = MAX_SESSION_SECONDS;
+        sessionMaxDurationSeconds = MAX_SESSION_SECONDS;
         clearTimeout(roomExpiryWarningTimeoutId);
         clearTimeout(roomExpiryTimeoutId);
         roomExpiryWarningTimeoutId = null;

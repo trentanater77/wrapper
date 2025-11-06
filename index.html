@@ -10,7 +10,8 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4"></script>
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   
   <script>
@@ -969,44 +970,24 @@
   const promptsApp = firebase.initializeApp(promptsFirebaseConfig, "prompts");
   const promptsDb = promptsApp.database();
 
-  // Supabase client setup for session tracking
-  function resolveSupabaseConfig() {
-    var metaUrlTag = document.querySelector('meta[name="supabase-url"]');
-    var metaKeyTag = document.querySelector('meta[name="supabase-anon-key"]');
-    var configSources = [
-      { url: window.SUPABASE_URL, key: window.SUPABASE_ANON_KEY },
-      { url: window.__SUPABASE_URL__, key: window.__SUPABASE_ANON_KEY__ },
-      { url: window.__SUPABASE_CONFIG__ ? window.__SUPABASE_CONFIG__.url : null, key: window.__SUPABASE_CONFIG__ ? window.__SUPABASE_CONFIG__.anonKey : null },
-      { url: window.__ENV__ ? (window.__ENV__.SUPABASE_URL || window.__ENV__.supabaseUrl || (window.__ENV__.supabase ? window.__ENV__.supabase.url : null)) : null, key: window.__ENV__ ? (window.__ENV__.SUPABASE_ANON_KEY || window.__ENV__.supabaseAnonKey || (window.__ENV__.supabase ? window.__ENV__.supabase.anonKey : null)) : null },
-      { url: window.ENV ? (window.ENV.SUPABASE_URL || window.ENV.supabaseUrl || (window.ENV.supabase ? window.ENV.supabase.url : null)) : null, key: window.ENV ? (window.ENV.SUPABASE_ANON_KEY || window.ENV.supabaseAnonKey || (window.ENV.supabase ? window.ENV.supabase.anonKey : null)) : null },
-      { url: window.__APP_CONFIG__ ? (window.__APP_CONFIG__.SUPABASE_URL || window.__APP_CONFIG__.supabaseUrl || (window.__APP_CONFIG__.supabase ? window.__APP_CONFIG__.supabase.url : null)) : null, key: window.__APP_CONFIG__ ? (window.__APP_CONFIG__.SUPABASE_ANON_KEY || window.__APP_CONFIG__.supabaseAnonKey || (window.__APP_CONFIG__.supabase ? window.__APP_CONFIG__.supabase.anonKey : null)) : null },
-      { url: metaUrlTag ? metaUrlTag.getAttribute('content') : null, key: metaKeyTag ? metaKeyTag.getAttribute('content') : null }
-    ];
+    // Supabase client setup for session tracking
+    const SUPABASE_URL = 'https://farihwlzjieqmgvhagxt.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhcmlod2x6amllcW1ndmhhZ3h0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM4OTYyNzEsImV4cCI6MjA2OTQ3MjI3MX0.rlZiUqfFfJSGrS5dVcm-s96L4v7Fb4cgvLUnJeOtYEE';
 
-    for (var i = 0; i < configSources.length; i++) {
-      var candidate = configSources[i];
-      if (candidate && candidate.url && candidate.key) {
-        return { url: candidate.url, anonKey: candidate.key };
+    let supabaseClient = null;
+
+    if (window.supabase && window.supabase.createClient) {
+      try {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+          auth: { persistSession: false }
+        });
+        console.log('✅ Supabase client initialized successfully');
+      } catch (error) {
+        console.error('❌ Failed to initialize Supabase:', error);
       }
+    } else {
+      console.error('❌ Supabase library not loaded from CDN');
     }
-
-    return null;
-  }
-
-  var supabaseClient = null;
-  var resolvedSupabaseConfig = resolveSupabaseConfig();
-
-  if (window.supabase && resolvedSupabaseConfig) {
-    supabaseClient = window.supabase.createClient(resolvedSupabaseConfig.url, resolvedSupabaseConfig.anonKey, {
-      auth: { persistSession: false }
-    });
-    console.log('✅ Supabase client initialized for session tracking');
-  } else {
-    console.warn('⚠️ Supabase client not configured. Conversation session billing updates will be skipped.', {
-      hasLibrary: !!window.supabase,
-      hasConfig: !!resolvedSupabaseConfig
-    });
-  }
 
   // Global variables
   let call = null;
@@ -1077,128 +1058,183 @@
       }
     }
 
-    function getConversationSessionIdentifiers() {
-      var identifiers = [];
-
-      if (conversationRoomId) {
-        identifiers.push(conversationRoomId);
-      }
-
-      if (roomUrl) {
-        identifiers.push(roomUrl);
-
-        try {
-          var encoded = btoa(roomUrl);
-          if (encoded) {
-            identifiers.push(encoded);
-          }
-        } catch (encodeError) {
-          console.debug('Supabase room identifier base64 encoding failed (non-blocking).', encodeError);
-        }
-      }
-
-      return identifiers.filter(function(value, index, array) {
-        return value && array.indexOf(value) === index;
-      });
-    }
-
     async function endConversationSession(reason) {
+      // CRITICAL: Spectators should NEVER be charged
       if (isSpectator) {
+        console.log('👀 Spectator - skipping session end (no charges)');
         conversationSessionEndState.ended = true;
         return;
       }
 
-      if (!supabaseClient) {
-        console.warn('⚠️ Supabase client unavailable. Skipping conversation session end update.', {
-          reason: reason || 'unspecified'
-        });
-        conversationSessionEndState.ended = true;
-        return;
-      }
-
+      // Prevent duplicate session ending
       if (conversationSessionEndState.ended || conversationSessionEndState.inFlight) {
+        console.log('⚠️ Session already ended or ending in progress');
         return;
       }
 
-      if (!userId) {
-        console.warn('⚠️ Cannot end conversation session without a userId.', {
-          reason: reason || 'unspecified'
-        });
-        return;
-      }
-
-      var identifiers = getConversationSessionIdentifiers();
-      if (!identifiers.length) {
-        console.warn('⚠️ No room identifiers available for conversation session update.', {
-          reason: reason || 'unspecified'
-        });
+      // Validate Supabase client
+      if (!supabaseClient) {
+        console.error('❌ CRITICAL: Supabase client not initialized - minutes will NOT be charged!');
         conversationSessionEndState.ended = true;
         return;
       }
+
+      // Validate user ID
+      if (!userId) {
+        console.error('❌ CRITICAL: No userId available - cannot end session');
+        return;
+      }
+
+      // Get room identifier
+      const roomIdentifier = conversationRoomId || (roomUrl ? btoa(roomUrl) : null);
+      if (!roomIdentifier) {
+        console.error('❌ CRITICAL: No room identifier - cannot end session');
+        return;
+      }
+
+      console.log(`💾 Ending conversation session - Reason: ${reason || 'unspecified'}`);
+      console.log(`👤 User ID: ${userId}`);
+      console.log(`🏠 Room ID: ${roomIdentifier}`);
 
       conversationSessionEndState.inFlight = true;
-      var endedSuccessfully = false;
-      var endedAtValue = new Date().toISOString();
-      var hadSupabaseError = false;
 
       try {
-        for (var i = 0; i < identifiers.length; i++) {
-          var identifier = identifiers[i];
+        const endedAtValue = new Date().toISOString();
+        
+        const { data, error } = await supabaseClient
+          .from('conversation_sessions')
+          .update({
+            ended_at: endedAtValue,
+            status: 'completed'
+          })
+          .eq('user_id', userId)
+          .eq('room_id', roomIdentifier)
+          .is('ended_at', null)
+          .select('id');
 
-          const { data, error } = await supabaseClient
-            .from('conversation_sessions')
-            .update({
-              ended_at: endedAtValue,
-              status: 'completed'
-            })
-            .eq('user_id', userId)
-            .eq('room_id', identifier)
-            .is('ended_at', null)
-            .select('id');
-
-          if (error) {
-            console.error('Error ending session via Supabase:', {
-              reason: reason || 'unspecified',
-              roomIdentifier: identifier,
-              error: error
-            });
-            continue;
-          }
-
-          var rowsUpdated = Array.isArray(data) ? data.length : (data ? 1 : 0);
-
-          if (rowsUpdated > 0) {
-            console.log('Session ended successfully - minutes will be charged', {
-              reason: reason || 'unspecified',
-              roomIdentifier: identifier,
-              rowsUpdated: rowsUpdated
-            });
-            endedSuccessfully = true;
-            break;
-          }
+        if (error) {
+          console.error('❌ Supabase error ending session:', error);
+          throw error;
         }
 
-        if (!endedSuccessfully) {
-          console.warn('⚠️ No matching conversation session found to end (it may already be completed).', {
-            reason: reason || 'unspecified',
-            identifiersTried: identifiers
-          });
-        }
-      } catch (err) {
-        console.error('Failed to end conversation session:', {
-          reason: reason || 'unspecified',
-          error: err
-        });
-        hadSupabaseError = true;
-      } finally {
-        conversationSessionEndState.inFlight = false;
-        if (endedSuccessfully || !hadSupabaseError) {
+        const rowsUpdated = Array.isArray(data) ? data.length : 0;
+
+        if (rowsUpdated > 0) {
+          console.log(`✅ SUCCESS: Session ended - ${rowsUpdated} row(s) updated`);
+          console.log('💰 Minutes will be charged via database trigger');
+          conversationSessionEndState.ended = true;
+        } else {
+          console.warn('⚠️ No matching session found (may already be completed)');
           conversationSessionEndState.ended = true;
         }
+
+      } catch (err) {
+        console.error('❌ FAILED to end conversation session:', err);
+        // Don't set ended = true on error, so we can retry
+      } finally {
+        conversationSessionEndState.inFlight = false;
       }
     }
 
-  // Check if valid room URL
+    // CRITICAL: Comprehensive cleanup to ensure sessions always end
+    let cleanupExecuted = false;
+
+    async function executeComprehensiveCleanup(reason) {
+      if (cleanupExecuted) {
+        console.log('⚠️ Cleanup already executed, skipping');
+        return;
+      }
+      
+      cleanupExecuted = true;
+      console.log(`🧹 Executing comprehensive cleanup - Reason: ${reason}`);
+      
+      // End conversation session (most important!)
+      await endConversationSession(reason);
+      
+      // Clean up Firebase presence
+      if (firebaseRoomId && userId) {
+        try {
+          await db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
+          console.log('✅ Firebase presence cleaned up');
+        } catch (error) {
+          console.error('❌ Error cleaning Firebase presence:', error);
+        }
+      }
+      
+      // Leave Daily.co call
+      if (call) {
+        try {
+          await call.leave();
+          console.log('✅ Daily.co call left');
+        } catch (error) {
+          console.error('❌ Error leaving Daily call:', error);
+        }
+      }
+      
+      console.log('✅ Comprehensive cleanup complete');
+    }
+
+    // CRITICAL: Ensure cleanup on page unload
+    window.addEventListener('beforeunload', (event) => {
+      console.log('🚪 Page unloading - executing cleanup');
+
+      if (!cleanupExecuted && !isSpectator && supabaseClient && userId && conversationRoomId) {
+        const endedAtValue = new Date().toISOString();
+        const beaconPayload = JSON.stringify({
+          ended_at: endedAtValue,
+          status: 'completed'
+        });
+
+        const beaconUrl = `${SUPABASE_URL}/rest/v1/conversation_sessions?user_id=eq.${encodeURIComponent(userId)}&room_id=eq.${encodeURIComponent(conversationRoomId)}&ended_at=is.null`;
+
+        try {
+          const sent = navigator.sendBeacon(beaconUrl, beaconPayload);
+          if (sent) {
+            console.log('✅ Session end sent via sendBeacon');
+          } else {
+            console.warn('⚠️ sendBeacon did not confirm delivery');
+          }
+        } catch (error) {
+          console.error('❌ sendBeacon failed:', error);
+        }
+
+        fetch(beaconUrl, {
+          method: 'POST',
+          keepalive: true,
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Prefer: 'return=representation',
+            'X-HTTP-Method-Override': 'PATCH'
+          },
+          body: beaconPayload
+        }).then(() => {
+          console.log('✅ Session end sent via fetch keepalive');
+        }).catch((error) => {
+          console.error('❌ Fetch keepalive failed:', error);
+        });
+      }
+
+      if (firebaseRoomId && userId) {
+        db.ref(`presence/${firebaseRoomId}/${userId}`).remove().catch((error) => {
+          console.error('❌ Error cleaning Firebase presence during unload:', error);
+        });
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      executeComprehensiveCleanup('pagehide');
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        executeComprehensiveCleanup('visibility-hidden');
+      }
+    });
+
+// Check if valid room URL
   if (!roomUrl) {
     document.body.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:linear-gradient(135deg,#F8F9FA 0%,#FCE2E5 100%);padding:2rem;font-family:'Nunito',sans-serif;">
@@ -1329,15 +1365,15 @@
     console.log("✅ Updated description:", description);
   }
 
-    async function initializeVideoChat() {
-      await loadRoomInfo();
-      
-      // Set up Firebase for chat and presence
-      firebaseRoomId = btoa(roomUrl);
-      const roomId = firebaseRoomId;
-      chatRef = db.ref(`chats/${roomId}`);
-      viewerCountRef = db.ref(`viewers/${roomId}`);
-      
+  async function initializeVideoChat() {
+    await loadRoomInfo();
+    
+    // Set up Firebase for chat and presence
+    firebaseRoomId = btoa(roomUrl);
+    const roomId = firebaseRoomId;
+    chatRef = db.ref(`chats/${roomId}`);
+    viewerCountRef = db.ref(`viewers/${roomId}`);
+    
     // Set up user role display
     setupUserRoleDisplay();
     
@@ -1360,13 +1396,13 @@
     call.on('participant-left', handleParticipantLeft);
     call.on('participant-updated', handleParticipantUpdated);
     call.on('track-started', handleTrackStarted);
-      call.on('track-stopped', handleTrackStopped);
-      call.on('app-message', handleAppMessage);
-      call.on('error', handleError);
-      call.on('camera-error', handleCameraError);
-      call.on('recording-started', handleRecordingStarted);
-      call.on('recording-stopped', handleRecordingStopped);
-      call.on('left-meeting', handleLeftMeeting);
+    call.on('track-stopped', handleTrackStopped);
+    call.on('app-message', handleAppMessage);
+    call.on('error', handleError);
+    call.on('camera-error', handleCameraError);
+    call.on('recording-started', handleRecordingStarted);
+    call.on('recording-stopped', handleRecordingStopped);
+    call.on('left-meeting', handleLeftMeeting);
 
     try {
       // Join the call
@@ -1380,10 +1416,6 @@
       
       // Set up chat listeners
       setupChatListeners();
-      
-        // Clean up on page unload
-        window.addEventListener('beforeunload', cleanup);
-        window.addEventListener('pagehide', cleanup);
 
     } catch (error) {
       console.error('Failed to join call:', error);
@@ -1706,10 +1738,10 @@
     showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
   }
 
-    function handleLeftMeeting() {
-      console.log('👋 Local participant left the meeting');
-      endConversationSession('left-meeting');
-    }
+  function handleLeftMeeting() {
+    console.log('👋 Local participant left the meeting');
+    executeComprehensiveCleanup('left-meeting');
+  }
 
   function handleParticipantJoined(event) {
     const participantName = event.participant.user_name || 'Guest';
@@ -3223,43 +3255,26 @@
     }
   }
 
-    async function leaveCall(event) {
-      if (event && typeof event.preventDefault === 'function') {
-        event.preventDefault();
-      }
+  async function leaveCall(event) {
+    if (event && typeof event.preventDefault === 'function') {
+      event.preventDefault();
+    }
 
-      if (call) {
-        try {
-          await call.leave();
-        } catch (error) {
-          console.error('Error while leaving Daily call:', error);
-        }
-      }
-
-      if (firebaseRoomId && userId) {
-        db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
-      }
-
-      await endConversationSession('leave-button');
-
+    console.log('👋 Leave button clicked');
+    
+    // Execute comprehensive cleanup
+    await executeComprehensiveCleanup('leave-button');
+    
+    // Reload page after cleanup
+    setTimeout(() => {
       window.location.reload();
-    }
+    }, 500);
+  }
 
-    function cleanup() {
-      if (firebaseRoomId && userId) {
-        db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
-      }
-      
-      if (call) {
-        try {
-          call.leave();
-        } catch (error) {
-          console.error('Error while leaving Daily call during cleanup:', error);
-        }
-      }
-
-      endConversationSession('cleanup');
-    }
+  function cleanup() {
+    console.log('🧹 Cleanup triggered');
+    executeComprehensiveCleanup('cleanup');
+  }
 
   // Event listeners for controls (only set up for participants)
   if (!isSpectator) {
@@ -3434,7 +3449,7 @@
     timerInterval = setInterval(updateTimer, 1000);
   }
 
-  function updateTimer() {
+  async function updateTimer() {
     const minutes = Math.floor(timeRemaining / 60);
     const seconds = timeRemaining % 60;
     const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
@@ -3447,7 +3462,14 @@
     } else {
       clearInterval(timerInterval);
       showToast('⏰ Time\'s up! Thanks for chatting!');
-      if (call) call.leave();
+      
+      // CRITICAL: End session when time runs out
+      await executeComprehensiveCleanup('timer-expired');
+      
+      // Reload after cleanup
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     }
   }
 

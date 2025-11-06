@@ -1328,7 +1328,7 @@
         updateRemainingMinutesUI(minutesRemaining);
         sessionInitialMinutes = minutesRemaining;
 
-        sessionMaxDurationSeconds = Math.min(MAX_SESSION_SECONDS, minutesRemaining * 60);
+        sessionMaxDurationSeconds = MAX_SESSION_SECONDS;
 
         if (sessionMaxDurationSeconds <= 0) {
           showJoinBlockedView('You are out of minutes. Upgrade your plan to keep chatting.', {
@@ -1390,11 +1390,7 @@
           sessionInitialMinutes = Math.max(0, coerceToNumber(currentUserStats?.minutes_remaining));
         }
 
-        const baselineMinutesAllowance = sessionInitialMinutes != null
-          ? sessionInitialMinutes
-          : Math.max(1, coerceToNumber(currentUserStats?.minutes_remaining || 60));
-        const minutesAllowanceSeconds = Math.max(1, baselineMinutesAllowance * 60);
-        sessionMaxDurationSeconds = Math.min(MAX_SESSION_SECONDS, minutesAllowanceSeconds);
+        sessionMaxDurationSeconds = MAX_SESSION_SECONDS;
 
         await syncRoomStartTimestamp(client, fallbackStart);
 

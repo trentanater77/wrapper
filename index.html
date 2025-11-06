@@ -1251,6 +1251,10 @@
       const secondsPart = (seconds % 60).toString().padStart(2, '0');
       const formatted = `${minutesPart}:${secondsPart}`;
 
+    if (isSpectator) {
+      timeRemaining = seconds;
+    }
+
       const timerEl = document.getElementById('timer');
       if (timerEl) {
         timerEl.textContent = formatted;
@@ -1375,7 +1379,7 @@
       const applyInsertedRow = async (row) => {
         conversationSessionId = row?.id || null;
 
-        const fallbackStart = row?.started_at ? Date.parse(row.started_at) : Date.now();
+        const fallbackStart = parseSupabaseTimestamp(row?.started_at) ?? Date.now();
         sessionStartTimestamp = fallbackStart;
         roomExpiryWarningShown = false;
         roomExpiryAnnounced = false;
@@ -1387,7 +1391,7 @@
 
         const baselineMinutesAllowance = sessionInitialMinutes != null
           ? sessionInitialMinutes
-          : coerceToNumber(currentUserStats?.minutes_remaining || 60);
+          : Math.max(1, coerceToNumber(currentUserStats?.minutes_remaining || 60));
         const minutesAllowanceSeconds = Math.max(1, baselineMinutesAllowance * 60);
         sessionMaxDurationSeconds = Math.min(MAX_SESSION_SECONDS, minutesAllowanceSeconds);
 
@@ -1412,6 +1416,7 @@
         const elapsedSeconds = Math.max(0, Math.floor((Date.now() - sessionStartTimestamp) / 1000));
         const secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
         setTimerDisplayFromSeconds(secondsLeft);
+        timeRemaining = secondsLeft;
 
         return conversationSessionId;
       };
@@ -1527,36 +1532,96 @@
 
       sessionFinalizing = true;
 
-    const runFallbackFinalization = async (minutesFromRpc = null, { skipDbUpdates = false } = {}) => {
+      const runFallbackFinalization = async (minutesFromRpc = null, { skipDbUpdates = false } = {}) => {
         try {
           const client = await ensureSupabaseClient();
           const endTime = new Date();
           const endIso = endTime.toISOString();
           const durationSeconds = calculateElapsedSeconds();
           const durationMinutes = Math.max(1, Math.ceil(durationSeconds / 60));
-          const minutesCharged = minutesFromRpc != null ? minutesFromRpc : Math.min(durationMinutes, 60);
+          let minutesCharged = minutesFromRpc != null ? minutesFromRpc : Math.min(durationMinutes, 60);
 
-        if (!skipDbUpdates) {
-          try {
-            const { data: rpcData, error: rpcError } = await client.rpc('end_conversation_session', {
-              p_session_id: conversationSessionId
-            });
+          let manualUpdateNeeded = !skipDbUpdates;
 
-            if (rpcError) {
-              throw rpcError;
+          if (!skipDbUpdates) {
+            try {
+              const { data: rpcData, error: rpcError } = await client.rpc('end_conversation_session', {
+                p_session_id: conversationSessionId
+              });
+
+              if (rpcError) {
+                throw rpcError;
+              }
+
+              if (rpcData && typeof rpcData.minutes_charged === 'number') {
+                minutesCharged = rpcData.minutes_charged;
+              }
+
+              manualUpdateNeeded = false;
+            } catch (rpcRetryError) {
+              console.error('Fallback RPC execution failed', rpcRetryError);
+              manualUpdateNeeded = true;
             }
-
-            if (!minutesFromRpc && rpcData && typeof rpcData.minutes_charged === 'number') {
-              minutesFromRpc = rpcData.minutes_charged;
-            }
-          } catch (rpcRetryError) {
-            console.error('Fallback RPC execution failed', rpcRetryError);
           }
-        }
 
-        minutesCharged = minutesFromRpc != null ? minutesFromRpc : minutesCharged;
+          if (manualUpdateNeeded) {
+            const sessionUpdate = {
+              ended_at: endIso,
+              left_at: endIso,
+              duration_seconds: durationSeconds,
+              duration_minutes: durationMinutes,
+              minutes_charged: minutesCharged,
+              status: 'completed',
+              updated_at: endIso
+            };
 
-        await refreshUserMinutes();
+            await client
+              .from('conversation_sessions')
+              .update(sessionUpdate)
+              .eq('id', conversationSessionId);
+
+            let stats = currentUserStats;
+            if (!stats) {
+              stats = await fetchUserStatsFromSupabase(providedUserId);
+            }
+
+            if (stats || sessionInitialMinutes != null) {
+              const baselineMinutes = sessionInitialMinutes != null
+                ? sessionInitialMinutes
+                : coerceToNumber(stats?.minutes_remaining);
+              const remaining = Math.max(0, baselineMinutes - minutesCharged);
+              const totalMinutes = coerceToNumber(stats?.total_minutes) + minutesCharged;
+              const totalConversations = coerceToNumber(stats?.total_conversations) + 1;
+              const minutesThisMonth = coerceToNumber(stats?.minutes_used_this_month) + minutesCharged;
+
+              await client
+                .from('user_stats')
+                .update({
+                  minutes_remaining: remaining,
+                  total_minutes: totalMinutes,
+                  total_conversations: totalConversations,
+                  minutes_used_this_month: minutesThisMonth,
+                  last_active_date: endIso,
+                  updated_at: endIso
+                })
+                .eq('user_id', providedUserId);
+
+              currentUserStats = {
+                ...(stats || currentUserStats || {}),
+                minutes_remaining: remaining,
+                total_minutes: totalMinutes,
+                total_conversations: totalConversations,
+                minutes_used_this_month: minutesThisMonth,
+                last_active_date: endIso,
+                updated_at: endIso
+              };
+
+              updateRemainingMinutesUI(remaining);
+              sessionInitialMinutes = remaining;
+            }
+          }
+
+          await refreshUserMinutes();
         } catch (fallbackError) {
           console.error('Failed during fallback session finalization', fallbackError);
         }
@@ -1809,6 +1874,31 @@
     return fallback;
   }
 
+  function parseSupabaseTimestamp(value) {
+    if (!value) {
+      return null;
+    }
+
+    if (value instanceof Date) {
+      return value.getTime();
+    }
+
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? value : null;
+    }
+
+    if (typeof value === 'string') {
+      const isoCandidate = value.includes('T') ? value : value.replace(' ', 'T');
+      const date = new Date(isoCandidate);
+      const time = date.getTime();
+      if (!Number.isNaN(time)) {
+        return time;
+      }
+    }
+
+    return null;
+  }
+
   function calculateElapsedSeconds() {
     const referenceStart = roomStartTimestamp || sessionStartTimestamp;
     if (referenceStart) {
@@ -1827,15 +1917,18 @@
       try {
         const { data, error } = await client
           .from('conversation_sessions')
-            .select('started_at, status')
-            .eq('room_id', currentRoomSlug)
-            .in('status', ['active', 'pending', 'in_progress'])
+          .select('started_at, status')
+          .eq('room_id', currentRoomSlug)
+          .in('status', ['active', 'pending', 'in_progress'])
           .not('started_at', 'is', null)
           .order('started_at', { ascending: true })
           .limit(1);
 
-        if (!error && Array.isArray(data) && data.length > 0 && data[0].started_at) {
-          referenceStart = Date.parse(data[0].started_at);
+        if (!error && Array.isArray(data) && data.length > 0) {
+          const parsed = parseSupabaseTimestamp(data[0].started_at);
+          if (parsed != null) {
+            referenceStart = parsed;
+          }
         }
       } catch (error) {
         console.warn('Failed to sync room start timestamp from Supabase', error);
@@ -1845,9 +1938,10 @@
     roomStartTimestamp = referenceStart;
     sessionStartTimestamp = referenceStart;
 
-    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - sessionStartTimestamp) / 1000));
+    const elapsedSeconds = Math.max(0, Math.floor((Date.now() - referenceStart) / 1000));
     const secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
     setTimerDisplayFromSeconds(secondsLeft);
+    timeRemaining = secondsLeft;
   }
 
   async function sendFallbackBeacon(reason = 'beacon') {
@@ -3976,8 +4070,8 @@
   function updateTimer() {
     let secondsLeft;
 
-    if (!isSpectator && sessionStartTimestamp) {
-      const elapsedSeconds = Math.max(0, Math.floor((Date.now() - sessionStartTimestamp) / 1000));
+    if (!isSpectator) {
+      const elapsedSeconds = calculateElapsedSeconds();
       secondsLeft = Math.max(sessionMaxDurationSeconds - elapsedSeconds, 0);
 
       if (sessionMaxDurationSeconds >= MAX_SESSION_SECONDS && secondsLeft === 300 && !roomExpiryWarningShown) {

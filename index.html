@@ -489,11 +489,14 @@
       </div>
       
       <!-- Timer -->
-      <div class="flex items-center space-x-2">
+        <div class="flex items-center space-x-3">
         <div class="timer-glow bg-main-red text-white px-4 py-2 rounded-full font-bold text-lg">
           <span id="timer-header">60:00</span>
         </div>
-        <span class="text-sm text-gray-600 dark:text-gray-300 hidden sm:block">time remaining</span>
+          <div class="hidden sm:flex flex-col leading-tight">
+            <span class="text-sm text-gray-600 dark:text-gray-300">time remaining</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">minutes used: <span id="minutes-used-header">0</span></span>
+          </div>
       </div>
     </div>
   </header>
@@ -929,7 +932,10 @@
 <!-- Sticky Timer -->
 <div id="stickyTimer" class="fixed top-4 right-4 z-50 transition-all duration-300 opacity-0 transform translate-y-[-20px]">
   <div class="timer-glow bg-main-red text-white px-3 py-2 rounded-full font-bold text-sm shadow-lg">
-    <span id="timer">60:00</span>
+    <div class="flex flex-col items-center leading-tight">
+      <span id="timer">60:00</span>
+      <span class="text-[11px] text-white text-opacity-80 mt-1">used <span id="minutes-used-sticky">0</span> min</span>
+    </div>
   </div>
 </div>
 
@@ -955,6 +961,11 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const storage = firebase.storage();
+
+  firebase.database().ref('.info/serverTimeOffset').on('value', (snapshot) => {
+    const offset = snapshot.val();
+    serverTimeOffset = typeof offset === 'number' ? offset : 0;
+  });
 
   // Prompts Firebase config - Secondary database
   const promptsFirebaseConfig = {
@@ -1010,6 +1021,20 @@
   let conversationSphereId = null;
   let conversationSlug = null;
   let firebaseRoomId = '';
+  let conversationSessionId = null;
+  let conversationPartnerId = null;
+  let ensureSessionPromise = null;
+  let conversationSessionStartedAt = null;
+  let serverTimeOffset = 0;
+  let timerRef = null;
+  let timerSyncInitialized = false;
+  let timerExpiredHandled = false;
+  let timerState = {
+    durationSeconds: 60 * 60,
+    startedAt: null,
+    expiresAt: null,
+    createdBy: null
+  };
   const conversationSessionEndState = {
     inFlight: false,
     ended: false
@@ -1060,173 +1085,328 @@
       }
     }
 
-    async function endConversationSession(reason) {
-      // CRITICAL: Spectators should NEVER be charged
-      if (isSpectator) {
-        console.log('👀 Spectator - skipping session end (no charges)');
-        conversationSessionEndState.ended = true;
-        return;
-      }
+  function isValidUuid(value) {
+    return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
+  }
 
-      // Prevent duplicate session ending
-      if (conversationSessionEndState.ended || conversationSessionEndState.inFlight) {
-        console.log('⚠️ Session already ended or ending in progress');
-        return;
-      }
+  function getParticipantUserData(participant) {
+    if (!participant) return null;
+    // Daily can expose userData in different casings depending on SDK version
+    return participant.userData || participant.user_data || null;
+  }
 
-      // Validate Supabase client
-      if (!supabaseClient) {
-        console.error('❌ CRITICAL: Supabase client not initialized - minutes will NOT be charged!');
-        conversationSessionEndState.ended = true;
-        return;
-      }
+  function getParticipantRole(participant) {
+    const userData = getParticipantUserData(participant);
+    if (userData && typeof userData.role === 'string') {
+      return userData.role;
+    }
+    const fallbackName = participant?.user_name || '';
+    return fallbackName.includes('Viewer_') ? 'spectator' : 'participant';
+  }
 
-      // Validate user ID
-      if (!userId) {
-        console.error('❌ CRITICAL: No userId available - cannot end session');
-        return;
-      }
+  function getParticipantUserId(participant) {
+    const userData = getParticipantUserData(participant);
+    const candidateId = userData?.userId || userData?.user_id;
+    return isValidUuid(candidateId) ? candidateId : null;
+  }
 
-      const primaryRoomIdentifier = conversationRoomId;
-      const base64RoomUrl = (() => {
-        if (!roomUrl) return null;
-        try {
-          return btoa(roomUrl);
-        } catch (encodeError) {
-          console.debug('ℹ️ Unable to base64 encode room URL for session end candidates (non-blocking).', encodeError);
-          return null;
-        }
-      })();
+  function getServerNow() {
+    return Date.now() + serverTimeOffset;
+  }
 
-      if (!primaryRoomIdentifier && !conversationSlug && !roomUrl && !firebaseRoomId && !base64RoomUrl) {
-        console.error('❌ CRITICAL: No room identifier or slug available - cannot end session');
-        return;
-      }
+  async function ensureConversationSessionStarted(contextLabel = 'default') {
+    if (isSpectator) {
+      console.log(`ℹ️ [${contextLabel}] Spectator detected - skipping session creation`);
+      return null;
+    }
 
-      console.log(`💾 Ending conversation session - Reason: ${reason || 'unspecified'}`);
-      console.log(`👤 User ID: ${userId}`);
-      console.log(`🏠 Primary Room Identifier: ${primaryRoomIdentifier || 'none'}`);
+    if (!supabaseClient) {
+      console.warn(`⚠️ [${contextLabel}] Supabase client unavailable - session lifecycle disabled`);
+      return null;
+    }
 
-      conversationSessionEndState.inFlight = true;
+    if (!window.currentUserData?.isAuthenticated || !isValidUuid(userId)) {
+      console.log(`ℹ️ [${contextLabel}] Anonymous or invalid user - skipping Supabase session tracking`);
+      return null;
+    }
 
+    if (!conversationRoomId) {
+      console.warn(`⚠️ [${contextLabel}] No conversation room identifier - cannot start session`);
+      return null;
+    }
+
+    if (conversationSessionId) {
+      return conversationSessionId;
+    }
+
+    if (ensureSessionPromise) {
+      return ensureSessionPromise;
+    }
+
+    ensureSessionPromise = (async () => {
       try {
-        const debugResult = await supabaseClient
+        console.log(`🪄 [${contextLabel}] Ensuring active conversation session for user ${userId}`);
+
+        const { data: existingSession, error: existingError } = await supabaseClient
           .from('conversation_sessions')
-          .select('id, room_id, sphere_id, status, joined_at, ended_at')
+          .select('id, started_at, sphere_id, partner_user_id')
+          .eq('user_id', userId)
+          .eq('room_id', conversationRoomId)
+          .is('ended_at', null)
+          .order('joined_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingError && existingError.code !== 'PGRST116') {
+          throw existingError;
+        }
+
+        if (existingSession?.id) {
+          conversationSessionId = existingSession.id;
+          conversationSessionStartedAt = existingSession.started_at || conversationSessionStartedAt;
+          if (!conversationSphereId && existingSession.sphere_id) {
+            conversationSphereId = existingSession.sphere_id;
+          }
+          if (existingSession.partner_user_id && isValidUuid(existingSession.partner_user_id)) {
+            conversationPartnerId = existingSession.partner_user_id;
+          }
+          console.log(`✅ [${contextLabel}] Reusing active conversation session ${conversationSessionId}`);
+          return conversationSessionId;
+        }
+
+        const payload = {
+          p_room_id: conversationRoomId || roomUrl,
+          p_user_id: userId,
+          p_sphere_id: isValidUuid(conversationSphereId) ? conversationSphereId : null,
+          p_partner_user_id: isValidUuid(conversationPartnerId) ? conversationPartnerId : null
+        };
+
+        const { data: sessionIdFromRpc, error: rpcError } = await supabaseClient.rpc('start_conversation_session', payload);
+
+        if (rpcError) {
+          throw rpcError;
+        }
+
+        if (sessionIdFromRpc) {
+          conversationSessionId = typeof sessionIdFromRpc === 'string'
+            ? sessionIdFromRpc
+            : sessionIdFromRpc.id || null;
+          conversationSessionStartedAt = new Date().toISOString();
+          console.log(`✅ [${contextLabel}] Started new conversation session ${conversationSessionId}`);
+        } else {
+          console.warn(`⚠️ [${contextLabel}] Supabase RPC returned without session id`);
+        }
+
+        return conversationSessionId;
+      } catch (error) {
+        console.error(`❌ [${contextLabel}] Failed to ensure conversation session:`, error);
+        return null;
+      } finally {
+        ensureSessionPromise = null;
+      }
+    })();
+
+    return ensureSessionPromise;
+  }
+
+  async function updatePartnerUserId(partnerId, contextLabel = 'partner-link') {
+    if (!isValidUuid(partnerId)) {
+      return;
+    }
+
+    if (isSpectator) {
+      return;
+    }
+
+    if (!supabaseClient) {
+      console.warn(`⚠️ [${contextLabel}] Supabase client unavailable - cannot link partner`);
+      return;
+    }
+
+    await ensureConversationSessionStarted(contextLabel);
+
+    if (!conversationSessionId) {
+      console.warn(`⚠️ [${contextLabel}] Unable to link partner - session id missing`);
+      return;
+    }
+
+    if (conversationPartnerId === partnerId) {
+      return;
+    }
+
+    try {
+      const { error } = await supabaseClient
+        .from('conversation_sessions')
+        .update({ partner_user_id: partnerId })
+        .eq('id', conversationSessionId);
+
+      if (error) {
+        throw error;
+      }
+
+      conversationPartnerId = partnerId;
+      console.log(`🤝 [${contextLabel}] Linked partner ${partnerId} to session ${conversationSessionId}`);
+    } catch (error) {
+      console.error(`❌ [${contextLabel}] Failed to update partner user id:`, error);
+    }
+  }
+
+  async function endConversationSession(reason) {
+    if (isSpectator) {
+      console.log('👀 Spectator - skipping session end (no charges)');
+      conversationSessionEndState.ended = true;
+      return;
+    }
+
+    if (conversationSessionEndState.ended || conversationSessionEndState.inFlight) {
+      console.log('⚠️ Session already ended or ending in progress');
+      return;
+    }
+
+    if (!supabaseClient) {
+      console.error('❌ CRITICAL: Supabase client not initialized - minutes will NOT be charged!');
+      conversationSessionEndState.ended = true;
+      return;
+    }
+
+    if (!window.currentUserData?.isAuthenticated || !isValidUuid(userId)) {
+      console.log('ℹ️ Skipping Supabase session end for anonymous or invalid user');
+      conversationSessionEndState.ended = true;
+      return;
+    }
+
+    const primaryRoomIdentifier = conversationRoomId;
+    const base64RoomUrl = (() => {
+      if (!roomUrl) return null;
+      try {
+        return btoa(roomUrl);
+      } catch (encodeError) {
+        console.debug('ℹ️ Unable to base64 encode room URL for session end candidates (non-blocking).', encodeError);
+        return null;
+      }
+    })();
+
+    console.log(`💾 Ending conversation session - Reason: ${reason || 'unspecified'}`);
+    console.log(`👤 User ID: ${userId}`);
+    console.log(`🏠 Primary Room Identifier: ${primaryRoomIdentifier || 'none'}`);
+
+    conversationSessionEndState.inFlight = true;
+
+    try {
+      let resolvedSessionId = conversationSessionId;
+      if (!resolvedSessionId) {
+        resolvedSessionId = await ensureConversationSessionStarted('end-session');
+      }
+
+      const candidateRoomIds = new Set(
+        [primaryRoomIdentifier, roomUrl, firebaseRoomId, conversationSlug, base64RoomUrl]
+          .filter((value) => typeof value === 'string' && value.length > 0)
+      );
+
+      const candidateSphereIds = new Set(
+        [conversationSphereId].filter((value) => typeof value === 'string' && value.length > 0)
+      );
+
+      if (primaryRoomIdentifier && primaryRoomIdentifier.startsWith('sphere-')) {
+        candidateSphereIds.add(primaryRoomIdentifier.replace(/^sphere-/, ''));
+      }
+      if (conversationSlug && conversationSlug.startsWith('sphere-')) {
+        candidateSphereIds.add(conversationSlug.replace(/^sphere-/, ''));
+      }
+
+      let recentSessions = [];
+
+      if (!resolvedSessionId) {
+        const { data: sessionsData, error: sessionsError } = await supabaseClient
+          .from('conversation_sessions')
+          .select('id, room_id, sphere_id, status, ended_at, started_at')
           .eq('user_id', userId)
           .order('joined_at', { ascending: false })
-          .limit(5);
+          .limit(10);
 
-        console.log('🔍 Current sessions for user (raw):', debugResult);
+        if (sessionsError) {
+          console.error('❌ Supabase error retrieving sessions during cleanup:', sessionsError);
+        } else if (Array.isArray(sessionsData)) {
+          recentSessions = sessionsData;
+          sessionsData.forEach((session) => {
+            if (session?.room_id) {
+              candidateRoomIds.add(session.room_id);
+            }
+            if (session?.sphere_id) {
+              candidateSphereIds.add(session.sphere_id);
+            }
+          });
 
-        const endedAtValue = new Date().toISOString();
-        const candidateRoomIds = new Set(
-          [primaryRoomIdentifier, roomUrl, firebaseRoomId, conversationSlug, base64RoomUrl]
-            .filter((value) => typeof value === 'string' && value.length > 0)
-        );
+          const matchingSession = sessionsData.find((session) => {
+            if (session?.ended_at || session?.status !== 'active') return false;
+            const roomMatch = session?.room_id && candidateRoomIds.has(session.room_id);
+            const sphereMatch = session?.sphere_id && candidateSphereIds.has(session.sphere_id);
+            return roomMatch || sphereMatch;
+          });
 
-        const candidateSphereIds = new Set(
-          [conversationSphereId].filter((value) => typeof value === 'string' && value.length > 0)
-        );
-
-        const recentSessions = Array.isArray(debugResult?.data) ? debugResult.data : [];
-        recentSessions.forEach((session) => {
-          if (session?.room_id) {
-            candidateRoomIds.add(session.room_id);
+          if (matchingSession) {
+            resolvedSessionId = matchingSession.id;
+            conversationSessionId = matchingSession.id;
+            conversationSessionStartedAt = matchingSession.started_at || conversationSessionStartedAt;
+            console.log(`🔗 Matched active session ${resolvedSessionId} using candidate identifiers`);
           }
-          if (session?.sphere_id) {
-            candidateSphereIds.add(session.sphere_id);
+        }
+      } else {
+        const { data: sessionRow, error: sessionRowError } = await supabaseClient
+          .from('conversation_sessions')
+          .select('room_id, sphere_id, started_at')
+          .eq('id', resolvedSessionId)
+          .maybeSingle();
+
+        if (!sessionRowError && sessionRow) {
+          if (sessionRow.room_id) {
+            candidateRoomIds.add(sessionRow.room_id);
           }
+          if (sessionRow.sphere_id) {
+            candidateSphereIds.add(sessionRow.sphere_id);
+          }
+          if (sessionRow.started_at) {
+            conversationSessionStartedAt = sessionRow.started_at;
+          }
+        }
+      }
+
+      console.log('🧮 Candidate room identifiers:', Array.from(candidateRoomIds));
+      console.log('🧮 Candidate sphere identifiers:', Array.from(candidateSphereIds));
+
+      if (resolvedSessionId) {
+        const { data: rpcResult, error: rpcError } = await supabaseClient.rpc('end_conversation_session', {
+          p_session_id: resolvedSessionId
         });
 
-        if (primaryRoomIdentifier && primaryRoomIdentifier.startsWith('sphere-')) {
-          candidateSphereIds.add(primaryRoomIdentifier.replace(/^sphere-/, ''));
-        }
-
-        if (conversationSlug && conversationSlug.startsWith('sphere-')) {
-          candidateSphereIds.add(conversationSlug.replace(/^sphere-/, ''));
-        }
-
-        console.log('🧮 Candidate room identifiers:', Array.from(candidateRoomIds));
-        console.log('🧮 Candidate sphere identifiers:', Array.from(candidateSphereIds));
-
-        let rowsUpdated = 0;
-        let lastError = null;
-        let matchedIdentifier = null;
-        let matchedType = null;
-
-        if (candidateRoomIds.size > 0) {
-          const { data, error } = await supabaseClient
-            .from('conversation_sessions')
-            .update({
-              ended_at: endedAtValue,
-              status: 'completed'
-            })
-            .eq('user_id', userId)
-            .is('ended_at', null)
-            .in('room_id', Array.from(candidateRoomIds))
-            .select('id, room_id');
-
-          if (error) {
-            console.error('❌ Supabase error ending session via room identifiers:', error);
-            lastError = error;
-          } else {
-            rowsUpdated = Array.isArray(data) ? data.length : 0;
-            if (rowsUpdated > 0) {
-              matchedIdentifier = data[0]?.room_id || 'unknown-room-id';
-              matchedType = 'room_id';
-            }
+        if (rpcError) {
+          const message = rpcError?.message || rpcError?.details || '';
+          if (message.includes('status = \'active\'')) {
+            console.warn('⚠️ Supabase indicates the session is already closed:', rpcError);
+            conversationSessionEndState.ended = true;
+            return;
           }
+          throw rpcError;
         }
 
-        if (rowsUpdated === 0 && candidateSphereIds.size > 0) {
-          const { data, error } = await supabaseClient
-            .from('conversation_sessions')
-            .update({
-              ended_at: endedAtValue,
-              status: 'completed'
-            })
-            .eq('user_id', userId)
-            .is('ended_at', null)
-            .in('sphere_id', Array.from(candidateSphereIds))
-            .select('id, sphere_id');
-
-          if (error) {
-            console.error('❌ Supabase error ending session via sphere identifiers:', error);
-            lastError = error;
-          } else {
-            rowsUpdated = Array.isArray(data) ? data.length : 0;
-            if (rowsUpdated > 0) {
-              matchedIdentifier = data[0]?.sphere_id || 'unknown-sphere-id';
-              matchedType = 'sphere_id';
-            }
-          }
-        }
-
-        if (rowsUpdated > 0) {
-          console.log(`✅ SUCCESS: Session ended - ${rowsUpdated} row(s) updated using ${matchedType}: ${matchedIdentifier}`);
-          console.log('💰 Minutes will be charged via database trigger');
-          conversationSessionEndState.ended = true;
-        } else {
-          if (lastError) {
-            console.warn('⚠️ Session end attempts finished with errors. See logs above for details.');
-          } else {
-            console.warn('⚠️ No matching session found (identifier mismatch or already completed).', {
-              triedRoomIdentifiers: Array.from(candidateRoomIds),
-              triedSphereIdentifiers: Array.from(candidateSphereIds),
-              recentSessions
-            });
-          }
-          conversationSessionEndState.ended = true;
-        }
-
-      } catch (err) {
-        console.error('❌ FAILED to end conversation session:', err);
-        // Don't set ended = true on error, so we can retry
-      } finally {
-        conversationSessionEndState.inFlight = false;
+        console.log('✅ SUCCESS: Session ended via RPC', rpcResult);
+        console.log('💰 Minutes will be charged via database trigger');
+        conversationSessionEndState.ended = true;
+        return;
       }
+
+      console.warn('⚠️ No active session id found (identifier mismatch or already completed).', {
+        triedRoomIdentifiers: Array.from(candidateRoomIds),
+        triedSphereIdentifiers: Array.from(candidateSphereIds),
+        recentSessions
+      });
+      conversationSessionEndState.ended = true;
+    } catch (err) {
+      console.error('❌ FAILED to end conversation session:', err);
+    } finally {
+      conversationSessionEndState.inFlight = false;
     }
+  }
 
     // CRITICAL: Comprehensive cleanup to ensure sessions always end
     let cleanupExecuted = false;
@@ -1264,49 +1444,68 @@
       }
       
       console.log('✅ Comprehensive cleanup complete');
+
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+
+      if (timerRef) {
+        timerRef.off();
+        timerRef = null;
+      }
+      timerSyncInitialized = false;
+      timerExpiredHandled = false;
+      timerState = {
+        durationSeconds: 60 * 60,
+        startedAt: null,
+        expiresAt: null,
+        createdBy: null
+      };
     }
 
     // CRITICAL: Ensure cleanup on page unload
     window.addEventListener('beforeunload', (event) => {
       console.log('🚪 Page unloading - executing cleanup');
 
-      if (!cleanupExecuted && !isSpectator && supabaseClient && userId && conversationRoomId) {
-        const endedAtValue = new Date().toISOString();
-        const beaconPayload = JSON.stringify({
-          ended_at: endedAtValue,
-          status: 'completed'
-        });
+      if (!cleanupExecuted && !isSpectator && supabaseClient && isValidUuid(userId)) {
+        if (conversationSessionId) {
+          const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/end_conversation_session`;
+          const rpcPayload = JSON.stringify({ p_session_id: conversationSessionId });
 
-        const beaconUrl = `${SUPABASE_URL}/rest/v1/conversation_sessions?user_id=eq.${encodeURIComponent(userId)}&room_id=eq.${encodeURIComponent(conversationRoomId)}&ended_at=is.null`;
-
-        try {
-          const sent = navigator.sendBeacon(beaconUrl, beaconPayload);
-          if (sent) {
-            console.log('✅ Session end sent via sendBeacon');
-          } else {
-            console.warn('⚠️ sendBeacon did not confirm delivery');
+          try {
+            const sent = navigator.sendBeacon(
+              `${rpcUrl}?apikey=${encodeURIComponent(SUPABASE_ANON_KEY)}`,
+              new Blob([rpcPayload], { type: 'application/json' })
+            );
+            if (sent) {
+              console.log('✅ Session end sent via sendBeacon (RPC)');
+            } else {
+              console.warn('⚠️ sendBeacon (RPC) did not confirm delivery');
+            }
+          } catch (error) {
+            console.error('❌ sendBeacon (RPC) failed:', error);
           }
-        } catch (error) {
-          console.error('❌ sendBeacon failed:', error);
-        }
 
-        fetch(beaconUrl, {
-          method: 'POST',
-          keepalive: true,
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            Prefer: 'return=representation',
-            'X-HTTP-Method-Override': 'PATCH'
-          },
-          body: beaconPayload
-        }).then(() => {
-          console.log('✅ Session end sent via fetch keepalive');
-        }).catch((error) => {
-          console.error('❌ Fetch keepalive failed:', error);
-        });
+          fetch(rpcUrl, {
+            method: 'POST',
+            keepalive: true,
+            headers: {
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+              apikey: SUPABASE_ANON_KEY,
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+              Prefer: 'return=representation'
+            },
+            body: rpcPayload
+          }).then(() => {
+            console.log('✅ Session end sent via fetch keepalive (RPC)');
+          }).catch((error) => {
+            console.error('❌ Fetch keepalive (RPC) failed:', error);
+          });
+        } else if (conversationRoomId) {
+          console.warn('⚠️ No session id available during unload - fallback identifier cleanup may be incomplete');
+        }
       }
 
       if (firebaseRoomId && userId) {
@@ -1476,6 +1675,12 @@
     } else {
       setupParticipantMode();
     }
+
+    try {
+      await initializeTimerSync();
+    } catch (error) {
+      console.error('❌ Failed to initialize timer synchronization:', error);
+    }
     
     // Create Daily call object
     call = Daily.createCallObject({
@@ -1501,7 +1706,16 @@
       // Join the call
       await call.join({ 
         url: roomUrl,
-        userName: userName
+        userName: userName,
+        userData: {
+          role: isSpectator ? 'spectator' : 'participant',
+          userId: window.currentUserData?.isAuthenticated && isValidUuid(userId) ? userId : null,
+          displayName: window.currentUserData?.displayName || userName,
+          avatar: window.currentUserData?.avatar || null,
+          sphereId: isValidUuid(conversationSphereId) ? conversationSphereId : null,
+          slug: conversationSlug || null,
+          roomId: conversationRoomId || null
+        }
       });
       
       // Set up Firebase presence
@@ -1571,6 +1785,61 @@
     
     // Clean up presence on disconnect
     presenceRef.onDisconnect().remove();
+  }
+
+  async function initializeTimerSync() {
+    if (timerSyncInitialized || !firebaseRoomId) {
+      return;
+    }
+
+    timerSyncInitialized = true;
+    timerRef = db.ref(`timers/${firebaseRoomId}`);
+
+    timerRef.on('value', (snapshot) => {
+      const value = snapshot.val();
+      if (value && typeof value.startedAt === 'number' && typeof value.durationSeconds === 'number') {
+        timerState.startedAt = value.startedAt;
+        timerState.durationSeconds = value.durationSeconds;
+        timerState.expiresAt = value.startedAt + value.durationSeconds * 1000;
+        timerState.createdBy = value.createdBy || null;
+        timerExpiredHandled = timerState.expiresAt <= getServerNow();
+      } else {
+        timerState.startedAt = null;
+        timerState.expiresAt = null;
+        timerState.createdBy = null;
+      }
+      updateTimer();
+    });
+
+    if (!isSpectator) {
+      const serverNow = getServerNow();
+      await new Promise((resolve) => {
+        timerRef.transaction((current) => {
+          if (current && typeof current.startedAt === 'number' && typeof current.durationSeconds === 'number') {
+            const expiresAt = current.startedAt + current.durationSeconds * 1000;
+            if (expiresAt > serverNow + 1000) {
+              return current;
+            }
+          }
+          console.log('⏱️ Starting new shared timer for this room');
+          return {
+            startedAt: firebase.database.ServerValue.TIMESTAMP,
+            durationSeconds: 60 * 60,
+            createdBy: userId,
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+          };
+        }, (error, committed, snapshot) => {
+          if (error) {
+            console.error('❌ Timer synchronization error:', error);
+          } else if (committed) {
+            console.log('✅ Timer synchronized for room');
+          } else {
+            console.log('ℹ️ Timer already active, using existing value');
+          }
+          resolve();
+        });
+      });
+    }
   }
 
   function updateViewerCount(count) {
@@ -1784,7 +2053,7 @@
     document.getElementById('participant-char-count').textContent = '0';
   }
 
-  function handleJoinedMeeting(event) {
+  async function handleJoinedMeeting(event) {
     console.log('✅ Joined meeting successfully');
     
     if (!isSpectator) {
@@ -1815,6 +2084,12 @@
       
       requestPermissionsAndSetupDevices();
       initializeSparks();
+
+      try {
+        await ensureConversationSessionStarted('joined-meeting');
+      } catch (error) {
+        console.error('❌ Failed to ensure Supabase session on join:', error);
+      }
       
       // For participants, also set up existing participants after joining (for refresh case)
       setTimeout(setupExistingParticipantsForParticipant, 1000);
@@ -1836,46 +2111,56 @@
     executeComprehensiveCleanup('left-meeting');
   }
 
-  function handleParticipantJoined(event) {
+  async function handleParticipantJoined(event) {
     const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    const participantData = getParticipantUserData(event.participant);
+    const participantDisplayName = participantData?.displayName || participantName;
+    const participantRole = getParticipantRole(event.participant);
+    const isSpectatorParticipant = participantRole === 'spectator';
     
-    console.log('👋 Participant joined:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant joined:', participantDisplayName, isSpectatorParticipant ? '(spectator)' : '(participant)');
     
     if (!isSpectator) {
-      // Only process actual participants, not spectators
       if (!isSpectatorParticipant) {
-        updateRemoteInfo(participantName);
-        showToast(`👋 ${participantName} joined the call!`);
+        const remoteUserId = getParticipantUserId(event.participant);
+        if (remoteUserId) {
+          try {
+            await updatePartnerUserId(remoteUserId, 'participant-joined');
+          } catch (error) {
+            console.error('❌ Failed to link partner on join:', error);
+          }
+        }
+        updateRemoteInfo(participantDisplayName);
+        showToast(`👋 ${participantDisplayName} joined the call!`);
       } else {
         console.log('🔒 Ignoring spectator join event to prevent participant disruption');
       }
     } else {
-      // Update spectator participants list
       updateSpectatorParticipants();
     }
   }
 
   function handleParticipantLeft(event) {
     const participantName = event.participant.user_name || 'Guest';
-    const isSpectatorParticipant = participantName.includes('Viewer_');
+    const participantData = getParticipantUserData(event.participant);
+    const participantDisplayName = participantData?.displayName || participantName;
+    const participantRole = getParticipantRole(event.participant);
+    const isSpectatorParticipant = participantRole === 'spectator';
     
-    console.log('👋 Participant left:', participantName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant left:', participantDisplayName, isSpectatorParticipant ? '(spectator)' : '(participant)');
     
     if (!isSpectator) {
-      // Only process actual participants leaving, not spectators
       if (!isSpectatorParticipant) {
         hideRemoteVideo();
-        showToast(`👋 ${participantName} left the call`);
+        showToast(`👋 ${participantDisplayName} left the call`);
       } else {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
     } else {
-      // Remove the participant's video from spectator view
       const participantId = event.participant.session_id;
       removeSpectatorParticipant(participantId);
       updateSpectatorParticipants();
-      showToast(`👋 ${participantName} left the conversation`);
+      showToast(`👋 ${participantDisplayName} left the conversation`);
     }
   }
 
@@ -1883,9 +2168,15 @@
     // Only log when there are meaningful changes, not constant updates
     const participantId = event.participant.session_id;
     const isLocalParticipant = event.participant.local;
+    const participantRole = getParticipantRole(event.participant);
     
     // Skip logging and processing for local participant updates
     if (isLocalParticipant) return;
+
+    if (participantRole === 'spectator') {
+      console.log('🔒 Ignoring spectator participant update to prevent disruption');
+      return;
+    }
     
     console.log(`🔄 Remote participant updated: ${event.participant.user_name || participantId.slice(0,8)}`);
     
@@ -1930,6 +2221,11 @@
       participantId: event.participant.session_id,
       isSpectator: isSpectator
     });
+
+    if (!event.participant.local && getParticipantRole(event.participant) === 'spectator') {
+      console.log('🔒 Ignoring spectator track start to protect participant streams');
+      return;
+    }
     
     if (event.participant.local && !isSpectator) {
       if (event.track.kind === 'video') {
@@ -1981,6 +2277,11 @@
       participantName: event.participant.user_name,
       isSpectator: isSpectator
     });
+
+    if (!event.participant.local && getParticipantRole(event.participant) === 'spectator') {
+      console.log('🔒 Ignoring spectator track stop to protect participant streams');
+      return;
+    }
     
     // Handle LOCAL participant tracks (when they stop their own camera/screen)
     if (event.participant.local && event.track.kind === 'video') {
@@ -3133,14 +3434,19 @@
     if (!container) return;
     
     const participants = call.participants();
-    const activeParticipants = Object.values(participants).filter(p => !p.local);
+    const activeParticipants = Object.values(participants).filter(p => {
+      if (p.local) return false;
+      return getParticipantRole(p) !== 'spectator';
+    });
     
     container.innerHTML = '';
     
     activeParticipants.forEach((participant, index) => {
       const badge = document.createElement('div');
       badge.className = 'bg-main-red text-white px-3 py-1 rounded-full text-sm font-semibold shadow-lg';
-      badge.textContent = participant.user_name || `Participant ${index + 1}`;
+      const participantData = getParticipantUserData(participant);
+      const displayName = participantData?.displayName || participant.user_name || `Participant ${index + 1}`;
+      badge.textContent = displayName;
       container.appendChild(badge);
     });
   }
@@ -3539,31 +3845,83 @@
 
   // Timer functions
   function startTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+    timerExpiredHandled = false;
+    updateTimer();
     timerInterval = setInterval(updateTimer, 1000);
   }
 
   async function updateTimer() {
-    const minutes = Math.floor(timeRemaining / 60);
-    const seconds = timeRemaining % 60;
-    const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    
-    document.getElementById('timer').textContent = timeString;
-    document.getElementById('timer-header').textContent = timeString;
-    
-    if (timeRemaining > 0) {
-      timeRemaining--;
-    } else {
-      clearInterval(timerInterval);
-      showToast('⏰ Time\'s up! Thanks for chatting!');
-      
-      // CRITICAL: End session when time runs out
-      await executeComprehensiveCleanup('timer-expired');
-      
-      // Reload after cleanup
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+    let effectiveTimeRemaining = timeRemaining;
+
+    if (timerState.expiresAt) {
+      const remainingMs = timerState.expiresAt - getServerNow();
+      effectiveTimeRemaining = Math.max(0, Math.ceil(remainingMs / 1000));
+      timeRemaining = effectiveTimeRemaining;
     }
+
+    const minutes = Math.floor(effectiveTimeRemaining / 60);
+    const seconds = effectiveTimeRemaining % 60;
+    const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    const timerElement = document.getElementById('timer');
+    if (timerElement) {
+      timerElement.textContent = timerState.expiresAt ? timeString : '--:--';
+    }
+
+    const timerHeaderElement = document.getElementById('timer-header');
+    if (timerHeaderElement) {
+      timerHeaderElement.textContent = timerState.expiresAt ? timeString : '--:--';
+    }
+
+    const headerMinutesElement = document.getElementById('minutes-used-header');
+    const stickyMinutesElement = document.getElementById('minutes-used-sticky');
+
+    if (timerState.startedAt && typeof timerState.durationSeconds === 'number') {
+      let elapsedSeconds = Math.max(0, Math.floor((getServerNow() - timerState.startedAt) / 1000));
+      elapsedSeconds = Math.min(elapsedSeconds, timerState.durationSeconds);
+      const minutesUsed = Math.floor(elapsedSeconds / 60);
+
+      if (headerMinutesElement) {
+        headerMinutesElement.textContent = minutesUsed.toString();
+      }
+
+      if (stickyMinutesElement) {
+        stickyMinutesElement.textContent = minutesUsed.toString();
+      }
+    } else {
+      if (headerMinutesElement) {
+        headerMinutesElement.textContent = '0';
+      }
+      if (stickyMinutesElement) {
+        stickyMinutesElement.textContent = '0';
+      }
+    }
+
+    if (!timerState.expiresAt) {
+      return;
+    }
+
+    if (effectiveTimeRemaining > 0) {
+      timerExpiredHandled = false;
+      return;
+    }
+
+    if (timerExpiredHandled) {
+      return;
+    }
+
+    timerExpiredHandled = true;
+    clearInterval(timerInterval);
+    showToast('⏰ Time\'s up! Thanks for chatting!');
+
+    await executeComprehensiveCleanup('timer-expired');
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   }
 
   // Sticky timer scroll handler

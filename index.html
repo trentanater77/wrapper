@@ -1007,6 +1007,8 @@
   let userName = '';
   let userId = '';
   let conversationRoomId = null;
+  let conversationSphereId = null;
+  let conversationSlug = null;
   let firebaseRoomId = '';
   const conversationSessionEndState = {
     inFlight: false,
@@ -1085,40 +1087,75 @@
         return;
       }
 
-      // Get room identifier
-      const roomIdentifier = conversationRoomId || (roomUrl ? btoa(roomUrl) : null);
-      if (!roomIdentifier) {
-        console.error('❌ CRITICAL: No room identifier - cannot end session');
+      const primaryRoomIdentifier = conversationRoomId;
+      const base64RoomUrl = (() => {
+        if (!roomUrl) return null;
+        try {
+          return btoa(roomUrl);
+        } catch (encodeError) {
+          console.debug('ℹ️ Unable to base64 encode room URL for session end candidates (non-blocking).', encodeError);
+          return null;
+        }
+      })();
+
+      if (!primaryRoomIdentifier && !conversationSlug && !roomUrl && !firebaseRoomId && !base64RoomUrl) {
+        console.error('❌ CRITICAL: No room identifier or slug available - cannot end session');
         return;
       }
 
       console.log(`💾 Ending conversation session - Reason: ${reason || 'unspecified'}`);
       console.log(`👤 User ID: ${userId}`);
-      console.log(`🏠 Room ID: ${roomIdentifier}`);
+      console.log(`🏠 Primary Room Identifier: ${primaryRoomIdentifier || 'none'}`);
 
       conversationSessionEndState.inFlight = true;
 
       try {
         const debugResult = await supabaseClient
           .from('conversation_sessions')
-          .select('id, room_id, ended_at, status, joined_at')
+          .select('id, room_id, sphere_id, status, joined_at, ended_at')
           .eq('user_id', userId)
           .order('joined_at', { ascending: false })
           .limit(5);
 
-        console.log('🔍 Current sessions for user:', debugResult);
+        console.log('🔍 Current sessions for user (raw):', debugResult);
 
         const endedAtValue = new Date().toISOString();
-        const roomCandidates = Array.from(new Set(
-          [roomIdentifier, roomUrl, firebaseRoomId].filter((value) => typeof value === 'string' && value.length > 0)
-        ));
+        const candidateRoomIds = new Set(
+          [primaryRoomIdentifier, roomUrl, firebaseRoomId, conversationSlug, base64RoomUrl]
+            .filter((value) => typeof value === 'string' && value.length > 0)
+        );
+
+        const candidateSphereIds = new Set(
+          [conversationSphereId].filter((value) => typeof value === 'string' && value.length > 0)
+        );
+
+        const recentSessions = Array.isArray(debugResult?.data) ? debugResult.data : [];
+        recentSessions.forEach((session) => {
+          if (session?.room_id) {
+            candidateRoomIds.add(session.room_id);
+          }
+          if (session?.sphere_id) {
+            candidateSphereIds.add(session.sphere_id);
+          }
+        });
+
+        if (primaryRoomIdentifier && primaryRoomIdentifier.startsWith('sphere-')) {
+          candidateSphereIds.add(primaryRoomIdentifier.replace(/^sphere-/, ''));
+        }
+
+        if (conversationSlug && conversationSlug.startsWith('sphere-')) {
+          candidateSphereIds.add(conversationSlug.replace(/^sphere-/, ''));
+        }
+
+        console.log('🧮 Candidate room identifiers:', Array.from(candidateRoomIds));
+        console.log('🧮 Candidate sphere identifiers:', Array.from(candidateSphereIds));
 
         let rowsUpdated = 0;
         let lastError = null;
+        let matchedIdentifier = null;
+        let matchedType = null;
 
-        for (const candidate of roomCandidates) {
-          console.log(`🔁 Attempting to end session using room identifier: ${candidate}`);
-
+        if (candidateRoomIds.size > 0) {
           const { data, error } = await supabaseClient
             .from('conversation_sessions')
             .update({
@@ -1126,31 +1163,59 @@
               status: 'completed'
             })
             .eq('user_id', userId)
-            .eq('room_id', candidate)
             .is('ended_at', null)
-            .select('id');
+            .in('room_id', Array.from(candidateRoomIds))
+            .select('id, room_id');
 
           if (error) {
-            console.error('❌ Supabase error ending session for identifier:', candidate, error);
+            console.error('❌ Supabase error ending session via room identifiers:', error);
             lastError = error;
-            continue;
-          }
-
-          rowsUpdated = Array.isArray(data) ? data.length : 0;
-
-          if (rowsUpdated > 0) {
-            console.log(`✅ SUCCESS: Session ended - ${rowsUpdated} row(s) updated (identifier: ${candidate})`);
-            console.log('💰 Minutes will be charged via database trigger');
-            conversationSessionEndState.ended = true;
-            break;
+          } else {
+            rowsUpdated = Array.isArray(data) ? data.length : 0;
+            if (rowsUpdated > 0) {
+              matchedIdentifier = data[0]?.room_id || 'unknown-room-id';
+              matchedType = 'room_id';
+            }
           }
         }
 
-        if (rowsUpdated === 0) {
+        if (rowsUpdated === 0 && candidateSphereIds.size > 0) {
+          const { data, error } = await supabaseClient
+            .from('conversation_sessions')
+            .update({
+              ended_at: endedAtValue,
+              status: 'completed'
+            })
+            .eq('user_id', userId)
+            .is('ended_at', null)
+            .in('sphere_id', Array.from(candidateSphereIds))
+            .select('id, sphere_id');
+
+          if (error) {
+            console.error('❌ Supabase error ending session via sphere identifiers:', error);
+            lastError = error;
+          } else {
+            rowsUpdated = Array.isArray(data) ? data.length : 0;
+            if (rowsUpdated > 0) {
+              matchedIdentifier = data[0]?.sphere_id || 'unknown-sphere-id';
+              matchedType = 'sphere_id';
+            }
+          }
+        }
+
+        if (rowsUpdated > 0) {
+          console.log(`✅ SUCCESS: Session ended - ${rowsUpdated} row(s) updated using ${matchedType}: ${matchedIdentifier}`);
+          console.log('💰 Minutes will be charged via database trigger');
+          conversationSessionEndState.ended = true;
+        } else {
           if (lastError) {
             console.warn('⚠️ Session end attempts finished with errors. See logs above for details.');
           } else {
-            console.warn('⚠️ No matching session found (identifier mismatch or already completed). Tried identifiers:', roomCandidates);
+            console.warn('⚠️ No matching session found (identifier mismatch or already completed).', {
+              triedRoomIdentifiers: Array.from(candidateRoomIds),
+              triedSphereIdentifiers: Array.from(candidateSphereIds),
+              recentSessions
+            });
           }
           conversationSessionEndState.ended = true;
         }
@@ -1255,12 +1320,6 @@
       executeComprehensiveCleanup('pagehide');
     });
 
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') {
-        executeComprehensiveCleanup('visibility-hidden');
-      }
-    });
-
 // Check if valid room URL
   if (!roomUrl) {
     document.body.innerHTML = `
@@ -1288,12 +1347,19 @@
         console.warn('⚠️ Unable to derive conversation room identifier from room URL.', { roomUrl: roomUrl });
       }
 
-    // Get user data from URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const usernameFromURL = urlParams.get('username');
-    const userIdFromURL = urlParams.get('userId'); 
-    const avatarFromURL = urlParams.get('avatar');
-    const displayNameFromURL = urlParams.get('displayName');
+      // Get user data from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const usernameFromURL = urlParams.get('username');
+      const userIdFromURL = urlParams.get('userId'); 
+      const avatarFromURL = urlParams.get('avatar');
+      const displayNameFromURL = urlParams.get('displayName');
+      const sphereIdFromURL = urlParams.get('sphereId') || urlParams.get('sphere_id');
+      const slugFromURL = urlParams.get('sphereSlug') || urlParams.get('slug');
+
+      conversationSlug = slugFromURL || null;
+      conversationSphereId = sphereIdFromURL || (conversationRoomId && conversationRoomId.startsWith('sphere-')
+        ? conversationRoomId.replace(/^sphere-/, '')
+        : null);
 
     // Set user mode
     isSpectator = spectatorMode;

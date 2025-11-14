@@ -1015,6 +1015,8 @@
   let isSpectator = false;
   let isRecording = false;
   let recordingId = null;
+  let recordingStartedAt = null;
+  window.recordingPreferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
   let userName = '';
   let userId = '';
   let conversationRoomId = null;
@@ -1922,47 +1924,49 @@
     }
   }
 
-  function setupChatListeners() {
-    // Listen for new chat messages
-    chatRef.orderByChild('timestamp').limitToLast(50).on('child_added', (snapshot) => {
-      const message = snapshot.val();
-      if (message) {
+    function setupChatListeners() {
+      // Listen for new chat messages
+      chatRef.orderByChild('timestamp').limitToLast(50).on('child_added', (snapshot) => {
+        const message = snapshot.val();
+        // Ignore non-chat payloads such as metadata/recordings
+        if (!message || typeof message.text !== 'string') {
+          return;
+        }
         displayChatMessage(message);
-      }
-    });
-    
-    // Set up chat input for spectators
-    const chatInput = document.getElementById('chat-input');
-    const charCount = document.getElementById('char-count');
-    
-    if (chatInput && charCount) {
-      chatInput.addEventListener('input', () => {
-        charCount.textContent = chatInput.value.length;
       });
-      
-      chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          sendChatMessage();
-        }
-      });
-    }
 
-    // Set up chat input for participants
-    const participantChatInput = document.getElementById('participant-chat-input');
-    const participantCharCount = document.getElementById('participant-char-count');
-    
-    if (participantChatInput && participantCharCount) {
-      participantChatInput.addEventListener('input', () => {
-        participantCharCount.textContent = participantChatInput.value.length;
-      });
-      
-      participantChatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          sendParticipantChatMessage();
-        }
-      });
+      // Set up chat input for spectators
+      const chatInput = document.getElementById('chat-input');
+      const charCount = document.getElementById('char-count');
+
+      if (chatInput && charCount) {
+        chatInput.addEventListener('input', () => {
+          charCount.textContent = chatInput.value.length;
+        });
+
+        chatInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            sendChatMessage();
+          }
+        });
+      }
+
+      // Set up chat input for participants
+      const participantChatInput = document.getElementById('participant-chat-input');
+      const participantCharCount = document.getElementById('participant-char-count');
+
+      if (participantChatInput && participantCharCount) {
+        participantChatInput.addEventListener('input', () => {
+          participantCharCount.textContent = participantChatInput.value.length;
+        });
+
+        participantChatInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            sendParticipantChatMessage();
+          }
+        });
+      }
     }
-  }
 
   function displayChatMessage(message) {
     // Display in both spectator and participant chat areas
@@ -2528,41 +2532,54 @@
   }
 
   // Recording event handlers
-  function handleRecordingStarted(event) {
-    console.log('🎥 Recording started:', event);
-    isRecording = true;
-    recordingId = event.recordingId;
-    
-    document.getElementById('recording-status').classList.remove('hidden');
-    
-    // Update record button
-    const recordBtn = document.getElementById('record-btn');
-    if (recordBtn) {
-      recordBtn.classList.add('active');
+    function handleRecordingStarted(event) {
+      console.log('🎥 Recording started:', event);
+      isRecording = true;
+      recordingId = event?.recordingId || event?.data?.recordingId || recordingId;
+      recordingStartedAt = Date.now();
+      
+      document.getElementById('recording-status').classList.remove('hidden');
+      
+      // Update record button
+      const recordBtn = document.getElementById('record-btn');
+      if (recordBtn) {
+        recordBtn.classList.add('active');
+        recordBtn.setAttribute('aria-pressed', 'true');
+      }
+      
+      showToast('🎬 Recording started!');
     }
-    
-    showToast('🎬 Recording started!');
-  }
 
-  function handleRecordingStopped(event) {
-    console.log('🛑 Recording stopped:', event);
-    isRecording = false;
-    
-    document.getElementById('recording-status').classList.add('hidden');
-    
-    // Update record button
-    const recordBtn = document.getElementById('record-btn');
-    if (recordBtn) {
-      recordBtn.classList.remove('active');
+    function handleRecordingStopped(event) {
+      console.log('🛑 Recording stopped:', event);
+      isRecording = false;
+      
+      document.getElementById('recording-status').classList.add('hidden');
+      
+      // Update record button
+      const recordBtn = document.getElementById('record-btn');
+      if (recordBtn) {
+        recordBtn.classList.remove('active');
+        recordBtn.setAttribute('aria-pressed', 'false');
+      }
+      
+      const timing = {
+        startedAt: recordingStartedAt,
+        endedAt: Date.now()
+      };
+      
+      // Save recording metadata to Firebase
+      if (recordingId) {
+        saveRecordingMetadata(event, timing);
+      } else {
+        console.warn('⚠️ Recording stopped event arrived without a recordingId');
+      }
+      
+      recordingId = null;
+      recordingStartedAt = null;
+      
+      showToast('🎬 Recording stopped and saved!');
     }
-    
-    // Save recording metadata to Firebase
-    if (recordingId) {
-      saveRecordingMetadata(event);
-    }
-    
-    showToast('🎬 Recording stopped and saved!');
-  }
 
   // Video setup functions
   function setupLocalVideo(track) {
@@ -3557,15 +3574,23 @@
     }
   }
 
-  function toggleRecording() {
-    if (isSpectator) return; // Only participants can record
-    
-    if (!isRecording) {
-      showRecordingConsentModal();
-    } else {
-      stopRecording();
+    function toggleRecording() {
+      if (isSpectator) return; // Only participants can record
+      if (!call) {
+        showToast('🔌 Still connecting to the video room. Please try again in a moment.');
+        return;
+      }
+      if (typeof call.meetingState === 'function' && call.meetingState() !== 'joined-meeting') {
+        showToast('⚠️ Please join the room before starting a recording.');
+        return;
+      }
+      
+      if (!isRecording) {
+        showRecordingConsentModal();
+      } else {
+        stopRecording();
+      }
     }
-  }
 
   function showRecordingConsentModal() {
     document.getElementById('recording-consent-modal').classList.remove('hidden');
@@ -3575,7 +3600,22 @@
     document.getElementById('recording-consent-modal').classList.add('hidden');
   }
 
-  async function confirmRecording() {
+    async function confirmRecording() {
+      if (!call || typeof call.startRecording !== 'function') {
+        showToast('❌ Recording is not available in this room.');
+        return;
+      }
+      
+      if (typeof call.meetingState === 'function' && call.meetingState() !== 'joined-meeting') {
+        showToast('⚠️ Please wait until you are fully connected to start recording.');
+        return;
+      }
+      
+      if (isRecording) {
+        showToast('🎥 A recording is already in progress.');
+        return;
+      }
+      
     const privacy = document.getElementById('recording-privacy').value;
     const autoDelete = document.getElementById('recording-auto-delete').value;
     
@@ -3604,44 +3644,120 @@
     }
   }
 
-  async function stopRecording() {
-    try {
-      await call.stopRecording();
-      console.log('🛑 Recording stopped');
-    } catch (error) {
-      console.error('❌ Failed to stop recording:', error);
-      showToast('❌ Failed to stop recording: ' + error.message);
+    async function stopRecording() {
+      if (!call || typeof call.stopRecording !== 'function') {
+        showToast('⚠️ Recording controls are unavailable.');
+        return;
+      }
+      
+      if (!isRecording) {
+        showToast('ℹ️ There is no active recording to stop.');
+        return;
+      }
+      
+      try {
+        await call.stopRecording();
+        console.log('🛑 Recording stopped');
+      } catch (error) {
+        console.error('❌ Failed to stop recording:', error);
+        showToast('❌ Failed to stop recording: ' + error.message);
+      }
     }
-  }
 
-  async function saveRecordingMetadata(event) {
-    const roomId = btoa(roomUrl);
-    const currentTopic = document.getElementById('topic-display').textContent || 'General Chat';
-    const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
-    
-    const recordingData = {
-      recordingId: recordingId,
-      roomUrl: roomUrl,
-      topic: currentTopic,
-      participants: Object.values(call.participants()).map(p => p.user_name || 'Guest'),
-      privacy: preferences.privacy,
-      autoDelete: preferences.autoDelete,
-      status: 'processing',
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      downloadUrl: null // Will be updated when Daily.co provides the URL
-    };
-    
-    try {
-      await db.ref(`recordings/${roomId}/${recordingId}`).set(recordingData);
-      console.log('💾 Recording metadata saved to Firebase');
+    async function saveRecordingMetadata(event = {}, timing = {}) {
+      if (!db) {
+        console.error('❌ Firebase database is not initialized. Cannot save recording metadata.');
+        return;
+      }
       
-      showToast('💾 Recording saved! You\'ll receive a download link soon.');
+      const roomId = firebaseRoomId || (roomUrl ? btoa(roomUrl) : null);
+      if (!roomId) {
+        console.error('❌ Unable to determine Firebase room id for recording storage.');
+        return;
+      }
       
-    } catch (error) {
-      console.error('❌ Failed to save recording metadata:', error);
-      showToast('❌ Failed to save recording data');
+      const resolvedRecordingId = recordingId || event?.recordingId || event?.data?.recordingId || event?.data?.recording_id;
+      if (!resolvedRecordingId) {
+        console.error('❌ Missing recordingId for Firebase storage. Event payload:', event);
+        return;
+      }
+      
+      const currentTopic = document.getElementById('topic-display')?.textContent || 'General Chat';
+      const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
+      const eventData = event?.data || {};
+      const participantsObj = call && typeof call.participants === 'function' ? call.participants() : {};
+      const participantNames = Object.values(participantsObj).map((p) => {
+        return p?.user_name || p?.userName || p?.user_id || 'Guest';
+      });
+      
+      const startedAtMs = typeof timing.startedAt === 'number'
+        ? timing.startedAt
+        : typeof eventData.start_time === 'number'
+          ? Math.round(eventData.start_time * 1000)
+          : Date.now();
+      
+      const endedAtMs = typeof timing.endedAt === 'number'
+        ? timing.endedAt
+        : typeof eventData.end_time === 'number'
+          ? Math.round(eventData.end_time * 1000)
+          : Date.now();
+      
+      const durationMs = typeof eventData.duration === 'number'
+        ? Math.round(eventData.duration * 1000)
+        : (startedAtMs && endedAtMs ? Math.max(endedAtMs - startedAtMs, 0) : null);
+      
+      const downloadUrl = event?.downloadLink
+        || eventData?.download_link
+        || eventData?.downloadLink
+        || eventData?.recording?.download_link
+        || eventData?.recording?.downloadLink
+        || null;
+      
+      const status = downloadUrl ? 'completed' : 'processing';
+      
+      const recordingData = {
+        recordingId: resolvedRecordingId,
+        instanceId: event?.instanceId || eventData?.instanceId || eventData?.instance_id || null,
+        roomUrl,
+        roomId,
+        topic: currentTopic,
+        participants: participantNames,
+        preferences,
+        privacy: preferences.privacy,
+        autoDelete: preferences.autoDelete,
+        status,
+        createdBy: userId || null,
+        startedAt: startedAtMs || null,
+        endedAt: endedAtMs || null,
+        durationMs,
+        durationSeconds: durationMs ? Math.round(durationMs / 1000) : null,
+        downloadUrl,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        lastUpdatedAt: firebase.database.ServerValue.TIMESTAMP,
+        metadata: {
+          action: event?.action || null,
+          reason: event?.reason || null
+        }
+      };
+      
+      try {
+        await db.ref(`recordings/${roomId}/${resolvedRecordingId}`).set(recordingData);
+        await db.ref(`chats/${roomId}/recordings/${resolvedRecordingId}`).set({
+          recordingId: resolvedRecordingId,
+          status,
+          topic: currentTopic,
+          downloadUrl,
+          durationSeconds: recordingData.durationSeconds,
+          savedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        
+        console.log('💾 Recording metadata saved to Firebase');
+        showToast('💾 Recording saved! You\'ll receive a download link soon.');
+      } catch (error) {
+        console.error('❌ Failed to save recording metadata:', error);
+        showToast('❌ Failed to save recording data');
+      }
     }
-  }
 
   function toggleSettings() {
     if (isSpectator) return;

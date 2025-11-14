@@ -482,10 +482,10 @@
         </div>
         
         <!-- Recording Indicator -->
-        <div id="recording-status" class="hidden flex items-center space-x-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold recording-indicator">
-          <div class="w-2 h-2 bg-white rounded-full"></div>
-          <span>REC</span>
-        </div>
+          <div id="recording-status" class="hidden flex items-center space-x-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold recording-indicator">
+            <div class="w-2 h-2 bg-white rounded-full"></div>
+            <span id="recording-status-text">REC</span>
+          </div>
       </div>
       
       <!-- Timer -->
@@ -1015,6 +1015,19 @@
   let isSpectator = false;
   let isRecording = false;
   let recordingId = null;
+  let mediaRecorder = null;
+  let recordingStream = null;
+  let displayRecordingStream = null;
+  let micRecordingStream = null;
+  let recordedChunks = [];
+  let recordingMimeType = 'video/webm';
+  let recordingStartedAt = null;
+  let recordingCompletionPromise = null;
+  let resolveRecordingCompletion = null;
+  let rejectRecordingCompletion = null;
+  let recordingUploadTask = null;
+  let recordingAudioContext = null;
+  let recordingAudioDestination = null;
   let userName = '';
   let userId = '';
   let conversationRoomId = null;
@@ -2534,6 +2547,7 @@
     recordingId = event.recordingId;
     
     document.getElementById('recording-status').classList.remove('hidden');
+    updateRecordingStatus('REC');
     
     // Update record button
     const recordBtn = document.getElementById('record-btn');
@@ -2554,11 +2568,6 @@
     const recordBtn = document.getElementById('record-btn');
     if (recordBtn) {
       recordBtn.classList.remove('active');
-    }
-    
-    // Save recording metadata to Firebase
-    if (recordingId) {
-      saveRecordingMetadata(event);
     }
     
     showToast('🎬 Recording stopped and saved!');
@@ -3582,22 +3591,7 @@
     document.getElementById('recording-consent-modal').classList.add('hidden');
     
     try {
-      // Start Daily.co recording
-      await call.startRecording({
-        instanceId: `chatspheres_${Date.now()}`,
-        layout: {
-          preset: 'default'
-        }
-      });
-      
-      // Store recording preferences
-      window.recordingPreferences = {
-        privacy: privacy,
-        autoDelete: autoDelete
-      };
-      
-      console.log('🎬 Recording started with preferences:', window.recordingPreferences);
-      
+      await startLocalRecording(privacy, autoDelete);
     } catch (error) {
       console.error('❌ Failed to start recording:', error);
       showToast('❌ Failed to start recording: ' + error.message);
@@ -3606,7 +3600,7 @@
 
   async function stopRecording() {
     try {
-      await call.stopRecording();
+      await stopLocalRecording();
       console.log('🛑 Recording stopped');
     } catch (error) {
       console.error('❌ Failed to stop recording:', error);
@@ -3614,31 +3608,369 @@
     }
   }
 
-  async function saveRecordingMetadata(event) {
-    const roomId = btoa(roomUrl);
-    const currentTopic = document.getElementById('topic-display').textContent || 'General Chat';
+  function getSupportedRecordingMimeType() {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) {
+      return null;
+    }
+    const candidates = [
+      'video/webm;codecs=vp9,opus',
+      'video/webm;codecs=vp8,opus',
+      'video/webm;codecs=h264,opus',
+      'video/webm'
+    ];
+    return candidates.find(type => {
+      try {
+        return MediaRecorder.isTypeSupported(type);
+      } catch {
+        return false;
+      }
+    }) || null;
+  }
+
+  function ensureRecordingCompletionPromise() {
+    if (!recordingCompletionPromise) {
+      recordingCompletionPromise = new Promise((resolve, reject) => {
+        resolveRecordingCompletion = resolve;
+        rejectRecordingCompletion = reject;
+      });
+    }
+    return recordingCompletionPromise;
+  }
+
+  function updateRecordingStatus(message) {
+    const statusElement = document.getElementById('recording-status-text');
+    if (statusElement && typeof message === 'string') {
+      statusElement.textContent = message;
+    }
+  }
+
+  function stopStream(stream) {
+    if (!stream) return;
+    try {
+      const tracks = stream.getTracks();
+      tracks.forEach(track => {
+        try {
+          track.stop();
+        } catch (error) {
+          console.warn('Unable to stop track:', error);
+        }
+      });
+    } catch (error) {
+      console.warn('Unable to stop stream:', error);
+    }
+  }
+
+  async function startLocalRecording(privacy, autoDelete) {
+    if (isSpectator) {
+      throw new Error('Spectators cannot start recordings.');
+    }
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      showToast('⚠️ Recording already in progress');
+      return;
+    }
+    if (typeof MediaRecorder === 'undefined') {
+      throw new Error('MediaRecorder API is not available in this browser.');
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      throw new Error('Screen recording is not supported in this browser.');
+    }
+
+    recordedChunks = [];
+    recordingStartedAt = null;
+    recordingMimeType = getSupportedRecordingMimeType() || 'video/webm';
+
+    let displayStream;
+    try {
+      displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          cursor: 'always',
+          frameRate: { ideal: 30, max: 60 },
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          displaySurface: 'browser'
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 48000
+        }
+      });
+    } catch (error) {
+      throw new Error('Screen capture was not granted.');
+    }
+
+    displayRecordingStream = displayStream;
+
+    // Capture microphone audio to mix into the recording.
+    try {
+      micRecordingStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          sampleRate: 48000
+        }
+      });
+    } catch (error) {
+      console.warn('Microphone capture failed; relying on tab audio only.', error);
+      micRecordingStream = null;
+    }
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    let mixedStream = displayStream;
+
+    if (AudioContextClass && (displayStream.getAudioTracks().length || (micRecordingStream && micRecordingStream.getAudioTracks().length))) {
+      try {
+        recordingAudioContext = new AudioContextClass();
+        recordingAudioDestination = recordingAudioContext.createMediaStreamDestination();
+
+        if (displayStream.getAudioTracks().length) {
+          const displayAudioStream = new MediaStream(displayStream.getAudioTracks());
+          const displaySource = recordingAudioContext.createMediaStreamSource(displayAudioStream);
+          displaySource.connect(recordingAudioDestination);
+        }
+
+        if (micRecordingStream && micRecordingStream.getAudioTracks().length) {
+          const micSource = recordingAudioContext.createMediaStreamSource(micRecordingStream);
+          micSource.connect(recordingAudioDestination);
+        }
+
+        const finalTracks = [
+          ...displayStream.getVideoTracks(),
+          ...recordingAudioDestination.stream.getAudioTracks()
+        ];
+
+        if (finalTracks.length > 0) {
+          mixedStream = new MediaStream(finalTracks);
+        }
+      } catch (error) {
+        console.warn('Audio mixing failed; continuing without microphone mix.', error);
+        if (micRecordingStream && micRecordingStream.getAudioTracks().length) {
+          mixedStream = new MediaStream([
+            ...displayStream.getVideoTracks(),
+            ...micRecordingStream.getAudioTracks()
+          ]);
+        }
+      }
+    } else if (micRecordingStream && micRecordingStream.getAudioTracks().length && !displayStream.getAudioTracks().length) {
+      mixedStream = new MediaStream([
+        ...displayStream.getVideoTracks(),
+        ...micRecordingStream.getAudioTracks()
+      ]);
+    }
+
+    recordingStream = mixedStream;
+    recordingId = `local_${Date.now()}`;
+    recordingStartedAt = Date.now();
+    window.recordingPreferences = {
+      privacy: privacy,
+      autoDelete: autoDelete
+    };
+
+    const recorderOptions = {};
+    if (recordingMimeType) {
+      recorderOptions.mimeType = recordingMimeType;
+    }
+
+    mediaRecorder = new MediaRecorder(recordingStream, recorderOptions);
+    ensureRecordingCompletionPromise();
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data && event.data.size > 0) {
+        recordedChunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.onerror = (event) => {
+      console.error('MediaRecorder error:', event);
+      const errorMessage = event.error?.message || event.error?.name || 'Unknown recording error';
+      showToast('❌ Recording error: ' + errorMessage);
+      if (rejectRecordingCompletion) {
+        rejectRecordingCompletion(event.error || new Error(errorMessage));
+      }
+    };
+
+    mediaRecorder.onstop = () => {
+      finalizeRecordingUpload();
+    };
+
+    const [videoTrack] = recordingStream.getVideoTracks();
+    if (videoTrack) {
+      videoTrack.addEventListener('ended', () => {
+        if (isRecording) {
+          stopLocalRecording();
+        }
+      }, { once: true });
+    }
+
+    mediaRecorder.start(1000);
+    handleRecordingStarted({ recordingId });
+    updateRecordingStatus('REC');
+    showToast('📼 Recording this tab. Keep it visible and share tab audio for best results.');
+  }
+
+  async function stopLocalRecording() {
+    if (!mediaRecorder) {
+      return;
+    }
+    try {
+      if (mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+      }
+    } catch (error) {
+      console.warn('Failed to stop recorder cleanly:', error);
+    }
+    if (recordingCompletionPromise) {
+      await recordingCompletionPromise;
+    }
+  }
+
+  function cleanupRecordingStreams() {
+    stopStream(recordingStream);
+    stopStream(displayRecordingStream);
+    stopStream(micRecordingStream);
+
+    recordingStream = null;
+    displayRecordingStream = null;
+    micRecordingStream = null;
+
+    if (recordingAudioDestination) {
+      stopStream(recordingAudioDestination.stream);
+      recordingAudioDestination = null;
+    }
+    if (recordingAudioContext) {
+      try {
+        recordingAudioContext.close();
+      } catch (error) {
+        console.warn('Failed to close AudioContext:', error);
+      }
+      recordingAudioContext = null;
+    }
+  }
+
+  async function finalizeRecordingUpload() {
+    try {
+      cleanupRecordingStreams();
+
+      if (!recordedChunks.length) {
+        throw new Error('No recording data was captured (empty stream).');
+      }
+
+      const blob = new Blob(recordedChunks, { type: recordingMimeType || 'video/webm' });
+      const effectiveRoomId = firebaseRoomId || (roomUrl ? btoa(roomUrl) : null);
+      if (!effectiveRoomId) {
+        throw new Error('Missing room identifier for recording metadata.');
+      }
+
+      const storagePath = `recordings/${effectiveRoomId}/${recordingId}.webm`;
+      const storageRef = storage.ref().child(storagePath);
+
+      updateRecordingStatus('Preparing upload…');
+      recordingUploadTask = storageRef.put(blob, {
+        contentType: recordingMimeType || 'video/webm'
+      });
+
+      await new Promise((resolve, reject) => {
+        recordingUploadTask.on('state_changed', (snapshot) => {
+          if (!snapshot.totalBytes) return;
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          updateRecordingStatus(`Uploading ${progress}%`);
+        }, reject, resolve);
+      });
+
+      const downloadUrl = await recordingUploadTask.snapshot.ref.getDownloadURL();
+      const durationMs = recordingStartedAt ? (Date.now() - recordingStartedAt) : null;
+
+      await saveRecordingMetadata({
+        storagePath,
+        downloadUrl,
+        fileSize: blob.size,
+        durationMs,
+        status: 'ready'
+      });
+
+      updateRecordingStatus('Uploaded');
+      showToast('✅ Recording uploaded to Firebase Storage');
+      handleRecordingStopped({ recordingId });
+      if (resolveRecordingCompletion) {
+        resolveRecordingCompletion();
+      }
+    } catch (error) {
+      console.error('Failed to finalize recording:', error);
+      showToast('❌ Recording failed: ' + error.message);
+      const durationMs = recordingStartedAt ? (Date.now() - recordingStartedAt) : null;
+      if (recordingId) {
+        await saveRecordingMetadata({
+          storagePath: null,
+          downloadUrl: null,
+          fileSize: 0,
+          durationMs,
+          status: 'error',
+          error: error.message
+        }).catch(err => console.error('Failed to record error metadata:', err));
+      }
+      handleRecordingStopped({ recordingId });
+      if (rejectRecordingCompletion) {
+        rejectRecordingCompletion(error);
+      }
+    } finally {
+      recordedChunks = [];
+      mediaRecorder = null;
+      recordingUploadTask = null;
+      recordingStartedAt = null;
+      recordingCompletionPromise = null;
+      resolveRecordingCompletion = null;
+      rejectRecordingCompletion = null;
+      cleanupRecordingStreams();
+    }
+  }
+
+  async function saveRecordingMetadata({
+    storagePath,
+    downloadUrl,
+    fileSize,
+    durationMs,
+    status = 'processing',
+    error = null
+  }) {
+    const roomIdentifier = firebaseRoomId || (roomUrl ? btoa(roomUrl) : null);
+    if (!roomIdentifier || !recordingId) {
+      console.warn('Skipping recording metadata save: missing room or recording id.');
+      return;
+    }
+    const currentTopic = (document.getElementById('topic-display')?.textContent || 'General Chat').trim();
     const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
-    
+    const participantList = call
+      ? Object.values(call.participants()).map(p => p.user_name || p.session_id || 'Guest')
+      : [];
+  
     const recordingData = {
-      recordingId: recordingId,
+      recordingId,
       roomUrl: roomUrl,
       topic: currentTopic,
-      participants: Object.values(call.participants()).map(p => p.user_name || 'Guest'),
+      participants: participantList,
       privacy: preferences.privacy,
       autoDelete: preferences.autoDelete,
-      status: 'processing',
+      status,
       createdAt: firebase.database.ServerValue.TIMESTAMP,
-      downloadUrl: null // Will be updated when Daily.co provides the URL
+      updatedAt: firebase.database.ServerValue.TIMESTAMP,
+      downloadUrl: downloadUrl || null,
+      storagePath: storagePath || null,
+      fileSize: typeof fileSize === 'number' ? fileSize : null,
+      durationMs: typeof durationMs === 'number' ? durationMs : null
     };
-    
+  
+    if (error) {
+      recordingData.error = error;
+    }
+  
     try {
-      await db.ref(`recordings/${roomId}/${recordingId}`).set(recordingData);
+      await db.ref(`recordings/${roomIdentifier}/${recordingId}`).set(recordingData);
       console.log('💾 Recording metadata saved to Firebase');
-      
-      showToast('💾 Recording saved! You\'ll receive a download link soon.');
-      
-    } catch (error) {
-      console.error('❌ Failed to save recording metadata:', error);
+      if (status === 'ready' && downloadUrl) {
+        showToast('💾 Recording uploaded! Download link ready.');
+      }
+    } catch (saveError) {
+      console.error('❌ Failed to save recording metadata:', saveError);
       showToast('❌ Failed to save recording data');
     }
   }

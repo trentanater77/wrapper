@@ -9,6 +9,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -961,6 +962,35 @@
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
   const storage = firebase.storage();
+  const auth = firebase.auth();
+
+  function ensureFirebaseAuth() {
+    return new Promise((resolve, reject) => {
+      auth.onAuthStateChanged(async (user) => {
+        if (user) {
+          resolve(user);
+        } else {
+          try {
+            await auth.signInAnonymously();
+          } catch (error) {
+            console.error('❌ Failed to sign in anonymously:', error);
+            reject(error);
+          }
+        }
+      }, reject);
+    });
+  }
+
+  async function startVideoExperience() {
+    try {
+      await ensureFirebaseAuth();
+      console.log('✅ Firebase auth ready:', auth.currentUser?.uid);
+      initializeVideoChat();
+    } catch (error) {
+      console.error('❌ Firebase authentication failed:', error);
+      showToast('❌ Firebase authentication failed. Please reload.');
+    }
+  }
 
   firebase.database().ref('.info/serverTimeOffset').on('value', (snapshot) => {
     const offset = snapshot.val();
@@ -1605,7 +1635,7 @@
       }
     }
     
-    initializeVideoChat();
+      startVideoExperience();
   }
 
   // Load room info

@@ -2255,42 +2255,41 @@
       // Handle remote participant tracks
       const participantId = event.participant.session_id;
       
-        if (event.track.kind === 'video') {
-          const isScreenShareTrack = event.track.label && (
-            event.track.label.includes('screen') ||
-            event.track.label.includes('Screen') ||
-            event.track.label.includes('display') ||
-            event.track.label.includes('Display') ||
-            event.track.label.includes('web-contents-media-stream')
-          );
-          
-          if (isScreenShareTrack) {
-            console.log('📺 Setting up screen share for participant:', participantId);
-            if (isSpectator) {
-              setupSpectatorScreenShare(event.track);
-            } else {
-              setupScreenShareVideo(event.track);
-            }
+      if (event.track.kind === 'video') {
+        const isScreenShareTrack = event.track.label && (
+          event.track.label.includes('screen') ||
+          event.track.label.includes('Screen') ||
+          event.track.label.includes('display') ||
+          event.track.label.includes('Display') ||
+          event.track.label.includes('web-contents-media-stream')
+        );
+        
+        if (isScreenShareTrack) {
+          console.log('📺 Setting up screen share for participant:', participantId);
+          if (isSpectator) {
+            setupSpectatorScreenShare(event.track);
           } else {
-            console.log('🎥 Setting up regular video for participant:', participantId);
-            if (isSpectator) {
-              setupSpectatorVideo(event.track, participantId);
-            } else {
-              console.log('🔄 Setting up remote video (camera turned back on)');
-              setupRemoteVideo(event.track);
-              updateRemoteInfo(event.participant.user_name || 'Guest');
-              
-              const remoteVideo = document.getElementById('remote-video');
-              const placeholder = document.getElementById('remote-placeholder');
-              if (remoteVideo && placeholder) {
-                remoteVideo.style.display = 'block';
-                placeholder.style.display = 'none';
-              }
+            setupScreenShareVideo(event.track);
+          }
+        } else {
+          console.log('🎥 Setting up regular video for participant:', participantId);
+          if (isSpectator) {
+            setupSpectatorVideo(event.track, participantId);
+          } else {
+            console.log('🔄 Setting up remote video (camera turned back on)');
+            setupRemoteVideo(event.track);
+            updateRemoteInfo(event.participant.user_name || 'Guest');
+            
+            const remoteVideo = document.getElementById('remote-video');
+            const placeholder = document.getElementById('remote-placeholder');
+            if (remoteVideo && placeholder) {
+              remoteVideo.style.display = 'block';
+              placeholder.style.display = 'none';
             }
           }
-        } else if (event.track.kind === 'audio') {
-          setupRemoteAudio(event.track);
         }
+      } else if (event.track.kind === 'audio') {
+        setupRemoteAudio(event.track);
       }
     }
     
@@ -2388,28 +2387,28 @@
         event.track.label.includes('web-contents-media-stream')
       ));
       
-      if (isScreenShareTrack) {
-        console.log('📺 Remote screen share track stopped - restoring camera feed');
-        if (isSpectator) {
-          hideSpectatorScreenShare();
-        } else {
-          hideScreenShareVideo();
-          // CRITICAL: Restore the camera feed after screen share stops
-          restoreParticipantCameraFeed();
-        }
-      } else {
-        console.log(`📷 ${participantName} turned off their camera - showing placeholder`);
-        
-        if (!isSpectator) {
-          // Show placeholder but keep participant info
-          const remoteVideo = document.getElementById('remote-video');
-          const placeholder = document.getElementById('remote-placeholder');
-          if (remoteVideo && placeholder) {
-            remoteVideo.style.display = 'none';
-            placeholder.style.display = 'flex';
-            // Update placeholder to show it's just camera off, not disconnected
-            updateRemotePlaceholderForCameraOff(event.participant);
+        if (isScreenShareTrack) {
+          console.log('📺 Remote screen share track stopped - restoring camera feed');
+          if (isSpectator) {
+            hideSpectatorScreenShare();
+          } else {
+            hideScreenShareVideo();
+            // CRITICAL: Restore the camera feed after screen share stops
+            restoreParticipantCameraFeed();
           }
+        } else {
+          console.log(`📷 ${participantName} turned off their camera - showing placeholder`);
+          
+          if (!isSpectator) {
+            // Show placeholder but keep participant info
+            const remoteVideo = document.getElementById('remote-video');
+            const placeholder = document.getElementById('remote-placeholder');
+            if (remoteVideo && placeholder) {
+              remoteVideo.style.display = 'none';
+              placeholder.style.display = 'flex';
+              // Update placeholder to show it's just camera off, not disconnected
+              updateRemotePlaceholderForCameraOff(event.participant);
+            }
           } else {
             // CRITICAL FIX: For spectators, show proper camera-off placeholder AND force overlay
             console.log(`🎭 SPECTATOR: Showing camera-off placeholder for ${participantName}`);
@@ -2420,7 +2419,7 @@
               forceSpectatorOverlayVisible('camera-off');
             }, 100);
           }
-      }
+        }
     }
     
     if (isRecording) {

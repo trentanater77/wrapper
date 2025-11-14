@@ -1015,6 +1015,18 @@
   let isSpectator = false;
   let isRecording = false;
   let recordingId = null;
+  let recordingMode = 'daily'; // 'daily' | 'local'
+  let recordingStartedAt = null;
+  let localRecordingMediaRecorder = null;
+  let localRecordingStream = null;
+  let localRecordingChunks = [];
+  let localRecordingCanvas = null;
+  let localRecordingCtx = null;
+  let localRecordingAnimationFrame = null;
+  let localRecordingAudioCtx = null;
+  let localRecordingAudioDestination = null;
+  let localRecordingAudioSources = [];
+  window.recordingPreferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
   let userName = '';
   let userId = '';
   let conversationRoomId = null;
@@ -1922,47 +1934,49 @@
     }
   }
 
-  function setupChatListeners() {
-    // Listen for new chat messages
-    chatRef.orderByChild('timestamp').limitToLast(50).on('child_added', (snapshot) => {
-      const message = snapshot.val();
-      if (message) {
+    function setupChatListeners() {
+      // Listen for new chat messages
+      chatRef.orderByChild('timestamp').limitToLast(50).on('child_added', (snapshot) => {
+        const message = snapshot.val();
+        // Ignore non-chat payloads such as metadata/recordings
+        if (!message || typeof message.text !== 'string') {
+          return;
+        }
         displayChatMessage(message);
-      }
-    });
-    
-    // Set up chat input for spectators
-    const chatInput = document.getElementById('chat-input');
-    const charCount = document.getElementById('char-count');
-    
-    if (chatInput && charCount) {
-      chatInput.addEventListener('input', () => {
-        charCount.textContent = chatInput.value.length;
       });
-      
-      chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          sendChatMessage();
-        }
-      });
-    }
 
-    // Set up chat input for participants
-    const participantChatInput = document.getElementById('participant-chat-input');
-    const participantCharCount = document.getElementById('participant-char-count');
-    
-    if (participantChatInput && participantCharCount) {
-      participantChatInput.addEventListener('input', () => {
-        participantCharCount.textContent = participantChatInput.value.length;
-      });
-      
-      participantChatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          sendParticipantChatMessage();
-        }
-      });
+      // Set up chat input for spectators
+      const chatInput = document.getElementById('chat-input');
+      const charCount = document.getElementById('char-count');
+
+      if (chatInput && charCount) {
+        chatInput.addEventListener('input', () => {
+          charCount.textContent = chatInput.value.length;
+        });
+
+        chatInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            sendChatMessage();
+          }
+        });
+      }
+
+      // Set up chat input for participants
+      const participantChatInput = document.getElementById('participant-chat-input');
+      const participantCharCount = document.getElementById('participant-char-count');
+
+      if (participantChatInput && participantCharCount) {
+        participantChatInput.addEventListener('input', () => {
+          participantCharCount.textContent = participantChatInput.value.length;
+        });
+
+        participantChatInput.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            sendParticipantChatMessage();
+          }
+        });
+      }
     }
-  }
 
   function displayChatMessage(message) {
     // Display in both spectator and participant chat areas
@@ -2527,42 +2541,58 @@
     }
   }
 
-  // Recording event handlers
-  function handleRecordingStarted(event) {
-    console.log('🎥 Recording started:', event);
-    isRecording = true;
-    recordingId = event.recordingId;
-    
-    document.getElementById('recording-status').classList.remove('hidden');
-    
-    // Update record button
-    const recordBtn = document.getElementById('record-btn');
-    if (recordBtn) {
-      recordBtn.classList.add('active');
+    function setRecordingUiState(active) {
+      const statusEl = document.getElementById('recording-status');
+      const recordBtn = document.getElementById('record-btn');
+      
+      if (!statusEl || !recordBtn) return;
+      
+      if (active) {
+        statusEl.classList.remove('hidden');
+        recordBtn.classList.add('active');
+        recordBtn.setAttribute('aria-pressed', 'true');
+      } else {
+        statusEl.classList.add('hidden');
+        recordBtn.classList.remove('active');
+        recordBtn.setAttribute('aria-pressed', 'false');
+      }
     }
-    
-    showToast('🎬 Recording started!');
-  }
 
-  function handleRecordingStopped(event) {
-    console.log('🛑 Recording stopped:', event);
-    isRecording = false;
-    
-    document.getElementById('recording-status').classList.add('hidden');
-    
-    // Update record button
-    const recordBtn = document.getElementById('record-btn');
-    if (recordBtn) {
-      recordBtn.classList.remove('active');
+    // Recording event handlers
+    function handleRecordingStarted(event) {
+      console.log('🎥 Recording started:', event);
+      isRecording = true;
+      recordingId = event?.recordingId || event?.data?.recordingId || recordingId;
+      recordingStartedAt = Date.now();
+      recordingMode = 'daily';
+      
+      setRecordingUiState(true);
+      
+      showToast('🎬 Recording started!');
     }
-    
-    // Save recording metadata to Firebase
-    if (recordingId) {
-      saveRecordingMetadata(event);
+
+    function handleRecordingStopped(event) {
+      console.log('🛑 Recording stopped:', event);
+      isRecording = false;
+      setRecordingUiState(false);
+      
+      const timing = {
+        startedAt: recordingStartedAt,
+        endedAt: Date.now()
+      };
+      
+      // Save recording metadata to Firebase
+      if (recordingId) {
+        saveRecordingMetadata(event, timing);
+      } else {
+        console.warn('⚠️ Recording stopped event arrived without a recordingId');
+      }
+      
+      recordingId = null;
+      recordingStartedAt = null;
+      
+      showToast('🎬 Recording stopped and saved!');
     }
-    
-    showToast('🎬 Recording stopped and saved!');
-  }
 
   // Video setup functions
   function setupLocalVideo(track) {
@@ -3557,15 +3587,25 @@
     }
   }
 
-  function toggleRecording() {
-    if (isSpectator) return; // Only participants can record
-    
-    if (!isRecording) {
-      showRecordingConsentModal();
-    } else {
-      stopRecording();
+    function toggleRecording() {
+      if (isSpectator) return; // Only participants can record
+      if (!call) {
+        showToast('🔌 Still connecting to the video room. Please try again in a moment.');
+        return;
+      }
+      if (typeof call.meetingState === 'function' && call.meetingState() !== 'joined-meeting') {
+        showToast('⚠️ Please join the room before starting a recording.');
+        return;
+      }
+      
+      if (!isRecording) {
+        showRecordingConsentModal();
+      } else if (recordingMode === 'local') {
+        stopLocalRecordingFallback();
+      } else {
+        stopRecording();
+      }
     }
-  }
 
   function showRecordingConsentModal() {
     document.getElementById('recording-consent-modal').classList.remove('hidden');
@@ -3575,7 +3615,22 @@
     document.getElementById('recording-consent-modal').classList.add('hidden');
   }
 
-  async function confirmRecording() {
+    async function confirmRecording() {
+      if (!call || typeof call.startRecording !== 'function') {
+        showToast('❌ Recording is not available in this room.');
+        return;
+      }
+      
+      if (typeof call.meetingState === 'function' && call.meetingState() !== 'joined-meeting') {
+        showToast('⚠️ Please wait until you are fully connected to start recording.');
+        return;
+      }
+      
+      if (isRecording) {
+        showToast('🎥 A recording is already in progress.');
+        return;
+      }
+      
     const privacy = document.getElementById('recording-privacy').value;
     const autoDelete = document.getElementById('recording-auto-delete').value;
     
@@ -3598,50 +3653,438 @@
       
       console.log('🎬 Recording started with preferences:', window.recordingPreferences);
       
-    } catch (error) {
-      console.error('❌ Failed to start recording:', error);
-      showToast('❌ Failed to start recording: ' + error.message);
+      } catch (error) {
+        console.error('❌ Failed to start recording via Daily.co:', error);
+        const fallbackStarted = await startLocalRecordingFallback(error);
+        if (!fallbackStarted) {
+          showToast('❌ Failed to start recording: ' + (error?.message || 'Unknown error'));
+        }
+      }
     }
-  }
 
-  async function stopRecording() {
-    try {
-      await call.stopRecording();
-      console.log('🛑 Recording stopped');
-    } catch (error) {
-      console.error('❌ Failed to stop recording:', error);
-      showToast('❌ Failed to stop recording: ' + error.message);
+    async function stopRecording() {
+      if (!call || typeof call.stopRecording !== 'function') {
+        showToast('⚠️ Recording controls are unavailable.');
+        return;
+      }
+      
+      if (!isRecording) {
+        showToast('ℹ️ There is no active recording to stop.');
+        return;
+      }
+      
+      try {
+        await call.stopRecording();
+        console.log('🛑 Recording stopped');
+      } catch (error) {
+        console.error('❌ Failed to stop recording:', error);
+        showToast('❌ Failed to stop recording: ' + error.message);
+      }
     }
-  }
 
-  async function saveRecordingMetadata(event) {
-    const roomId = btoa(roomUrl);
-    const currentTopic = document.getElementById('topic-display').textContent || 'General Chat';
-    const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
-    
-    const recordingData = {
-      recordingId: recordingId,
-      roomUrl: roomUrl,
-      topic: currentTopic,
-      participants: Object.values(call.participants()).map(p => p.user_name || 'Guest'),
-      privacy: preferences.privacy,
-      autoDelete: preferences.autoDelete,
-      status: 'processing',
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      downloadUrl: null // Will be updated when Daily.co provides the URL
-    };
-    
-    try {
-      await db.ref(`recordings/${roomId}/${recordingId}`).set(recordingData);
-      console.log('💾 Recording metadata saved to Firebase');
+    async function startLocalRecordingFallback(sourceError) {
+      if (isRecording) {
+        console.warn('⚠️ Recording already in progress, skipping local fallback.');
+        return false;
+      }
       
-      showToast('💾 Recording saved! You\'ll receive a download link soon.');
+      if (typeof MediaRecorder === 'undefined') {
+        console.error('❌ MediaRecorder API is not supported in this browser.');
+        showToast('❌ Recording is not supported in this browser.');
+        return false;
+      }
       
-    } catch (error) {
-      console.error('❌ Failed to save recording metadata:', error);
-      showToast('❌ Failed to save recording data');
+      const remoteVideoEl = document.getElementById('remote-video') || document.getElementById('spectator-participant-1');
+      const localVideoEl = document.getElementById('local-video');
+      
+      const width = (remoteVideoEl && remoteVideoEl.videoWidth) || (localVideoEl && localVideoEl.videoWidth) || 1280;
+      const height = (remoteVideoEl && remoteVideoEl.videoHeight) || (localVideoEl && localVideoEl.videoHeight) || 720;
+      
+      localRecordingCanvas = document.createElement('canvas');
+      localRecordingCanvas.width = width;
+      localRecordingCanvas.height = height;
+      localRecordingCtx = localRecordingCanvas.getContext('2d');
+      
+      function drawFrame() {
+        if (!localRecordingCtx) return;
+        localRecordingCtx.fillStyle = '#111';
+        localRecordingCtx.fillRect(0, 0, width, height);
+        
+        if (remoteVideoEl && remoteVideoEl.readyState >= 2) {
+          localRecordingCtx.drawImage(remoteVideoEl, 0, 0, width, height);
+        } else {
+          drawRecordingPlaceholder(localRecordingCtx, width, height, 'Waiting for partner video...');
+        }
+        
+        if (localVideoEl && localVideoEl.readyState >= 2) {
+          const pipWidth = Math.round(width * 0.28);
+          const pipHeight = Math.round(pipWidth * 9 / 16);
+          localRecordingCtx.save();
+          localRecordingCtx.shadowColor = 'rgba(0,0,0,0.6)';
+          localRecordingCtx.shadowBlur = 20;
+          localRecordingCtx.shadowOffsetX = 0;
+          localRecordingCtx.shadowOffsetY = 10;
+          localRecordingCtx.drawImage(
+            localVideoEl,
+            width - pipWidth - 32,
+            height - pipHeight - 32,
+            pipWidth,
+            pipHeight
+          );
+          localRecordingCtx.restore();
+        } else {
+          drawMiniPlaceholder(localRecordingCtx, width, height);
+        }
+        
+        localRecordingAnimationFrame = requestAnimationFrame(drawFrame);
+      }
+      
+      const drawRecordingPlaceholder = (ctx, w, h, text) => {
+        ctx.fillStyle = '#1f1f1f';
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = '#e63946';
+        ctx.font = '700 48px Nunito, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('ChatSpheres Recording', w / 2, h / 2 - 10);
+        ctx.font = '400 24px Nunito, sans-serif';
+        ctx.fillStyle = '#f1faee';
+        ctx.fillText(text, w / 2, h / 2 + 30);
+      };
+      
+      const drawMiniPlaceholder = (ctx, w, h) => {
+        const pipWidth = Math.round(w * 0.28);
+        const pipHeight = Math.round(pipWidth * 9 / 16);
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(
+          w - pipWidth - 32,
+          h - pipHeight - 32,
+          pipWidth,
+          pipHeight
+        );
+        ctx.fillStyle = '#f1faee';
+        ctx.font = '600 16px Nunito, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('You', w - pipWidth / 2 - 32, h - pipHeight / 2 - 32);
+      };
+      
+      drawFrame();
+      
+      const canvasStream = localRecordingCanvas.captureStream(30);
+      localRecordingAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      localRecordingAudioDestination = localRecordingAudioCtx.createMediaStreamDestination();
+      localRecordingAudioSources = [];
+      
+      const addAudioTrackToDestination = (track) => {
+        try {
+          if (!track) return;
+          const stream = new MediaStream([track]);
+          const source = localRecordingAudioCtx.createMediaStreamSource(stream);
+          localRecordingAudioSources.push(source);
+          source.connect(localRecordingAudioDestination);
+        } catch (err) {
+          console.error('❌ Failed to route audio track into recording mix:', err);
+        }
+      };
+      
+      const participants = call && typeof call.participants === 'function' ? call.participants() : {};
+      Object.values(participants).forEach((participant) => {
+        const audioTrack = participant?.tracks?.audio?.track;
+        if (audioTrack && audioTrack.readyState === 'live') {
+          addAudioTrackToDestination(audioTrack);
+        }
+      });
+      
+      localRecordingStream = new MediaStream();
+      canvasStream.getVideoTracks().forEach((track) => localRecordingStream.addTrack(track));
+      
+      if (localRecordingAudioDestination.stream.getAudioTracks().length > 0) {
+        localRecordingAudioDestination.stream.getAudioTracks().forEach((track) => localRecordingStream.addTrack(track));
+      }
+      
+      const mimeCandidates = [
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm'
+      ];
+      const selectedMimeType = mimeCandidates.find((type) => {
+        try {
+          return MediaRecorder.isTypeSupported(type);
+        } catch (_) {
+          return false;
+        }
+      }) || undefined;
+      
+      try {
+        localRecordingMediaRecorder = new MediaRecorder(localRecordingStream, selectedMimeType ? { mimeType: selectedMimeType } : undefined);
+      } catch (err) {
+        console.error('❌ Unable to initialize MediaRecorder:', err);
+        showToast('❌ Recording cannot start on this device.');
+        cleanupLocalRecordingResources();
+        return false;
+      }
+      
+      localRecordingChunks = [];
+      localRecordingMediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          localRecordingChunks.push(event.data);
+        }
+      };
+      
+      localRecordingMediaRecorder.onstop = async () => {
+        try {
+          const blob = new Blob(localRecordingChunks, { type: selectedMimeType || 'video/webm' });
+          await handleLocalRecordingComplete(blob);
+        } catch (err) {
+          console.error('❌ Failed to finalize local recording:', err);
+          showToast('❌ Failed to save recording data');
+        } finally {
+          cleanupLocalRecordingResources();
+        }
+      };
+      
+      try {
+        await localRecordingAudioCtx.resume();
+      } catch (err) {
+        console.warn('⚠️ Failed to resume audio context automatically. Audio may start muted until user interaction.', err);
+      }
+      
+      try {
+        localRecordingMediaRecorder.start(2000);
+      } catch (err) {
+        console.error('❌ Unable to start local MediaRecorder:', err);
+        cleanupLocalRecordingResources();
+        return false;
+      }
+      
+      recordingId = `local_${Date.now()}`;
+      recordingMode = 'local';
+      recordingStartedAt = Date.now();
+      isRecording = true;
+      setRecordingUiState(true);
+      
+      showToast('📼 Using fallback recorder (Daily recording unavailable).');
+      console.warn('📝 Switched to local MediaRecorder fallback due to Daily recording limitation.', sourceError);
+      
+      return true;
     }
-  }
+    
+    function stopLocalRecordingFallback() {
+      if (!localRecordingMediaRecorder) {
+        console.warn('⚠️ No active local recorder to stop.');
+        return;
+      }
+      
+      try {
+        localRecordingMediaRecorder.stop();
+      } catch (error) {
+        console.error('❌ Failed to stop local MediaRecorder:', error);
+        cleanupLocalRecordingResources();
+        setRecordingUiState(false);
+        isRecording = false;
+        recordingMode = 'daily';
+      }
+    }
+    
+    async function handleLocalRecordingComplete(blob) {
+      const roomId = firebaseRoomId || (roomUrl ? btoa(roomUrl) : `room_${Date.now()}`);
+      const localRecordingId = recordingId || `local_${Date.now()}`;
+      const storagePath = `recordings/${roomId}/${localRecordingId}.webm`;
+      
+      let downloadUrl = null;
+      
+      if (storage && typeof storage.ref === 'function') {
+        try {
+          const storageRef = storage.ref().child(storagePath);
+          await storageRef.put(blob, {
+            contentType: blob.type || 'video/webm',
+            customMetadata: {
+              roomUrl: roomUrl || '',
+              topic: document.getElementById('topic-display')?.textContent || 'General Chat',
+              mode: 'local-fallback'
+            }
+          });
+          
+          downloadUrl = await storageRef.getDownloadURL();
+        } catch (error) {
+          console.error('❌ Failed to upload recording to Firebase Storage:', error);
+          showToast('⚠️ Recording saved locally, but upload failed.');
+        }
+      } else {
+        console.warn('⚠️ Firebase Storage not available, skipping upload.');
+      }
+      
+      isRecording = false;
+      setRecordingUiState(false);
+      
+      await saveRecordingMetadata({
+        recordingId: localRecordingId,
+        downloadLink: downloadUrl,
+        mode: 'local',
+        storagePath,
+        data: {
+          download_link: downloadUrl,
+          recording: { download_link: downloadUrl }
+        }
+      }, {
+        startedAt: recordingStartedAt,
+        endedAt: Date.now()
+      });
+      
+      recordingMode = 'daily';
+      recordingId = null;
+      recordingStartedAt = null;
+      
+      if (downloadUrl) {
+        showToast('✅ Recording uploaded to Firebase!');
+      } else {
+        showToast('📁 Recording metadata saved, awaiting upload.');
+      }
+    }
+    
+    function cleanupLocalRecordingResources() {
+      if (localRecordingAnimationFrame) {
+        cancelAnimationFrame(localRecordingAnimationFrame);
+        localRecordingAnimationFrame = null;
+      }
+      
+      if (localRecordingCanvas) {
+        localRecordingCanvas.width = 0;
+        localRecordingCanvas.height = 0;
+        localRecordingCanvas = null;
+      }
+      
+      if (localRecordingStream) {
+        localRecordingStream.getTracks().forEach((track) => track.stop());
+        localRecordingStream = null;
+      }
+      
+      if (localRecordingAudioSources.length > 0) {
+        localRecordingAudioSources.forEach((source) => {
+          try {
+            source.disconnect();
+          } catch (err) {
+            console.warn('⚠️ Failed to disconnect audio source:', err);
+          }
+        });
+        localRecordingAudioSources = [];
+      }
+      
+      if (localRecordingAudioDestination) {
+        localRecordingAudioDestination.disconnect();
+        localRecordingAudioDestination = null;
+      }
+      
+      if (localRecordingAudioCtx) {
+        try {
+          localRecordingAudioCtx.close();
+        } catch (err) {
+          console.warn('⚠️ Failed to close audio context:', err);
+        }
+        localRecordingAudioCtx = null;
+      }
+      
+      localRecordingMediaRecorder = null;
+      localRecordingChunks = [];
+    }
+
+    async function saveRecordingMetadata(event = {}, timing = {}) {
+      if (!db) {
+        console.error('❌ Firebase database is not initialized. Cannot save recording metadata.');
+        return;
+      }
+      
+      const roomId = firebaseRoomId || (roomUrl ? btoa(roomUrl) : null);
+      if (!roomId) {
+        console.error('❌ Unable to determine Firebase room id for recording storage.');
+        return;
+      }
+      
+      const resolvedRecordingId = recordingId || event?.recordingId || event?.data?.recordingId || event?.data?.recording_id;
+      if (!resolvedRecordingId) {
+        console.error('❌ Missing recordingId for Firebase storage. Event payload:', event);
+        return;
+      }
+      
+      const currentTopic = document.getElementById('topic-display')?.textContent || 'General Chat';
+      const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
+      const eventData = event?.data || {};
+      const participantsObj = call && typeof call.participants === 'function' ? call.participants() : {};
+      const participantNames = Object.values(participantsObj).map((p) => {
+        return p?.user_name || p?.userName || p?.user_id || 'Guest';
+      });
+      
+      const startedAtMs = typeof timing.startedAt === 'number'
+        ? timing.startedAt
+        : typeof eventData.start_time === 'number'
+          ? Math.round(eventData.start_time * 1000)
+          : Date.now();
+      
+      const endedAtMs = typeof timing.endedAt === 'number'
+        ? timing.endedAt
+        : typeof eventData.end_time === 'number'
+          ? Math.round(eventData.end_time * 1000)
+          : Date.now();
+      
+      const durationMs = typeof eventData.duration === 'number'
+        ? Math.round(eventData.duration * 1000)
+        : (startedAtMs && endedAtMs ? Math.max(endedAtMs - startedAtMs, 0) : null);
+      
+      const downloadUrl = event?.downloadLink
+        || eventData?.download_link
+        || eventData?.downloadLink
+        || eventData?.recording?.download_link
+        || eventData?.recording?.downloadLink
+        || null;
+      
+      const status = downloadUrl ? 'completed' : 'processing';
+      
+      const recordingData = {
+        recordingId: resolvedRecordingId,
+        instanceId: event?.instanceId || eventData?.instanceId || eventData?.instance_id || null,
+        roomUrl,
+        roomId,
+        topic: currentTopic,
+        participants: participantNames,
+        preferences,
+        privacy: preferences.privacy,
+        autoDelete: preferences.autoDelete,
+        status,
+        createdBy: userId || null,
+        startedAt: startedAtMs || null,
+        endedAt: endedAtMs || null,
+        durationMs,
+        durationSeconds: durationMs ? Math.round(durationMs / 1000) : null,
+        downloadUrl,
+        storagePath: event?.storagePath || null,
+        recordingMode: event?.mode || recordingMode || 'daily',
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        lastUpdatedAt: firebase.database.ServerValue.TIMESTAMP,
+        metadata: {
+          action: event?.action || null,
+          reason: event?.reason || null
+        }
+      };
+      
+      try {
+        await db.ref(`recordings/${roomId}/${resolvedRecordingId}`).set(recordingData);
+        await db.ref(`chats/${roomId}/recordings/${resolvedRecordingId}`).set({
+          recordingId: resolvedRecordingId,
+          status,
+          topic: currentTopic,
+          downloadUrl,
+          storagePath: event?.storagePath || null,
+          recordingMode: event?.mode || recordingMode || 'daily',
+          durationSeconds: recordingData.durationSeconds,
+          savedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        
+        console.log('💾 Recording metadata saved to Firebase');
+        showToast('💾 Recording saved! You\'ll receive a download link soon.');
+      } catch (error) {
+        console.error('❌ Failed to save recording metadata:', error);
+        showToast('❌ Failed to save recording data');
+      }
+    }
 
   function toggleSettings() {
     if (isSpectator) return;

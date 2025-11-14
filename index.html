@@ -2410,17 +2410,16 @@
             // Update placeholder to show it's just camera off, not disconnected
             updateRemotePlaceholderForCameraOff(event.participant);
           }
-        } else {
-          // CRITICAL FIX: For spectators, show proper camera-off placeholder AND force overlay
-          console.log(`🎭 SPECTATOR: Showing camera-off placeholder for ${participantName}`);
-          updateSpectatorPlaceholderForCameraOff(participantId, event.participant);
-          
-          // CRITICAL: Force overlay to show when camera turns off
-          setTimeout(() => {
-            forceSpectatorOverlayVisible('camera-off');
-          }, 100);
-        }
-        }
+          } else {
+            // CRITICAL FIX: For spectators, show proper camera-off placeholder AND force overlay
+            console.log(`🎭 SPECTATOR: Showing camera-off placeholder for ${participantName}`);
+            updateSpectatorPlaceholderForCameraOff(participantId, event.participant);
+            
+            // CRITICAL: Force overlay to show when camera turns off
+            setTimeout(() => {
+              forceSpectatorOverlayVisible('camera-off');
+            }, 100);
+          }
       }
     }
     

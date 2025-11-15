@@ -8,31 +8,10 @@
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles/tailwind.generated.css">
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            'main-red': '#e63946',
-            'gold': '#FFD166',
-            'rose': '#FFB6B9',
-            'light-rose': '#FCE2E5',
-            'charcoal': '#22223B',
-            'bg-light': '#F8F9FA'
-          },
-          fontFamily: {
-            'nunito': ['Nunito', 'sans-serif']
-          }
-        }
-      }
-    }
-  </script>
 
   <style>
     * {
@@ -991,7 +970,6 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-  const storage = firebase.storage();
 
   function cleanupLegacyFirebaseApps() {
     if (!firebase || !firebase.apps) {

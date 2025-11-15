@@ -24,17 +24,17 @@ exports.handler = async function (event) {
       return respond(200, snapshot.exists() ? snapshot.val() : null);
     }
 
-    if (event.httpMethod === 'PATCH' || event.httpMethod === 'PUT') {
+    if (event.httpMethod === 'PATCH' || event.httpMethod === 'PUT' || event.httpMethod === 'POST') {
       if (!event.body) {
         return respond(400, { error: 'Missing request body' });
       }
 
       const payload = JSON.parse(event.body);
 
-      if (event.httpMethod === 'PUT') {
-        await ref.set(payload);
-      } else {
+      if (event.httpMethod === 'PATCH') {
         await ref.update(payload);
+      } else {
+        await ref.set(payload);
       }
 
       return respond(200, { ok: true });

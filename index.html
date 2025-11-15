@@ -984,6 +984,9 @@
   async function startVideoExperience() {
     try {
       await ensureFirebaseAuth();
+      if (promptsAuthInstance && typeof promptsAuthInstance.updateCurrentUser === 'function') {
+        await promptsAuthInstance.updateCurrentUser(auth.currentUser);
+      }
       console.log('✅ Firebase auth ready:', auth.currentUser?.uid);
       initializeVideoChat();
     } catch (error) {
@@ -1010,6 +1013,7 @@
 
   const promptsApp = firebase.initializeApp(promptsFirebaseConfig, "prompts");
   const promptsDb = promptsApp.database();
+  const promptsAuthInstance = promptsApp.auth();
 
     // Supabase client setup for session tracking
     const SUPABASE_URL = 'https://farihwlzjieqmgvhagxt.supabase.co';
@@ -1507,9 +1511,15 @@
       };
     }
 
-    // CRITICAL: Ensure cleanup on page unload
-    window.addEventListener('beforeunload', (event) => {
-      console.log('🚪 Page unloading - executing cleanup');
+      // CRITICAL: Ensure cleanup on page unload
+      window.addEventListener('beforeunload', (event) => {
+        if (recordingCompletionPromise) {
+          console.log('⏳ Waiting for recording upload to finish before unloading');
+          event.preventDefault();
+          event.returnValue = '';
+          return;
+        }
+        console.log('🚪 Page unloading - executing cleanup');
 
       if (!cleanupExecuted && !isSpectator && supabaseClient && isValidUuid(userId)) {
         if (conversationSessionId) {
@@ -3674,6 +3684,24 @@
     }
   }
 
+  function sendRecordingMetadataBeacon(roomIdentifier, metadataPayload) {
+    if (!navigator.sendBeacon || !roomIdentifier || !recordingId || !metadataPayload) {
+      return false;
+    }
+    try {
+      const beaconUrl = `/.netlify/functions/presenceProxy?path=${encodeURIComponent(`recordings/${roomIdentifier}/${recordingId}`)}`;
+      const blob = new Blob([JSON.stringify(metadataPayload)], { type: 'application/json' });
+      const sent = navigator.sendBeacon(beaconUrl, blob);
+      if (!sent) {
+        console.warn('⚠️ Recording metadata beacon was not sent');
+      }
+      return sent;
+    } catch (error) {
+      console.warn('⚠️ Failed to send recording metadata beacon:', error);
+      return false;
+    }
+  }
+
   function stopStream(stream) {
     if (!stream) return;
     try {
@@ -3910,13 +3938,16 @@
       const downloadUrl = await recordingUploadTask.snapshot.ref.getDownloadURL();
       const durationMs = recordingStartedAt ? (Date.now() - recordingStartedAt) : null;
 
-      await saveRecordingMetadata({
-        storagePath,
-        downloadUrl,
-        fileSize: blob.size,
-        durationMs,
-        status: 'ready'
-      });
+        const metadataPayload = {
+          storagePath,
+          downloadUrl,
+          fileSize: blob.size,
+          durationMs,
+          status: 'ready'
+        };
+
+        sendRecordingMetadataBeacon(effectiveRoomId, metadataPayload);
+        await saveRecordingMetadata(metadataPayload);
 
       updateRecordingStatus('Uploaded');
       showToast('✅ Recording uploaded to Firebase Storage');
@@ -3928,15 +3959,17 @@
       console.error('Failed to finalize recording:', error);
       showToast('❌ Recording failed: ' + error.message);
       const durationMs = recordingStartedAt ? (Date.now() - recordingStartedAt) : null;
-      if (recordingId) {
-        await saveRecordingMetadata({
-          storagePath: null,
-          downloadUrl: null,
-          fileSize: 0,
-          durationMs,
-          status: 'error',
-          error: error.message
-        }).catch(err => console.error('Failed to record error metadata:', err));
+        if (recordingId) {
+          const errorPayload = {
+            storagePath: null,
+            downloadUrl: null,
+            fileSize: 0,
+            durationMs,
+            status: 'error',
+            error: error.message
+          };
+          sendRecordingMetadataBeacon(firebaseRoomId || (roomUrl ? btoa(roomUrl) : null), errorPayload);
+          await saveRecordingMetadata(errorPayload).catch(err => console.error('Failed to record error metadata:', err));
       }
       handleRecordingStopped({ recordingId });
       if (rejectRecordingCompletion) {
@@ -4378,23 +4411,23 @@
   }
 
   // Load existing sparks for this room on join
-  async function loadExistingSparks() {
-    try {
-      console.log("🔍 Loading existing sparks for room...");
-      console.log("🔗 Room URL from params:", roomUrl);
-      
-      // Use the roomUrl as is - it's already the correct URL format
-      const encodedRoomUrl = encodeURIComponent(roomUrl);
-      const firebaseUrl = `https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy=%22room_url%22&equalTo=%22${encodedRoomUrl}%22&limitToLast=1`;
-      console.log("🔍 Firebase query URL:", firebaseUrl);
-      const response = await fetch(firebaseUrl);
-      
-      if (response.ok) {
-        const data = await response.json();
-        
+    async function loadExistingSparks() {
+      try {
+        console.log("🔍 Loading existing sparks for room...");
+        console.log("🔗 Room URL from params:", roomUrl);
+
+        const snapshot = await promptsDb
+          .ref('sparks')
+          .orderByChild('room_url')
+          .equalTo(roomUrl)
+          .limitToLast(1)
+          .once('value');
+
+        const data = snapshot.val();
+
         if (data && Object.keys(data).length > 0) {
           const latestSparkEntry = Object.values(data)[0];
-          
+
           if (latestSparkEntry.sparks && latestSparkEntry.sparks.length > 0) {
             console.log("✅ Found existing sparks:", latestSparkEntry.sparks);
             currentSparks = latestSparkEntry.sparks;
@@ -4404,17 +4437,13 @@
             return;
           }
         }
-      } else {
-        console.error("❌ Firebase response not ok:", response.status, response.statusText);
-        console.error("❌ Request URL was:", response.url);
+
+        console.log("📝 No existing sparks found, using defaults");
+      } catch (error) {
+        console.error("❌ Error loading existing sparks:", error);
+        console.log("📝 Using default sparks due to error");
       }
-      
-      console.log("📝 No existing sparks found, using defaults");
-    } catch (error) {
-      console.error("❌ Error loading existing sparks:", error);
-      console.log("📝 Using default sparks due to error");
     }
-  }
 
   // Initialize sparks after joining call
   async function initializeSparks() {
@@ -4556,17 +4585,7 @@
       generated_by: "ai"
     };
 
-    const saveResponse = await fetch(`https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(sparkData)
-    });
-
-    if (!saveResponse.ok) {
-      throw new Error("Failed to save sparks to Firebase");
-    }
+    await promptsDb.ref('sparks').push(sparkData);
 
     console.log("🎨 Updating UI with new sparks...");
     

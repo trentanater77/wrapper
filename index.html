@@ -8,6 +8,7 @@
   <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="stylesheet" href="styles/tailwind.generated.css">
@@ -970,6 +971,47 @@
 
   firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
+  const auth = firebase.auth();
+
+  let firebaseAuthInitialized = false;
+  let firebaseAuthInitPromise = null;
+
+  function ensureFirebaseAuth() {
+    if (firebaseAuthInitialized && auth.currentUser) {
+      return Promise.resolve(auth.currentUser);
+    }
+
+    if (firebaseAuthInitPromise) {
+      return firebaseAuthInitPromise;
+    }
+
+    firebaseAuthInitPromise = (async () => {
+      try {
+        if (auth.currentUser) {
+          firebaseAuthInitialized = true;
+          return auth.currentUser;
+        }
+        const credential = await auth.signInAnonymously();
+        firebaseAuthInitialized = true;
+        console.log('✅ Firebase anonymous auth ready:', credential.user?.uid);
+        return credential.user;
+      } catch (error) {
+        firebaseAuthInitPromise = null;
+        console.error('❌ Firebase anonymous auth failed:', error);
+        throw error;
+      }
+    })();
+
+    return firebaseAuthInitPromise;
+  }
+
+  async function getFirebaseIdToken(forceRefresh = false) {
+    const user = await ensureFirebaseAuth();
+    if (!user) {
+      throw new Error('Firebase auth user unavailable');
+    }
+    return user.getIdToken(forceRefresh);
+  }
 
   function cleanupLegacyFirebaseApps() {
     if (!firebase || !firebase.apps) {
@@ -991,6 +1033,9 @@
     });
   }
   cleanupLegacyFirebaseApps();
+  ensureFirebaseAuth().catch(() => {
+    showToast('❌ Failed to authenticate with Firebase. Please refresh.');
+  });
 
   firebase.database().ref('.info/serverTimeOffset').on('value', (snapshot) => {
     const offset = snapshot.val();
@@ -1158,6 +1203,18 @@
         url.searchParams.set(key, value);
       }
     });
+    return url.toString();
+  }
+
+  async function getAuthedRealtimeUrl(baseUrl, path, params = {}) {
+    const url = new URL(getRealtimeDatabaseRestUrl(baseUrl, path));
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, value);
+      }
+    });
+    const token = await getFirebaseIdToken();
+    url.searchParams.set('auth', token);
     return url.toString();
   }
 
@@ -1723,6 +1780,7 @@
 
   async function initializeVideoChat() {
     await loadRoomInfo();
+    await ensureFirebaseAuth();
     
     // Set up Firebase for chat and presence
     firebaseRoomId = btoa(roomUrl);
@@ -1829,6 +1887,7 @@
   }
 
   async function setupPresence(roomId) {
+    await ensureFirebaseAuth();
     const presenceRef = db.ref(`presence/${roomId}/${userId}`);
     
     // Set user online
@@ -1858,6 +1917,7 @@
     if (timerSyncInitialized || !firebaseRoomId) {
       return;
     }
+    await ensureFirebaseAuth();
 
     timerSyncInitialized = true;
     timerRef = db.ref(`timers/${firebaseRoomId}`);
@@ -3825,7 +3885,7 @@
   
     const roomId = btoa(roomUrl);
     const recordingPath = `recordings/${roomId}/${recordingId}`;
-    const recordingEndpoint = getRealtimeDatabaseRestUrl(firebaseConfig.databaseURL, recordingPath);
+    const recordingEndpoint = await getAuthedRealtimeUrl(firebaseConfig.databaseURL, recordingPath);
     const currentTopic = document.getElementById('topic-display').textContent || 'General Chat';
     const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
     const now = getServerNow();
@@ -4269,7 +4329,7 @@
       console.log("🔍 Loading existing sparks for room...");
       console.log("🔗 Room URL from params:", roomUrl);
   
-      const firebaseUrl = buildRealtimeQueryUrl(promptsDatabaseBaseUrl, 'sparks', {
+      const firebaseUrl = await getAuthedRealtimeUrl(promptsDatabaseBaseUrl, 'sparks', {
         orderBy: JSON.stringify('room_url'),
         equalTo: JSON.stringify(roomUrl),
         limitToLast: 1
@@ -4449,7 +4509,7 @@
       generated_by: "ai"
     };
 
-    const sparksEndpoint = getRealtimeDatabaseRestUrl(promptsDatabaseBaseUrl, 'sparks');
+    const sparksEndpoint = await getAuthedRealtimeUrl(promptsDatabaseBaseUrl, 'sparks');
     const saveResponse = await fetch(sparksEndpoint, {
       method: "POST",
       headers: {

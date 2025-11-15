@@ -1276,7 +1276,9 @@
       }
     });
     const token = await getPromptsIdToken();
-    url.searchParams.set('auth', token);
+    if (token) {
+      url.searchParams.set('auth', token);
+    }
     return url.toString();
   }
 
@@ -4398,7 +4400,7 @@
       });
       console.log("🔍 Firebase query URL:", firebaseUrl);
   
-      const response = await fetch(firebaseUrl);
+    const response = await fetch(firebaseUrl);
   
       if (response.ok) {
         const data = await response.json();

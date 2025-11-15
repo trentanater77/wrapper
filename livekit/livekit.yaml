@@ -1,0 +1,37 @@
+# Copy this template to livekit/livekit.yaml and replace the placeholder values
+# before running `docker compose up`.
+
+port: 7880
+bind_addresses:
+  - 0.0.0.0
+
+rtc:
+  tcp_port: 7881
+  udp_port: 7882
+  use_external_ip: true
+
+keys:
+  LIVEKIT_API_KEY_PLACEHOLDER: LIVEKIT_API_SECRET_PLACEHOLDER
+
+redis:
+  address: redis:6379
+
+turn:
+  enabled: true
+  domain: YOUR_PUBLIC_DOMAIN
+  tls:
+    cert_file: /etc/livekit/certs/fullchain.pem
+    key_file: /etc/livekit/certs/privkey.pem
+
+webhook:
+  urls:
+    - http://controller:8789/webhooks/livekit
+  api_key: LIVEKIT_WEBHOOK_API_KEY_PLACEHOLDER
+  api_secret: LIVEKIT_WEBHOOK_API_SECRET_PLACEHOLDER
+
+logging:
+  level: info
+
+room:
+  egress:
+    preset: high

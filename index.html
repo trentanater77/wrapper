@@ -279,6 +279,28 @@
       50% { opacity: 0.5; }
     }
 
+    .recording-upload-status {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .recording-upload-bar {
+      margin-top: 4px;
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 9999px;
+      overflow: hidden;
+    }
+
+    .recording-upload-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #FFD166;
+      transition: width 0.2s ease;
+    }
+
     /* Modal Styles */
     .modal-overlay {
       background: rgba(34, 34, 59, 0.8);
@@ -481,11 +503,20 @@
           <span>👁️</span>
         </div>
         
-        <!-- Recording Indicator -->
-        <div id="recording-status" class="hidden flex items-center space-x-2 bg-red-600 text-white px-3 py-1 rounded-full text-xs font-bold recording-indicator">
-          <div class="w-2 h-2 bg-white rounded-full"></div>
-          <span>REC</span>
-        </div>
+          <!-- Recording Indicator -->
+          <div id="recording-status" class="hidden bg-red-600 text-white px-3 py-2 rounded-2xl text-xs font-bold space-y-1">
+            <div class="flex items-center space-x-2">
+              <div class="recording-dot w-2 h-2 bg-white rounded-full"></div>
+              <span id="recording-mode-label">REC</span>
+              <span id="recording-upload-status" class="recording-upload-status hidden">
+                <span id="recording-upload-label">uploading</span>
+                <span id="recording-upload-percent">0%</span>
+              </span>
+            </div>
+            <div id="recording-upload-bar" class="recording-upload-bar hidden">
+              <div id="recording-upload-bar-fill" class="recording-upload-bar-fill"></div>
+            </div>
+          </div>
       </div>
       
       <!-- Timer -->
@@ -967,7 +998,7 @@
     serverTimeOffset = typeof offset === 'number' ? offset : 0;
   });
 
-  // Prompts Firebase config - Secondary database
+  // Prompts Firebase config - Secondary database (REST access only)
   const promptsFirebaseConfig = {
     apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
     authDomain: "chatspheresfirebasepromptsai.firebaseapp.com",
@@ -977,9 +1008,7 @@
     messagingSenderId: "224075573732",
     appId: "1:224075573732:web:47e014622bd263fb2abff2"
   };
-
-  const promptsApp = firebase.initializeApp(promptsFirebaseConfig, "prompts");
-  const promptsDb = promptsApp.database();
+  const promptsDatabaseBaseUrl = (promptsFirebaseConfig.databaseURL || '').replace(/\/$/, '');
 
     // Supabase client setup for session tracking
     const SUPABASE_URL = 'https://farihwlzjieqmgvhagxt.supabase.co';
@@ -1015,6 +1044,14 @@
   let isSpectator = false;
   let isRecording = false;
   let recordingId = null;
+  let recordingUploadState = {
+    isUploading: false,
+    progress: 0,
+    pendingPayloadString: null,
+    pendingEndpoint: null,
+    dbPath: null,
+    hideTimeout: null
+  };
   let userName = '';
   let userId = '';
   let conversationRoomId = null;
@@ -1112,6 +1149,25 @@
 
   function getServerNow() {
     return Date.now() + serverTimeOffset;
+  }
+
+  function getRealtimeDatabaseRestUrl(baseUrl, path) {
+    if (!baseUrl) {
+      throw new Error('Realtime Database base URL is not configured');
+    }
+    const normalizedBase = baseUrl.replace(/\/$/, '');
+    const normalizedPath = String(path || '').replace(/^\//, '');
+    return `${normalizedBase}/${normalizedPath}.json`;
+  }
+
+  function buildRealtimeQueryUrl(baseUrl, path, params = {}) {
+    const url = new URL(getRealtimeDatabaseRestUrl(baseUrl, path));
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, value);
+      }
+    });
+    return url.toString();
   }
 
   async function ensureConversationSessionStarted(contextLabel = 'default') {
@@ -1513,6 +1569,23 @@
           console.error('❌ Error cleaning Firebase presence during unload:', error);
         });
       }
+
+      if (recordingUploadState.pendingPayloadString && recordingUploadState.pendingEndpoint) {
+        try {
+          fetch(recordingUploadState.pendingEndpoint, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: recordingUploadState.pendingPayloadString,
+            keepalive: true
+          }).then(() => {
+            console.log('✅ Recording metadata persisted during unload');
+          }).catch((error) => {
+            console.error('❌ Recording metadata keepalive failed:', error);
+          });
+        } catch (error) {
+          console.error('❌ Unable to persist recording metadata during unload:', error);
+        }
+      }
     });
 
     window.addEventListener('pagehide', () => {
@@ -1693,14 +1766,17 @@
     call.on('participant-joined', handleParticipantJoined);
     call.on('participant-left', handleParticipantLeft);
     call.on('participant-updated', handleParticipantUpdated);
-    call.on('track-started', handleTrackStarted);
-    call.on('track-stopped', handleTrackStopped);
-    call.on('app-message', handleAppMessage);
-    call.on('error', handleError);
-    call.on('camera-error', handleCameraError);
-    call.on('recording-started', handleRecordingStarted);
-    call.on('recording-stopped', handleRecordingStopped);
-    call.on('left-meeting', handleLeftMeeting);
+      call.on('track-started', handleTrackStarted);
+      call.on('track-stopped', handleTrackStopped);
+      call.on('app-message', handleAppMessage);
+      call.on('error', handleError);
+      call.on('camera-error', handleCameraError);
+      call.on('recording-started', handleRecordingStarted);
+      call.on('recording-stopped', handleRecordingStopped);
+      call.on('recording-upload-progress', handleRecordingUploadProgress);
+      call.on('recording-upload-completed', handleRecordingUploadCompleted);
+      call.on('recording-error', handleRecordingError);
+      call.on('left-meeting', handleLeftMeeting);
 
     try {
       // Join the call
@@ -2527,13 +2603,94 @@
     }
   }
 
+  function updateRecordingStatusIndicator(mode, progress = 0) {
+    const statusEl = document.getElementById('recording-status');
+    const uploadStatusEl = document.getElementById('recording-upload-status');
+    const uploadPercentEl = document.getElementById('recording-upload-percent');
+    const uploadBarEl = document.getElementById('recording-upload-bar');
+    const uploadFillEl = document.getElementById('recording-upload-bar-fill');
+    const modeLabelEl = document.getElementById('recording-mode-label');
+    const recordingDotEl = statusEl ? statusEl.querySelector('.recording-dot') : null;
+
+    if (!statusEl || !uploadStatusEl || !uploadPercentEl || !uploadBarEl || !uploadFillEl || !modeLabelEl || !recordingDotEl) {
+      return;
+    }
+
+    if (mode === 'recording') {
+      statusEl.classList.remove('hidden');
+      statusEl.classList.add('recording-indicator');
+      uploadStatusEl.classList.add('hidden');
+      uploadBarEl.classList.add('hidden');
+      uploadFillEl.style.width = '0%';
+      uploadPercentEl.textContent = '0%';
+      recordingDotEl.classList.remove('opacity-75');
+    } else if (mode === 'uploading') {
+      statusEl.classList.remove('hidden');
+      statusEl.classList.remove('recording-indicator');
+      uploadStatusEl.classList.remove('hidden');
+      uploadBarEl.classList.remove('hidden');
+      const boundedProgress = Math.max(0, Math.min(100, Math.round(progress || 0)));
+      uploadPercentEl.textContent = `${boundedProgress}%`;
+      uploadFillEl.style.width = `${boundedProgress}%`;
+      recordingDotEl.classList.add('opacity-75');
+    } else {
+      statusEl.classList.add('hidden');
+      statusEl.classList.remove('recording-indicator');
+      uploadStatusEl.classList.add('hidden');
+      uploadBarEl.classList.add('hidden');
+      uploadFillEl.style.width = '0%';
+      recordingDotEl.classList.remove('opacity-75');
+    }
+  }
+
+  function resetRecordingUploadState() {
+    recordingUploadState.isUploading = false;
+    recordingUploadState.progress = 0;
+    recordingUploadState.pendingPayloadString = null;
+    recordingUploadState.pendingEndpoint = null;
+    recordingUploadState.dbPath = null;
+    if (recordingUploadState.hideTimeout) {
+      clearTimeout(recordingUploadState.hideTimeout);
+      recordingUploadState.hideTimeout = null;
+    }
+  }
+
+  function finalizeRecordingUpload(source = 'unknown') {
+    console.log(`✅ Recording upload finalized via ${source}`);
+    recordingUploadState.isUploading = false;
+    recordingUploadState.progress = 100;
+    if (recordingUploadState.hideTimeout) {
+      clearTimeout(recordingUploadState.hideTimeout);
+    }
+    recordingUploadState.hideTimeout = setTimeout(() => {
+      updateRecordingStatusIndicator('idle');
+      resetRecordingUploadState();
+    }, 1500);
+  }
+
+  async function markRecordingUploadCompleteInDatabase() {
+    if (!recordingUploadState.dbPath) {
+      return;
+    }
+    try {
+      await db.ref(recordingUploadState.dbPath).update({
+        status: 'uploaded',
+        uploadProgress: 100,
+        uploadCompletedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+    } catch (error) {
+      console.error('❌ Failed to mark recording as uploaded:', error);
+    }
+  }
+
   // Recording event handlers
   function handleRecordingStarted(event) {
     console.log('🎥 Recording started:', event);
     isRecording = true;
     recordingId = event.recordingId;
     
-    document.getElementById('recording-status').classList.remove('hidden');
+    resetRecordingUploadState();
+    updateRecordingStatusIndicator('recording');
     
     // Update record button
     const recordBtn = document.getElementById('record-btn');
@@ -2544,11 +2701,24 @@
     showToast('🎬 Recording started!');
   }
 
-  function handleRecordingStopped(event) {
+  async function handleRecordingStopped(event) {
     console.log('🛑 Recording stopped:', event);
     isRecording = false;
+    recordingId = event.recordingId || recordingId;
     
-    document.getElementById('recording-status').classList.add('hidden');
+    recordingUploadState.isUploading = true;
+    recordingUploadState.progress = 0;
+    updateRecordingStatusIndicator('uploading', 0);
+    if (roomUrl && recordingId && firebaseConfig?.databaseURL) {
+      const prospectiveRoomId = btoa(roomUrl);
+      const prospectivePath = `recordings/${prospectiveRoomId}/${recordingId}`;
+      recordingUploadState.dbPath = prospectivePath;
+      try {
+        recordingUploadState.pendingEndpoint = getRealtimeDatabaseRestUrl(firebaseConfig.databaseURL, prospectivePath);
+      } catch (endpointError) {
+        console.warn('⚠️ Unable to precompute recording endpoint:', endpointError);
+      }
+    }
     
     // Update record button
     const recordBtn = document.getElementById('record-btn');
@@ -2558,10 +2728,50 @@
     
     // Save recording metadata to Firebase
     if (recordingId) {
-      saveRecordingMetadata(event);
+      try {
+        await saveRecordingMetadata(event);
+        showToast('🎬 Recording stopped. Uploading in background...');
+      } catch (error) {
+        console.error('❌ Failed to persist recording metadata:', error);
+        showToast('❌ Failed to save recording data');
+        updateRecordingStatusIndicator('idle');
+        recordingUploadState.isUploading = false;
+      }
+    } else {
+      console.warn('⚠️ Recording stopped without an ID. Skipping metadata save.');
+      updateRecordingStatusIndicator('idle');
+      recordingUploadState.isUploading = false;
     }
+  }
+
+  function handleRecordingUploadProgress(event) {
+    const percentValue = typeof event?.percent === 'number'
+      ? event.percent
+      : (typeof event?.progress === 'number' ? event.progress : 0);
+    const percent = Math.max(0, Math.min(100, Math.round(percentValue)));
     
-    showToast('🎬 Recording stopped and saved!');
+    recordingUploadState.isUploading = true;
+    recordingUploadState.progress = percent;
+    updateRecordingStatusIndicator('uploading', percent);
+    
+    if (percent >= 100) {
+      markRecordingUploadCompleteInDatabase();
+      finalizeRecordingUpload('progress-event');
+    }
+  }
+
+  async function handleRecordingUploadCompleted(event) {
+    console.log('✅ Recording upload completed:', event);
+    await markRecordingUploadCompleteInDatabase();
+    finalizeRecordingUpload('upload-completed-event');
+    showToast('✅ Recording uploaded!');
+  }
+
+  function handleRecordingError(event) {
+    console.error('❌ Recording error:', event);
+    showToast('❌ Recording error: ' + (event?.errorMsg || event?.message || 'unknown error'));
+    updateRecordingStatusIndicator('idle');
+    resetRecordingUploadState();
   }
 
   // Video setup functions
@@ -3615,32 +3825,53 @@
   }
 
   async function saveRecordingMetadata(event) {
+    if (!roomUrl) {
+      throw new Error('Room URL missing while saving recording metadata');
+    }
+    if (!firebaseConfig.databaseURL) {
+      throw new Error('Realtime Database URL missing while saving recording metadata');
+    }
+  
     const roomId = btoa(roomUrl);
+    const recordingPath = `recordings/${roomId}/${recordingId}`;
+    const recordingEndpoint = getRealtimeDatabaseRestUrl(firebaseConfig.databaseURL, recordingPath);
     const currentTopic = document.getElementById('topic-display').textContent || 'General Chat';
     const preferences = window.recordingPreferences || { privacy: 'private', autoDelete: 'never' };
-    
+    const now = getServerNow();
+  
     const recordingData = {
-      recordingId: recordingId,
-      roomUrl: roomUrl,
+      recordingId,
+      roomUrl,
       topic: currentTopic,
       participants: Object.values(call.participants()).map(p => p.user_name || 'Guest'),
       privacy: preferences.privacy,
       autoDelete: preferences.autoDelete,
-      status: 'processing',
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-      downloadUrl: null // Will be updated when Daily.co provides the URL
+      status: 'uploading',
+      uploadProgress: 0,
+      createdAt: now,
+      uploadInitiatedAt: now,
+      downloadUrl: null
     };
-    
-    try {
-      await db.ref(`recordings/${roomId}/${recordingId}`).set(recordingData);
-      console.log('💾 Recording metadata saved to Firebase');
-      
-      showToast('💾 Recording saved! You\'ll receive a download link soon.');
-      
-    } catch (error) {
-      console.error('❌ Failed to save recording metadata:', error);
-      showToast('❌ Failed to save recording data');
+  
+    const payloadString = JSON.stringify(recordingData);
+    recordingUploadState.pendingPayloadString = payloadString;
+    recordingUploadState.pendingEndpoint = recordingEndpoint;
+    recordingUploadState.dbPath = recordingPath;
+  
+    const response = await fetch(recordingEndpoint, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: payloadString,
+      keepalive: true
+    });
+  
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`Failed to save recording metadata: ${response.status} ${response.statusText} ${errorBody}`);
     }
+  
+    recordingUploadState.pendingPayloadString = null;
+    console.log('💾 Recording metadata saved to Firebase');
   }
 
   function toggleSettings() {
@@ -4017,22 +4248,34 @@
 
   // Load existing sparks for this room on join
   async function loadExistingSparks() {
+    if (!roomUrl) {
+      console.warn("⚠️ Cannot load sparks without a room URL");
+      return;
+    }
+    if (!promptsDatabaseBaseUrl) {
+      console.warn("⚠️ Prompts database URL missing - skipping sparks lookup");
+      return;
+    }
+  
     try {
       console.log("🔍 Loading existing sparks for room...");
       console.log("🔗 Room URL from params:", roomUrl);
-      
-      // Use the roomUrl as is - it's already the correct URL format
-      const encodedRoomUrl = encodeURIComponent(roomUrl);
-      const firebaseUrl = `https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json?orderBy=%22room_url%22&equalTo=%22${encodedRoomUrl}%22&limitToLast=1`;
+  
+      const firebaseUrl = buildRealtimeQueryUrl(promptsDatabaseBaseUrl, 'sparks', {
+        orderBy: JSON.stringify('room_url'),
+        equalTo: JSON.stringify(roomUrl),
+        limitToLast: 1
+      });
       console.log("🔍 Firebase query URL:", firebaseUrl);
+  
       const response = await fetch(firebaseUrl);
-      
+  
       if (response.ok) {
         const data = await response.json();
-        
+  
         if (data && Object.keys(data).length > 0) {
           const latestSparkEntry = Object.values(data)[0];
-          
+  
           if (latestSparkEntry.sparks && latestSparkEntry.sparks.length > 0) {
             console.log("✅ Found existing sparks:", latestSparkEntry.sparks);
             currentSparks = latestSparkEntry.sparks;
@@ -4043,10 +4286,11 @@
           }
         }
       } else {
-        console.error("❌ Firebase response not ok:", response.status, response.statusText);
+        const errorText = await response.text();
+        console.error("❌ Firebase response not ok:", response.status, response.statusText, errorText);
         console.error("❌ Request URL was:", response.url);
       }
-      
+  
       console.log("📝 No existing sparks found, using defaults");
     } catch (error) {
       console.error("❌ Error loading existing sparks:", error);
@@ -4136,6 +4380,9 @@
     const sparkPrompt = `Give 5 fresh and creative conversation starters about "${topic}". Number each one clearly (1. 2. 3. 4. 5.) and make them engaging and thought-provoking.`;
 
     console.log("🤖 Calling Netlify Function for AI sparks...");
+    if (!promptsDatabaseBaseUrl) {
+      throw new Error("Prompts database URL is not configured");
+    }
     
     const response = await fetch("/.netlify/functions/generateSpark", {
       method: "POST",
@@ -4194,7 +4441,8 @@
       generated_by: "ai"
     };
 
-    const saveResponse = await fetch(`https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com/sparks.json`, {
+    const sparksEndpoint = getRealtimeDatabaseRestUrl(promptsDatabaseBaseUrl, 'sparks');
+    const saveResponse = await fetch(sparksEndpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -4203,7 +4451,8 @@
     });
 
     if (!saveResponse.ok) {
-      throw new Error("Failed to save sparks to Firebase");
+      const errorBody = await saveResponse.text();
+      throw new Error(`Failed to save sparks to Firebase: ${saveResponse.status} ${saveResponse.statusText} ${errorBody}`);
     }
 
     console.log("🎨 Updating UI with new sparks...");

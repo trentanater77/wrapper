@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  livekit:
+    image: livekit/livekit-server:v1.9.0
+    restart: unless-stopped
+    depends_on:
+      - redis
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+    volumes:
+      - ./livekit/livekit.yaml:/etc/livekit/livekit.yaml:ro
+      - ./recordings:/var/lib/livekit/recordings
+    env_file:
+      - .env.livekit
+    command: ["--config", "/etc/livekit/livekit.yaml"]
+
+  egress:
+    image: livekit/egress:v1.9.0
+    restart: unless-stopped
+    depends_on:
+      - livekit
+    env_file:
+      - .env.livekit
+    environment:
+      LIVEKIT_URL: ${LIVEKIT_EGRESS_URL:-http://livekit:7880}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      EGRESS_DEFAULT_OUTPUT: /recordings
+    volumes:
+      - ./recordings:/recordings
+
+  controller:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env.livekit
+    environment:
+      PORT: ${CONTROL_PORT:-8789}
+      RECORDING_OUTPUT_DIR: /recordings
+    depends_on:
+      - livekit
+    volumes:
+      - ./recordings:/recordings
+    ports:
+      - "${CONTROL_PORT:-8789}:8789"
+
+volumes:
+  redis_data:

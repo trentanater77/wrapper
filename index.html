@@ -993,22 +993,35 @@
   const db = firebase.database();
   const storage = firebase.storage();
 
+  function cleanupLegacyFirebaseApps() {
+    if (!firebase || !firebase.apps) {
+      return;
+    }
+    firebase.apps.forEach((app) => {
+      const appName = app?.name || '';
+      if (appName && appName !== '[DEFAULT]' && appName.toLowerCase().includes('prompts')) {
+        try {
+          app.delete().then(() => {
+            console.log(`🧹 Removed legacy Firebase app: ${appName}`);
+          }).catch((error) => {
+            console.warn(`⚠️ Unable to delete legacy Firebase app ${appName}:`, error);
+          });
+        } catch (error) {
+          console.warn(`⚠️ Error while removing legacy Firebase app ${appName}:`, error);
+        }
+      }
+    });
+  }
+  cleanupLegacyFirebaseApps();
+
   firebase.database().ref('.info/serverTimeOffset').on('value', (snapshot) => {
     const offset = snapshot.val();
     serverTimeOffset = typeof offset === 'number' ? offset : 0;
   });
 
-  // Prompts Firebase config - Secondary database (REST access only)
-  const promptsFirebaseConfig = {
-    apiKey: "AIzaSyBno0Zb0MD91F2PzTlSFYnvBQNf8Nv_-wQ",
-    authDomain: "chatspheresfirebasepromptsai.firebaseapp.com",
-    databaseURL: "https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com",
-    projectId: "chatspheresfirebasepromptsai",
-    storageBucket: "chatspheresfirebasepromptsai.firebasestorage.app",
-    messagingSenderId: "224075573732",
-    appId: "1:224075573732:web:47e014622bd263fb2abff2"
-  };
-  const promptsDatabaseBaseUrl = (promptsFirebaseConfig.databaseURL || '').replace(/\/$/, '');
+  // Prompts Realtime Database (REST access only)
+  const PROMPTS_DATABASE_URL = 'https://chatspheresfirebasepromptsai-default-rtdb.firebaseio.com';
+  const promptsDatabaseBaseUrl = (PROMPTS_DATABASE_URL || '').replace(/\/$/, '');
 
     // Supabase client setup for session tracking
     const SUPABASE_URL = 'https://farihwlzjieqmgvhagxt.supabase.co';
@@ -3871,6 +3884,23 @@
     }
   
     recordingUploadState.pendingPayloadString = null;
+    recordingUploadState.progress = 100;
+    updateRecordingStatusIndicator('uploading', 100);
+
+    await fetch(recordingEndpoint, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        status: 'uploaded',
+        uploadProgress: 100,
+        uploadCompletedAt: now
+      }),
+      keepalive: true
+    }).catch((error) => {
+      console.warn('⚠️ Failed to mark recording upload complete via REST:', error);
+    });
+
+    finalizeRecordingUpload('metadata-saved');
     console.log('💾 Recording metadata saved to Firebase');
   }
 

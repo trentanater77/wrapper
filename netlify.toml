@@ -1,30 +1,7 @@
-functionsDirectory = "/home/trenton/Desktop/chatspheresdev/wrapper/netlify/functions"
-functionsDirectoryOrigin = "default"
-plugins = []
-headers = []
-redirects = []
-
 [build]
-publish = "/home/trenton/Desktop/chatspheresdev/wrapper"
-publishOrigin = "default"
-commandOrigin = "ui"
-command = "npm run build"
-functions = "/home/trenton/Desktop/chatspheresdev/wrapper/netlify/functions"
-
-  [build.environment]
-
-  [build.processing]
-
-    [build.processing.css]
-
-    [build.processing.html]
-
-    [build.processing.images]
-
-    [build.processing.js]
-
-  [build.services]
+  command = "npm run build"
+  publish = "."
+  functions = "netlify/functions"
 
 [functions]
-
-  [functions."*"]
+  node_bundler = "esbuild"

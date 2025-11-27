@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = "."
   functions = "netlify/functions"
+  # Omit LIVEKIT_RECORDING_LAYOUT (its value like "grid" is a common CSS term causing false positives)
+  # and LIVEKIT_URL (intentionally in livekit config files for server setup)
+  environment = { SECRETS_SCAN_OMIT_KEYS = "LIVEKIT_RECORDING_LAYOUT,LIVEKIT_URL" }
 
 [functions]
   node_bundler = "esbuild"

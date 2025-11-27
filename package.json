@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i styles/tailwind.input.css -o styles/tailwind.generated.css --minify"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^13.6.0",
+    "livekit-server-sdk": "^2.14.1",
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.13"
+  }
+}

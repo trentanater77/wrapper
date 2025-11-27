@@ -1,0 +1,27 @@
+# LiveKit egress worker configuration.
+#
+# IMPORTANT: the API credentials here must match one of the keys that
+# exist in livekit/livekit.yaml (under the `keys:` map) so the egress
+# service can authenticate with the LiveKit server when the controller
+# tells it to start a recording.
+#
+# These values mirror the key pair already committed in
+# livekit/livekit.yaml, so keeping the two files in sync just means
+# updating both places whenever you roll credentials.
+api_key: LK3e04aa6984c5da6b
+api_secret: 2ac3cd21d00a4f80b6ff971abf4105c007946b55e70eb52d6d088393b3c4f948
+ws_url: wss://api.chatspheres.com
+
+redis:
+  address: redis:6379
+
+logging:
+  level: debug
+  json: false
+
+cpu_cost:
+  room_composite_cpu_cost: 2.0
+  web_cpu_cost: 2.0
+  track_composite_cpu_cost: 1.0
+  track_cpu_cost: 0.5
+

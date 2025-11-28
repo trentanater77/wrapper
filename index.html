@@ -2457,12 +2457,86 @@
       await endConversationSession(reason);
       
       // Clean up Firebase presence
+      if (presenceRef) {
+        try {
+          // Cancel onDisconnect handler since we're cleaning up manually
+          await presenceRef.onDisconnect().cancel();
+          // First update status to offline so listeners get the change
+          await presenceRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP });
+          // Then remove the presence entry
+          await presenceRef.remove();
+          console.log('✅ Firebase presence cleaned up via presenceRef');
+        } catch (error) {
+          console.error('❌ Error cleaning Firebase presence via presenceRef:', error);
+        } finally {
+          presenceRef = null;
+        }
+      }
+      
+      // ALSO clean up the WeWeb-created presence entry (uses just userId as key)
+      // WeWeb writes to: presence/${roomId}/${userId}
+      // This ensures entries created by WeWeb workflow are also cleaned up
+      if (firebaseRoomId && userId && isValidUuid(userId)) {
+        try {
+          const wewebPresenceRef = db.ref(`presence/${firebaseRoomId}/${userId}`);
+          await wewebPresenceRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP });
+          await wewebPresenceRef.remove();
+          console.log('✅ WeWeb-style presence entry cleaned up');
+        } catch (error) {
+          // This may fail if entry doesn't exist, which is fine
+          console.log('ℹ️ WeWeb-style presence cleanup:', error.message || 'entry may not exist');
+        }
+      }
+      
+      // Clean up spectator entries from __claims (WeWeb spectators are stored here)
       if (firebaseRoomId && userId) {
         try {
-          await db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
-          console.log('✅ Firebase presence cleaned up');
+          const claimsRef = db.ref(`presence/${firebaseRoomId}/__claims`);
+          const claimsSnapshot = await claimsRef.once('value');
+          const claims = claimsSnapshot.val();
+          
+          if (claims && typeof claims === 'object') {
+            const baseUserId = isValidUuid(userId) ? userId : userId.split('-spectator-')[0];
+            const deletePromises = [];
+            
+            Object.keys(claims).forEach(key => {
+              // Match entries that start with this user's ID
+              if (key.startsWith(baseUserId)) {
+                deletePromises.push(
+                  db.ref(`presence/${firebaseRoomId}/__claims/${key}`).remove()
+                );
+              }
+            });
+            
+            if (deletePromises.length > 0) {
+              await Promise.all(deletePromises);
+              console.log(`✅ Cleaned up ${deletePromises.length} spectator claim(s) from __claims`);
+            }
+          }
+        } catch (error) {
+          console.log('ℹ️ Spectator claims cleanup:', error.message || 'no claims to clean');
+        }
+      }
+      
+      // Fallback: try to remove using the presenceKey calculation
+      if (!presenceRef && firebaseRoomId && userId) {
+        try {
+          const presenceKey = getPresenceKey();
+          await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
+          console.log('✅ Firebase presence cleaned up via calculated key');
         } catch (error) {
           console.error('❌ Error cleaning Firebase presence:', error);
+        }
+      }
+      
+      // Clean up presence listeners
+      if (firebaseRoomId && presenceListenersBound) {
+        try {
+          db.ref(`presence/${firebaseRoomId}`).off();
+          presenceListenersBound = false;
+          console.log('✅ Firebase presence listeners cleaned up');
+        } catch (error) {
+          console.error('❌ Error cleaning up presence listeners:', error);
         }
       }
       
@@ -2543,10 +2617,48 @@
         }
       }
 
-      if (firebaseRoomId && userId) {
-        db.ref(`presence/${firebaseRoomId}/${userId}`).remove().catch((error) => {
+      // Clean up Firebase presence during unload
+      if (presenceRef) {
+        // Use update then remove - can't await during unload, but we try anyway
+        presenceRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+        presenceRef.remove().catch((error) => {
           console.error('❌ Error cleaning Firebase presence during unload:', error);
         });
+      }
+      
+      // ALSO clean up WeWeb-created presence entry (uses just userId as key)
+      if (firebaseRoomId && userId && isValidUuid(userId)) {
+        const wewebRef = db.ref(`presence/${firebaseRoomId}/${userId}`);
+        wewebRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+        wewebRef.remove().catch(() => {});
+      }
+      
+      // Clean up spectator entries from __claims during unload
+      if (firebaseRoomId && userId) {
+        const baseUserId = isValidUuid(userId) ? userId : userId.split('-spectator-')[0];
+        // Try to remove common spectator key patterns
+        db.ref(`presence/${firebaseRoomId}/__claims`).once('value').then(snapshot => {
+          const claims = snapshot.val();
+          if (claims && typeof claims === 'object') {
+            Object.keys(claims).forEach(key => {
+              if (key.startsWith(baseUserId)) {
+                db.ref(`presence/${firebaseRoomId}/__claims/${key}`).remove().catch(() => {});
+              }
+            });
+          }
+        }).catch(() => {});
+      }
+      
+      // Fallback using calculated key
+      if (!presenceRef && firebaseRoomId) {
+        try {
+          const presenceKey = getPresenceKey();
+          db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove().catch((error) => {
+            console.error('❌ Error cleaning Firebase presence during unload:', error);
+          });
+        } catch (e) {
+          console.error('❌ Error calculating presence key during unload:', e);
+        }
       }
 
       if (recordingUploadState.pendingPayloadString && recordingUploadState.pendingEndpoint) {
@@ -2567,8 +2679,34 @@
       }
     });
 
-    window.addEventListener('pagehide', () => {
-      executeComprehensiveCleanup('pagehide');
+    window.addEventListener('pagehide', (event) => {
+      // For bfcache (back-forward cache), update status instead of removing
+      if (event.persisted) {
+        if (presenceRef) {
+          presenceRef.update({ status: 'away' }).catch(() => {});
+        }
+      } else {
+        executeComprehensiveCleanup('pagehide');
+      }
+    });
+
+    // Handle visibility changes (tab switching, minimizing)
+    document.addEventListener('visibilitychange', () => {
+      if (!presenceRef) return;
+      
+      if (document.visibilityState === 'hidden') {
+        // User switched away from tab - mark as away but don't remove
+        presenceRef.update({ 
+          status: 'away',
+          lastSeenAt: firebase.database.ServerValue.TIMESTAMP 
+        }).catch(() => {});
+      } else if (document.visibilityState === 'visible') {
+        // User came back - mark as online again
+        presenceRef.update({ 
+          status: 'online',
+          lastSeenAt: firebase.database.ServerValue.TIMESTAMP 
+        }).catch(() => {});
+      }
     });
 
 // Check if valid room URL
@@ -2714,7 +2852,13 @@
     await ensureFirebaseAuth();
     
     // Set up Firebase for chat and presence
-    firebaseRoomId = btoa(roomUrl);
+    // IMPORTANT: Must match WeWeb's format - they use btoa("https://chatspheres.daily.co/sphere-" + sphereId)
+    // The roomUrl (livekit_room_name) format is: "sphereId-uuid" (two UUIDs joined by hyphen)
+    // Extract sphereId (first 36 characters = first UUID) to build matching Firebase path
+    const sphereIdFromRoom = roomUrl && roomUrl.length >= 36 ? roomUrl.substring(0, 36) : roomUrl;
+    const dailyCoStyleUrl = `https://chatspheres.daily.co/sphere-${sphereIdFromRoom}`;
+    firebaseRoomId = btoa(dailyCoStyleUrl);
+    console.log('🔑 Firebase Room ID calculated from sphere:', sphereIdFromRoom);
     const roomId = firebaseRoomId;
     chatRef = db.ref(`chats/${roomId}`);
     viewerCountRef = db.ref(`viewers/${roomId}`);

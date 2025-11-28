@@ -2457,12 +2457,39 @@
       await endConversationSession(reason);
       
       // Clean up Firebase presence
-      if (firebaseRoomId && userId) {
+      if (presenceRef) {
         try {
-          await db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
-          console.log('✅ Firebase presence cleaned up');
+          // Cancel onDisconnect handler since we're cleaning up manually
+          await presenceRef.onDisconnect().cancel();
+          // First update status to offline so listeners get the change
+          await presenceRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP });
+          // Then remove the presence entry
+          await presenceRef.remove();
+          console.log('✅ Firebase presence cleaned up via presenceRef');
+        } catch (error) {
+          console.error('❌ Error cleaning Firebase presence via presenceRef:', error);
+        } finally {
+          presenceRef = null;
+        }
+      } else if (firebaseRoomId && userId) {
+        // Fallback: try to remove using the presenceKey calculation
+        try {
+          const presenceKey = getPresenceKey();
+          await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
+          console.log('✅ Firebase presence cleaned up via calculated key');
         } catch (error) {
           console.error('❌ Error cleaning Firebase presence:', error);
+        }
+      }
+      
+      // Clean up presence listeners
+      if (firebaseRoomId && presenceListenersBound) {
+        try {
+          db.ref(`presence/${firebaseRoomId}`).off();
+          presenceListenersBound = false;
+          console.log('✅ Firebase presence listeners cleaned up');
+        } catch (error) {
+          console.error('❌ Error cleaning up presence listeners:', error);
         }
       }
       
@@ -2543,10 +2570,23 @@
         }
       }
 
-      if (firebaseRoomId && userId) {
-        db.ref(`presence/${firebaseRoomId}/${userId}`).remove().catch((error) => {
+      // Clean up Firebase presence during unload
+      if (presenceRef) {
+        // Use update then remove - can't await during unload, but we try anyway
+        presenceRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+        presenceRef.remove().catch((error) => {
           console.error('❌ Error cleaning Firebase presence during unload:', error);
         });
+      } else if (firebaseRoomId) {
+        // Fallback using calculated key
+        try {
+          const presenceKey = getPresenceKey();
+          db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove().catch((error) => {
+            console.error('❌ Error cleaning Firebase presence during unload:', error);
+          });
+        } catch (e) {
+          console.error('❌ Error calculating presence key during unload:', e);
+        }
       }
 
       if (recordingUploadState.pendingPayloadString && recordingUploadState.pendingEndpoint) {
@@ -2567,8 +2607,34 @@
       }
     });
 
-    window.addEventListener('pagehide', () => {
-      executeComprehensiveCleanup('pagehide');
+    window.addEventListener('pagehide', (event) => {
+      // For bfcache (back-forward cache), update status instead of removing
+      if (event.persisted) {
+        if (presenceRef) {
+          presenceRef.update({ status: 'away' }).catch(() => {});
+        }
+      } else {
+        executeComprehensiveCleanup('pagehide');
+      }
+    });
+
+    // Handle visibility changes (tab switching, minimizing)
+    document.addEventListener('visibilitychange', () => {
+      if (!presenceRef) return;
+      
+      if (document.visibilityState === 'hidden') {
+        // User switched away from tab - mark as away but don't remove
+        presenceRef.update({ 
+          status: 'away',
+          lastSeenAt: firebase.database.ServerValue.TIMESTAMP 
+        }).catch(() => {});
+      } else if (document.visibilityState === 'visible') {
+        // User came back - mark as online again
+        presenceRef.update({ 
+          status: 'online',
+          lastSeenAt: firebase.database.ServerValue.TIMESTAMP 
+        }).catch(() => {});
+      }
     });
 
 // Check if valid room URL

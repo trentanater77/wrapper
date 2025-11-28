@@ -2488,6 +2488,36 @@
         }
       }
       
+      // Clean up spectator entries from __claims (WeWeb spectators are stored here)
+      if (firebaseRoomId && userId) {
+        try {
+          const claimsRef = db.ref(`presence/${firebaseRoomId}/__claims`);
+          const claimsSnapshot = await claimsRef.once('value');
+          const claims = claimsSnapshot.val();
+          
+          if (claims && typeof claims === 'object') {
+            const baseUserId = isValidUuid(userId) ? userId : userId.split('-spectator-')[0];
+            const deletePromises = [];
+            
+            Object.keys(claims).forEach(key => {
+              // Match entries that start with this user's ID
+              if (key.startsWith(baseUserId)) {
+                deletePromises.push(
+                  db.ref(`presence/${firebaseRoomId}/__claims/${key}`).remove()
+                );
+              }
+            });
+            
+            if (deletePromises.length > 0) {
+              await Promise.all(deletePromises);
+              console.log(`✅ Cleaned up ${deletePromises.length} spectator claim(s) from __claims`);
+            }
+          }
+        } catch (error) {
+          console.log('ℹ️ Spectator claims cleanup:', error.message || 'no claims to clean');
+        }
+      }
+      
       // Fallback: try to remove using the presenceKey calculation
       if (!presenceRef && firebaseRoomId && userId) {
         try {
@@ -2601,6 +2631,22 @@
         const wewebRef = db.ref(`presence/${firebaseRoomId}/${userId}`);
         wewebRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
         wewebRef.remove().catch(() => {});
+      }
+      
+      // Clean up spectator entries from __claims during unload
+      if (firebaseRoomId && userId) {
+        const baseUserId = isValidUuid(userId) ? userId : userId.split('-spectator-')[0];
+        // Try to remove common spectator key patterns
+        db.ref(`presence/${firebaseRoomId}/__claims`).once('value').then(snapshot => {
+          const claims = snapshot.val();
+          if (claims && typeof claims === 'object') {
+            Object.keys(claims).forEach(key => {
+              if (key.startsWith(baseUserId)) {
+                db.ref(`presence/${firebaseRoomId}/__claims/${key}`).remove().catch(() => {});
+              }
+            });
+          }
+        }).catch(() => {});
       }
       
       // Fallback using calculated key

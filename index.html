@@ -2471,8 +2471,25 @@
         } finally {
           presenceRef = null;
         }
-      } else if (firebaseRoomId && userId) {
-        // Fallback: try to remove using the presenceKey calculation
+      }
+      
+      // ALSO clean up the WeWeb-created presence entry (uses just userId as key)
+      // WeWeb writes to: presence/${roomId}/${userId}
+      // This ensures entries created by WeWeb workflow are also cleaned up
+      if (firebaseRoomId && userId && isValidUuid(userId)) {
+        try {
+          const wewebPresenceRef = db.ref(`presence/${firebaseRoomId}/${userId}`);
+          await wewebPresenceRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP });
+          await wewebPresenceRef.remove();
+          console.log('✅ WeWeb-style presence entry cleaned up');
+        } catch (error) {
+          // This may fail if entry doesn't exist, which is fine
+          console.log('ℹ️ WeWeb-style presence cleanup:', error.message || 'entry may not exist');
+        }
+      }
+      
+      // Fallback: try to remove using the presenceKey calculation
+      if (!presenceRef && firebaseRoomId && userId) {
         try {
           const presenceKey = getPresenceKey();
           await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
@@ -2577,8 +2594,17 @@
         presenceRef.remove().catch((error) => {
           console.error('❌ Error cleaning Firebase presence during unload:', error);
         });
-      } else if (firebaseRoomId) {
-        // Fallback using calculated key
+      }
+      
+      // ALSO clean up WeWeb-created presence entry (uses just userId as key)
+      if (firebaseRoomId && userId && isValidUuid(userId)) {
+        const wewebRef = db.ref(`presence/${firebaseRoomId}/${userId}`);
+        wewebRef.update({ status: 'offline', leftAt: firebase.database.ServerValue.TIMESTAMP }).catch(() => {});
+        wewebRef.remove().catch(() => {});
+      }
+      
+      // Fallback using calculated key
+      if (!presenceRef && firebaseRoomId) {
         try {
           const presenceKey = getPresenceKey();
           db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove().catch((error) => {
@@ -2780,7 +2806,13 @@
     await ensureFirebaseAuth();
     
     // Set up Firebase for chat and presence
-    firebaseRoomId = btoa(roomUrl);
+    // IMPORTANT: Must match WeWeb's format - they use btoa("https://chatspheres.daily.co/sphere-" + sphereId)
+    // The roomUrl (livekit_room_name) format is: "sphereId-uuid" (two UUIDs joined by hyphen)
+    // Extract sphereId (first 36 characters = first UUID) to build matching Firebase path
+    const sphereIdFromRoom = roomUrl && roomUrl.length >= 36 ? roomUrl.substring(0, 36) : roomUrl;
+    const dailyCoStyleUrl = `https://chatspheres.daily.co/sphere-${sphereIdFromRoom}`;
+    firebaseRoomId = btoa(dailyCoStyleUrl);
+    console.log('🔑 Firebase Room ID calculated from sphere:', sphereIdFromRoom);
     const roomId = firebaseRoomId;
     chatRef = db.ref(`chats/${roomId}`);
     viewerCountRef = db.ref(`viewers/${roomId}`);

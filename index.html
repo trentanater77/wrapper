@@ -2521,6 +2521,12 @@
       
       // Reset presence tracking for next session
       presenceListenersBound = false;
+      
+      // Stop presence heartbeat
+      if (presenceHeartbeatInterval) {
+        clearInterval(presenceHeartbeatInterval);
+        presenceHeartbeatInterval = null;
+      }
     }
 
     // CRITICAL: Ensure cleanup on page unload
@@ -2860,6 +2866,9 @@
 
   let presenceRef = null;
   let presenceListenersBound = false;
+  let presenceHeartbeatInterval = null;
+  const PRESENCE_STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes - entries older than this are considered stale
+  const PRESENCE_HEARTBEAT_INTERVAL_MS = 60 * 1000; // Update presence every 60 seconds
 
   async function setupPresence(roomId) {
     await ensureFirebaseAuth();
@@ -2880,20 +2889,48 @@
       source: 'livekit-app'
     });
     
-    // Listen for viewer count changes
+    // Start heartbeat to keep presence fresh
+    if (presenceHeartbeatInterval) {
+      clearInterval(presenceHeartbeatInterval);
+    }
+    presenceHeartbeatInterval = setInterval(() => {
+      if (presenceRef) {
+        presenceRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP }).catch((err) => {
+          console.warn('⚠️ Failed to update presence heartbeat:', err);
+        });
+      }
+    }, PRESENCE_HEARTBEAT_INTERVAL_MS);
+    
+    // Listen for viewer count changes (filtering out stale entries)
     if (!presenceListenersBound) {
       const allPresenceRef = db.ref(`presence/${roomId}`);
       allPresenceRef.on('value', (snapshot) => {
         const users = snapshot.val() || {};
-        const spectators = Object.values(users).filter(user => user.type === 'spectator');
-        const participants = Object.values(users).filter(user => user.type === 'participant');
+        const now = Date.now();
+        
+        // Filter out stale presence entries (older than threshold)
+        const activeUsers = Object.entries(users).filter(([key, user]) => {
+          const updatedAt = user.updatedAt || user.joinedAt || 0;
+          const isStale = (now - updatedAt) > PRESENCE_STALE_THRESHOLD_MS;
+          
+          if (isStale) {
+            console.log(`🧹 Removing stale presence entry: ${key} (last updated ${Math.round((now - updatedAt) / 1000)}s ago)`);
+            // Auto-cleanup stale entries
+            db.ref(`presence/${roomId}/${key}`).remove().catch(() => {});
+            return false;
+          }
+          return true;
+        }).map(([, user]) => user);
+        
+        const spectators = activeUsers.filter(user => user.type === 'spectator');
+        const participants = activeUsers.filter(user => user.type === 'participant');
 
         updateViewerCount({
           spectators: spectators.length,
           participants: participants.length
         });
 
-        console.log(`👥 Room stats: ${participants.length} participants, ${spectators.length} spectators`);
+        console.log(`👥 Room stats: ${participants.length} participants, ${spectators.length} spectators (filtered ${Object.keys(users).length - activeUsers.length} stale)`);
       }, (error) => {
         console.error('❌ Failed to monitor presence counts:', error);
       });

@@ -1298,6 +1298,7 @@
   let conversationPartnerId = null;
   let ensureSessionPromise = null;
   let conversationSessionStartedAt = null;
+  let userJoinedAtTimestamp = null; // Track when THIS user joined (not room start time)
   let serverTimeOffset = 0;
   let timerRef = null;
   let timerSyncInitialized = false;
@@ -1328,6 +1329,23 @@
 
     const roomUrl = new URLSearchParams(window.location.search).get('room');
     const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+
+    // Extract sphereId from any room format for consistent presence path
+    function extractSphereId(roomParam) {
+      if (!roomParam) return null;
+      
+      // UUID pattern
+      const uuidPattern = /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i;
+      
+      // Try to find first UUID in the string (this is the sphereId)
+      const match = roomParam.match(uuidPattern);
+      if (match) {
+        return match[1];
+      }
+      
+      // Fallback: return as-is
+      return roomParam;
+    }
 
     function extractRoomIdentifier(url) {
       if (!url) return null;
@@ -2408,8 +2426,13 @@
       console.log('🧮 Candidate sphere identifiers:', Array.from(candidateSphereIds));
 
       if (resolvedSessionId) {
+        // Calculate actual minutes used based on elapsed time
+        const actualMinutesUsed = latestSessionMinutesUsed || 0;
+        console.log(`⏱️ Actual minutes used in session: ${actualMinutesUsed}`);
+
         const { data: rpcResult, error: rpcError } = await supabaseClient.rpc('end_conversation_session', {
-          p_session_id: resolvedSessionId
+          p_session_id: resolvedSessionId,
+          p_minutes_used: actualMinutesUsed
         });
 
         if (rpcError) {
@@ -2423,7 +2446,7 @@
         }
 
         console.log('✅ SUCCESS: Session ended via RPC', rpcResult);
-        console.log('💰 Minutes will be charged via database trigger');
+        console.log(`💰 Charged ${actualMinutesUsed} minutes for this session`);
         conversationSessionEndState.ended = true;
         return;
       }
@@ -2452,17 +2475,32 @@
       
       cleanupExecuted = true;
       console.log(`🧹 Executing comprehensive cleanup - Reason: ${reason}`);
+      console.log(`⏱️ Minutes used this session: ${latestSessionMinutesUsed}`);
       
       // End conversation session (most important!)
       await endConversationSession(reason);
       
-      // Clean up Firebase presence
-      if (firebaseRoomId && userId) {
+      // Reset user join tracking for next session
+      userJoinedAtTimestamp = null;
+      latestSessionMinutesUsed = 0;
+      
+      // Clean up Firebase presence using the stored presenceRef (has correct key)
+      if (presenceRef) {
         try {
-          await db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
+          await presenceRef.remove();
           console.log('✅ Firebase presence cleaned up');
+          presenceRef = null;
         } catch (error) {
           console.error('❌ Error cleaning Firebase presence:', error);
+        }
+      } else if (firebaseRoomId) {
+        // Fallback: try to construct the key if presenceRef wasn't stored
+        try {
+          const presenceKey = getPresenceKey();
+          await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
+          console.log('✅ Firebase presence cleaned up (fallback)');
+        } catch (error) {
+          console.error('❌ Error cleaning Firebase presence (fallback):', error);
         }
       }
       
@@ -2497,6 +2535,15 @@
         expiresAt: null,
         createdBy: null
       };
+      
+      // Reset presence tracking for next session
+      presenceListenersBound = false;
+      
+      // Stop presence heartbeat
+      if (presenceHeartbeatInterval) {
+        clearInterval(presenceHeartbeatInterval);
+        presenceHeartbeatInterval = null;
+      }
     }
 
     // CRITICAL: Ensure cleanup on page unload
@@ -2506,7 +2553,13 @@
       if (!cleanupExecuted && !isSpectator && supabaseClient && isValidUuid(userId)) {
         if (conversationSessionId) {
           const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/end_conversation_session`;
-          const rpcPayload = JSON.stringify({ p_session_id: conversationSessionId });
+          // Include actual minutes used when ending session on page unload
+          const actualMinutesUsed = latestSessionMinutesUsed || 0;
+          const rpcPayload = JSON.stringify({ 
+            p_session_id: conversationSessionId,
+            p_minutes_used: actualMinutesUsed
+          });
+          console.log(`🚪 Ending session with ${actualMinutesUsed} minutes used`);
 
           try {
             const sent = navigator.sendBeacon(
@@ -2543,10 +2596,20 @@
         }
       }
 
-      if (firebaseRoomId && userId) {
-        db.ref(`presence/${firebaseRoomId}/${userId}`).remove().catch((error) => {
+      // Clean up Firebase presence using stored ref or construct correct key
+      if (presenceRef) {
+        presenceRef.remove().catch((error) => {
           console.error('❌ Error cleaning Firebase presence during unload:', error);
         });
+      } else if (firebaseRoomId) {
+        try {
+          const presenceKey = getPresenceKey();
+          db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove().catch((error) => {
+            console.error('❌ Error cleaning Firebase presence during unload (fallback):', error);
+          });
+        } catch (e) {
+          console.error('❌ Error constructing presence key during unload:', e);
+        }
       }
 
       if (recordingUploadState.pendingPayloadString && recordingUploadState.pendingEndpoint) {
@@ -2714,8 +2777,11 @@
     await ensureFirebaseAuth();
     
     // Set up Firebase for chat and presence
-    firebaseRoomId = btoa(roomUrl);
+    // Use sphereId for consistent presence path (works with any room URL format)
+    const sphereId = extractSphereId(roomUrl);
+    firebaseRoomId = sphereId || btoa(roomUrl); // Use sphereId directly, fallback to btoa
     const roomId = firebaseRoomId;
+    console.log(`🔑 Firebase Room ID (sphereId): ${firebaseRoomId}`);
     chatRef = db.ref(`chats/${roomId}`);
     viewerCountRef = db.ref(`viewers/${roomId}`);
     
@@ -2820,6 +2886,9 @@
 
   let presenceRef = null;
   let presenceListenersBound = false;
+  let presenceHeartbeatInterval = null;
+  const PRESENCE_STALE_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes - entries older than this are considered stale
+  const PRESENCE_HEARTBEAT_INTERVAL_MS = 60 * 1000; // Update presence every 60 seconds
 
   async function setupPresence(roomId) {
     await ensureFirebaseAuth();
@@ -2840,20 +2909,48 @@
       source: 'livekit-app'
     });
     
-    // Listen for viewer count changes
+    // Start heartbeat to keep presence fresh
+    if (presenceHeartbeatInterval) {
+      clearInterval(presenceHeartbeatInterval);
+    }
+    presenceHeartbeatInterval = setInterval(() => {
+      if (presenceRef) {
+        presenceRef.update({ updatedAt: firebase.database.ServerValue.TIMESTAMP }).catch((err) => {
+          console.warn('⚠️ Failed to update presence heartbeat:', err);
+        });
+      }
+    }, PRESENCE_HEARTBEAT_INTERVAL_MS);
+    
+    // Listen for viewer count changes (filtering out stale entries)
     if (!presenceListenersBound) {
       const allPresenceRef = db.ref(`presence/${roomId}`);
       allPresenceRef.on('value', (snapshot) => {
         const users = snapshot.val() || {};
-        const spectators = Object.values(users).filter(user => user.type === 'spectator');
-        const participants = Object.values(users).filter(user => user.type === 'participant');
+        const now = Date.now();
+        
+        // Filter out stale presence entries (older than threshold)
+        const activeUsers = Object.entries(users).filter(([key, user]) => {
+          const updatedAt = user.updatedAt || user.joinedAt || 0;
+          const isStale = (now - updatedAt) > PRESENCE_STALE_THRESHOLD_MS;
+          
+          if (isStale) {
+            console.log(`🧹 Removing stale presence entry: ${key} (last updated ${Math.round((now - updatedAt) / 1000)}s ago)`);
+            // Auto-cleanup stale entries
+            db.ref(`presence/${roomId}/${key}`).remove().catch(() => {});
+            return false;
+          }
+          return true;
+        }).map(([, user]) => user);
+        
+        const spectators = activeUsers.filter(user => user.type === 'spectator');
+        const participants = activeUsers.filter(user => user.type === 'participant');
 
         updateViewerCount({
           spectators: spectators.length,
           participants: participants.length
         });
 
-        console.log(`👥 Room stats: ${participants.length} participants, ${spectators.length} spectators`);
+        console.log(`👥 Room stats: ${participants.length} participants, ${spectators.length} spectators (filtered ${Object.keys(users).length - activeUsers.length} stale)`);
       }, (error) => {
         console.error('❌ Failed to monitor presence counts:', error);
       });
@@ -3243,6 +3340,12 @@
 
     async function handleJoinedMeeting(event = {}) {
       console.log('✅ Joined LiveKit room successfully');
+      
+      // Track when THIS user joined (for accurate minute calculation)
+      userJoinedAtTimestamp = getServerNow();
+      latestSessionMinutesUsed = 0; // Reset minutes counter on join
+      console.log(`⏱️ User joined at timestamp: ${userJoinedAtTimestamp}`);
+      
       const localParticipant = livekitRoom?.localParticipant || event?.participant;
       
       if (!isSpectator && localParticipant) {
@@ -5689,9 +5792,17 @@ function ensureSpectatorTracksForParticipant(participant) {
       timerHeaderElement.textContent = hasTimerData || isSpectator ? timeString : '--:--';
     }
 
-    if (!isSpectator && timerState.startedAt && typeof timerState.durationSeconds === 'number') {
-      let elapsedSeconds = Math.max(0, Math.floor((getServerNow() - timerState.startedAt) / 1000));
-      elapsedSeconds = Math.min(elapsedSeconds, timerState.durationSeconds);
+    // Calculate minutes based on when THIS USER joined, not when room started
+    if (!isSpectator && userJoinedAtTimestamp) {
+      const now = getServerNow();
+      let elapsedSeconds = Math.max(0, Math.floor((now - userJoinedAtTimestamp) / 1000));
+      
+      // Cap at room's remaining time if timer is set
+      if (timerState.expiresAt) {
+        const maxSecondsInRoom = Math.max(0, Math.floor((timerState.expiresAt - userJoinedAtTimestamp) / 1000));
+        elapsedSeconds = Math.min(elapsedSeconds, maxSecondsInRoom);
+      }
+      
       latestSessionMinutesUsed = Math.floor(elapsedSeconds / 60);
       updateMinutesUsedUi();
     } else if (!isSpectator) {
@@ -5956,7 +6067,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       throw new Error("Prompts database URL is not configured");
     }
     
-    const response = await fetch("/.netlify/functions/generateSpark", {
+    const response = await fetch("/.netlify/functions/generatespark", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json" 

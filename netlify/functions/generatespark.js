@@ -1,4 +1,4 @@
-// netlify/functions/generateSpark.js
+// netlify/functions/generatespark.js
 const OpenAI = require("openai");
 
 const openai = new OpenAI({

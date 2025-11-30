@@ -529,9 +529,16 @@
     const roomId = state.matchData.room_id;
     const baseUrl = window.location.origin;
     
-    // Build the room URL for LiveKit
+    // Build redirect URL with room ID (not full URL to avoid Firebase path issues)
+    // Pass topic info so the video chat can display it
+    const yourTopic = encodeURIComponent(state.matchData.your_topic || 'Chat');
+    const theirTopic = encodeURIComponent(state.matchData.their_topic || 'Chat');
+    const similarity = state.matchData.similarity || 80;
+    
+    // Use sphere.chatspheres.com format that works with the existing app
     const roomUrl = `https://chatspheres.daily.co/${roomId}`;
-    const redirectUrl = `${baseUrl}${CONFIG.VIDEO_CHAT_URL}?room=${encodeURIComponent(roomUrl)}&mode=participant&matched=true`;
+    
+    const redirectUrl = `${baseUrl}${CONFIG.VIDEO_CHAT_URL}?room=${roomId}&mode=participant&matched=true&topic=${yourTopic}&matchedTopic=${theirTopic}&similarity=${similarity}`;
     
     console.log('🚀 Redirecting to room:', redirectUrl);
     window.location.href = redirectUrl;

@@ -1496,8 +1496,33 @@
         return match[1];
       }
       
-      // Fallback: return as-is
-      return roomParam;
+      // Handle match-* room IDs (from matchmaking)
+      const matchRoomPattern = /(match-[a-z0-9]+-[a-z0-9]+)/i;
+      const matchRoom = roomParam.match(matchRoomPattern);
+      if (matchRoom) {
+        return matchRoom[1];
+      }
+      
+      // If it's a URL, extract the last path segment
+      if (roomParam.includes('/')) {
+        try {
+          const url = new URL(roomParam);
+          const pathSegments = url.pathname.split('/').filter(s => s);
+          if (pathSegments.length > 0) {
+            return pathSegments[pathSegments.length - 1];
+          }
+        } catch (e) {
+          // Not a valid URL, try simple split
+          const segments = roomParam.split('/').filter(s => s);
+          if (segments.length > 0) {
+            return segments[segments.length - 1];
+          }
+        }
+      }
+      
+      // Fallback: return as-is (but sanitize for Firebase)
+      // Remove characters that are invalid in Firebase paths
+      return roomParam.replace(/[.#$\[\]\/]/g, '_');
     }
 
     function extractRoomIdentifier(url) {
@@ -2872,6 +2897,33 @@
 
   // Load room info
   async function loadRoomInfo() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isMatchedRoom = urlParams.get('matched') === 'true';
+    
+    // Handle matched rooms from matchmaking
+    if (isMatchedRoom) {
+      const matchedTopic = urlParams.get('topic') || 'Matched Chat';
+      const theirTopic = urlParams.get('matchedTopic') || '';
+      const similarity = urlParams.get('similarity') || '';
+      
+      console.log("🎯 Matched room detected!");
+      console.log("📝 Your topic:", matchedTopic);
+      console.log("📝 Their topic:", theirTopic);
+      console.log("📊 Similarity:", similarity + '%');
+      
+      // Build description showing the match
+      let description = `You matched on "${decodeURIComponent(matchedTopic)}"`;
+      if (theirTopic && theirTopic !== matchedTopic) {
+        description = `You: "${decodeURIComponent(matchedTopic)}" ↔ They: "${decodeURIComponent(theirTopic)}"`;
+      }
+      if (similarity) {
+        description += ` (${similarity}% match)`;
+      }
+      
+      updateTopicDisplay(decodeURIComponent(matchedTopic), description);
+      return;
+    }
+    
     const urlParam = decodeURIComponent(roomUrl);
     console.log("🔍 Looking for room URL:", urlParam);
 

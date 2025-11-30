@@ -107,14 +107,12 @@
 
   // ========== USER ID MANAGEMENT ==========
   function getUserId() {
-    // Use a SESSION-based ID so each tab gets its own queue entry
-    // This allows testing with multiple tabs in the same browser
-    let sessionId = sessionStorage.getItem('matchmaking_session_id');
-    if (!sessionId) {
-      sessionId = 'user_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-      sessionStorage.setItem('matchmaking_session_id', sessionId);
-    }
-    return sessionId;
+    // Generate a UNIQUE ID for each page load / tab
+    // This ensures each matchmaking session is independent
+    // Using timestamp + random to guarantee uniqueness across tabs
+    const uniqueId = 'mm_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 6);
+    console.log('🆔 Generated matchmaking ID:', uniqueId);
+    return uniqueId;
   }
 
   // ========== EVENT LISTENERS ==========

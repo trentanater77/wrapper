@@ -632,6 +632,11 @@
                 <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
               </svg>
             </button>
+            <button id="share-btn" class="control-btn bg-charcoal bg-opacity-80 hover:bg-emerald-500 text-white p-3 rounded-full shadow-lg" title="Share room link">
+              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
+              </svg>
+            </button>
             <button id="leave-btn" class="control-btn bg-main-red hover:bg-red-600 text-white p-3 rounded-full shadow-lg">
               <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 1.414L9.586 11l-2.293 2.293a1 1 0 001.414 1.414L10 12.414l1.293 1.293a1 1 0 001.414-1.414L11.414 11l2.293-2.293z" clip-rule="evenodd"/>
@@ -972,6 +977,43 @@
 <!-- Toast -->
 <div id="toast" class="fixed bottom-4 right-4 bg-main-red text-white px-6 py-3 rounded-xl shadow-lg transform translate-y-full transition-transform hidden z-40">
   <p id="toastMessage"></p>
+</div>
+
+<!-- Share Modal -->
+<div id="share-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-charcoal dark:text-white">🔗 Share Room Link</h3>
+      <button id="share-modal-close" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    
+    <p class="text-gray-600 dark:text-gray-300 mb-4 text-sm">Share this link to invite someone to join your conversation:</p>
+    
+    <div class="flex gap-2 mb-4">
+      <input id="share-link-input" type="text" readonly 
+        class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-charcoal dark:text-white text-sm font-mono">
+      <button id="copy-share-link" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-semibold transition-colors">
+        📋 Copy
+      </button>
+    </div>
+    
+    <div class="flex gap-2">
+      <button id="share-participant-link" class="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-semibold transition-colors">
+        👤 Participant Link
+      </button>
+      <button id="share-spectator-link" class="flex-1 px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-sm font-semibold transition-colors">
+        👁️ Spectator Link
+      </button>
+    </div>
+    
+    <p class="text-gray-500 dark:text-gray-400 mt-4 text-xs text-center">
+      Participant: Can speak & interact • Spectator: Watch only
+    </p>
+  </div>
 </div>
 
 <script>
@@ -5464,6 +5506,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     document.getElementById('screen-share-btn').addEventListener('click', toggleScreenShare);
     document.getElementById('record-btn').addEventListener('click', toggleRecording);
     document.getElementById('settings-btn').addEventListener('click', toggleSettings);
+    document.getElementById('share-btn').addEventListener('click', openShareModal);
     document.getElementById('leave-btn').addEventListener('click', leaveCall);
     document.getElementById('close-settings').addEventListener('click', toggleSettings);
     const copyRecordingLinkBtn = document.getElementById('copy-recording-link');
@@ -5864,6 +5907,114 @@ function ensureSpectatorTracksForParticipant(participant) {
       setTimeout(() => toast.classList.add('hidden'), 300);
     }, 3000);
   }
+
+  // Share Link Functions
+  let currentShareMode = 'participant';
+  
+  function generateShareLink(mode = 'participant') {
+    const baseUrl = window.location.origin;
+    const sphereId = extractSphereId(roomUrl);
+    
+    if (!sphereId) {
+      console.error('Cannot generate share link: no sphereId found');
+      return null;
+    }
+    
+    // Create a clean share link with just the room and mode
+    // The person clicking will add their own user info when they join
+    const shareUrl = new URL(baseUrl);
+    shareUrl.searchParams.set('room', roomUrl || sphereId);
+    shareUrl.searchParams.set('mode', mode);
+    
+    return shareUrl.toString();
+  }
+  
+  function openShareModal() {
+    const modal = document.getElementById('share-modal');
+    const input = document.getElementById('share-link-input');
+    
+    // Generate participant link by default
+    currentShareMode = 'participant';
+    const link = generateShareLink('participant');
+    
+    if (link) {
+      input.value = link;
+      modal.classList.remove('hidden');
+      
+      // Highlight participant button
+      document.getElementById('share-participant-link').classList.add('ring-2', 'ring-white');
+      document.getElementById('share-spectator-link').classList.remove('ring-2', 'ring-white');
+    } else {
+      showToast('❌ Unable to generate share link');
+    }
+  }
+  
+  function closeShareModal() {
+    document.getElementById('share-modal').classList.add('hidden');
+  }
+  
+  function copyShareLink() {
+    const input = document.getElementById('share-link-input');
+    const link = input.value;
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(link).then(() => {
+        showToast('📋 Link copied! Share it with your friend');
+      }).catch(() => {
+        fallbackCopyToClipboard(link);
+      });
+    } else {
+      fallbackCopyToClipboard(link);
+    }
+  }
+  
+  function fallbackCopyToClipboard(text) {
+    const input = document.getElementById('share-link-input');
+    input.select();
+    input.setSelectionRange(0, 99999);
+    
+    try {
+      document.execCommand('copy');
+      showToast('📋 Link copied! Share it with your friend');
+    } catch (err) {
+      showToast('❌ Copy failed. Please select and copy manually.');
+    }
+  }
+  
+  function setShareLinkMode(mode) {
+    currentShareMode = mode;
+    const input = document.getElementById('share-link-input');
+    const link = generateShareLink(mode);
+    
+    if (link) {
+      input.value = link;
+    }
+    
+    // Update button highlighting
+    const participantBtn = document.getElementById('share-participant-link');
+    const spectatorBtn = document.getElementById('share-spectator-link');
+    
+    if (mode === 'participant') {
+      participantBtn.classList.add('ring-2', 'ring-white');
+      spectatorBtn.classList.remove('ring-2', 'ring-white');
+    } else {
+      spectatorBtn.classList.add('ring-2', 'ring-white');
+      participantBtn.classList.remove('ring-2', 'ring-white');
+    }
+  }
+  
+  // Set up share modal event listeners
+  document.getElementById('share-modal-close')?.addEventListener('click', closeShareModal);
+  document.getElementById('copy-share-link')?.addEventListener('click', copyShareLink);
+  document.getElementById('share-participant-link')?.addEventListener('click', () => setShareLinkMode('participant'));
+  document.getElementById('share-spectator-link')?.addEventListener('click', () => setShareLinkMode('spectator'));
+  
+  // Close modal when clicking outside
+  document.getElementById('share-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'share-modal') {
+      closeShareModal();
+    }
+  });
 
   // Spark functions (available to all users but only participants can generate new ones)
   function navigateSpark(direction) {

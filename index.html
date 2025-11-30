@@ -2467,13 +2467,23 @@
       userJoinedAtTimestamp = null;
       latestSessionMinutesUsed = 0;
       
-      // Clean up Firebase presence
-      if (firebaseRoomId && userId) {
+      // Clean up Firebase presence using the stored presenceRef (has correct key)
+      if (presenceRef) {
         try {
-          await db.ref(`presence/${firebaseRoomId}/${userId}`).remove();
+          await presenceRef.remove();
           console.log('✅ Firebase presence cleaned up');
+          presenceRef = null;
         } catch (error) {
           console.error('❌ Error cleaning Firebase presence:', error);
+        }
+      } else if (firebaseRoomId) {
+        // Fallback: try to construct the key if presenceRef wasn't stored
+        try {
+          const presenceKey = getPresenceKey();
+          await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
+          console.log('✅ Firebase presence cleaned up (fallback)');
+        } catch (error) {
+          console.error('❌ Error cleaning Firebase presence (fallback):', error);
         }
       }
       
@@ -2508,6 +2518,9 @@
         expiresAt: null,
         createdBy: null
       };
+      
+      // Reset presence tracking for next session
+      presenceListenersBound = false;
     }
 
     // CRITICAL: Ensure cleanup on page unload
@@ -2560,10 +2573,20 @@
         }
       }
 
-      if (firebaseRoomId && userId) {
-        db.ref(`presence/${firebaseRoomId}/${userId}`).remove().catch((error) => {
+      // Clean up Firebase presence using stored ref or construct correct key
+      if (presenceRef) {
+        presenceRef.remove().catch((error) => {
           console.error('❌ Error cleaning Firebase presence during unload:', error);
         });
+      } else if (firebaseRoomId) {
+        try {
+          const presenceKey = getPresenceKey();
+          db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove().catch((error) => {
+            console.error('❌ Error cleaning Firebase presence during unload (fallback):', error);
+          });
+        } catch (e) {
+          console.error('❌ Error constructing presence key during unload:', e);
+        }
       }
 
       if (recordingUploadState.pendingPayloadString && recordingUploadState.pendingEndpoint) {

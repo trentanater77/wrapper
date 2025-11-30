@@ -107,12 +107,14 @@
 
   // ========== USER ID MANAGEMENT ==========
   function getUserId() {
-    let userId = localStorage.getItem('chatspheres_user_id');
-    if (!userId) {
-      userId = 'user_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-      localStorage.setItem('chatspheres_user_id', userId);
+    // Use a SESSION-based ID so each tab gets its own queue entry
+    // This allows testing with multiple tabs in the same browser
+    let sessionId = sessionStorage.getItem('matchmaking_session_id');
+    if (!sessionId) {
+      sessionId = 'user_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
+      sessionStorage.setItem('matchmaking_session_id', sessionId);
     }
-    return userId;
+    return sessionId;
   }
 
   // ========== EVENT LISTENERS ==========
@@ -262,10 +264,12 @@
     const myData = mySnapshot.val();
 
     if (!myData) {
+      console.log('❌ Not in queue anymore');
       return { match: false, error: 'Not in queue' };
     }
 
     if (myData.status === 'matched' && myData.room_id) {
+      console.log('🎉 Already matched!', myData.room_id);
       return {
         match: true,
         room_id: myData.room_id,
@@ -280,8 +284,13 @@
     const snapshot = await queueRef.orderByChild('status').equalTo('waiting').once('value');
     const allUsers = snapshot.val() || {};
 
+    console.log('📋 All users in queue:', Object.keys(allUsers));
+    console.log('👤 My ID:', state.userId);
+
     // Filter out ourselves
     const otherUsers = Object.entries(allUsers).filter(([id]) => id !== state.userId);
+
+    console.log('👥 Other waiting users:', otherUsers.length);
 
     if (otherUsers.length === 0) {
       return { match: false, waiting: true, message: 'Waiting for others to join...' };

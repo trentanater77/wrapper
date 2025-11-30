@@ -311,16 +311,17 @@
     }
     
     /* Share button glow effect */
-    #share-btn {
-      animation: shareGlow 3s ease-in-out infinite;
+    #share-btn,
+    #header-share-btn {
+      animation: shareGlow 2s ease-in-out infinite;
     }
     
     @keyframes shareGlow {
       0%, 100% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
       }
       50% {
-        box-shadow: 0 0 15px 3px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 4px 25px rgba(16, 185, 129, 0.8), 0 0 40px rgba(16, 185, 129, 0.3);
       }
     }
     
@@ -563,6 +564,14 @@
               </button>
             </div>
           </div>
+          
+          <!-- PROMINENT SHARE BUTTON IN HEADER -->
+          <button id="header-share-btn" onclick="openShareModal()" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 text-white rounded-full font-bold text-sm shadow-lg hover:shadow-xl transition-all hover:scale-105" title="Share room link">
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
+            </svg>
+            <span>Share</span>
+          </button>
       </div>
       
       <!-- Timer -->

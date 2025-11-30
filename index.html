@@ -395,6 +395,53 @@
       pointer-events: auto !important;
       z-index: 9999 !important;
     }
+
+    /* Share Modal Styles */
+    .share-modal-content {
+      animation: shareModalIn 0.3s ease-out;
+    }
+
+    @keyframes shareModalIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .share-icon-bounce {
+      animation: shareBounce 1s ease-in-out infinite;
+    }
+
+    @keyframes shareBounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    .share-link-card {
+      transition: all 0.2s ease;
+    }
+
+    .share-link-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .copy-btn {
+      transition: all 0.15s ease;
+    }
+
+    .copy-btn:active {
+      transform: scale(0.95);
+    }
+
+    .copy-btn.copied {
+      background: #10B981 !important;
+      color: white !important;
+    }
   </style>
 </head>
 <body class="bg-bg-light dark:bg-charcoal min-h-screen font-nunito" data-livekit-url="wss://your-livekit-host" data-livekit-control="https://your-control-server" data-livekit-token="" data-livekit-control-key="" data-livekit-recordings="">
@@ -435,6 +482,99 @@
     <div class="flex space-x-3">
       <button onclick="cancelRecording()" class="flex-1 px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-semibold">Cancel</button>
       <button onclick="confirmRecording()" class="flex-1 px-4 py-2 bg-main-red text-white hover:bg-red-600 rounded-lg font-semibold">Start Recording</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share Room Modal -->
+<div id="share-modal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-gray-700 share-modal-content">
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 mx-auto mb-4 bg-gold rounded-full flex items-center justify-center share-icon-bounce">
+        <svg class="w-8 h-8 text-charcoal" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
+        </svg>
+      </div>
+      <h3 class="text-xl font-bold text-charcoal dark:text-white mb-2">🔗 Share This Room</h3>
+      <p class="text-gray-600 dark:text-gray-300 text-sm">Invite friends to join your conversation sphere!</p>
+    </div>
+    
+    <div class="space-y-4 mb-6">
+      <!-- Participant Link -->
+      <div class="share-link-card bg-gradient-to-r from-light-rose to-rose p-4 rounded-xl border-2 border-transparent hover:border-main-red transition-all">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg">🎤</span>
+            <span class="font-bold text-charcoal">Join as Participant</span>
+          </div>
+          <span class="text-xs bg-main-red text-white px-2 py-1 rounded-full">Can speak</span>
+        </div>
+        <p class="text-xs text-gray-600 mb-3">They can video chat and participate in the conversation</p>
+        <div class="flex space-x-2">
+          <input 
+            type="text" 
+            id="share-participant-link" 
+            readonly 
+            class="flex-1 px-3 py-2 text-xs bg-white border border-gray-300 rounded-lg text-charcoal truncate"
+            value=""
+          >
+          <button 
+            onclick="copyShareLink('participant')" 
+            class="px-4 py-2 bg-main-red hover:bg-red-600 text-white rounded-lg font-semibold text-sm transition-all copy-btn"
+          >
+            📋 Copy
+          </button>
+        </div>
+      </div>
+      
+      <!-- Spectator Link -->
+      <div class="share-link-card bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 p-4 rounded-xl border-2 border-transparent hover:border-gold transition-all">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center space-x-2">
+            <span class="text-lg">👀</span>
+            <span class="font-bold text-charcoal dark:text-white">Join as Spectator</span>
+          </div>
+          <span class="text-xs bg-gold text-charcoal px-2 py-1 rounded-full">Watch only</span>
+        </div>
+        <p class="text-xs text-gray-600 dark:text-gray-300 mb-3">They can watch and chat but not video call</p>
+        <div class="flex space-x-2">
+          <input 
+            type="text" 
+            id="share-spectator-link" 
+            readonly 
+            class="flex-1 px-3 py-2 text-xs bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-charcoal dark:text-white truncate"
+            value=""
+          >
+          <button 
+            onclick="copyShareLink('spectator')" 
+            class="px-4 py-2 bg-gold hover:bg-yellow-500 text-charcoal rounded-lg font-semibold text-sm transition-all copy-btn"
+          >
+            📋 Copy
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Native Share (Mobile) -->
+    <div id="native-share-container" class="hidden mb-4">
+      <button 
+        onclick="nativeShare()" 
+        class="w-full py-3 bg-gradient-to-r from-main-red to-gold text-white rounded-xl font-bold text-sm transition-all hover:shadow-lg flex items-center justify-center space-x-2"
+      >
+        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
+        </svg>
+        <span>Share via App</span>
+      </button>
+    </div>
+    
+    <div class="flex space-x-3">
+      <button onclick="closeShareModal()" class="flex-1 px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg font-semibold transition-all">Close</button>
+    </div>
+    
+    <!-- Fun footer -->
+    <div class="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
+      <p>🐱 Great conversations start with curious friends!</p>
     </div>
   </div>
 </div>
@@ -516,6 +656,14 @@
               </button>
             </div>
           </div>
+          
+          <!-- Share Room Button -->
+          <button id="share-room-btn" onclick="openShareModal()" class="flex items-center space-x-2 bg-gold hover:bg-main-red text-charcoal hover:text-white px-4 py-2 rounded-full text-sm font-bold transition-all shadow-sm">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
+            </svg>
+            <span class="hidden sm:inline">Share</span>
+          </button>
       </div>
       
       <!-- Timer -->
@@ -5753,6 +5901,165 @@ function ensureSpectatorTracksForParticipant(participant) {
       setTimeout(() => toast.classList.add('hidden'), 300);
     }, 3000);
   }
+
+  // ============================================
+  // Share Link Functions
+  // ============================================
+  
+  /**
+   * Generate a shareable link for the current room
+   * @param {string} mode - 'participant' or 'spectator'
+   * @returns {string} The shareable URL
+   */
+  function generateShareLink(mode = 'participant') {
+    // Get the base URL (current origin)
+    const baseUrl = window.location.origin;
+    
+    // Create URL with just the essential room parameter
+    // The recipient will get their own random username/userId on join
+    const params = new URLSearchParams();
+    params.set('room', roomUrl);
+    
+    if (mode === 'spectator') {
+      params.set('mode', 'spectator');
+    } else {
+      params.set('mode', 'participant');
+    }
+    
+    return `${baseUrl}/?${params.toString()}`;
+  }
+
+  /**
+   * Open the share modal and populate links
+   */
+  function openShareModal() {
+    const modal = document.getElementById('share-modal');
+    const participantInput = document.getElementById('share-participant-link');
+    const spectatorInput = document.getElementById('share-spectator-link');
+    const nativeShareContainer = document.getElementById('native-share-container');
+    
+    // Generate and populate the share links
+    const participantLink = generateShareLink('participant');
+    const spectatorLink = generateShareLink('spectator');
+    
+    participantInput.value = participantLink;
+    spectatorInput.value = spectatorLink;
+    
+    // Show native share button on mobile devices that support it
+    if (navigator.share) {
+      nativeShareContainer.classList.remove('hidden');
+    } else {
+      nativeShareContainer.classList.add('hidden');
+    }
+    
+    // Show modal
+    modal.classList.remove('hidden');
+    
+    console.log('🔗 Share modal opened');
+    console.log('📤 Participant link:', participantLink);
+    console.log('👀 Spectator link:', spectatorLink);
+  }
+
+  /**
+   * Close the share modal
+   */
+  function closeShareModal() {
+    const modal = document.getElementById('share-modal');
+    modal.classList.add('hidden');
+  }
+
+  /**
+   * Copy a share link to clipboard
+   * @param {string} mode - 'participant' or 'spectator'
+   */
+  async function copyShareLink(mode) {
+    const link = generateShareLink(mode);
+    const buttonSelector = mode === 'participant' 
+      ? 'button[onclick="copyShareLink(\'participant\')"]' 
+      : 'button[onclick="copyShareLink(\'spectator\')"]';
+    const button = document.querySelector(buttonSelector);
+    
+    try {
+      await navigator.clipboard.writeText(link);
+      
+      // Visual feedback on button
+      if (button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '✅ Copied!';
+        button.classList.add('copied');
+        
+        setTimeout(() => {
+          button.innerHTML = originalText;
+          button.classList.remove('copied');
+        }, 2000);
+      }
+      
+      const modeLabel = mode === 'participant' ? 'Participant' : 'Spectator';
+      showToast(`📋 ${modeLabel} link copied to clipboard!`);
+      console.log(`📋 Copied ${mode} link:`, link);
+      
+    } catch (err) {
+      console.error('❌ Failed to copy share link:', err);
+      
+      // Fallback: select the input text for manual copying
+      const inputId = mode === 'participant' ? 'share-participant-link' : 'share-spectator-link';
+      const input = document.getElementById(inputId);
+      if (input) {
+        input.select();
+        input.setSelectionRange(0, 99999); // For mobile
+        showToast('📋 Link selected - press Ctrl+C to copy');
+      } else {
+        showToast('❌ Unable to copy link. Please copy manually.');
+      }
+    }
+  }
+
+  /**
+   * Use native share API (mobile devices)
+   */
+  async function nativeShare() {
+    const participantLink = generateShareLink('participant');
+    const topicDisplay = document.getElementById('topic-display');
+    const topic = topicDisplay?.textContent || 'a ChatSpheres conversation';
+    
+    try {
+      await navigator.share({
+        title: `Join my ChatSpheres room! 🎤`,
+        text: `Hey! Join me for a conversation about "${topic}" on ChatSpheres!`,
+        url: participantLink
+      });
+      
+      showToast('🎉 Shared successfully!');
+      closeShareModal();
+      
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('❌ Native share failed:', err);
+        showToast('❌ Share cancelled or failed');
+      }
+    }
+  }
+
+  // Close share modal when clicking outside
+  document.getElementById('share-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeShareModal();
+    }
+  });
+
+  // Close share modal with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const shareModal = document.getElementById('share-modal');
+      if (shareModal && !shareModal.classList.contains('hidden')) {
+        closeShareModal();
+      }
+    }
+  });
+
+  // ============================================
+  // End Share Link Functions
+  // ============================================
 
   // Spark functions (available to all users but only participants can generate new ones)
   function navigateSpark(direction) {

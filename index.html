@@ -1298,6 +1298,7 @@
   let conversationPartnerId = null;
   let ensureSessionPromise = null;
   let conversationSessionStartedAt = null;
+  let userJoinedAtTimestamp = null; // Track when THIS user joined (not room start time)
   let serverTimeOffset = 0;
   let timerRef = null;
   let timerSyncInitialized = false;
@@ -2457,9 +2458,14 @@
       
       cleanupExecuted = true;
       console.log(`🧹 Executing comprehensive cleanup - Reason: ${reason}`);
+      console.log(`⏱️ Minutes used this session: ${latestSessionMinutesUsed}`);
       
       // End conversation session (most important!)
       await endConversationSession(reason);
+      
+      // Reset user join tracking for next session
+      userJoinedAtTimestamp = null;
+      latestSessionMinutesUsed = 0;
       
       // Clean up Firebase presence
       if (firebaseRoomId && userId) {
@@ -3254,6 +3260,12 @@
 
     async function handleJoinedMeeting(event = {}) {
       console.log('✅ Joined LiveKit room successfully');
+      
+      // Track when THIS user joined (for accurate minute calculation)
+      userJoinedAtTimestamp = getServerNow();
+      latestSessionMinutesUsed = 0; // Reset minutes counter on join
+      console.log(`⏱️ User joined at timestamp: ${userJoinedAtTimestamp}`);
+      
       const localParticipant = livekitRoom?.localParticipant || event?.participant;
       
       if (!isSpectator && localParticipant) {
@@ -5700,9 +5712,17 @@ function ensureSpectatorTracksForParticipant(participant) {
       timerHeaderElement.textContent = hasTimerData || isSpectator ? timeString : '--:--';
     }
 
-    if (!isSpectator && timerState.startedAt && typeof timerState.durationSeconds === 'number') {
-      let elapsedSeconds = Math.max(0, Math.floor((getServerNow() - timerState.startedAt) / 1000));
-      elapsedSeconds = Math.min(elapsedSeconds, timerState.durationSeconds);
+    // Calculate minutes based on when THIS USER joined, not when room started
+    if (!isSpectator && userJoinedAtTimestamp) {
+      const now = getServerNow();
+      let elapsedSeconds = Math.max(0, Math.floor((now - userJoinedAtTimestamp) / 1000));
+      
+      // Cap at room's remaining time if timer is set
+      if (timerState.expiresAt) {
+        const maxSecondsInRoom = Math.max(0, Math.floor((timerState.expiresAt - userJoinedAtTimestamp) / 1000));
+        elapsedSeconds = Math.min(elapsedSeconds, maxSecondsInRoom);
+      }
+      
       latestSessionMinutesUsed = Math.floor(elapsedSeconds / 60);
       updateMinutesUsedUi();
     } else if (!isSpectator) {

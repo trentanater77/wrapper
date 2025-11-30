@@ -1330,6 +1330,23 @@
     const roomUrl = new URLSearchParams(window.location.search).get('room');
     const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
 
+    // Extract sphereId from any room format for consistent presence path
+    function extractSphereId(roomParam) {
+      if (!roomParam) return null;
+      
+      // UUID pattern
+      const uuidPattern = /([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i;
+      
+      // Try to find first UUID in the string (this is the sphereId)
+      const match = roomParam.match(uuidPattern);
+      if (match) {
+        return match[1];
+      }
+      
+      // Fallback: return as-is
+      return roomParam;
+    }
+
     function extractRoomIdentifier(url) {
       if (!url) return null;
 
@@ -2760,8 +2777,11 @@
     await ensureFirebaseAuth();
     
     // Set up Firebase for chat and presence
-    firebaseRoomId = btoa(roomUrl);
+    // Use sphereId for consistent presence path (works with any room URL format)
+    const sphereId = extractSphereId(roomUrl);
+    firebaseRoomId = sphereId || btoa(roomUrl); // Use sphereId directly, fallback to btoa
     const roomId = firebaseRoomId;
+    console.log(`🔑 Firebase Room ID (sphereId): ${firebaseRoomId}`);
     chatRef = db.ref(`chats/${roomId}`);
     viewerCountRef = db.ref(`viewers/${roomId}`);
     

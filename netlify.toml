@@ -3,5 +3,11 @@
   publish = "."
   functions = "netlify/functions"
 
+[build.environment]
+  # Exclude false positives from secrets scanning
+  # LIVEKIT_RECORDING_LAYOUT value (e.g., "grid", "speaker") appears naturally in CSS/HTML
+  # LIVEKIT_URL is expected in livekit config files
+  SECRETS_SCAN_OMIT_KEYS = "LIVEKIT_RECORDING_LAYOUT,LIVEKIT_URL"
+
 [functions]
   node_bundler = "esbuild"

@@ -2902,14 +2902,37 @@
     
     // Handle matched rooms from matchmaking
     if (isMatchedRoom) {
-      const matchedTopic = urlParams.get('topic') || 'Matched Chat';
-      const theirTopic = urlParams.get('matchedTopic') || '';
-      const similarity = urlParams.get('similarity') || '';
+      let matchedTopic = urlParams.get('topic') || '';
+      let theirTopic = urlParams.get('matchedTopic') || '';
+      let similarity = urlParams.get('similarity') || '';
       
       console.log("🎯 Matched room detected!");
-      console.log("📝 Your topic:", matchedTopic);
-      console.log("📝 Their topic:", theirTopic);
-      console.log("📊 Similarity:", similarity + '%');
+      console.log("📝 Your topic:", matchedTopic || '(not in URL)');
+      console.log("📝 Their topic:", theirTopic || '(not in URL)');
+      console.log("📊 Similarity:", similarity ? similarity + '%' : '(not in URL)');
+      
+      // If topic params missing (old cached code), try to get from Firebase
+      if (!matchedTopic && db) {
+        try {
+          const roomId = extractSphereId(roomUrl);
+          const queueSnapshot = await db.ref('matchmaking_queue').orderByChild('room_id').equalTo(roomId).once('value');
+          const queueData = queueSnapshot.val();
+          if (queueData) {
+            const entries = Object.values(queueData);
+            if (entries.length > 0) {
+              matchedTopic = entries[0].topic_text || 'Matched Chat';
+              theirTopic = entries.length > 1 ? entries[1].topic_text : '';
+              similarity = entries[0].similarity || '';
+              console.log("📦 Retrieved topic from Firebase:", matchedTopic);
+            }
+          }
+        } catch (e) {
+          console.log("⚠️ Could not retrieve topic from Firebase:", e.message);
+        }
+      }
+      
+      // Fallback if still no topic
+      if (!matchedTopic) matchedTopic = 'Matched Chat';
       
       // Build description showing the match
       let description = `You matched on "${decodeURIComponent(matchedTopic)}"`;

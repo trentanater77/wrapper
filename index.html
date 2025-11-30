@@ -5956,7 +5956,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       throw new Error("Prompts database URL is not configured");
     }
     
-    const response = await fetch("/.netlify/functions/generateSpark", {
+    const response = await fetch("/.netlify/functions/generatespark", {
       method: "POST",
       headers: { 
         "Content-Type": "application/json" 

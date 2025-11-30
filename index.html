@@ -2408,8 +2408,13 @@
       console.log('🧮 Candidate sphere identifiers:', Array.from(candidateSphereIds));
 
       if (resolvedSessionId) {
+        // Calculate actual minutes used based on elapsed time
+        const actualMinutesUsed = latestSessionMinutesUsed || 0;
+        console.log(`⏱️ Actual minutes used in session: ${actualMinutesUsed}`);
+
         const { data: rpcResult, error: rpcError } = await supabaseClient.rpc('end_conversation_session', {
-          p_session_id: resolvedSessionId
+          p_session_id: resolvedSessionId,
+          p_minutes_used: actualMinutesUsed
         });
 
         if (rpcError) {
@@ -2423,7 +2428,7 @@
         }
 
         console.log('✅ SUCCESS: Session ended via RPC', rpcResult);
-        console.log('💰 Minutes will be charged via database trigger');
+        console.log(`💰 Charged ${actualMinutesUsed} minutes for this session`);
         conversationSessionEndState.ended = true;
         return;
       }
@@ -2506,7 +2511,13 @@
       if (!cleanupExecuted && !isSpectator && supabaseClient && isValidUuid(userId)) {
         if (conversationSessionId) {
           const rpcUrl = `${SUPABASE_URL}/rest/v1/rpc/end_conversation_session`;
-          const rpcPayload = JSON.stringify({ p_session_id: conversationSessionId });
+          // Include actual minutes used when ending session on page unload
+          const actualMinutesUsed = latestSessionMinutesUsed || 0;
+          const rpcPayload = JSON.stringify({ 
+            p_session_id: conversationSessionId,
+            p_minutes_used: actualMinutesUsed
+          });
+          console.log(`🚪 Ending session with ${actualMinutesUsed} minutes used`);
 
           try {
             const sent = navigator.sendBeacon(

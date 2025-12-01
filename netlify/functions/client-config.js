@@ -85,6 +85,11 @@ exports.handler = async function clientConfigHandler() {
     supabase: mergeSection(baseConfig.supabase, [
       ['url', 'SUPABASE_URL'],
       ['anonKey', 'SUPABASE_ANON_KEY']
+    ]),
+    auth: mergeSection(baseConfig.auth, [
+      ['cookieDomain', 'AUTH_COOKIE_DOMAIN'],
+      ['siteUrl', 'AUTH_SITE_URL'],
+      ['redirectUrl', 'AUTH_REDIRECT_URL']
     ])
   };
 

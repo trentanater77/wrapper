@@ -569,6 +569,51 @@
   </div>
 </div>
 
+<!-- Session Limit / Upgrade Modal -->
+<div id="upgrade-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-light-rose rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-gold relative overflow-hidden">
+    <!-- Decorative background -->
+    <div class="absolute inset-0 opacity-10 pointer-events-none" style="background: radial-gradient(circle at 30% 70%, #e63946 0%, transparent 50%), radial-gradient(circle at 70% 30%, #FFD166 0%, transparent 50%);"></div>
+    
+    <!-- Content -->
+    <div class="relative z-10 text-center">
+      <!-- Icon -->
+      <div class="w-20 h-20 mx-auto mb-4 bg-gold rounded-full flex items-center justify-center">
+        <span class="text-4xl">⏰</span>
+      </div>
+      
+      <!-- Title -->
+      <h2 id="upgrade-modal-title" class="text-2xl font-bold text-charcoal mb-2">Time's Up!</h2>
+      
+      <!-- Message -->
+      <p id="upgrade-modal-message" class="text-charcoal mb-6">
+        You've reached the <strong>60-minute limit</strong> on the Free plan.<br>
+        Upgrade to Host Pro for <strong>3 hours</strong> of uninterrupted conversation!
+      </p>
+      
+      <!-- Countdown -->
+      <div id="upgrade-grace-countdown" class="mb-6 p-3 bg-rose rounded-xl">
+        <p class="text-sm text-charcoal">Session ending in <strong id="grace-seconds">60</strong> seconds...</p>
+      </div>
+      
+      <!-- Buttons -->
+      <div class="flex flex-col gap-3">
+        <a href="/pricing.html" target="_blank" class="w-full py-3 px-6 bg-gold text-charcoal font-bold rounded-full hover:bg-main-red hover:text-white transition-all text-center">
+          ⬆️ Upgrade Now
+        </a>
+        <button onclick="endSessionFromUpgradeModal()" class="w-full py-3 px-6 bg-charcoal text-white font-bold rounded-full hover:bg-main-red transition-all">
+          End Session
+        </button>
+      </div>
+      
+      <!-- Plan info -->
+      <p class="mt-4 text-xs text-charcoal opacity-70">
+        Current plan: <span id="upgrade-modal-plan" class="font-bold">Free</span>
+      </p>
+    </div>
+  </div>
+</div>
+
 <!-- Recording Consent Modal -->
 <div id="recording-consent-modal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
   <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-gray-700">
@@ -2074,6 +2119,17 @@
     startedAt: null,
     expiresAt: null,
     createdBy: null
+  };
+  
+  // Session Limit Tracking (Plan-based limits)
+  let sessionLimitState = {
+    userPlan: 'free',
+    limitMinutes: 60, // Default: 60 min for free
+    sessionStartTime: null,
+    warningShown80: false,
+    warningShown95: false,
+    limitReached: false,
+    graceEndTime: null
   };
   const conversationSessionEndState = {
     inFlight: false,
@@ -4224,6 +4280,10 @@ async function initializeApp() {
       hideWaitingOverlay();
       
       startTimer();
+      
+      // Initialize session limits (plan-based time limits)
+      initializeSessionLimits();
+      
       showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
     }
 
@@ -6701,6 +6761,197 @@ function ensureSpectatorTracksForParticipant(participant) {
       setTimeout(() => toast.classList.add('hidden'), 300);
     }, 3000);
   }
+
+  // ============================================
+  // SESSION LIMIT FUNCTIONS (Plan-based limits)
+  // ============================================
+  
+  const PLAN_LIMITS = {
+    free: 60,           // 60 minutes
+    host_pro: 180,      // 3 hours
+    ad_free_plus: 60,   // 60 minutes (viewer plan)
+    ad_free_premium: 60,// 60 minutes (viewer plan)
+    pro_bundle: 180     // 3 hours (has host pro)
+  };
+  
+  const PLAN_NAMES = {
+    free: 'Free',
+    host_pro: 'Host Pro',
+    ad_free_plus: 'Ad-Free Plus',
+    ad_free_premium: 'Ad-Free Premium',
+    pro_bundle: 'Pro Bundle'
+  };
+  
+  let graceCountdownInterval = null;
+  
+  async function fetchUserSubscription() {
+    // Only check for authenticated users with valid UUID
+    if (!userId || !isValidUuid(userId)) {
+      console.log('⏱️ No valid userId, using free plan limits');
+      return { plan: 'free', limitMinutes: 60 };
+    }
+    
+    try {
+      const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+      if (!response.ok) {
+        console.warn('⚠️ Failed to fetch subscription, using free plan');
+        return { plan: 'free', limitMinutes: 60 };
+      }
+      
+      const data = await response.json();
+      const plan = data.plan || 'free';
+      const limitMinutes = PLAN_LIMITS[plan] || 60;
+      
+      console.log(`✅ User plan: ${plan}, limit: ${limitMinutes} minutes`);
+      return { plan, limitMinutes };
+    } catch (error) {
+      console.error('❌ Error fetching subscription:', error);
+      return { plan: 'free', limitMinutes: 60 };
+    }
+  }
+  
+  async function initializeSessionLimits() {
+    // Skip for spectators - they don't have time limits
+    if (isSpectator) {
+      console.log('👀 Spectator mode - no session limits');
+      return;
+    }
+    
+    const { plan, limitMinutes } = await fetchUserSubscription();
+    
+    sessionLimitState.userPlan = plan;
+    sessionLimitState.limitMinutes = limitMinutes;
+    sessionLimitState.sessionStartTime = Date.now();
+    sessionLimitState.warningShown80 = false;
+    sessionLimitState.warningShown95 = false;
+    sessionLimitState.limitReached = false;
+    sessionLimitState.graceEndTime = null;
+    
+    console.log(`⏱️ Session limits initialized: ${limitMinutes} min (${plan} plan)`);
+    
+    // Start checking session limits
+    startSessionLimitChecker();
+  }
+  
+  function startSessionLimitChecker() {
+    // Check every 10 seconds
+    setInterval(checkSessionLimits, 10000);
+  }
+  
+  function checkSessionLimits() {
+    if (isSpectator || !sessionLimitState.sessionStartTime) return;
+    if (sessionLimitState.limitReached) return; // Already handled
+    
+    const now = Date.now();
+    const elapsedMs = now - sessionLimitState.sessionStartTime;
+    const elapsedMinutes = elapsedMs / (1000 * 60);
+    const limitMinutes = sessionLimitState.limitMinutes;
+    const percentUsed = (elapsedMinutes / limitMinutes) * 100;
+    
+    // 80% warning
+    if (percentUsed >= 80 && percentUsed < 95 && !sessionLimitState.warningShown80) {
+      const remainingMinutes = Math.ceil(limitMinutes - elapsedMinutes);
+      showToast(`⏰ You have ${remainingMinutes} minutes left. Upgrade for more time!`);
+      sessionLimitState.warningShown80 = true;
+      console.log(`⚠️ 80% warning shown - ${remainingMinutes} min remaining`);
+    }
+    
+    // 95% warning
+    if (percentUsed >= 95 && percentUsed < 100 && !sessionLimitState.warningShown95) {
+      const remainingMinutes = Math.max(1, Math.ceil(limitMinutes - elapsedMinutes));
+      showToast(`⚠️ ${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''} remaining! Upgrade now to keep chatting`);
+      sessionLimitState.warningShown95 = true;
+      console.log(`⚠️ 95% warning shown - ${remainingMinutes} min remaining`);
+    }
+    
+    // 100% - show upgrade modal
+    if (percentUsed >= 100 && !sessionLimitState.limitReached) {
+      sessionLimitState.limitReached = true;
+      showUpgradeModal();
+    }
+  }
+  
+  function showUpgradeModal() {
+    const modal = document.getElementById('upgrade-modal');
+    const planSpan = document.getElementById('upgrade-modal-plan');
+    const messageEl = document.getElementById('upgrade-modal-message');
+    
+    if (!modal) return;
+    
+    // Update modal content based on plan
+    const planName = PLAN_NAMES[sessionLimitState.userPlan] || 'Free';
+    const limitMinutes = sessionLimitState.limitMinutes;
+    
+    if (planSpan) planSpan.textContent = planName;
+    if (messageEl) {
+      messageEl.innerHTML = `
+        You've reached the <strong>${limitMinutes}-minute limit</strong> on the ${planName} plan.<br>
+        Upgrade to Host Pro for <strong>3 hours</strong> of uninterrupted conversation!
+      `;
+    }
+    
+    // Start grace period countdown (60 seconds)
+    sessionLimitState.graceEndTime = Date.now() + 60000;
+    startGraceCountdown();
+    
+    // Show modal
+    modal.classList.remove('hidden');
+    
+    console.log('🚨 Session limit reached - showing upgrade modal');
+  }
+  
+  function startGraceCountdown() {
+    const graceSecondsEl = document.getElementById('grace-seconds');
+    
+    if (graceCountdownInterval) {
+      clearInterval(graceCountdownInterval);
+    }
+    
+    graceCountdownInterval = setInterval(() => {
+      if (!sessionLimitState.graceEndTime) {
+        clearInterval(graceCountdownInterval);
+        return;
+      }
+      
+      const remaining = Math.max(0, Math.ceil((sessionLimitState.graceEndTime - Date.now()) / 1000));
+      
+      if (graceSecondsEl) {
+        graceSecondsEl.textContent = remaining;
+      }
+      
+      if (remaining <= 0) {
+        clearInterval(graceCountdownInterval);
+        endSessionFromUpgradeModal();
+      }
+    }, 1000);
+  }
+  
+  function endSessionFromUpgradeModal() {
+    // Clear grace countdown
+    if (graceCountdownInterval) {
+      clearInterval(graceCountdownInterval);
+    }
+    
+    // Hide modal
+    const modal = document.getElementById('upgrade-modal');
+    if (modal) modal.classList.add('hidden');
+    
+    // Disconnect from room
+    if (livekitRoom) {
+      livekitRoom.disconnect();
+    }
+    
+    showToast('👋 Session ended. Upgrade anytime for more time!');
+    console.log('👋 Session ended due to time limit');
+    
+    // Redirect to pricing after a moment
+    setTimeout(() => {
+      window.location.href = '/pricing.html?session_ended=true';
+    }, 2000);
+  }
+  
+  // Make function available globally for onclick
+  window.endSessionFromUpgradeModal = endSessionFromUpgradeModal;
 
   // Share Link Functions
   let currentShareMode = 'participant';

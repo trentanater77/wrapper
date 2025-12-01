@@ -25,8 +25,8 @@
   
   <style>
     :root {
-      --gold: #FFD166;
       --main-red: #e63946;
+      --gold: #FFD166;
       --rose: #FFB6B9;
       --light-rose: #FCE2E5;
       --charcoal: #22223B;
@@ -48,7 +48,7 @@
     
     /* Header */
     .header {
-      background: white;
+      background: var(--light-rose);
       padding: 1rem 2rem;
       box-shadow: 0 2px 10px rgba(0,0,0,0.05);
       display: flex;
@@ -90,7 +90,7 @@
     }
     
     .nav-link:hover {
-      background: var(--light-rose);
+      background: var(--rose);
     }
     
     .btn-primary {
@@ -107,7 +107,7 @@
     
     .btn-primary:hover {
       background: var(--main-red);
-      color: white;
+      color: var(--light-rose);
       transform: translateY(-2px);
     }
     
@@ -131,7 +131,8 @@
     }
     
     .page-title p {
-      color: #666;
+      color: var(--charcoal);
+      opacity: 0.7;
       font-size: 1.1rem;
     }
     
@@ -146,15 +147,15 @@
     }
     
     .message.success {
-      background: #dcfce7;
-      color: #16a34a;
-      border: 2px solid #16a34a;
+      background: var(--gold);
+      color: var(--charcoal);
+      border: 2px solid var(--charcoal);
     }
     
     .message.canceled {
-      background: #fef3c7;
-      color: #d97706;
-      border: 2px solid #d97706;
+      background: var(--rose);
+      color: var(--charcoal);
+      border: 2px solid var(--charcoal);
     }
     
     .message.hidden {
@@ -183,7 +184,7 @@
     
     /* Pricing Card */
     .pricing-card {
-      background: white;
+      background: var(--light-rose);
       border-radius: 24px;
       padding: 2rem;
       box-shadow: 0 4px 20px rgba(0,0,0,0.08);
@@ -233,7 +234,8 @@
     }
     
     .price-period {
-      color: #666;
+      color: var(--charcoal);
+      opacity: 0.7;
       font-size: 0.9rem;
     }
     
@@ -252,47 +254,50 @@
     
     .plan-features li::before {
       content: '✓';
-      color: #16a34a;
+      color: var(--main-red);
       font-weight: 700;
     }
     
     .plan-features li.disabled {
-      color: #999;
+      opacity: 0.5;
     }
     
     .plan-features li.disabled::before {
       content: '✗';
-      color: #999;
+      color: var(--charcoal);
     }
     
     .plan-btn {
       width: 100%;
       padding: 1rem;
       border: none;
-      border-radius: 12px;
+      border-radius: 999px;
       font-size: 1rem;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.2s;
+      font-family: 'Nunito', sans-serif;
     }
     
     .plan-btn.primary {
-      background: var(--main-red);
-      color: white;
+      background: var(--gold);
+      color: var(--charcoal);
     }
     
     .plan-btn.primary:hover {
-      background: #c62b38;
+      background: var(--main-red);
+      color: var(--light-rose);
       transform: scale(1.02);
     }
     
     .plan-btn.secondary {
-      background: var(--light-rose);
+      background: var(--rose);
       color: var(--charcoal);
     }
     
     .plan-btn.secondary:hover {
-      background: var(--rose);
+      background: var(--main-red);
+      color: var(--light-rose);
     }
     
     .plan-btn:disabled {
@@ -312,17 +317,18 @@
     
     .billing-toggle span {
       font-weight: 600;
-      color: #666;
+      color: var(--charcoal);
+      opacity: 0.6;
     }
     
     .billing-toggle span.active {
-      color: var(--charcoal);
+      opacity: 1;
     }
     
     .toggle-switch {
       width: 60px;
       height: 32px;
-      background: var(--light-rose);
+      background: var(--rose);
       border-radius: 999px;
       position: relative;
       cursor: pointer;
@@ -340,10 +346,9 @@
       left: 4px;
       width: 24px;
       height: 24px;
-      background: white;
+      background: var(--charcoal);
       border-radius: 50%;
       transition: all 0.3s;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
     
     .toggle-switch.active::before {
@@ -351,8 +356,8 @@
     }
     
     .save-badge {
-      background: #16a34a;
-      color: white;
+      background: var(--main-red);
+      color: var(--light-rose);
       padding: 0.25rem 0.75rem;
       border-radius: 999px;
       font-size: 0.75rem;
@@ -361,67 +366,58 @@
     
     /* Current Plan Badge */
     .current-plan-badge {
-      background: #16a34a;
-      color: white;
+      background: var(--gold);
+      color: var(--charcoal);
       padding: 0.5rem 1rem;
-      border-radius: 8px;
+      border-radius: 999px;
       font-size: 0.875rem;
       font-weight: 700;
       margin-bottom: 1rem;
       display: inline-block;
     }
     
-    /* Loading State */
-    .loading {
+    /* Sign In Prompt */
+    .signin-prompt {
+      background: var(--rose);
+      border-radius: 12px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 2rem;
       text-align: center;
-      padding: 2rem;
-      color: #666;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
     }
     
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid var(--light-rose);
-      border-top-color: var(--main-red);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1rem;
+    .signin-prompt p {
+      font-weight: 600;
+      margin: 0;
     }
     
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    /* Auth Required */
-    .auth-required {
-      text-align: center;
-      padding: 3rem;
-      background: white;
-      border-radius: 24px;
-      max-width: 500px;
-      margin: 0 auto;
-    }
-    
-    .auth-required h2 {
-      margin-bottom: 1rem;
-    }
-    
-    .auth-required p {
-      color: #666;
-      margin-bottom: 1.5rem;
+    .signin-prompt.hidden {
+      display: none;
     }
     
     /* Footer */
     .footer {
       text-align: center;
       padding: 2rem;
-      color: #666;
+      color: var(--charcoal);
       font-size: 0.875rem;
     }
     
     .footer a {
       color: var(--main-red);
       text-decoration: none;
+    }
+    
+    .footer a:hover {
+      text-decoration: underline;
+    }
+    
+    .hidden {
+      display: none !important;
     }
   </style>
 </head>
@@ -430,8 +426,8 @@
   <header class="header">
     <a href="https://www.chatspheres.com" class="logo">
       <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+        <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+        <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
         <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
       </svg>
@@ -460,26 +456,19 @@
       No worries! You can upgrade anytime.
     </div>
     
+    <!-- Sign In Prompt (shown when not logged in) -->
+    <div id="signin-prompt" class="signin-prompt hidden">
+      <p>🔐 Sign in to subscribe and manage your plan</p>
+      <button onclick="redirectToSignIn()" class="btn-primary">Sign In</button>
+    </div>
+    
     <!-- Current Plan Display -->
     <div id="current-plan-display" class="hidden" style="text-align: center; margin-bottom: 2rem;">
       <span class="current-plan-badge">✓ Current Plan: <span id="current-plan-name">Free</span></span>
     </div>
     
-    <!-- Loading State -->
-    <div id="loading-state" class="loading">
-      <div class="spinner"></div>
-      <p>Loading plans...</p>
-    </div>
-    
-    <!-- Auth Required State -->
-    <div id="auth-required" class="auth-required hidden">
-      <h2>🔐 Sign In Required</h2>
-      <p>Please sign in to view and purchase subscription plans.</p>
-      <button onclick="redirectToSignIn()" class="btn-primary">Sign In</button>
-    </div>
-    
-    <!-- Pricing Content -->
-    <div id="pricing-content" class="hidden">
+    <!-- Pricing Content (always visible) -->
+    <div id="pricing-content">
       <!-- Billing Toggle -->
       <div class="billing-toggle">
         <span id="monthly-label" class="active">Monthly</span>
@@ -645,10 +634,8 @@
     }
     
     async function checkAuthState() {
-      document.getElementById('loading-state').classList.remove('hidden');
-      
       if (!supabaseClient) {
-        showAuthRequired();
+        showSignInPrompt();
         return;
       }
       
@@ -658,14 +645,15 @@
         if (session?.user) {
           currentUser = session.user;
           updateHeaderAuth(currentUser);
+          hideSignInPrompt();
           await loadUserSubscription();
-          showPricingContent();
         } else {
-          showAuthRequired();
+          showSignInPrompt();
+          updateHeaderAuth(null);
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        showAuthRequired();
+        showSignInPrompt();
       }
     }
     
@@ -708,16 +696,12 @@
       }
     }
     
-    function showPricingContent() {
-      document.getElementById('loading-state').classList.add('hidden');
-      document.getElementById('auth-required').classList.add('hidden');
-      document.getElementById('pricing-content').classList.remove('hidden');
+    function showSignInPrompt() {
+      document.getElementById('signin-prompt').classList.remove('hidden');
     }
     
-    function showAuthRequired() {
-      document.getElementById('loading-state').classList.add('hidden');
-      document.getElementById('pricing-content').classList.add('hidden');
-      document.getElementById('auth-required').classList.remove('hidden');
+    function hideSignInPrompt() {
+      document.getElementById('signin-prompt').classList.add('hidden');
     }
     
     function updateHeaderAuth(user) {
@@ -764,12 +748,14 @@
     }
     
     async function subscribe(planType) {
+      // REQUIRE sign in first
       if (!currentUser) {
+        alert('Please sign in first to subscribe!');
         redirectToSignIn();
         return;
       }
       
-      const button = document.querySelector(`#btn-${planType.replace('_', '-')}`);
+      const button = event.target;
       const originalText = button.textContent;
       button.textContent = 'Loading...';
       button.disabled = true;

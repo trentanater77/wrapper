@@ -637,15 +637,28 @@
   <!-- Header -->
   <header class="bg-white dark:bg-charcoal shadow-sm border-b border-gray-200 dark:border-gray-700 px-4 py-3">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <!-- Logo -->
+      <!-- Logo - Links to main site -->
       <div class="flex items-center space-x-3">
-        <svg viewBox="0 0 64 64" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-          <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        </svg>
-        <h1 class="text-xl font-bold text-charcoal dark:text-white">chatspheres</h1>
+        <a href="https://www.chatspheres.com" class="flex items-center space-x-2 hover:opacity-80 transition-opacity" title="Go to ChatSpheres Home">
+          <svg viewBox="0 0 64 64" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+            <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+            <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+            <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          </svg>
+          <span class="text-xl font-bold text-charcoal dark:text-white">chatspheres</span>
+        </a>
+        
+        <!-- Auth Header Buttons -->
+        <div id="header-auth-guest" class="flex items-center space-x-2 ml-4">
+          <a href="/matchmaking.html" class="px-3 py-1 text-sm font-semibold text-charcoal hover:text-main-red transition-colors">Find Match</a>
+          <button onclick="showAuthModal(); switchAuthTab('signin');" class="px-3 py-1 text-sm font-semibold text-charcoal border border-charcoal rounded-full hover:bg-charcoal hover:text-white transition-colors">Sign In</button>
+        </div>
+        <div id="header-auth-user" class="hidden items-center space-x-2 ml-4">
+          <a href="/matchmaking.html" class="px-3 py-1 text-sm font-semibold text-charcoal hover:text-main-red transition-colors">Find Match</a>
+          <span id="header-username" class="text-sm font-semibold text-charcoal"></span>
+          <button onclick="signOut()" class="px-3 py-1 text-sm font-semibold bg-main-red text-white rounded-full hover:bg-red-600 transition-colors">Logout</button>
+        </div>
         
         <!-- User Role Badge -->
         <div id="user-role-badge" class="hidden px-3 py-1 rounded-full text-xs font-bold">
@@ -1549,7 +1562,32 @@
       userId = user.id;
       userName = window.currentUserData.username;
       
+      // Update header auth buttons
+      updateHeaderAuthState(true, window.currentUserData.displayName);
+      
       console.log('👤 Updated user data from auth:', window.currentUserData);
+    }
+
+    // Update header auth buttons based on auth state
+    function updateHeaderAuthState(isLoggedIn, displayName = '') {
+      const guestButtons = document.getElementById('header-auth-guest');
+      const userButtons = document.getElementById('header-auth-user');
+      const usernameSpan = document.getElementById('header-username');
+      
+      if (isLoggedIn) {
+        if (guestButtons) guestButtons.classList.add('hidden');
+        if (userButtons) {
+          userButtons.classList.remove('hidden');
+          userButtons.style.display = 'flex';
+        }
+        if (usernameSpan) usernameSpan.textContent = displayName;
+      } else {
+        if (guestButtons) {
+          guestButtons.classList.remove('hidden');
+          guestButtons.style.display = 'flex';
+        }
+        if (userButtons) userButtons.classList.add('hidden');
+      }
     }
 
     // Auth Modal Functions
@@ -1810,6 +1848,8 @@
           isAuthenticated: false,
           isGuest: true
         };
+        // Update header to show guest buttons
+        updateHeaderAuthState(false);
         console.log('✅ Signed out successfully');
       } catch (error) {
         console.error('Sign out error:', error);
@@ -3482,6 +3522,32 @@ async function initializeApp() {
   async function loadRoomInfo() {
     const urlParam = decodeURIComponent(roomUrl);
     console.log("🔍 Looking for room URL:", urlParam);
+
+    // First check if this is a matchmaking room with topic in URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const isMatchedRoom = urlParams.get('matched') === 'true';
+    const topicFromUrl = urlParams.get('topic');
+    const matchedTopicFromUrl = urlParams.get('matchedTopic');
+    const similarityFromUrl = urlParams.get('similarity');
+
+    if (isMatchedRoom && topicFromUrl) {
+      // This is from matchmaking - use the topic from URL
+      const topic = decodeURIComponent(topicFromUrl);
+      const matchedTopic = matchedTopicFromUrl ? decodeURIComponent(matchedTopicFromUrl) : null;
+      const similarity = similarityFromUrl ? `${similarityFromUrl}% Match` : '';
+      
+      let description = `You're matched to discuss: "${topic}"`;
+      if (matchedTopic && matchedTopic !== topic) {
+        description = `Your topic: "${topic}" matched with "${matchedTopic}" ${similarity ? `(${similarity})` : ''}`;
+      }
+      
+      console.log("✅ Found matchmaking topic:", topic);
+      console.log("✅ Matched topic:", matchedTopic);
+      console.log("🎯 Similarity:", similarity);
+      
+      updateTopicDisplay(topic, description);
+      return;
+    }
 
     try {
       const apiUrl = `https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info?room_identifier=${encodeURIComponent(urlParam)}`;

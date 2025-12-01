@@ -11,6 +11,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   
+  <!-- Supabase SDK for auth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
   <!-- Load config from Netlify function -->
   <script>
     window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
@@ -51,7 +54,7 @@
   
   <!-- Header -->
   <header class="header">
-    <div class="logo-container">
+    <a href="https://www.chatspheres.com" class="logo-container" style="text-decoration: none;">
       <!-- Vesica Piscis Logo -->
       <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
         <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
@@ -60,8 +63,20 @@
         <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
       </svg>
       <span class="logo-text">ChatSpheres</span>
+    </a>
+    <div class="header-actions" style="display: flex; align-items: center; gap: 1rem;">
+      <!-- Auth buttons - will be shown/hidden via JS -->
+      <div id="auth-buttons-guest" style="display: flex; gap: 0.5rem;">
+        <a href="/index.html" class="back-btn" style="margin-right: 0.5rem;">Video Chat</a>
+        <button onclick="showAuthModalFromHeader()" style="background: transparent; border: 2px solid #22223B; color: #22223B; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; cursor: pointer; font-family: 'Nunito', sans-serif;">Sign In</button>
+        <button onclick="showAuthModalFromHeader('signup')" style="background: #FFD166; border: none; color: #22223B; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif;">Sign Up</button>
+      </div>
+      <div id="auth-buttons-user" style="display: none; align-items: center; gap: 0.75rem;">
+        <a href="/index.html" class="back-btn" style="margin-right: 0.5rem;">Video Chat</a>
+        <span id="header-user-name" style="font-weight: 600; color: #22223B;"></span>
+        <button onclick="handleLogout()" style="background: #e63946; border: none; color: white; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; cursor: pointer; font-family: 'Nunito', sans-serif;">Logout</button>
+      </div>
     </div>
-    <a href="/index.html" class="back-btn">← Back to Rooms</a>
   </header>
   
   <!-- Main Container -->
@@ -185,8 +200,309 @@
       <button id="skip-rating" class="skip-rating">Skip for now</button>
     </div>
   </div>
+
+  <!-- ========== AUTH MODAL ========== -->
+  <div id="auth-modal" class="hidden" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(34, 34, 59, 0.9); backdrop-filter: blur(8px);">
+    <div style="background: white; border-radius: 24px; padding: 2rem; max-width: 400px; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.25); border: 4px solid #FFD166; position: relative;">
+      <!-- Logo -->
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <svg viewBox="0 0 64 64" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 0.75rem;">
+          <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <h2 style="font-size: 1.5rem; font-weight: 700; color: #22223B; margin: 0;">Welcome to ChatSpheres</h2>
+        <p style="color: #666; font-size: 0.875rem; margin-top: 0.25rem;">Sign in to find your match</p>
+      </div>
+      
+      <!-- Auth Tabs -->
+      <div style="display: flex; margin-bottom: 1.5rem; background: #f3f4f6; border-radius: 999px; padding: 4px;">
+        <button id="auth-tab-signin" onclick="switchAuthTab('signin')" style="flex: 1; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; background: #e63946; color: white; font-family: 'Nunito', sans-serif;">Sign In</button>
+        <button id="auth-tab-signup" onclick="switchAuthTab('signup')" style="flex: 1; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; background: transparent; color: #666; font-family: 'Nunito', sans-serif;">Sign Up</button>
+      </div>
+      
+      <!-- Error/Success Messages -->
+      <div id="auth-message" class="hidden" style="margin-bottom: 1rem; padding: 0.75rem; border-radius: 12px; font-size: 0.875rem; font-weight: 500; text-align: center;"></div>
+      
+      <!-- Sign In Form -->
+      <form id="signin-form" onsubmit="handleSignIn(event)" style="display: flex; flex-direction: column; gap: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Email</label>
+          <input type="email" id="signin-email" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="you@example.com">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Password</label>
+          <input type="password" id="signin-password" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="••••••••">
+        </div>
+        <button type="submit" style="width: 100%; padding: 0.75rem; background: #e63946; color: white; font-weight: 700; border-radius: 12px; border: none; cursor: pointer; font-size: 1rem; font-family: 'Nunito', sans-serif;">Sign In</button>
+      </form>
+      
+      <!-- Sign Up Form -->
+      <form id="signup-form" onsubmit="handleSignUp(event)" style="display: none; flex-direction: column; gap: 1rem;">
+        <div>
+          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Display Name</label>
+          <input type="text" id="signup-name" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="Your name">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Email</label>
+          <input type="email" id="signup-email" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="you@example.com">
+        </div>
+        <div>
+          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Password</label>
+          <input type="password" id="signup-password" required minlength="6" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="••••••••  (min 6 characters)">
+        </div>
+        <button type="submit" style="width: 100%; padding: 0.75rem; background: #e63946; color: white; font-weight: 700; border-radius: 12px; border: none; cursor: pointer; font-size: 1rem; font-family: 'Nunito', sans-serif;">Create Account</button>
+      </form>
+      
+      <!-- Divider -->
+      <div style="display: flex; align-items: center; margin: 1.5rem 0;">
+        <div style="flex: 1; border-top: 1px solid #e5e7eb;"></div>
+        <span style="padding: 0 1rem; color: #9ca3af; font-size: 0.875rem;">or continue with</span>
+        <div style="flex: 1; border-top: 1px solid #e5e7eb;"></div>
+      </div>
+      
+      <!-- Google Sign In -->
+      <button onclick="handleGoogleSignIn()" style="width: 100%; padding: 0.75rem; background: white; border: 2px solid #e5e7eb; border-radius: 12px; font-weight: 600; color: #22223B; cursor: pointer; font-family: 'Nunito', sans-serif; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+      
+      <!-- Close button -->
+      <button onclick="hideAuthModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #9ca3af; line-height: 1;">×</button>
+    </div>
+  </div>
   
   <!-- Scripts -->
   <script src="/assets/js/matchmaking.js"></script>
+  
+  <!-- Auth Script -->
+  <script>
+    // Supabase Auth for Matchmaking Page
+    (function() {
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      const authConfig = runtimeConfig.auth || {};
+      
+      const SUPABASE_URL = supabaseConfig.url || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      const AUTH_SITE_URL = authConfig.siteUrl || window.location.origin;
+      const AUTH_REDIRECT_URL = authConfig.redirectUrl || `${AUTH_SITE_URL}/.netlify/functions/auth-callback`;
+      
+      let supabaseClient = null;
+      
+      // Initialize Supabase
+      if (window.supabase && window.supabase.createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true,
+              flowType: 'pkce',
+              storage: {
+                getItem: (key) => {
+                  const cookies = document.cookie.split(';');
+                  for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === key) return decodeURIComponent(value);
+                  }
+                  try { return localStorage.getItem(key); } catch(e) { return null; }
+                },
+                setItem: (key, value) => {
+                  const maxAge = 60 * 60 * 24 * 365;
+                  let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                  if (window.location.protocol === 'https:') cookieStr += '; Secure';
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.setItem(key, value); } catch(e) {}
+                },
+                removeItem: (key) => {
+                  let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.removeItem(key); } catch(e) {}
+                }
+              }
+            }
+          });
+          console.log('✅ Supabase auth initialized on matchmaking page');
+        } catch (e) {
+          console.error('❌ Supabase init error:', e);
+        }
+      }
+      
+      // Check auth state on load
+      async function checkAuthState() {
+        if (!supabaseClient) return;
+        
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          }
+        } catch (e) {
+          console.error('Auth check error:', e);
+        }
+        
+        // Listen for auth changes
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+            hideAuthModal();
+          } else {
+            updateHeaderForGuest();
+          }
+        });
+      }
+      
+      function updateHeaderForUser(user) {
+        const guestButtons = document.getElementById('auth-buttons-guest');
+        const userButtons = document.getElementById('auth-buttons-user');
+        const userName = document.getElementById('header-user-name');
+        
+        if (guestButtons) guestButtons.style.display = 'none';
+        if (userButtons) userButtons.style.display = 'flex';
+        if (userName) {
+          const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          userName.textContent = name;
+        }
+      }
+      
+      function updateHeaderForGuest() {
+        const guestButtons = document.getElementById('auth-buttons-guest');
+        const userButtons = document.getElementById('auth-buttons-user');
+        
+        if (guestButtons) guestButtons.style.display = 'flex';
+        if (userButtons) userButtons.style.display = 'none';
+      }
+      
+      // Modal functions
+      window.showAuthModalFromHeader = function(tab = 'signin') {
+        const modal = document.getElementById('auth-modal');
+        if (modal) {
+          modal.classList.remove('hidden');
+          modal.style.display = 'flex';
+          switchAuthTab(tab);
+        }
+      };
+      
+      window.hideAuthModal = function() {
+        const modal = document.getElementById('auth-modal');
+        if (modal) {
+          modal.classList.add('hidden');
+          modal.style.display = 'none';
+        }
+      };
+      
+      window.switchAuthTab = function(tab) {
+        const signinTab = document.getElementById('auth-tab-signin');
+        const signupTab = document.getElementById('auth-tab-signup');
+        const signinForm = document.getElementById('signin-form');
+        const signupForm = document.getElementById('signup-form');
+        
+        if (tab === 'signin') {
+          signinTab.style.background = '#e63946'; signinTab.style.color = 'white';
+          signupTab.style.background = 'transparent'; signupTab.style.color = '#666';
+          signinForm.style.display = 'flex';
+          signupForm.style.display = 'none';
+        } else {
+          signupTab.style.background = '#e63946'; signupTab.style.color = 'white';
+          signinTab.style.background = 'transparent'; signinTab.style.color = '#666';
+          signupForm.style.display = 'flex';
+          signinForm.style.display = 'none';
+        }
+      };
+      
+      function showMessage(msg, isError = true) {
+        const el = document.getElementById('auth-message');
+        if (el) {
+          el.textContent = msg;
+          el.style.display = 'block';
+          el.style.background = isError ? '#fee2e2' : '#dcfce7';
+          el.style.color = isError ? '#dc2626' : '#16a34a';
+          el.classList.remove('hidden');
+        }
+      }
+      
+      window.handleSignIn = async function(e) {
+        e.preventDefault();
+        if (!supabaseClient) { showMessage('Auth unavailable'); return; }
+        
+        const email = document.getElementById('signin-email')?.value?.trim();
+        const password = document.getElementById('signin-password')?.value;
+        
+        try {
+          const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+          if (error) { showMessage(error.message); return; }
+          showMessage('✅ Signed in!', false);
+          setTimeout(hideAuthModal, 500);
+        } catch (e) {
+          showMessage('Sign in failed');
+        }
+      };
+      
+      window.handleSignUp = async function(e) {
+        e.preventDefault();
+        if (!supabaseClient) { showMessage('Auth unavailable'); return; }
+        
+        const name = document.getElementById('signup-name')?.value?.trim();
+        const email = document.getElementById('signup-email')?.value?.trim();
+        const password = document.getElementById('signup-password')?.value;
+        
+        try {
+          const { data, error } = await supabaseClient.auth.signUp({
+            email, password,
+            options: { data: { name, full_name: name }, emailRedirectTo: AUTH_REDIRECT_URL }
+          });
+          if (error) { showMessage(error.message); return; }
+          if (data?.session) {
+            showMessage('✅ Account created!', false);
+            setTimeout(hideAuthModal, 500);
+          } else {
+            showMessage('✅ Check your email to confirm!', false);
+          }
+        } catch (e) {
+          showMessage('Sign up failed');
+        }
+      };
+      
+      window.handleGoogleSignIn = async function() {
+        if (!supabaseClient) { showMessage('Auth unavailable'); return; }
+        
+        try {
+          await supabaseClient.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: AUTH_REDIRECT_URL }
+          });
+        } catch (e) {
+          showMessage('Google sign in failed');
+        }
+      };
+      
+      window.handleLogout = async function() {
+        if (!supabaseClient) return;
+        try {
+          await supabaseClient.auth.signOut();
+          updateHeaderForGuest();
+        } catch (e) {
+          console.error('Logout error:', e);
+        }
+      };
+      
+      // Init on load
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkAuthState);
+      } else {
+        checkAuthState();
+      }
+    })();
+  </script>
 </body>
 </html>

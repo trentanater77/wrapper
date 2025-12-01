@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatSpheres - Find Your Match</title>
+  <meta name="description" content="Type what's on your mind and find someone to talk about it. AI-powered semantic matchmaking for meaningful conversations.">
+  
+  <!-- Firebase SDKs (same as main app) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  
+  <!-- Load config from Netlify function -->
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/assets/css/matchmaking.css">
+  
+  <!-- Favicon (vesica piscis) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    /* Shake animation for invalid input */
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-5px); }
+      40%, 80% { transform: translateX(5px); }
+    }
+    .shake {
+      animation: shake 0.4s ease;
+    }
+    
+    /* Initial screen states */
+    #input-screen { display: block; }
+    #scanning-screen { display: none; }
+    #match-screen { display: none; }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="header">
+    <div class="logo-container">
+      <!-- Vesica Piscis Logo -->
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+        <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+      </svg>
+      <span class="logo-text">ChatSpheres</span>
+    </div>
+    <a href="/index.html" class="back-btn">← Back to Rooms</a>
+  </header>
+  
+  <!-- Main Container -->
+  <main class="main-container">
+    
+    <!-- ========== INPUT SCREEN ========== -->
+    <section id="input-screen" class="input-screen active">
+      <h1 class="main-question">What's on your mind?</h1>
+      <p class="sub-question">Type a topic, find someone to talk about it</p>
+      
+      <div class="input-wrapper">
+        <input 
+          type="text" 
+          id="topic-input" 
+          class="topic-input" 
+          placeholder="Star Wars, career advice, philosophy..."
+          maxlength="200"
+          autocomplete="off"
+          autofocus
+        >
+      </div>
+      
+      <button id="submit-btn" class="submit-btn">
+        <span>Find My Match</span>
+        <span>→</span>
+      </button>
+      
+      <!-- Trending Topics -->
+      <div class="trending-section">
+        <p class="trending-label">🔥 Trending Now</p>
+        <div class="trending-chips">
+          <button class="chip" data-topic="Life advice and tough decisions">Life Advice</button>
+          <button class="chip" data-topic="Technology and AI future">Tech & AI</button>
+          <button class="chip" data-topic="Movies and TV shows">Movies & TV</button>
+          <button class="chip" data-topic="Career and work life balance">Career Talk</button>
+          <button class="chip" data-topic="Philosophy and meaning of life">Philosophy</button>
+          <button class="chip" data-topic="Relationships and dating">Relationships</button>
+        </div>
+      </div>
+      
+      <!-- Mode Selector -->
+      <div class="mode-section">
+        <p class="mode-label">💬 Conversation Style</p>
+        <div class="mode-buttons">
+          <button class="mode-btn active" data-mode="casual">
+            ☕ Casual Chat
+          </button>
+          <button class="mode-btn" data-mode="debate">
+            ⚔️ Friendly Debate
+          </button>
+          <button class="mode-btn" data-mode="vent">
+            💭 Vent Session
+          </button>
+        </div>
+      </div>
+    </section>
+    
+    <!-- ========== SCANNING SCREEN ========== -->
+    <section id="scanning-screen" class="scanning-screen">
+      <!-- Radar Animation -->
+      <div class="radar-container">
+        <div class="radar-circle"></div>
+        <div class="radar-circle"></div>
+        <div class="radar-circle"></div>
+        <div class="radar-circle"></div>
+        <div class="radar-center">🔍</div>
+      </div>
+      
+      <h2 class="scanning-text">Scanning the Sphere...</h2>
+      <p class="scanning-subtext">Finding someone who wants to talk about</p>
+      <div class="user-topic" id="user-topic-display">"Your topic"</div>
+      <p class="queue-status" id="queue-status">Connecting to matchmaking...</p>
+      
+      <button id="cancel-btn" class="cancel-btn">Cancel Search</button>
+    </section>
+    
+    <!-- ========== MATCH FOUND SCREEN ========== -->
+    <section id="match-screen" class="match-screen">
+      <div class="match-celebration">🎉</div>
+      <h2 class="match-title">Match Found!</h2>
+      
+      <div class="match-topics">
+        <div class="topic-comparison">
+          <div class="topic-item yours">
+            <small style="opacity: 0.7; display: block; margin-bottom: 4px;">You typed</small>
+            <span id="match-your-topic">Your topic</span>
+          </div>
+          <span class="topic-connector">↔️</span>
+          <div class="topic-item theirs">
+            <small style="opacity: 0.7; display: block; margin-bottom: 4px;">They typed</small>
+            <span id="match-their-topic">Their topic</span>
+          </div>
+        </div>
+        <div class="similarity-badge" id="similarity-badge">85% Match</div>
+      </div>
+      
+      <p class="connecting-text">Get ready for a great conversation!</p>
+      
+      <button id="join-room-btn" class="join-btn">
+        🚀 Join Video Chat
+      </button>
+    </section>
+    
+  </main>
+  
+  <!-- ========== RATING MODAL ========== -->
+  <div id="rating-modal" class="rating-modal">
+    <div class="rating-content">
+      <h3 class="rating-title">How was your chat?</h3>
+      <p class="rating-subtitle">Your feedback helps us improve matches</p>
+      
+      <div class="rating-buttons">
+        <button id="rate-positive" class="rate-btn positive" title="Good conversation">
+          👍
+        </button>
+        <button id="rate-negative" class="rate-btn negative" title="Could be better">
+          👎
+        </button>
+      </div>
+      
+      <button id="skip-rating" class="skip-rating">Skip for now</button>
+    </div>
+  </div>
+  
+  <!-- Scripts -->
+  <script src="/assets/js/matchmaking.js"></script>
+</body>
+</html>

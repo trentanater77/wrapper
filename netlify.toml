@@ -6,3 +6,9 @@
 
 [functions]
   node_bundler = "esbuild"
+
+# Redirects
+[[redirects]]
+  from = "/match"
+  to = "/matchmaking.html"
+  status = 200

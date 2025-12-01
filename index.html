@@ -3879,6 +3879,11 @@ async function initializeApp() {
     });
 
     if (!isSpectator) {
+      // Fetch user's plan to determine timer duration
+      const { plan, limitMinutes } = await fetchUserSubscriptionForTimer();
+      const timerDurationSeconds = limitMinutes * 60;
+      console.log(`⏱️ User plan: ${plan}, timer duration: ${limitMinutes} minutes`);
+      
       const serverNow = getServerNow();
       await new Promise((resolve) => {
         timerRef.transaction((current) => {
@@ -3888,10 +3893,10 @@ async function initializeApp() {
               return current;
             }
           }
-          console.log('⏱️ Starting new shared timer for this room');
+          console.log(`⏱️ Starting new shared timer for this room (${limitMinutes} min)`);
           return {
             startedAt: firebase.database.ServerValue.TIMESTAMP,
-            durationSeconds: 60 * 60,
+            durationSeconds: timerDurationSeconds,
             createdBy: userId,
             createdAt: firebase.database.ServerValue.TIMESTAMP
           };
@@ -3899,7 +3904,7 @@ async function initializeApp() {
           if (error) {
             console.error('❌ Timer synchronization error:', error);
           } else if (committed) {
-            console.log('✅ Timer synchronized for room');
+            console.log(`✅ Timer synchronized for room (${limitMinutes} min)`);
           } else {
             console.log('ℹ️ Timer already active, using existing value');
           }
@@ -3908,6 +3913,39 @@ async function initializeApp() {
       });
     }
   }
+  
+  // Fetch subscription specifically for timer (called early in flow)
+  async function fetchUserSubscriptionForTimer() {
+    if (!userId || !isValidUuid(userId)) {
+      console.log('⏱️ No valid userId for timer, using free plan (60 min)');
+      return { plan: 'free', limitMinutes: 60 };
+    }
+    
+    try {
+      const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+      if (!response.ok) {
+        return { plan: 'free', limitMinutes: 60 };
+      }
+      
+      const data = await response.json();
+      const plan = data.plan || 'free';
+      const limitMinutes = PLAN_LIMITS_TIMER[plan] || 60;
+      
+      return { plan, limitMinutes };
+    } catch (error) {
+      console.error('❌ Error fetching subscription for timer:', error);
+      return { plan: 'free', limitMinutes: 60 };
+    }
+  }
+  
+  // Plan limits for timer (defined early so it's available)
+  const PLAN_LIMITS_TIMER = {
+    free: 60,
+    host_pro: 180,
+    ad_free_plus: 60,
+    ad_free_premium: 60,
+    pro_bundle: 180
+  };
 
   function updateViewerCount(countOrPayload) {
     const spectatorCount = typeof countOrPayload === 'number'

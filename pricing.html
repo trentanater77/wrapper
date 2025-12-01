@@ -952,8 +952,9 @@
     
     async function confirmSwitch() {
       if (pendingSwitchPlan) {
+        const planToSwitch = pendingSwitchPlan; // Save before closing modal
         closeSwitchModal();
-        await processSubscription(pendingSwitchPlan);
+        await processSubscription(planToSwitch);
       }
     }
     

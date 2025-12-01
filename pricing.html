@@ -202,14 +202,33 @@
       border-color: var(--gold);
     }
     
+    .pricing-card.best-value {
+      border-color: var(--main-red);
+      background: linear-gradient(135deg, var(--light-rose) 0%, var(--rose) 100%);
+    }
+    
     .pricing-card.featured::before {
-      content: '⭐ MOST POPULAR';
+      content: '⭐ POPULAR';
       position: absolute;
       top: -12px;
       left: 50%;
       transform: translateX(-50%);
       background: var(--gold);
       color: var(--charcoal);
+      padding: 0.25rem 1rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+    
+    .pricing-card.best-value::before {
+      content: '🔥 BEST VALUE';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--main-red);
+      color: var(--light-rose);
       padding: 0.25rem 1rem;
       border-radius: 999px;
       font-size: 0.75rem;
@@ -237,6 +256,17 @@
       color: var(--charcoal);
       opacity: 0.7;
       font-size: 0.9rem;
+    }
+    
+    .price-savings {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--charcoal);
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-left: 0.5rem;
     }
     
     .plan-features {
@@ -300,10 +330,25 @@
       color: var(--light-rose);
     }
     
+    .plan-btn.switch {
+      background: var(--charcoal);
+      color: var(--light-rose);
+    }
+    
+    .plan-btn.switch:hover {
+      background: var(--main-red);
+    }
+    
     .plan-btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
       transform: none !important;
+    }
+    
+    .plan-btn.current {
+      background: var(--charcoal);
+      color: var(--light-rose);
+      cursor: default;
     }
     
     /* Billing Toggle */
@@ -399,6 +444,69 @@
       display: none;
     }
     
+    /* Switch Plan Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    
+    .modal-overlay.hidden {
+      display: none;
+    }
+    
+    .modal {
+      background: var(--light-rose);
+      border-radius: 24px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+    }
+    
+    .modal h3 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .modal p {
+      margin-bottom: 1.5rem;
+      color: var(--charcoal);
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    
+    .modal-btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      font-family: 'Nunito', sans-serif;
+      transition: all 0.2s;
+    }
+    
+    .modal-btn.confirm {
+      background: var(--main-red);
+      color: var(--light-rose);
+    }
+    
+    .modal-btn.cancel {
+      background: var(--charcoal);
+      color: var(--light-rose);
+    }
+    
     /* Footer */
     .footer {
       text-align: center;
@@ -440,6 +548,19 @@
     </nav>
   </header>
   
+  <!-- Switch Plan Modal -->
+  <div id="switch-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h3>🔄 Switch Plan?</h3>
+      <p id="switch-modal-text">Switch from <strong id="from-plan">Free</strong> to <strong id="to-plan">Host Pro</strong>?</p>
+      <p style="font-size: 0.875rem; opacity: 0.8;">Stripe will automatically prorate your billing.</p>
+      <div class="modal-buttons">
+        <button class="modal-btn cancel" onclick="closeSwitchModal()">Cancel</button>
+        <button class="modal-btn confirm" id="confirm-switch-btn" onclick="confirmSwitch()">Switch Plan</button>
+      </div>
+    </div>
+  </div>
+  
   <!-- Main Content -->
   <main class="main">
     <!-- Page Title -->
@@ -474,8 +595,38 @@
         <span id="monthly-label" class="active">Monthly</span>
         <div id="billing-toggle" class="toggle-switch" onclick="toggleBilling()"></div>
         <span id="yearly-label">Yearly</span>
-        <span class="save-badge">Save 25%</span>
+        <span class="save-badge">Save up to 25%</span>
       </div>
+      
+      <!-- Bundle Section -->
+      <section class="pricing-section">
+        <h2>🎁 Best Value Bundle</h2>
+        <div class="pricing-grid">
+          <!-- Pro Bundle -->
+          <div class="pricing-card best-value">
+            <h3 class="plan-name">Pro Bundle</h3>
+            <div class="plan-price">
+              <span class="price-amount" id="bundle-price">$24.99</span>
+              <span class="price-period" id="bundle-period">/ month</span>
+              <span class="price-savings" id="bundle-savings">Save $5/mo</span>
+            </div>
+            <ul class="plan-features">
+              <li><strong>Everything in Host Pro:</strong></li>
+              <li>3 hours per room</li>
+              <li>Recording enabled</li>
+              <li>Custom branding</li>
+              <li>Green Room (paid entry)</li>
+              <li><strong>Plus Ad-Free Premium:</strong></li>
+              <li>No ads anywhere</li>
+              <li>1,200 gems per month</li>
+              <li>Exclusive badge</li>
+            </ul>
+            <button id="btn-pro-bundle" class="plan-btn primary" onclick="subscribe('pro_bundle')">
+              Get the Bundle
+            </button>
+          </div>
+        </div>
+      </section>
       
       <!-- Host Plans -->
       <section class="pricing-section">
@@ -497,7 +648,7 @@
               <li class="disabled">Custom branding</li>
               <li class="disabled">Green Room (paid entry)</li>
             </ul>
-            <button class="plan-btn secondary" disabled>Current Plan</button>
+            <button id="btn-free" class="plan-btn secondary" disabled>Free Forever</button>
           </div>
           
           <!-- Host Pro -->
@@ -564,18 +715,31 @@
     // State
     let currentUser = null;
     let currentPlan = 'free';
-    let billingPeriod = 'monthly'; // 'monthly' or 'yearly'
+    let billingPeriod = 'monthly';
     let supabaseClient = null;
+    let pendingSwitchPlan = null;
     
     // Prices (monthly/yearly)
     const prices = {
       host_pro: { monthly: '$19.99', yearly: '$179.91' },
       ad_free_premium: { monthly: '$9.99', yearly: '$101.36' },
+      pro_bundle: { monthly: '$24.99', yearly: '$219.99' },
+    };
+    
+    const savings = {
+      pro_bundle: { monthly: 'Save $5/mo', yearly: 'Save $61/yr' }
+    };
+    
+    const planNames = {
+      free: 'Free',
+      host_pro: 'Host Pro',
+      ad_free_plus: 'Ad-Free Plus',
+      ad_free_premium: 'Ad-Free Premium',
+      pro_bundle: 'Pro Bundle',
     };
     
     // Initialize
     document.addEventListener('DOMContentLoaded', async () => {
-      // Check for success/cancel in URL
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('success') === 'true') {
         document.getElementById('success-message').classList.remove('hidden');
@@ -584,10 +748,7 @@
         document.getElementById('canceled-message').classList.remove('hidden');
       }
       
-      // Initialize Supabase
       await initSupabase();
-      
-      // Check auth state
       await checkAuthState();
     });
     
@@ -667,6 +828,7 @@
         if (data.plan) {
           currentPlan = data.plan;
           updatePlanDisplay();
+          updateButtonStates();
         }
       } catch (error) {
         console.error('Error loading subscription:', error);
@@ -674,26 +836,33 @@
     }
     
     function updatePlanDisplay() {
-      const planNames = {
-        free: 'Free',
-        host_pro: 'Host Pro',
-        ad_free_plus: 'Ad-Free Plus',
-        ad_free_premium: 'Ad-Free Premium',
-      };
-      
       document.getElementById('current-plan-name').textContent = planNames[currentPlan] || 'Free';
       document.getElementById('current-plan-display').classList.remove('hidden');
+    }
+    
+    function updateButtonStates() {
+      const buttons = {
+        'btn-host-pro': 'host_pro',
+        'btn-ad-free': 'ad_free_premium',
+        'btn-pro-bundle': 'pro_bundle',
+      };
       
-      // Update button states
-      if (currentPlan === 'host_pro') {
-        document.getElementById('btn-host-pro').textContent = 'Current Plan';
-        document.getElementById('btn-host-pro').disabled = true;
-      }
-      
-      if (currentPlan === 'ad_free_premium') {
-        document.getElementById('btn-ad-free').textContent = 'Current Plan';
-        document.getElementById('btn-ad-free').disabled = true;
-      }
+      Object.entries(buttons).forEach(([btnId, planType]) => {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        
+        if (currentPlan === planType) {
+          btn.textContent = '✓ Current Plan';
+          btn.disabled = true;
+          btn.classList.remove('primary');
+          btn.classList.add('current');
+        } else if (currentPlan !== 'free') {
+          // User has a different paid plan - show switch option
+          btn.textContent = `Switch to ${planNames[planType]}`;
+          btn.classList.remove('primary');
+          btn.classList.add('switch');
+        }
+      });
     }
     
     function showSignInPrompt() {
@@ -745,6 +914,11 @@
       // Ad-Free Premium
       document.getElementById('ad-free-price').textContent = prices.ad_free_premium[billingPeriod];
       document.getElementById('ad-free-period').textContent = billingPeriod === 'monthly' ? '/ month' : '/ year';
+      
+      // Pro Bundle
+      document.getElementById('bundle-price').textContent = prices.pro_bundle[billingPeriod];
+      document.getElementById('bundle-period').textContent = billingPeriod === 'monthly' ? '/ month' : '/ year';
+      document.getElementById('bundle-savings').textContent = savings.pro_bundle[billingPeriod];
     }
     
     async function subscribe(planType) {
@@ -755,13 +929,43 @@
         return;
       }
       
-      const button = event.target;
+      // If user has a paid plan and switching to different plan, show confirmation
+      if (currentPlan !== 'free' && currentPlan !== planType) {
+        showSwitchModal(planType);
+        return;
+      }
+      
+      await processSubscription(planType);
+    }
+    
+    function showSwitchModal(toPlan) {
+      pendingSwitchPlan = toPlan;
+      document.getElementById('from-plan').textContent = planNames[currentPlan];
+      document.getElementById('to-plan').textContent = planNames[toPlan];
+      document.getElementById('switch-modal').classList.remove('hidden');
+    }
+    
+    function closeSwitchModal() {
+      pendingSwitchPlan = null;
+      document.getElementById('switch-modal').classList.add('hidden');
+    }
+    
+    async function confirmSwitch() {
+      if (pendingSwitchPlan) {
+        closeSwitchModal();
+        await processSubscription(pendingSwitchPlan);
+      }
+    }
+    
+    async function processSubscription(planType) {
+      const button = document.querySelector(`#btn-${planType.replace('_', '-')}`);
+      if (!button) return;
+      
       const originalText = button.textContent;
       button.textContent = 'Loading...';
       button.disabled = true;
       
       try {
-        // Build price key
         const priceKey = `${planType}_${billingPeriod}`;
         
         const response = await fetch('/.netlify/functions/create-checkout-session', {
@@ -779,7 +983,6 @@
         const data = await response.json();
         
         if (data.url) {
-          // Redirect to Stripe Checkout
           window.location.href = data.url;
         } else {
           throw new Error(data.error || 'Failed to create checkout session');
@@ -793,7 +996,6 @@
     }
     
     function redirectToSignIn() {
-      // Redirect to index with return URL
       window.location.href = `/index.html?returnTo=${encodeURIComponent(window.location.href)}`;
     }
     

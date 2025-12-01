@@ -152,12 +152,12 @@ async function handleCheckoutComplete(session) {
     throw error;
   }
 
-  // If this is an Ad-Free plan, add bonus gems
-  if (planType === 'ad_free_premium') {
-    await addBonusGems(userId, 1200, 'subscription_bonus');
-  } else if (planType === 'ad_free_plus') {
-    await addBonusGems(userId, 500, 'subscription_bonus');
-  }
+// If this is an Ad-Free plan or Pro Bundle, add bonus gems
+    if (planType === 'ad_free_premium' || planType === 'pro_bundle') {
+      await addBonusGems(userId, 1200, 'subscription_bonus');
+    } else if (planType === 'ad_free_plus') {
+      await addBonusGems(userId, 500, 'subscription_bonus');
+    }
 }
 
 /**
@@ -245,9 +245,9 @@ async function handlePaymentSucceeded(invoice) {
 
   if (!userSub) return;
 
-  // Add monthly bonus gems for Ad-Free plans
+  // Add monthly bonus gems for Ad-Free plans and Pro Bundle
   if (invoice.billing_reason === 'subscription_cycle') {
-    if (userSub.plan_type === 'ad_free_premium') {
+    if (userSub.plan_type === 'ad_free_premium' || userSub.plan_type === 'pro_bundle') {
       await addBonusGems(userSub.user_id, 1200, 'subscription_bonus');
     } else if (userSub.plan_type === 'ad_free_plus') {
       await addBonusGems(userSub.user_id, 500, 'subscription_bonus');

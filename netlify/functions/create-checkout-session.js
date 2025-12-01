@@ -15,6 +15,8 @@ const PRICE_IDS = {
   host_pro_yearly: process.env.STRIPE_PRICE_HOST_PRO_YEARLY,
   ad_free_premium_monthly: process.env.STRIPE_PRICE_AD_FREE_PREMIUM_MONTHLY,
   ad_free_premium_yearly: process.env.STRIPE_PRICE_AD_FREE_PREMIUM_YEARLY,
+  pro_bundle_monthly: process.env.STRIPE_PRICE_PRO_BUNDLE_MONTHLY,
+  pro_bundle_yearly: process.env.STRIPE_PRICE_PRO_BUNDLE_YEARLY,
 };
 
 // CORS headers
@@ -70,7 +72,9 @@ exports.handler = async function(event) {
 
     // Determine plan type from price key
     let planType = 'free';
-    if (priceKey.includes('host_pro')) {
+    if (priceKey.includes('pro_bundle')) {
+      planType = 'pro_bundle';
+    } else if (priceKey.includes('host_pro')) {
       planType = 'host_pro';
     } else if (priceKey.includes('ad_free_premium')) {
       planType = 'ad_free_premium';

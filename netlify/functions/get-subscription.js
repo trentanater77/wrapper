@@ -110,6 +110,17 @@ exports.handler = async function(event) {
  */
 function getPlanLimits(planType) {
   switch (planType) {
+    case 'pro_bundle':
+      return {
+        roomTimeMinutes: 180, // 3 hours
+        canRecord: true,
+        canCustomBrand: true,
+        canChargeEntry: true, // Green Room
+        showAds: false, // No ads (has Ad-Free)
+        watermark: 'custom', // Can upload own logo
+        monthlyGems: 1200, // From Ad-Free Premium
+      };
+
     case 'host_pro':
       return {
         roomTimeMinutes: 180, // 3 hours
@@ -118,6 +129,7 @@ function getPlanLimits(planType) {
         canChargeEntry: true, // Green Room
         showAds: true, // Still shows ads to non-paying viewers
         watermark: 'custom', // Can upload own logo
+        monthlyGems: 0,
       };
 
     case 'ad_free_plus':
@@ -129,6 +141,7 @@ function getPlanLimits(planType) {
         canChargeEntry: false,
         showAds: false, // No ads for this user
         watermark: 'chatspheres',
+        monthlyGems: planType === 'ad_free_premium' ? 1200 : 500,
       };
 
     case 'free':
@@ -140,6 +153,7 @@ function getPlanLimits(planType) {
         canChargeEntry: false,
         showAds: true,
         watermark: 'chatspheres',
+        monthlyGems: 0,
       };
   }
 }

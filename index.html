@@ -1840,21 +1840,6 @@
           if (canBrand) {
             brandingBtn.classList.remove('hidden');
             console.log('🎨 Branding enabled for pro user');
-            
-            // Auto-open branding modal if redirected from another page
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('openBranding') === '1') {
-              // Remove the param from URL
-              urlParams.delete('openBranding');
-              const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-              window.history.replaceState({}, '', newUrl);
-              // Open modal after a short delay
-              setTimeout(() => {
-                if (typeof openBrandingModal === 'function') {
-                  openBrandingModal();
-                }
-              }, 500);
-            }
           } else {
             brandingBtn.classList.add('hidden');
           }
@@ -8017,6 +8002,31 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.handleLogoUpload = handleLogoUpload;
   window.removeLogo = removeLogo;
   window.saveBrandingSettings = saveBrandingSettings;
+
+  // Check if we should auto-open branding modal (from redirect)
+  function checkAutoOpenBranding() {
+    const urlParams = new URLSearchParams(window.location.search);
+    console.log('🎨 Checking for openBranding param:', urlParams.get('openBranding'));
+    if (urlParams.get('openBranding') === '1') {
+      console.log('🎨 Auto-opening branding modal from redirect...');
+      // Remove the param from URL
+      urlParams.delete('openBranding');
+      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+      window.history.replaceState({}, '', newUrl);
+      // Open modal
+      if (typeof openBrandingModal === 'function') {
+        openBrandingModal();
+      } else {
+        console.error('🎨 openBrandingModal function not found!');
+      }
+    }
+  }
+
+  // Run auto-open check after a delay to ensure everything is loaded
+  setTimeout(checkAutoOpenBranding, 1000);
+  
+  // Also expose for manual testing
+  window.checkAutoOpenBranding = checkAutoOpenBranding;
 
   // Share Link Functions
   let currentShareMode = 'participant';

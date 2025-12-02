@@ -545,6 +545,7 @@
       <a href="/matchmaking.html" class="nav-link">Find Match</a>
       <a href="/index.html" class="nav-link">Video Chat</a>
       <a href="/recordings.html" class="nav-link">📹 Recordings</a>
+      <a href="/index.html?openBranding=1" id="branding-link" class="nav-link" style="display: none;">🎨 Branding</a>
       <a href="/cashout.html" class="nav-link">💰 Cash Out</a>
       <div id="header-auth"></div>
     </nav>
@@ -882,6 +883,12 @@
           currentPlan = data.plan;
           updatePlanDisplay();
           updateButtonStates();
+        }
+        
+        // Show branding link for pro users
+        const brandingLink = document.getElementById('branding-link');
+        if (brandingLink && data.limits?.canCustomBrand) {
+          brandingLink.style.display = 'inline';
         }
         
         // Load cashout data

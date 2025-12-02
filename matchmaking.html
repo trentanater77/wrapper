@@ -76,6 +76,7 @@
       <div id="auth-buttons-user" style="display: none; align-items: center; gap: 0.75rem;">
         <a href="/index.html" class="back-btn" style="margin-right: 0.5rem;">Video Chat</a>
         <a href="/recordings.html" style="color: #22223B; font-weight: 600; text-decoration: none; margin-right: 0.5rem;">📹 Recordings</a>
+        <a href="/index.html?openBranding=1" id="branding-link" style="color: #22223B; font-weight: 600; text-decoration: none; margin-right: 0.5rem; display: none;">🎨 Branding</a>
         <a href="/pricing.html" style="color: #FFD166; font-weight: 600; text-decoration: none; margin-right: 0.5rem;">💎 Pricing</a>
         <a href="/cashout.html" style="color: #22223B; font-weight: 600; text-decoration: none; margin-right: 0.5rem;">💰 Cash Out</a>
         <!-- Gem Balance -->
@@ -406,6 +407,12 @@
           const totalGems = data.totalGems || 0;
           gemCountEl.textContent = totalGems.toLocaleString();
           console.log('💎 Gem balance loaded:', totalGems);
+          
+          // Show branding link for pro users
+          const brandingLink = document.getElementById('branding-link');
+          if (brandingLink && data.limits?.canCustomBrand) {
+            brandingLink.style.display = 'inline';
+          }
         } catch (error) {
           console.error('❌ Error fetching gem balance:', error);
           gemCountEl.textContent = '0';

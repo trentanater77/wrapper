@@ -252,6 +252,7 @@
       <a href="/" class="nav-link">Video Chat</a>
       <a href="/match" class="nav-link">Find Match</a>
       <a href="/recordings" class="nav-link">📹 Recordings</a>
+      <a href="/?openBranding=1" id="branding-link" class="nav-link" style="display: none;">🎨 Branding</a>
       <a href="/pricing" class="nav-link">💎 Pricing</a>
       <span id="auth-status" class="nav-link"></span>
     </nav>
@@ -447,6 +448,12 @@
         
         payoutData = data.payout || {};
         const gems = data.gems || {};
+        
+        // Show branding link for pro users
+        const brandingLink = document.getElementById('branding-link');
+        if (brandingLink && data.limits?.canCustomBrand) {
+          brandingLink.style.display = 'inline';
+        }
         
         // Update spendable gems
         document.getElementById('spendable-gems').textContent = (gems.spendable_gems || 0).toLocaleString();

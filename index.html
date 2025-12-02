@@ -1840,6 +1840,21 @@
           if (canBrand) {
             brandingBtn.classList.remove('hidden');
             console.log('🎨 Branding enabled for pro user');
+            
+            // Auto-open branding modal if redirected from another page
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('openBranding') === '1') {
+              // Remove the param from URL
+              urlParams.delete('openBranding');
+              const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+              window.history.replaceState({}, '', newUrl);
+              // Open modal after a short delay
+              setTimeout(() => {
+                if (typeof openBrandingModal === 'function') {
+                  openBrandingModal();
+                }
+              }, 500);
+            }
           } else {
             brandingBtn.classList.add('hidden');
           }

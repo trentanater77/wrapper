@@ -4442,6 +4442,9 @@ async function initializeApp() {
       // Initialize session limits (plan-based time limits)
       initializeSessionLimits();
       
+      // Initialize recording permissions (plan-based)
+      initializeRecordingPermissions();
+      
       // Note: Host tracking is initialized AFTER setupPresence() so our presence is set first
       
       showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
@@ -6358,8 +6361,32 @@ function ensureSpectatorTracksForParticipant(participant) {
       return response.json();
     }
 
-    function toggleRecording() {
+    async function toggleRecording() {
     if (isSpectator) return; // Only participants can record
+    
+    // Check if user has recording permission
+    const recordBtn = document.getElementById('record-btn');
+    if (recordBtn && recordBtn.classList.contains('hidden')) {
+      // Button is hidden = no permission, but user somehow clicked it
+      showToast('⬆️ Upgrade to Host Pro or Pro Bundle to record!');
+      return;
+    }
+    
+    // Double-check permission via API (in case state is stale)
+    try {
+      const currentUserId = window.currentUserData?.userId || userId;
+      if (currentUserId && isValidUuid(currentUserId)) {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
+        const data = await response.json();
+        if (!data.limits?.canRecord) {
+          showToast('⬆️ Upgrade to Host Pro or Pro Bundle to record!');
+          hideRecordButton();
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Could not verify recording permission:', e);
+    }
     
     if (!isRecording) {
       showRecordingConsentModal();
@@ -7112,6 +7139,66 @@ function ensureSpectatorTracksForParticipant(participant) {
   
   // Make function available globally for onclick
   window.endSessionFromUpgradeModal = endSessionFromUpgradeModal;
+
+  // ============================================
+  // RECORDING PERMISSIONS (Plan-based)
+  // ============================================
+  
+  async function initializeRecordingPermissions() {
+    // Skip for spectators - they can't record anyway
+    if (isSpectator) {
+      hideRecordButton();
+      return;
+    }
+    
+    try {
+      const currentUserId = window.currentUserData?.userId || userId;
+      
+      // Check if user has a valid UUID (authenticated)
+      if (!currentUserId || !isValidUuid(currentUserId)) {
+        console.log('🎥 Recording: User not authenticated - hiding record button');
+        hideRecordButton();
+        return;
+      }
+      
+      // Fetch user's subscription to check recording permission
+      const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
+      const data = await response.json();
+      
+      const plan = data.plan || 'free';
+      const canRecord = data.limits?.canRecord || false;
+      
+      console.log(`🎥 Recording permission: ${canRecord} (${plan} plan)`);
+      
+      if (canRecord) {
+        showRecordButton();
+        console.log('🎥 Record button enabled');
+      } else {
+        hideRecordButton();
+        console.log('🎥 Record button hidden - upgrade to Host Pro or Pro Bundle to record');
+      }
+    } catch (error) {
+      console.error('❌ Error checking recording permissions:', error);
+      // Default to hiding on error
+      hideRecordButton();
+    }
+  }
+  
+  function showRecordButton() {
+    const recordBtn = document.getElementById('record-btn');
+    if (recordBtn) {
+      recordBtn.classList.remove('hidden');
+      recordBtn.style.display = 'block';
+    }
+  }
+  
+  function hideRecordButton() {
+    const recordBtn = document.getElementById('record-btn');
+    if (recordBtn) {
+      recordBtn.classList.add('hidden');
+      recordBtn.style.display = 'none';
+    }
+  }
 
   // ============================================
   // TIPPING FUNCTIONS (Red Room)

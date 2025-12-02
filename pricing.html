@@ -878,11 +878,35 @@
       if (user) {
         const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
         headerAuth.innerHTML = `
+          <div id="header-gem-balance" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; background: var(--gold); border-radius: 999px; cursor: pointer; margin-right: 0.5rem;" title="Your gem balance">
+            <span>💎</span>
+            <span id="gem-count" style="font-size: 0.875rem; font-weight: 700; color: var(--charcoal);">0</span>
+          </div>
           <span style="font-weight: 600; margin-right: 0.5rem;">${name}</span>
           <button onclick="signOut()" class="btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Logout</button>
         `;
+        
+        // Fetch and display gem balance
+        fetchAndDisplayGemBalance(user.id);
       } else {
         headerAuth.innerHTML = `<button onclick="redirectToSignIn()" class="btn-primary">Sign In</button>`;
+      }
+    }
+    
+    async function fetchAndDisplayGemBalance(userId) {
+      const gemCountEl = document.getElementById('gem-count');
+      if (!gemCountEl || !userId) return;
+      
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        const totalGems = data.totalGems || 0;
+        gemCountEl.textContent = totalGems.toLocaleString();
+        console.log('💎 Gem balance loaded:', totalGems);
+      } catch (error) {
+        console.error('❌ Error fetching gem balance:', error);
       }
     }
     

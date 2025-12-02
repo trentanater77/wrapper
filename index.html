@@ -703,6 +703,11 @@
         <div id="header-auth-user" class="hidden items-center space-x-2 ml-4">
           <a href="/matchmaking.html" class="px-3 py-1 text-sm font-semibold text-charcoal hover:text-main-red transition-colors">Find Match</a>
           <a href="/pricing.html" class="px-3 py-1 text-sm font-semibold text-gold hover:text-main-red transition-colors">💎 Pricing</a>
+          <!-- Gem Balance -->
+          <div id="header-gem-balance" class="flex items-center gap-1 px-3 py-1 bg-gold rounded-full cursor-pointer hover:bg-main-red hover:text-white transition-colors" onclick="window.location.href='/pricing.html'" title="Your gem balance">
+            <span>💎</span>
+            <span id="gem-count" class="text-sm font-bold text-charcoal">0</span>
+          </div>
           <span id="header-username" class="text-sm font-semibold text-charcoal"></span>
           <button onclick="signOut()" class="px-3 py-1 text-sm font-semibold bg-main-red text-white rounded-full hover:bg-red-600 transition-colors">Logout</button>
         </div>
@@ -1628,12 +1633,47 @@
           userButtons.style.display = 'flex';
         }
         if (usernameSpan) usernameSpan.textContent = displayName;
+        
+        // Fetch and display gem balance
+        fetchAndDisplayGemBalance();
       } else {
         if (guestButtons) {
           guestButtons.classList.remove('hidden');
           guestButtons.style.display = 'flex';
         }
         if (userButtons) userButtons.classList.add('hidden');
+      }
+    }
+    
+    // Fetch and display gem balance in header
+    async function fetchAndDisplayGemBalance() {
+      const gemCountEl = document.getElementById('gem-count');
+      if (!gemCountEl) return;
+      
+      // Get user ID from currentUserData or URL
+      const currentUserId = window.currentUserData?.userId || userId;
+      
+      if (!currentUserId || !isValidUuid(currentUserId)) {
+        gemCountEl.textContent = '0';
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
+        if (!response.ok) {
+          gemCountEl.textContent = '0';
+          return;
+        }
+        
+        const data = await response.json();
+        const totalGems = data.totalGems || 0;
+        
+        // Format with commas for large numbers
+        gemCountEl.textContent = totalGems.toLocaleString();
+        console.log(`💎 Gem balance loaded: ${totalGems}`);
+      } catch (error) {
+        console.error('❌ Error fetching gem balance:', error);
+        gemCountEl.textContent = '0';
       }
     }
 

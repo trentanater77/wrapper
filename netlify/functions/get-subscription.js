@@ -62,6 +62,20 @@ exports.handler = async function(event) {
       .eq('user_id', userId)
       .single();
 
+    // Get pending payout requests
+    const { data: pendingPayouts } = await supabase
+      .from('payout_requests')
+      .select('id, gems_amount, usd_amount, status, requested_at')
+      .eq('user_id', userId)
+      .in('status', ['pending', 'processing'])
+      .order('requested_at', { ascending: false });
+
+    // Calculate cashable balance and payout eligibility
+    const cashableGems = gemBalance?.cashable_gems || 0;
+    const minPayoutGems = 500; // 500 gems = $4.95 minimum
+    const canRequestPayout = cashableGems >= minPayoutGems && (!pendingPayouts || pendingPayouts.length === 0);
+    const cashableUsd = Math.round((cashableGems / 100) * 0.99 * 100) / 100;
+
     // Build response
     const response = {
       subscription: subscription || {
@@ -74,6 +88,17 @@ exports.handler = async function(event) {
         spendable_gems: 0,
         cashable_gems: 0,
         promo_gems: 0,
+      },
+      // Payout info
+      payout: {
+        cashableGems,
+        cashableUsd,
+        minPayoutGems,
+        minPayoutUsd: 4.95,
+        canRequestPayout,
+        pendingRequests: pendingPayouts || [],
+        payoutEmail: gemBalance?.payout_email || null,
+        payoutMethod: gemBalance?.payout_method || 'paypal',
       },
       // Convenience fields
       plan: subscription?.plan_type || 'free',

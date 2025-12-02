@@ -7134,7 +7134,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     const sphereId = extractSphereId(roomUrl);
     if (!sphereId) return;
     
-    const hostRef = db.ref(`room_hosts/${sphereId}`);
+    // Use existing 'presence' path which already has permissions
+    const hostRef = db.ref(`presence/${sphereId}/room_host`);
     
     try {
       const snapshot = await hostRef.once('value');
@@ -7185,7 +7186,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (!sphereId) return;
     
     try {
-      const hostRef = db.ref(`room_hosts/${sphereId}`);
+      // Use existing 'presence' path which already has permissions
+      const hostRef = db.ref(`presence/${sphereId}/room_host`);
       const snapshot = await hostRef.once('value');
       const hostData = snapshot.val();
       
@@ -7198,6 +7200,8 @@ function ensureSpectatorTracksForParticipant(participant) {
       }
     } catch (error) {
       console.error('❌ Error loading host data:', error);
+      // Still show tip button on error - fallback behavior
+      showTipButtonIfNotHost();
     }
   }
   
@@ -7391,7 +7395,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     const sphereId = extractSphereId(roomUrl);
     if (!sphereId) return;
     
-    const tipNotifRef = db.ref(`tip_notifications/${sphereId}`);
+    // Use existing 'chats' path which has permissions
+    const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
     tipNotifRef.push({
       senderName,
       amount,
@@ -7403,7 +7408,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     const sphereId = extractSphereId(roomUrl);
     if (!sphereId) return;
     
-    const tipNotifRef = db.ref(`tip_notifications/${sphereId}`);
+    // Use existing 'chats' path which has permissions
+    const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
     
     // Only listen to new tips (after now)
     tipNotifRef.orderByChild('timestamp').startAt(Date.now()).on('child_added', (snapshot) => {

@@ -83,10 +83,12 @@ exports.handler = async function(event) {
     const canRequestPayout = cashableGems >= minPayoutGems && (!pendingPayouts || pendingPayouts.length === 0);
     const cashableUsd = Math.round((cashableGems / 100) * 0.99 * 100) / 100;
 
-    // Determine badge based on plan (auto-assign if not set)
+    // Determine badge based on plan (auto-assign if not set or set to 'none')
     const planType = subscription?.plan_type || 'free';
     const autoBadge = getBadgeForPlan(planType);
-    const badgeType = userProfile?.badge_type || autoBadge;
+    // Use auto-badge if user profile badge is not set or is 'none'
+    const profileBadge = userProfile?.badge_type;
+    const badgeType = (profileBadge && profileBadge !== 'none') ? profileBadge : autoBadge;
     const badgeVisible = userProfile?.badge_visible !== false;
 
     // Build response

@@ -506,10 +506,26 @@
       document.getElementById('loading-state').classList.add('hidden');
       document.getElementById('branding-content').classList.remove('hidden');
       
-      // Set badge info
+      console.log('🎨 Branding data:', data);
+      console.log('🏆 Badge data:', data.badge);
+      console.log('📋 Plan:', data.plan);
+      
+      // Set badge info - use plan-based badge if available
       const badge = data.badge || {};
-      document.getElementById('badge-emoji').textContent = badge.emoji || '—';
-      document.getElementById('badge-label').textContent = badge.label || 'No Badge';
+      const planBadges = {
+        'host_pro': { emoji: '⭐', label: 'Host Pro' },
+        'pro_bundle': { emoji: '👑', label: 'Pro Bundle' },
+        'ad_free_premium': { emoji: '💎', label: 'Premium' },
+        'ad_free_plus': { emoji: '💎', label: 'Premium' }
+      };
+      
+      // Fallback to plan-based badge if API badge is empty
+      const planBadge = planBadges[data.plan] || {};
+      const displayEmoji = badge.emoji || planBadge.emoji || '—';
+      const displayLabel = badge.label || planBadge.label || 'No Badge';
+      
+      document.getElementById('badge-emoji').textContent = displayEmoji;
+      document.getElementById('badge-label').textContent = displayLabel;
       document.getElementById('badge-visible').checked = badge.visible !== false;
       
       // Set logo preview

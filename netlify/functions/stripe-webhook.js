@@ -282,47 +282,66 @@ async function handlePaymentFailed(invoice) {
  * Add bonus gems to user's spendable balance
  */
 async function addBonusGems(userId, amount, transactionType) {
-  // Ensure gem balance record exists
-  const { data: existing } = await supabase
-    .from('gem_balances')
-    .select('id')
-    .eq('user_id', userId)
-    .single();
-
-  if (!existing) {
-    await supabase
+  try {
+    // Check if gem balance record exists
+    const { data: existing } = await supabase
       .from('gem_balances')
-      .insert({ user_id: userId, spendable_gems: 0, cashable_gems: 0 });
+      .select('id, spendable_gems')
+      .eq('user_id', userId)
+      .single();
+
+    if (!existing) {
+      // Create new record with the bonus gems
+      const { error: insertError } = await supabase
+        .from('gem_balances')
+        .insert({ 
+          user_id: userId, 
+          spendable_gems: amount, 
+          cashable_gems: 0,
+          promo_gems: 0
+        });
+      
+      if (insertError) {
+        console.error('❌ Error inserting gem balance:', insertError);
+        throw insertError;
+      }
+      console.log(`💎 Created gem balance with ${amount} gems for user ${userId}`);
+    } else {
+      // Update existing record - add to current balance
+      const newBalance = (existing.spendable_gems || 0) + amount;
+      const { error: updateError } = await supabase
+        .from('gem_balances')
+        .update({ 
+          spendable_gems: newBalance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (updateError) {
+        console.error('❌ Error updating gem balance:', updateError);
+        throw updateError;
+      }
+      console.log(`💎 Updated gem balance: ${existing.spendable_gems} + ${amount} = ${newBalance} for user ${userId}`);
+    }
+
+    // Log transaction
+    const { error: txError } = await supabase
+      .from('gem_transactions')
+      .insert({
+        user_id: userId,
+        transaction_type: transactionType,
+        amount: amount,
+        wallet_type: 'spendable',
+        description: `Bonus: ${amount} gems`,
+      });
+    
+    if (txError) {
+      console.error('❌ Error logging gem transaction:', txError);
+    }
+
+    console.log(`💎 Added ${amount} bonus gems to user ${userId}`);
+  } catch (error) {
+    console.error('❌ Error in addBonusGems:', error);
+    throw error;
   }
-
-  // Add gems
-  const { error: updateError } = await supabase.rpc('add_gems', {
-    p_user_id: userId,
-    p_amount: amount,
-    p_wallet_type: 'spendable'
-  });
-
-  // If RPC doesn't exist, do it manually
-  if (updateError) {
-    await supabase
-      .from('gem_balances')
-      .update({ 
-        spendable_gems: supabase.raw(`spendable_gems + ${amount}`),
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', userId);
-  }
-
-  // Log transaction
-  await supabase
-    .from('gem_transactions')
-    .insert({
-      user_id: userId,
-      transaction_type: transactionType,
-      amount: amount,
-      wallet_type: 'spendable',
-      description: `Monthly bonus: ${amount} gems`,
-    });
-
-  console.log(`💎 Added ${amount} bonus gems to user ${userId}`);
 }

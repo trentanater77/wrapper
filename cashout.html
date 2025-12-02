@@ -301,6 +301,21 @@
           <div id="message" class="message hidden"></div>
           
           <div class="form-group">
+            <label>Amount to Cash Out (gems)</label>
+            <input type="number" id="payout-amount" min="500" placeholder="500" oninput="updatePayoutPreview()">
+            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.25rem;">
+              Minimum: 500 gems | Max: <span id="max-gems">0</span> gems
+            </p>
+          </div>
+          
+          <div class="form-group">
+            <label>You'll Receive</label>
+            <div style="font-size: 1.5rem; font-weight: 700; color: var(--main-red);">
+              $<span id="payout-preview">0.00</span>
+            </div>
+          </div>
+          
+          <div class="form-group">
             <label>Payout Method</label>
             <select id="payout-method">
               <option value="paypal">PayPal</option>
@@ -446,6 +461,12 @@
           document.getElementById('payout-method').value = payoutData.payoutMethod;
         }
         
+        // Set max gems for amount input
+        document.getElementById('max-gems').textContent = (payoutData.cashableGems || 0).toLocaleString();
+        document.getElementById('payout-amount').max = payoutData.cashableGems || 0;
+        document.getElementById('payout-amount').value = payoutData.cashableGems || 0;
+        updatePayoutPreview();
+        
         // Check for pending requests
         if (payoutData.pendingRequests && payoutData.pendingRequests.length > 0) {
           const pending = payoutData.pendingRequests[0];
@@ -457,7 +478,7 @@
           document.getElementById('pending-notice').classList.add('hidden');
           document.getElementById('payout-form').classList.remove('hidden');
           document.getElementById('payout-btn').disabled = false;
-          document.getElementById('payout-btn').textContent = `Cash Out $${payoutData.cashableUsd.toFixed(2)}`;
+          updatePayoutPreview();
         } else if (payoutData.cashableGems < 500) {
           document.getElementById('minimum-notice').classList.remove('hidden');
           document.getElementById('payout-form').classList.add('hidden');
@@ -490,16 +511,47 @@
       }
     }
     
+    function updatePayoutPreview() {
+      const amountInput = document.getElementById('payout-amount');
+      const previewEl = document.getElementById('payout-preview');
+      const btn = document.getElementById('payout-btn');
+      
+      const gems = parseInt(amountInput.value) || 0;
+      const usd = Math.round((gems / 100) * 0.99 * 100) / 100;
+      
+      previewEl.textContent = usd.toFixed(2);
+      
+      // Enable/disable button based on valid amount
+      const maxGems = payoutData?.cashableGems || 0;
+      const isValid = gems >= 500 && gems <= maxGems;
+      
+      if (btn) {
+        btn.disabled = !isValid;
+        btn.textContent = isValid ? `Cash Out $${usd.toFixed(2)}` : 'Enter Valid Amount';
+      }
+    }
+    
     async function requestPayout() {
       const btn = document.getElementById('payout-btn');
       const messageEl = document.getElementById('message');
       const payoutEmail = document.getElementById('payout-email').value.trim();
       const payoutMethod = document.getElementById('payout-method').value;
+      const gemsAmount = parseInt(document.getElementById('payout-amount').value) || 0;
       
       messageEl.classList.add('hidden');
       
       if (!payoutEmail) {
         showMessage('Please enter your PayPal email or Venmo username', 'error');
+        return;
+      }
+      
+      if (gemsAmount < 500) {
+        showMessage('Minimum payout is 500 gems', 'error');
+        return;
+      }
+      
+      if (gemsAmount > (payoutData?.cashableGems || 0)) {
+        showMessage('Amount exceeds your cashable balance', 'error');
         return;
       }
       
@@ -512,6 +564,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: currentUser.id,
+            gemsAmount: gemsAmount,
             payoutMethod,
             payoutEmail
           })

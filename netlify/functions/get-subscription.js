@@ -62,6 +62,13 @@ exports.handler = async function(event) {
       .eq('user_id', userId)
       .single();
 
+    // Get user profile (badge & branding)
+    const { data: userProfile } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
     // Get pending payout requests
     const { data: pendingPayouts } = await supabase
       .from('payout_requests')
@@ -76,6 +83,12 @@ exports.handler = async function(event) {
     const canRequestPayout = cashableGems >= minPayoutGems && (!pendingPayouts || pendingPayouts.length === 0);
     const cashableUsd = Math.round((cashableGems / 100) * 0.99 * 100) / 100;
 
+    // Determine badge based on plan (auto-assign if not set)
+    const planType = subscription?.plan_type || 'free';
+    const autoBadge = getBadgeForPlan(planType);
+    const badgeType = userProfile?.badge_type || autoBadge;
+    const badgeVisible = userProfile?.badge_visible !== false;
+
     // Build response
     const response = {
       subscription: subscription || {
@@ -89,6 +102,21 @@ exports.handler = async function(event) {
         cashable_gems: 0,
         promo_gems: 0,
       },
+      // Profile & Branding
+      profile: {
+        displayName: userProfile?.display_name || null,
+        bio: userProfile?.bio || null,
+        customLogoUrl: userProfile?.custom_logo_url || null,
+        logoUpdatedAt: userProfile?.logo_updated_at || null,
+      },
+      // Badge info
+      badge: {
+        type: badgeVisible ? badgeType : 'none',
+        visible: badgeVisible,
+        emoji: getBadgeEmoji(badgeType),
+        label: getBadgeLabel(badgeType),
+        color: getBadgeColor(badgeType),
+      },
       // Payout info
       payout: {
         cashableGems,
@@ -101,13 +129,14 @@ exports.handler = async function(event) {
         payoutMethod: gemBalance?.payout_method || 'paypal',
       },
       // Convenience fields
-      plan: subscription?.plan_type || 'free',
+      plan: planType,
       isActive: subscription?.status === 'active' || !subscription,
-      isPro: subscription?.plan_type === 'host_pro',
-      isAdFree: ['ad_free_plus', 'ad_free_premium'].includes(subscription?.plan_type),
+      isPro: planType === 'host_pro' || planType === 'pro_bundle',
+      isAdFree: ['ad_free_plus', 'ad_free_premium', 'pro_bundle'].includes(planType),
+      isBundle: planType === 'pro_bundle',
       totalGems: (gemBalance?.spendable_gems || 0) + (gemBalance?.cashable_gems || 0),
       // Limits based on plan
-      limits: getPlanLimits(subscription?.plan_type || 'free'),
+      limits: getPlanLimits(planType),
     };
 
     return {
@@ -129,6 +158,61 @@ exports.handler = async function(event) {
     };
   }
 };
+
+/**
+ * Get badge type based on plan
+ */
+function getBadgeForPlan(planType) {
+  switch (planType) {
+    case 'pro_bundle': return 'bundle';
+    case 'host_pro': return 'pro';
+    case 'ad_free_premium': return 'premium';
+    case 'ad_free_plus': return 'premium';
+    default: return 'none';
+  }
+}
+
+/**
+ * Get badge emoji
+ */
+function getBadgeEmoji(badgeType) {
+  switch (badgeType) {
+    case 'bundle': return '👑';
+    case 'pro': return '⭐';
+    case 'premium': return '💎';
+    case 'verified': return '✓';
+    case 'og': return '🏆';
+    default: return '';
+  }
+}
+
+/**
+ * Get badge label
+ */
+function getBadgeLabel(badgeType) {
+  switch (badgeType) {
+    case 'bundle': return 'Pro Bundle';
+    case 'pro': return 'Host Pro';
+    case 'premium': return 'Premium';
+    case 'verified': return 'Verified';
+    case 'og': return 'OG';
+    default: return '';
+  }
+}
+
+/**
+ * Get badge color (CSS color value)
+ */
+function getBadgeColor(badgeType) {
+  switch (badgeType) {
+    case 'bundle': return '#FFD166';   // Gold crown
+    case 'pro': return '#FFD166';      // Gold star  
+    case 'premium': return '#a855f7';  // Purple diamond
+    case 'verified': return '#22c55e'; // Green check
+    case 'og': return '#e63946';       // Red trophy
+    default: return '#6b7280';         // Gray
+  }
+}
 
 /**
  * Get plan limits based on subscription type

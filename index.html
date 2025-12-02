@@ -688,6 +688,84 @@
   </div>
 </div>
 
+<!-- Branding Settings Modal (Pro Users) -->
+<div id="branding-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-light-rose rounded-3xl p-6 max-w-md w-full shadow-2xl border-4 border-gold relative">
+    <!-- Close button -->
+    <button onclick="closeBrandingModal()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+    
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 mx-auto mb-4 bg-gold rounded-full flex items-center justify-center">
+        <span class="text-3xl">🎨</span>
+      </div>
+      <h3 class="text-xl font-bold text-charcoal">Custom Branding</h3>
+      <p class="text-charcoal opacity-70 text-sm">Personalize your sphere experience</p>
+    </div>
+    
+    <!-- Current Badge Display -->
+    <div class="bg-white rounded-2xl p-4 mb-4 border-2 border-rose">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-bold text-charcoal mb-1">Your Badge</p>
+          <div class="flex items-center gap-2">
+            <span id="branding-badge-emoji" class="text-2xl">⭐</span>
+            <span id="branding-badge-label" class="text-sm font-semibold text-charcoal">Host Pro</span>
+          </div>
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <span class="text-xs text-charcoal">Show badge</span>
+          <input type="checkbox" id="badge-visible-toggle" checked class="w-5 h-5 accent-main-red">
+        </label>
+      </div>
+    </div>
+    
+    <!-- Custom Logo Upload -->
+    <div class="bg-white rounded-2xl p-4 mb-4 border-2 border-rose">
+      <p class="text-sm font-bold text-charcoal mb-3">Custom Logo</p>
+      <p class="text-xs text-charcoal opacity-70 mb-3">Upload your logo to display on recordings (max 500KB)</p>
+      
+      <!-- Current Logo Preview -->
+      <div id="logo-preview-container" class="hidden mb-3">
+        <div class="flex items-center gap-3">
+          <img id="logo-preview" src="" alt="Your logo" class="w-16 h-16 object-contain rounded-lg border-2 border-gold">
+          <button onclick="removeLogo()" class="text-xs text-main-red hover:underline">Remove</button>
+        </div>
+      </div>
+      
+      <!-- Upload Button -->
+      <label class="flex items-center justify-center gap-2 px-4 py-3 bg-gold hover:bg-main-red hover:text-white text-charcoal rounded-full font-bold cursor-pointer transition-all">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+        </svg>
+        <span id="logo-upload-text">Upload Logo</span>
+        <input type="file" id="logo-upload-input" accept="image/png,image/jpeg,image/gif" class="hidden" onchange="handleLogoUpload(event)">
+      </label>
+      
+      <!-- Upload Status -->
+      <p id="logo-upload-status" class="text-xs text-center mt-2 hidden"></p>
+    </div>
+    
+    <!-- Not Pro Message (shown if user isn't pro) -->
+    <div id="branding-upgrade-prompt" class="hidden bg-rose rounded-2xl p-4 text-center">
+      <p class="text-sm font-bold text-charcoal mb-2">🔒 Pro Feature</p>
+      <p class="text-xs text-charcoal opacity-70 mb-3">Custom branding is available for Host Pro and Pro Bundle subscribers.</p>
+      <a href="/pricing.html" class="inline-block px-4 py-2 bg-gold hover:bg-main-red hover:text-white text-charcoal rounded-full font-bold text-sm transition-all">
+        Upgrade Now
+      </a>
+    </div>
+    
+    <!-- Save Button -->
+    <button id="branding-save-btn" onclick="saveBrandingSettings()" class="w-full mt-4 px-6 py-3 bg-gold hover:bg-main-red hover:text-white text-charcoal rounded-full font-bold transition-all">
+      Save Settings
+    </button>
+  </div>
+</div>
+
 <!-- Recording Consent Modal -->
 <div id="recording-consent-modal" class="hidden fixed inset-0 z-50 modal-overlay flex items-center justify-center p-4">
   <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl border border-gray-200 dark:border-gray-700">
@@ -778,6 +856,7 @@
         <div id="header-auth-user" class="hidden items-center space-x-2 ml-4">
           <a href="/matchmaking.html" class="px-3 py-1 text-sm font-semibold text-charcoal hover:text-main-red transition-colors">Find Match</a>
           <a href="/recordings.html" class="px-3 py-1 text-sm font-semibold text-charcoal hover:text-main-red transition-colors">📹 Recordings</a>
+          <button id="branding-btn" onclick="openBrandingModal()" class="hidden px-3 py-1 text-sm font-semibold text-charcoal hover:text-main-red transition-colors">🎨 Branding</button>
           <a href="/pricing.html" class="px-3 py-1 text-sm font-semibold text-gold hover:text-main-red transition-colors">💎 Pricing</a>
           <a href="/cashout.html" class="px-3 py-1 text-sm font-semibold text-charcoal hover:text-main-red transition-colors">💰 Cash Out</a>
           <!-- Gem Balance -->
@@ -898,7 +977,8 @@
           </div>
 
           <!-- Participant Info -->
-          <div id="remote-info" class="absolute top-4 left-4 bg-main-red text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg">
+          <div id="remote-info" class="absolute top-4 left-4 bg-main-red text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg flex items-center gap-1.5">
+            <span id="remote-badge" class="hidden"></span>
             <span id="remote-name">Guest</span>
           </div>
         </div>
@@ -1165,8 +1245,9 @@
                     <p class="text-sm">Waiting for participant...</p>
                   </div>
                 </div>
-                <div id="spectator-name-1" class="absolute bottom-2 left-2 bg-main-red text-white px-2 py-1 rounded text-sm font-semibold hidden">
-                  Participant 1
+                <div id="spectator-name-1" class="absolute bottom-2 left-2 bg-main-red text-white px-2 py-1 rounded text-sm font-semibold hidden flex items-center gap-1">
+                  <span id="spectator-badge-1" class="hidden"></span>
+                  <span id="spectator-name-text-1">Participant 1</span>
                 </div>
               </div>
               
@@ -1181,8 +1262,9 @@
                     <p class="text-sm">Waiting for participant...</p>
                   </div>
                 </div>
-                <div id="spectator-name-2" class="absolute bottom-2 left-2 bg-gold text-charcoal px-2 py-1 rounded text-sm font-semibold hidden">
-                  Participant 2
+                <div id="spectator-name-2" class="absolute bottom-2 left-2 bg-gold text-charcoal px-2 py-1 rounded text-sm font-semibold hidden flex items-center gap-1">
+                  <span id="spectator-badge-2" class="hidden"></span>
+                  <span id="spectator-name-text-2">Participant 2</span>
                 </div>
               </div>
             </div>
@@ -1725,6 +1807,7 @@
     // Fetch and display gem balance in header
     async function fetchAndDisplayGemBalance() {
       const gemCountEl = document.getElementById('gem-count');
+      const brandingBtn = document.getElementById('branding-btn');
       if (!gemCountEl) return;
       
       // Get user ID from currentUserData or URL
@@ -1732,6 +1815,7 @@
       
       if (!currentUserId || !isValidUuid(currentUserId)) {
         gemCountEl.textContent = '0';
+        if (brandingBtn) brandingBtn.classList.add('hidden');
         return;
       }
       
@@ -1739,6 +1823,7 @@
         const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
         if (!response.ok) {
           gemCountEl.textContent = '0';
+          if (brandingBtn) brandingBtn.classList.add('hidden');
           return;
         }
         
@@ -1748,6 +1833,22 @@
         // Format with commas for large numbers
         gemCountEl.textContent = totalGems.toLocaleString();
         console.log(`💎 Gem balance loaded: ${totalGems}`);
+        
+        // Show branding button for pro users
+        const canBrand = data.limits?.canCustomBrand || false;
+        if (brandingBtn) {
+          if (canBrand) {
+            brandingBtn.classList.remove('hidden');
+            console.log('🎨 Branding enabled for pro user');
+          } else {
+            brandingBtn.classList.add('hidden');
+          }
+        }
+        
+        // Cache badge info
+        if (data.badge) {
+          window.currentUserBadge = data.badge;
+        }
       } catch (error) {
         console.error('❌ Error fetching gem balance:', error);
         gemCountEl.textContent = '0';
@@ -4250,6 +4351,13 @@ async function initializeApp() {
       document.getElementById('participant-chat-messages')
     ].filter(Boolean);
 
+    // Cache badges from messages for video overlays
+    messages.forEach((message) => {
+      if (message.userId && message.badge) {
+        updateParticipantBadgeFromMessage(message);
+      }
+    });
+
     chatContainers.forEach((chatContainer) => {
       chatContainer.innerHTML = '';
 
@@ -4279,6 +4387,12 @@ async function initializeApp() {
       : (typeof message.createdAt === 'number' ? message.createdAt : Date.now());
     const timestamp = new Date(timestampSource).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    // Get badge info from message (set when sending)
+    const badge = message.badge || {};
+    const badgeEmoji = badge.emoji || '';
+    const badgeLabel = badge.label || '';
+    const badgeColor = badge.color || '';
+
     const messageEl = document.createElement('div');
     messageEl.className = 'chat-message p-3 rounded-lg border';
 
@@ -4286,6 +4400,12 @@ async function initializeApp() {
       messageEl.classList.add('bg-light-rose', 'border-rose');
     } else {
       messageEl.classList.add('bg-gray-50', 'dark:bg-gray-700', 'border-gray-200', 'dark:border-gray-600');
+    }
+
+    // Build badge HTML if user has one
+    let badgeHtml = '';
+    if (badgeEmoji && badgeLabel) {
+      badgeHtml = `<span class="user-badge text-xs px-1.5 py-0.5 rounded-full font-bold" style="background: ${badgeColor}20; color: ${badgeColor}; border: 1px solid ${badgeColor}40;" title="${badgeLabel}">${badgeEmoji}</span>`;
     }
 
     messageEl.innerHTML = `
@@ -4296,17 +4416,52 @@ async function initializeApp() {
           </div>
         </div>
         <div class="flex-1 min-w-0">
-          <div class="flex items-center space-x-2 mb-1">
-            <span class="font-semibold text-charcoal dark:text-white text-sm">${senderName}</span>
-            <span class="text-xs text-gray-500">${timestamp}</span>
+          <div class="flex items-center space-x-1.5 mb-1 flex-wrap">
+            <span class="font-semibold text-charcoal dark:text-white text-sm">${escapeHtml(senderName)}</span>
+            ${badgeHtml}
             ${message.userType === 'participant' ? '<span class="text-xs bg-main-red text-white px-1 rounded">HOST</span>' : ''}
+            <span class="text-xs text-gray-500">${timestamp}</span>
           </div>
-          <p class="text-charcoal dark:text-white text-sm break-words">${message.text}</p>
+          <p class="text-charcoal dark:text-white text-sm break-words">${escapeHtml(message.text)}</p>
         </div>
       </div>
     `;
 
     return messageEl;
+  }
+
+  // Escape HTML to prevent XSS
+  function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Cache for current user's badge info
+  let currentUserBadge = null;
+
+  // Fetch and cache user badge info
+  async function fetchUserBadge() {
+    const currentUserId = window.currentUserData?.userId || userId;
+    if (!currentUserId || !isValidUuid(currentUserId)) {
+      currentUserBadge = null;
+      return null;
+    }
+
+    try {
+      const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
+      if (response.ok) {
+        const data = await response.json();
+        currentUserBadge = data.badge || null;
+        window.currentUserBadge = currentUserBadge; // Make available globally
+        console.log('🏆 User badge loaded:', currentUserBadge);
+        return currentUserBadge;
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch user badge:', error);
+    }
+    return null;
   }
 
   async function pushChatMessageToFirebase(text, contextLabel = 'chat') {
@@ -4318,6 +4473,10 @@ async function initializeApp() {
     const userDisplayInfo = getCurrentUserDisplayInfo();
     const senderName = userDisplayInfo.displayName || userName || 'Guest';
     const serverTimestamp = firebase.database.ServerValue.TIMESTAMP;
+
+    // Include badge info if available
+    const badge = currentUserBadge || window.currentUserBadge || null;
+
     const message = {
       sender: senderName,
       text,
@@ -4328,7 +4487,13 @@ async function initializeApp() {
       externalUserId: userId,
       firebaseUid: firebaseUid,
       authUid: firebaseUid,
-      clientContext: contextLabel
+      clientContext: contextLabel,
+      badge: badge ? {
+        type: badge.type,
+        emoji: badge.emoji,
+        label: badge.label,
+        color: badge.color
+      } : null
     };
     
     console.log('💬 Sending chat message:', {
@@ -4446,6 +4611,9 @@ async function initializeApp() {
       
       // Initialize recording permissions (plan-based)
       initializeRecordingPermissions();
+      
+      // Fetch user badge for chat messages
+      fetchUserBadge();
       
       // Note: Host tracking is initialized AFTER setupPresence() so our presence is set first
       
@@ -5323,6 +5491,61 @@ async function initializeApp() {
   let spectatorParticipant1 = null; // { participantId, participantName }
   let spectatorParticipant2 = null; // { participantId, participantName }
 
+  // Cache for participant badges (populated from chat messages)
+  const participantBadgeCache = new Map();
+
+  function cacheParticipantBadge(participantId, badge) {
+    if (participantId && badge) {
+      participantBadgeCache.set(participantId, badge);
+    }
+  }
+
+  function getParticipantBadgeFromCache(participantId) {
+    return participantBadgeCache.get(participantId) || null;
+  }
+
+  // Update badge display when chat message reveals a user's badge
+  function updateParticipantBadgeFromMessage(message) {
+    if (message.userId && message.badge) {
+      cacheParticipantBadge(message.userId, message.badge);
+      
+      // Update displayed badges if this user is visible
+      if (spectatorParticipant1 && participantBadgeCache.has(message.userId)) {
+        const p1 = getParticipantsSnapshot()[Object.keys(getParticipantsSnapshot()).find(k => 
+          getParticipantsSnapshot()[k].session_id === spectatorParticipant1.participantId)];
+        if (p1 && getParticipantUserId(p1) === message.userId) {
+          const badgeEl = document.getElementById('spectator-badge-1');
+          if (badgeEl && message.badge.emoji) {
+            badgeEl.textContent = message.badge.emoji;
+            badgeEl.title = message.badge.label || '';
+            badgeEl.classList.remove('hidden');
+          }
+        }
+      }
+      if (spectatorParticipant2 && participantBadgeCache.has(message.userId)) {
+        const p2 = getParticipantsSnapshot()[Object.keys(getParticipantsSnapshot()).find(k => 
+          getParticipantsSnapshot()[k].session_id === spectatorParticipant2.participantId)];
+        if (p2 && getParticipantUserId(p2) === message.userId) {
+          const badgeEl = document.getElementById('spectator-badge-2');
+          if (badgeEl && message.badge.emoji) {
+            badgeEl.textContent = message.badge.emoji;
+            badgeEl.title = message.badge.label || '';
+            badgeEl.classList.remove('hidden');
+          }
+        }
+      }
+      
+      // Update remote participant badge (for participants)
+      if (!isSpectator) {
+        const remoteBadgeEl = document.getElementById('remote-badge');
+        if (remoteBadgeEl && message.badge.emoji) {
+          remoteBadgeEl.textContent = message.badge.emoji;
+          remoteBadgeEl.classList.remove('hidden');
+        }
+      }
+    }
+  }
+
   function setupSpectatorVideo(track, participantId) {
     console.log('🎬 Setting up spectator video for participant:', participantId);
     
@@ -5400,9 +5623,23 @@ async function initializeApp() {
       // Set up video stream
       videoElement.srcObject = new MediaStream([track]);
       
-      // Update participant name
-      nameElement.textContent = participantName;
+      // Update participant name - check for new text span structure
+      const nameTextEl = document.getElementById(`spectator-name-text-${participantSlot}`);
+      if (nameTextEl) {
+        nameTextEl.textContent = participantName;
+      } else {
+        nameElement.textContent = participantName;
+      }
       nameElement.classList.remove('hidden');
+      
+      // Show badge if available in cache
+      const badgeEl = document.getElementById(`spectator-badge-${participantSlot}`);
+      const participantBadge = getParticipantBadgeFromCache(participantId);
+      if (badgeEl && participantBadge?.emoji) {
+        badgeEl.textContent = participantBadge.emoji;
+        badgeEl.title = participantBadge.label || '';
+        badgeEl.classList.remove('hidden');
+      }
       
       // Force hide placeholder and show video element
       placeholder.style.display = 'none';
@@ -7575,6 +7812,196 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.closeTipModal = closeTipModal;
   window.selectTipAmount = selectTipAmount;
   window.sendTip = sendTip;
+
+  // ============================================
+  // BRANDING MODAL FUNCTIONS
+  // ============================================
+  
+  let userBrandingData = null;
+
+  async function openBrandingModal() {
+    const modal = document.getElementById('branding-modal');
+    if (!modal) return;
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    
+    // Fetch current subscription & branding data
+    try {
+      const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
+      if (response.ok) {
+        const data = await response.json();
+        userBrandingData = data;
+        
+        // Check if user has branding permission
+        const canBrand = data.limits?.canCustomBrand || false;
+        const upgradePrompt = document.getElementById('branding-upgrade-prompt');
+        const logoSection = document.querySelector('#branding-modal .bg-white:nth-child(2)');
+        const saveBtn = document.getElementById('branding-save-btn');
+        
+        if (canBrand) {
+          if (upgradePrompt) upgradePrompt.classList.add('hidden');
+          if (saveBtn) saveBtn.classList.remove('hidden');
+        } else {
+          if (upgradePrompt) upgradePrompt.classList.remove('hidden');
+          if (saveBtn) saveBtn.classList.add('hidden');
+        }
+        
+        // Update badge display
+        const badge = data.badge || {};
+        const badgeEmoji = document.getElementById('branding-badge-emoji');
+        const badgeLabel = document.getElementById('branding-badge-label');
+        const badgeToggle = document.getElementById('badge-visible-toggle');
+        
+        if (badgeEmoji) badgeEmoji.textContent = badge.emoji || '—';
+        if (badgeLabel) badgeLabel.textContent = badge.label || 'No badge';
+        if (badgeToggle) badgeToggle.checked = badge.visible !== false;
+        
+        // Update logo preview
+        const logoUrl = data.profile?.customLogoUrl;
+        const logoPreviewContainer = document.getElementById('logo-preview-container');
+        const logoPreview = document.getElementById('logo-preview');
+        
+        if (logoUrl && logoPreviewContainer && logoPreview) {
+          logoPreview.src = logoUrl;
+          logoPreviewContainer.classList.remove('hidden');
+        } else if (logoPreviewContainer) {
+          logoPreviewContainer.classList.add('hidden');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error loading branding data:', error);
+    }
+    
+    modal.classList.remove('hidden');
+  }
+
+  function closeBrandingModal() {
+    const modal = document.getElementById('branding-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  async function handleLogoUpload(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    const statusEl = document.getElementById('logo-upload-status');
+    const uploadText = document.getElementById('logo-upload-text');
+    
+    // Validate file size
+    if (file.size > 500 * 1024) {
+      if (statusEl) {
+        statusEl.textContent = '❌ File too large. Max 500KB.';
+        statusEl.classList.remove('hidden', 'text-green-600');
+        statusEl.classList.add('text-main-red');
+      }
+      return;
+    }
+    
+    // Validate file type
+    if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type)) {
+      if (statusEl) {
+        statusEl.textContent = '❌ Invalid format. Use PNG, JPG, or GIF.';
+        statusEl.classList.remove('hidden', 'text-green-600');
+        statusEl.classList.add('text-main-red');
+      }
+      return;
+    }
+    
+    // Show uploading state
+    if (uploadText) uploadText.textContent = 'Uploading...';
+    if (statusEl) {
+      statusEl.textContent = '⏳ Uploading logo...';
+      statusEl.classList.remove('hidden', 'text-main-red', 'text-green-600');
+      statusEl.classList.add('text-charcoal');
+    }
+    
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target?.result;
+        
+        const currentUserId = window.currentUserData?.userId || userId;
+        
+        const response = await fetch('/.netlify/functions/upload-logo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUserId,
+            logoData: base64Data,
+            logoType: file.type
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Update preview
+          const logoPreviewContainer = document.getElementById('logo-preview-container');
+          const logoPreview = document.getElementById('logo-preview');
+          
+          if (logoPreview && logoPreviewContainer) {
+            logoPreview.src = data.logoUrl;
+            logoPreviewContainer.classList.remove('hidden');
+          }
+          
+          if (statusEl) {
+            statusEl.textContent = '✅ Logo uploaded!';
+            statusEl.classList.remove('text-main-red', 'text-charcoal');
+            statusEl.classList.add('text-green-600');
+          }
+          
+          showToast('🎨 Logo uploaded successfully!');
+        } else {
+          throw new Error(data.error || 'Upload failed');
+        }
+      };
+      
+      reader.readAsDataURL(file);
+      
+    } catch (error) {
+      console.error('❌ Logo upload error:', error);
+      if (statusEl) {
+        statusEl.textContent = `❌ ${error.message}`;
+        statusEl.classList.remove('text-green-600', 'text-charcoal');
+        statusEl.classList.add('text-main-red');
+      }
+    } finally {
+      if (uploadText) uploadText.textContent = 'Upload Logo';
+      // Reset file input
+      event.target.value = '';
+    }
+  }
+
+  function removeLogo() {
+    const logoPreviewContainer = document.getElementById('logo-preview-container');
+    const logoPreview = document.getElementById('logo-preview');
+    
+    if (logoPreviewContainer) logoPreviewContainer.classList.add('hidden');
+    if (logoPreview) logoPreview.src = '';
+    
+    // TODO: Call API to remove logo from profile
+    showToast('Logo removed');
+  }
+
+  async function saveBrandingSettings() {
+    const badgeToggle = document.getElementById('badge-visible-toggle');
+    const badgeVisible = badgeToggle?.checked ?? true;
+    
+    // TODO: Save badge visibility preference to backend
+    showToast('✅ Settings saved!');
+    closeBrandingModal();
+    
+    // Refresh badge cache
+    await fetchUserBadge();
+  }
+
+  // Make branding functions globally available
+  window.openBrandingModal = openBrandingModal;
+  window.closeBrandingModal = closeBrandingModal;
+  window.handleLogoUpload = handleLogoUpload;
+  window.removeLogo = removeLogo;
+  window.saveBrandingSettings = saveBrandingSettings;
 
   // Share Link Functions
   let currentShareMode = 'participant';

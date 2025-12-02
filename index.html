@@ -7248,12 +7248,11 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Show tip button if:
-    // 1. User is not the host, OR
-    // 2. Self-tipping is enabled for testing
-    const ALLOW_SELF_TIP = true; // Enable for testing
+    // Show tip button only if user is NOT the host
+    // Hosts cannot tip themselves in production
+    const ALLOW_SELF_TIP = false; // Disabled for production
     
-    console.log('💎 Is host?', roomHostData.isHost, '| Allow self-tip?', ALLOW_SELF_TIP);
+    console.log('💎 Is host?', roomHostData.isHost);
     
     if (!roomHostData.isHost || ALLOW_SELF_TIP) {
       tipBtn.classList.remove('hidden');
@@ -7261,6 +7260,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       console.log('💎 Tip button NOW VISIBLE');
     } else {
       tipBtn.classList.add('hidden');
+      tipBtn.style.display = 'none';
       console.log('👑 Tip button hidden (you are the host)');
     }
   }
@@ -7382,6 +7382,9 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
+    // Save the amount before modal closes and resets it
+    const tipAmountToSend = selectedTipAmount;
+    
     const sendBtn = document.getElementById('send-tip-btn');
     if (sendBtn) {
       sendBtn.textContent = 'Sending...';
@@ -7399,7 +7402,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         body: JSON.stringify({
           senderId: currentUserId,
           hostId: roomHostData.hostId,
-          amount: selectedTipAmount,
+          amount: tipAmountToSend,
           roomId: sphereId,
           senderName: currentUserName
         })
@@ -7409,15 +7412,16 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       if (data.success) {
         closeTipModal();
-        showToast(`💎 You tipped ${selectedTipAmount} gems!`);
+        showToast(`💎 You tipped ${tipAmountToSend} gems! (${data.hostReceived} to host)`);
         
-        // Notify host via Firebase
-        notifyHostOfTip(currentUserName, selectedTipAmount);
+        // Try to notify host via Firebase (may fail if no write permission)
+        notifyHostOfTip(currentUserName, tipAmountToSend);
         
         // Update gem display in header
         fetchAndDisplayGemBalance();
         
-        console.log(`💸 Tip sent: ${selectedTipAmount} gems to ${roomHostData.hostName}`);
+        console.log(`💸 Tip sent: ${tipAmountToSend} gems to ${roomHostData.hostName}`);
+        console.log(`💰 Host received: ${data.hostReceived} gems | Platform fee: ${data.platformFee} gems`);
       } else {
         throw new Error(data.error || 'Failed to send tip');
       }
@@ -7437,13 +7441,20 @@ function ensureSpectatorTracksForParticipant(participant) {
     const sphereId = extractSphereId(roomUrl);
     if (!sphereId) return;
     
-    // Use existing 'chats' path which has permissions
-    const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-    tipNotifRef.push({
-      senderName,
-      amount,
-      timestamp: firebase.database.ServerValue.TIMESTAMP
-    });
+    // Try to push tip notification - may fail due to permissions
+    try {
+      const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
+      tipNotifRef.push({
+        senderName,
+        amount,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      }).catch(err => {
+        // Notification failed, but tip was already processed - just log it
+        console.warn('⚠️ Could not send tip notification (permissions):', err.message);
+      });
+    } catch (err) {
+      console.warn('⚠️ Tip notification error:', err.message);
+    }
   }
   
   function listenForTipNotifications() {

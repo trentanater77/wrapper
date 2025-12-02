@@ -983,8 +983,17 @@
     }
     
     async function processSubscription(planType) {
-      const button = document.querySelector(`#btn-${planType.replace('_', '-')}`);
-      if (!button) return;
+      // Map plan types to button IDs
+      const buttonIds = {
+        'host_pro': 'btn-host-pro',
+        'ad_free_premium': 'btn-ad-free',
+        'pro_bundle': 'btn-pro-bundle'
+      };
+      const button = document.querySelector(`#${buttonIds[planType]}`);
+      if (!button) {
+        console.error('Button not found for plan:', planType);
+        return;
+      }
       
       const originalText = button.textContent;
       button.textContent = 'Loading...';

@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Branding Settings - ChatSpheres</title>
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    :root {
+      --main-red: #e63946;
+      --gold: #FFD166;
+      --rose: #FFB6B9;
+      --light-rose: #FCE2E5;
+      --charcoal: #22223B;
+      --bg-main: #FFE7DD;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg-main);
+      min-height: 100vh;
+      color: var(--charcoal);
+    }
+    
+    .header {
+      background: var(--light-rose);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--charcoal);
+    }
+    
+    .logo svg { width: 40px; height: 40px; }
+    .logo span { font-size: 1.25rem; font-weight: 800; }
+    
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    
+    .nav-link {
+      color: var(--charcoal);
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      transition: all 0.2s;
+    }
+    
+    .nav-link:hover { background: var(--rose); }
+    .nav-link.active { background: var(--gold); }
+    
+    .main {
+      max-width: 500px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .page-title {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .page-title h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+    
+    .page-title p {
+      opacity: 0.7;
+    }
+    
+    .card {
+      background: var(--light-rose);
+      border-radius: 24px;
+      padding: 1.5rem;
+      border: 3px solid var(--rose);
+      margin-bottom: 1.5rem;
+    }
+    
+    .card-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .badge-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: white;
+      padding: 1rem;
+      border-radius: 16px;
+      border: 2px solid var(--rose);
+    }
+    
+    .badge-info {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .badge-emoji {
+      font-size: 2rem;
+    }
+    
+    .badge-label {
+      font-weight: 700;
+    }
+    
+    .badge-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+    }
+    
+    .badge-toggle input {
+      width: 1.25rem;
+      height: 1.25rem;
+      accent-color: var(--main-red);
+    }
+    
+    .logo-preview {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .logo-preview img {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 3px solid var(--gold);
+      background: white;
+    }
+    
+    .logo-preview-placeholder {
+      width: 80px;
+      height: 80px;
+      border-radius: 12px;
+      border: 3px dashed var(--rose);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      background: white;
+    }
+    
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      font-weight: 700;
+      font-family: 'Nunito', sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      font-size: 1rem;
+      text-decoration: none;
+    }
+    
+    .btn-primary {
+      background: var(--gold);
+      color: var(--charcoal);
+    }
+    
+    .btn-primary:hover {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: var(--charcoal);
+      border: 2px solid var(--rose);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--rose);
+    }
+    
+    .btn-full {
+      width: 100%;
+    }
+    
+    .upload-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 999px;
+      font-weight: 700;
+      background: var(--gold);
+      color: var(--charcoal);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .upload-label:hover {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .upload-status {
+      text-align: center;
+      margin-top: 0.75rem;
+      font-size: 0.875rem;
+    }
+    
+    .upload-status.success { color: #22c55e; }
+    .upload-status.error { color: var(--main-red); }
+    
+    .signin-prompt {
+      text-align: center;
+      padding: 3rem 2rem;
+    }
+    
+    .signin-prompt h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .signin-prompt p {
+      opacity: 0.7;
+      margin-bottom: 1.5rem;
+    }
+    
+    .upgrade-prompt {
+      text-align: center;
+      padding: 2rem;
+      background: var(--rose);
+      border-radius: 16px;
+    }
+    
+    .upgrade-prompt h3 {
+      margin-bottom: 0.5rem;
+    }
+    
+    .upgrade-prompt p {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      margin-bottom: 1rem;
+    }
+    
+    .hidden { display: none !important; }
+    
+    .loading {
+      text-align: center;
+      padding: 3rem;
+    }
+    
+    .loader {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--rose);
+      border-top-color: var(--main-red);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <a href="/" class="logo">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+        <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+      </svg>
+      <span>ChatSpheres</span>
+    </a>
+    <nav class="nav-links">
+      <a href="/" class="nav-link">Video Chat</a>
+      <a href="/matchmaking.html" class="nav-link">Find Match</a>
+      <a href="/recordings.html" class="nav-link">📹 Recordings</a>
+      <a href="/branding.html" class="nav-link active">🎨 Branding</a>
+      <a href="/pricing.html" class="nav-link">💎 Pricing</a>
+    </nav>
+  </header>
+  
+  <main class="main">
+    <div class="page-title">
+      <h1>🎨 Custom Branding</h1>
+      <p>Personalize your sphere experience</p>
+    </div>
+    
+    <!-- Loading State -->
+    <div id="loading-state" class="loading">
+      <div class="loader"></div>
+      <p>Loading your settings...</p>
+    </div>
+    
+    <!-- Sign In Required -->
+    <div id="signin-required" class="signin-prompt hidden">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">🔐</div>
+      <h2>Sign In Required</h2>
+      <p>Please sign in to access branding settings.</p>
+      <a href="/" class="btn btn-primary">Sign In</a>
+    </div>
+    
+    <!-- Upgrade Required -->
+    <div id="upgrade-required" class="card hidden">
+      <div class="upgrade-prompt">
+        <h3>🔒 Pro Feature</h3>
+        <p>Custom branding is available for Host Pro and Pro Bundle subscribers.</p>
+        <a href="/pricing.html" class="btn btn-primary">Upgrade Now</a>
+      </div>
+    </div>
+    
+    <!-- Branding Settings -->
+    <div id="branding-content" class="hidden">
+      <!-- Badge Section -->
+      <div class="card">
+        <div class="card-title">🏆 Your Badge</div>
+        <div class="badge-display">
+          <div class="badge-info">
+            <span id="badge-emoji" class="badge-emoji">⭐</span>
+            <span id="badge-label" class="badge-label">Host Pro</span>
+          </div>
+          <label class="badge-toggle">
+            <span>Show</span>
+            <input type="checkbox" id="badge-visible" checked>
+          </label>
+        </div>
+      </div>
+      
+      <!-- Logo Section -->
+      <div class="card">
+        <div class="card-title">🖼️ Custom Logo</div>
+        <p style="font-size: 0.875rem; opacity: 0.7; margin-bottom: 1rem;">
+          Upload your logo to display on recordings (max 500KB, PNG/JPG/GIF)
+        </p>
+        
+        <div class="logo-preview">
+          <div id="logo-placeholder" class="logo-preview-placeholder">📷</div>
+          <img id="logo-image" src="" alt="Your logo" class="hidden">
+          <div>
+            <button id="remove-logo-btn" class="btn btn-secondary hidden" onclick="removeLogo()">
+              Remove
+            </button>
+          </div>
+        </div>
+        
+        <label class="upload-label">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+          <span id="upload-text">Upload Logo</span>
+          <input type="file" id="logo-input" accept="image/png,image/jpeg,image/gif" class="hidden" onchange="handleLogoUpload(event)">
+        </label>
+        
+        <p id="upload-status" class="upload-status hidden"></p>
+      </div>
+      
+      <!-- Save Button -->
+      <button class="btn btn-primary btn-full" onclick="saveSettings()">
+        Save Settings
+      </button>
+    </div>
+  </main>
+  
+  <script>
+    let supabaseClient = null;
+    let currentUser = null;
+    let userData = null;
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initSupabase();
+      await checkAuth();
+    });
+    
+    async function initSupabase() {
+      const config = window.__CHATSPHERES_CONFIG__;
+      if (!config?.supabase?.url || !config?.supabase?.anonKey) {
+        console.error('Supabase config not found');
+        return;
+      }
+      
+      const AUTH_COOKIE_DOMAIN = config.auth?.cookieDomain || 'localhost';
+      
+      supabaseClient = supabase.createClient(config.supabase.url, config.supabase.anonKey, {
+        auth: {
+          persistSession: true,
+          storage: {
+            getItem: (key) => {
+              const cookies = document.cookie.split(';');
+              for (const cookie of cookies) {
+                const [k, v] = cookie.trim().split('=');
+                if (k === key) return decodeURIComponent(v);
+              }
+              try { return localStorage.getItem(key); } catch(e) { return null; }
+            },
+            setItem: (key, value) => {
+              const maxAge = 60 * 60 * 24 * 365;
+              let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+              if (window.location.protocol === 'https:') cookieStr += '; Secure';
+              if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+              document.cookie = cookieStr;
+              try { localStorage.setItem(key, value); } catch(e) {}
+            },
+            removeItem: (key) => {
+              document.cookie = `${key}=; path=/; max-age=0`;
+              try { localStorage.removeItem(key); } catch(e) {}
+            }
+          }
+        }
+      });
+    }
+    
+    async function checkAuth() {
+      if (!supabaseClient) {
+        showSigninRequired();
+        return;
+      }
+      
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        
+        if (!user) {
+          showSigninRequired();
+          return;
+        }
+        
+        currentUser = user;
+        await loadUserData();
+      } catch (error) {
+        console.error('Auth error:', error);
+        showSigninRequired();
+      }
+    }
+    
+    async function loadUserData() {
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUser.id}`);
+        const data = await response.json();
+        userData = data;
+        
+        // Check if user can use branding
+        if (!data.limits?.canCustomBrand) {
+          showUpgradeRequired();
+          return;
+        }
+        
+        // Show branding content
+        showBrandingContent(data);
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        showUpgradeRequired();
+      }
+    }
+    
+    function showSigninRequired() {
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('signin-required').classList.remove('hidden');
+    }
+    
+    function showUpgradeRequired() {
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('upgrade-required').classList.remove('hidden');
+    }
+    
+    function showBrandingContent(data) {
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('branding-content').classList.remove('hidden');
+      
+      // Set badge info
+      const badge = data.badge || {};
+      document.getElementById('badge-emoji').textContent = badge.emoji || '—';
+      document.getElementById('badge-label').textContent = badge.label || 'No Badge';
+      document.getElementById('badge-visible').checked = badge.visible !== false;
+      
+      // Set logo preview
+      const logoUrl = data.profile?.customLogoUrl;
+      if (logoUrl) {
+        document.getElementById('logo-image').src = logoUrl;
+        document.getElementById('logo-image').classList.remove('hidden');
+        document.getElementById('logo-placeholder').classList.add('hidden');
+        document.getElementById('remove-logo-btn').classList.remove('hidden');
+      }
+    }
+    
+    async function handleLogoUpload(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      
+      const statusEl = document.getElementById('upload-status');
+      const uploadText = document.getElementById('upload-text');
+      
+      // Validate file size
+      if (file.size > 500 * 1024) {
+        statusEl.textContent = '❌ File too large. Max 500KB.';
+        statusEl.className = 'upload-status error';
+        statusEl.classList.remove('hidden');
+        return;
+      }
+      
+      // Validate file type
+      if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type)) {
+        statusEl.textContent = '❌ Invalid format. Use PNG, JPG, or GIF.';
+        statusEl.className = 'upload-status error';
+        statusEl.classList.remove('hidden');
+        return;
+      }
+      
+      uploadText.textContent = 'Uploading...';
+      statusEl.textContent = '⏳ Uploading...';
+      statusEl.className = 'upload-status';
+      statusEl.classList.remove('hidden');
+      
+      try {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+          const base64Data = e.target?.result;
+          
+          const response = await fetch('/.netlify/functions/upload-logo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: currentUser.id,
+              logoData: base64Data,
+              logoType: file.type
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            document.getElementById('logo-image').src = data.logoUrl;
+            document.getElementById('logo-image').classList.remove('hidden');
+            document.getElementById('logo-placeholder').classList.add('hidden');
+            document.getElementById('remove-logo-btn').classList.remove('hidden');
+            
+            statusEl.textContent = '✅ Logo uploaded!';
+            statusEl.className = 'upload-status success';
+          } else {
+            throw new Error(data.error || 'Upload failed');
+          }
+        };
+        
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Upload error:', error);
+        statusEl.textContent = `❌ ${error.message}`;
+        statusEl.className = 'upload-status error';
+      } finally {
+        uploadText.textContent = 'Upload Logo';
+        event.target.value = '';
+      }
+    }
+    
+    function removeLogo() {
+      document.getElementById('logo-image').src = '';
+      document.getElementById('logo-image').classList.add('hidden');
+      document.getElementById('logo-placeholder').classList.remove('hidden');
+      document.getElementById('remove-logo-btn').classList.add('hidden');
+      
+      const statusEl = document.getElementById('upload-status');
+      statusEl.textContent = 'Logo removed';
+      statusEl.className = 'upload-status';
+      statusEl.classList.remove('hidden');
+    }
+    
+    function saveSettings() {
+      const badgeVisible = document.getElementById('badge-visible').checked;
+      
+      // TODO: Save to backend
+      alert('✅ Settings saved!');
+    }
+  </script>
+</body>
+</html>

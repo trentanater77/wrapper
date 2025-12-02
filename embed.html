@@ -64,6 +64,23 @@
       object-fit: fill !important;
     }
     
+    /* Zoom modes - aggressively crop black bars */
+    .zoom-110 video {
+      transform: scale(1.1);
+    }
+    .zoom-120 video {
+      transform: scale(1.2);
+    }
+    .zoom-130 video {
+      transform: scale(1.3);
+    }
+    .zoom-140 video {
+      transform: scale(1.4);
+    }
+    .zoom-150 video {
+      transform: scale(1.5);
+    }
+    
     /* Loading state */
     .loading {
       position: absolute;
@@ -191,7 +208,8 @@
     const params = new URLSearchParams(window.location.search);
     const videoUrl = params.get('url') || params.get('src');
     const recordingId = params.get('id');
-    const mode = params.get('mode') || 'contain'; // 'contain' or 'cover'
+    const mode = params.get('mode') || 'contain'; // 'contain', 'cover', or 'fill'
+    const zoom = params.get('zoom') || '0'; // 0, 110, 120, 130, 140, 150
     const showWatermark = params.get('watermark') !== 'false';
     const autoplay = params.get('autoplay') === 'true';
     const muted = params.get('muted') === 'true' || autoplay;
@@ -209,6 +227,11 @@
       container.classList.add('cover-mode');
     } else if (mode === 'fill') {
       container.classList.add('fill-mode');
+    }
+    
+    // Apply zoom (to crop out black bars)
+    if (zoom && zoom !== '0') {
+      container.classList.add(`zoom-${zoom}`);
     }
     
     // Apply watermark visibility

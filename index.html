@@ -569,6 +569,80 @@
   </div>
 </div>
 
+<!-- Tip Modal -->
+<div id="tip-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-light-rose rounded-3xl p-6 max-w-sm w-full shadow-2xl border-4 border-gold relative">
+    <!-- Close button -->
+    <button onclick="closeTipModal()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+    
+    <!-- Content -->
+    <div class="text-center">
+      <!-- Icon -->
+      <div class="w-16 h-16 mx-auto mb-3 bg-gold rounded-full flex items-center justify-center">
+        <span class="text-3xl">💎</span>
+      </div>
+      
+      <!-- Title -->
+      <h2 class="text-xl font-bold text-charcoal mb-1">Send a Tip</h2>
+      <p class="text-sm text-charcoal opacity-70 mb-4">Support <span id="tip-host-name" class="font-bold">the host</span></p>
+      
+      <!-- Your balance -->
+      <div class="mb-4 p-2 bg-rose rounded-xl">
+        <p class="text-xs text-charcoal">Your balance: <span id="tip-your-balance" class="font-bold">💎 0</span></p>
+      </div>
+      
+      <!-- Quick amounts -->
+      <div class="grid grid-cols-4 gap-2 mb-4">
+        <button onclick="selectTipAmount(10)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+          💎 10
+        </button>
+        <button onclick="selectTipAmount(50)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+          💎 50
+        </button>
+        <button onclick="selectTipAmount(100)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+          💎 100
+        </button>
+        <button onclick="selectTipAmount(500)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+          💎 500
+        </button>
+      </div>
+      
+      <!-- Custom amount -->
+      <div class="mb-4">
+        <input type="number" id="tip-custom-amount" placeholder="Custom amount" min="10" 
+          class="w-full p-3 border-2 border-charcoal rounded-xl text-center font-bold text-lg focus:border-main-red outline-none"
+          onchange="selectTipAmount(this.value)">
+      </div>
+      
+      <!-- Selected amount display -->
+      <div class="mb-4 p-3 bg-charcoal rounded-xl">
+        <p class="text-white text-sm">Sending: <span id="tip-selected-amount" class="text-xl font-bold text-gold">💎 0</span></p>
+        <p class="text-xs text-gray-300 mt-1">Host receives 50% • <span id="tip-host-receives">💎 0</span></p>
+      </div>
+      
+      <!-- Send button -->
+      <button id="send-tip-btn" onclick="sendTip()" disabled
+        class="w-full py-3 px-6 bg-gold text-charcoal font-bold rounded-full hover:bg-main-red hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+        Send Tip
+      </button>
+      
+      <!-- Error message -->
+      <p id="tip-error" class="hidden mt-2 text-sm text-main-red font-semibold"></p>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Tip Button (shown to non-hosts) -->
+<button id="floating-tip-btn" onclick="openTipModal()" 
+  class="hidden fixed bottom-24 right-6 z-50 bg-gold hover:bg-main-red text-charcoal hover:text-white p-4 rounded-full shadow-lg transition-all transform hover:scale-110"
+  title="Send a tip to the host">
+  <span class="text-2xl">💎</span>
+</button>
+
 <!-- Session Limit / Upgrade Modal -->
 <div id="upgrade-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
   <div class="bg-light-rose rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-gold relative overflow-hidden">
@@ -4362,6 +4436,10 @@ async function initializeApp() {
       // Initialize session limits (plan-based time limits)
       initializeSessionLimits();
       
+      // Initialize tipping (host tracking + notifications)
+      initializeHostTracking();
+      listenForTipNotifications();
+      
       showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
     }
 
@@ -7030,6 +7108,318 @@ function ensureSpectatorTracksForParticipant(participant) {
   
   // Make function available globally for onclick
   window.endSessionFromUpgradeModal = endSessionFromUpgradeModal;
+
+  // ============================================
+  // TIPPING FUNCTIONS (Red Room)
+  // ============================================
+  
+  let roomHostData = {
+    hostId: null,
+    hostName: null,
+    isHost: false
+  };
+  let selectedTipAmount = 0;
+  let userGemBalance = 0;
+  
+  // Initialize host tracking when joining room
+  async function initializeHostTracking() {
+    if (isSpectator) {
+      // Spectators can tip, check who host is
+      await loadHostFromFirebase();
+      showTipButtonIfNotHost();
+      return;
+    }
+    
+    // For participants, check if there's already a host
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) return;
+    
+    const hostRef = db.ref(`room_hosts/${sphereId}`);
+    
+    try {
+      const snapshot = await hostRef.once('value');
+      const existingHost = snapshot.val();
+      
+      if (!existingHost || !existingHost.hostId) {
+        // No host yet - this user becomes the host
+        const currentUserId = window.currentUserData?.userId || userId;
+        const currentUserName = window.currentUserData?.displayName || userName || 'Host';
+        
+        await hostRef.set({
+          hostId: currentUserId,
+          hostName: currentUserName,
+          setAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        
+        roomHostData.hostId = currentUserId;
+        roomHostData.hostName = currentUserName;
+        roomHostData.isHost = true;
+        
+        console.log('👑 You are the host of this room');
+        showToast('👑 You are the host!');
+      } else {
+        // Host already exists
+        roomHostData.hostId = existingHost.hostId;
+        roomHostData.hostName = existingHost.hostName;
+        
+        const currentUserId = window.currentUserData?.userId || userId;
+        roomHostData.isHost = (existingHost.hostId === currentUserId);
+        
+        if (roomHostData.isHost) {
+          console.log('👑 You are the host of this room');
+        } else {
+          console.log(`👤 Host is: ${existingHost.hostName}`);
+        }
+      }
+      
+      // Show tip button for non-hosts
+      showTipButtonIfNotHost();
+      
+    } catch (error) {
+      console.error('❌ Error initializing host tracking:', error);
+    }
+  }
+  
+  async function loadHostFromFirebase() {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) return;
+    
+    try {
+      const hostRef = db.ref(`room_hosts/${sphereId}`);
+      const snapshot = await hostRef.once('value');
+      const hostData = snapshot.val();
+      
+      if (hostData) {
+        roomHostData.hostId = hostData.hostId;
+        roomHostData.hostName = hostData.hostName;
+        
+        const currentUserId = window.currentUserData?.userId || userId;
+        roomHostData.isHost = (hostData.hostId === currentUserId);
+      }
+    } catch (error) {
+      console.error('❌ Error loading host data:', error);
+    }
+  }
+  
+  function showTipButtonIfNotHost() {
+    const tipBtn = document.getElementById('floating-tip-btn');
+    if (!tipBtn) return;
+    
+    // Show tip button if:
+    // 1. User is not the host, OR
+    // 2. Self-tipping is enabled for testing
+    const ALLOW_SELF_TIP = true; // Enable for testing
+    
+    if (!roomHostData.isHost || ALLOW_SELF_TIP) {
+      tipBtn.classList.remove('hidden');
+      console.log('💎 Tip button shown');
+    } else {
+      tipBtn.classList.add('hidden');
+      console.log('👑 Tip button hidden (you are the host)');
+    }
+  }
+  
+  async function openTipModal() {
+    const modal = document.getElementById('tip-modal');
+    if (!modal) return;
+    
+    // Update host name
+    const hostNameEl = document.getElementById('tip-host-name');
+    if (hostNameEl) {
+      hostNameEl.textContent = roomHostData.hostName || 'the host';
+    }
+    
+    // Load user's gem balance
+    await loadUserGemBalanceForTip();
+    
+    // Reset selection
+    selectedTipAmount = 0;
+    updateTipDisplay();
+    
+    // Show modal
+    modal.classList.remove('hidden');
+  }
+  
+  function closeTipModal() {
+    const modal = document.getElementById('tip-modal');
+    if (modal) modal.classList.add('hidden');
+    
+    // Reset
+    selectedTipAmount = 0;
+    const customInput = document.getElementById('tip-custom-amount');
+    if (customInput) customInput.value = '';
+    
+    const errorEl = document.getElementById('tip-error');
+    if (errorEl) errorEl.classList.add('hidden');
+  }
+  
+  async function loadUserGemBalanceForTip() {
+    const balanceEl = document.getElementById('tip-your-balance');
+    const currentUserId = window.currentUserData?.userId || userId;
+    
+    if (!currentUserId || !isValidUuid(currentUserId)) {
+      if (balanceEl) balanceEl.textContent = '💎 0';
+      userGemBalance = 0;
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
+      if (response.ok) {
+        const data = await response.json();
+        userGemBalance = data.totalGems || 0;
+        if (balanceEl) balanceEl.textContent = `💎 ${userGemBalance.toLocaleString()}`;
+      }
+    } catch (error) {
+      console.error('❌ Error loading gem balance for tip:', error);
+      userGemBalance = 0;
+    }
+  }
+  
+  function selectTipAmount(amount) {
+    const tipAmount = parseInt(amount, 10);
+    if (isNaN(tipAmount) || tipAmount < 10) {
+      selectedTipAmount = 0;
+    } else {
+      selectedTipAmount = tipAmount;
+    }
+    
+    // Update custom input to reflect selection
+    const customInput = document.getElementById('tip-custom-amount');
+    if (customInput && tipAmount >= 10) {
+      customInput.value = tipAmount;
+    }
+    
+    updateTipDisplay();
+  }
+  
+  function updateTipDisplay() {
+    const selectedEl = document.getElementById('tip-selected-amount');
+    const hostReceivesEl = document.getElementById('tip-host-receives');
+    const sendBtn = document.getElementById('send-tip-btn');
+    const errorEl = document.getElementById('tip-error');
+    
+    if (selectedEl) {
+      selectedEl.textContent = `💎 ${selectedTipAmount.toLocaleString()}`;
+    }
+    
+    if (hostReceivesEl) {
+      const hostShare = Math.floor(selectedTipAmount * 0.5);
+      hostReceivesEl.textContent = `💎 ${hostShare.toLocaleString()}`;
+    }
+    
+    // Enable/disable send button
+    if (sendBtn) {
+      const canSend = selectedTipAmount >= 10 && selectedTipAmount <= userGemBalance;
+      sendBtn.disabled = !canSend;
+    }
+    
+    // Show error if insufficient balance
+    if (errorEl) {
+      if (selectedTipAmount > userGemBalance && selectedTipAmount >= 10) {
+        errorEl.textContent = `Insufficient gems. You have ${userGemBalance.toLocaleString()}.`;
+        errorEl.classList.remove('hidden');
+      } else {
+        errorEl.classList.add('hidden');
+      }
+    }
+  }
+  
+  async function sendTip() {
+    if (selectedTipAmount < 10) {
+      showToast('❌ Minimum tip is 10 gems');
+      return;
+    }
+    
+    if (selectedTipAmount > userGemBalance) {
+      showToast('❌ Insufficient gems');
+      return;
+    }
+    
+    const sendBtn = document.getElementById('send-tip-btn');
+    if (sendBtn) {
+      sendBtn.textContent = 'Sending...';
+      sendBtn.disabled = true;
+    }
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
+    const sphereId = extractSphereId(roomUrl);
+    
+    try {
+      const response = await fetch('/.netlify/functions/send-tip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: currentUserId,
+          hostId: roomHostData.hostId,
+          amount: selectedTipAmount,
+          roomId: sphereId,
+          senderName: currentUserName
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        closeTipModal();
+        showToast(`💎 You tipped ${selectedTipAmount} gems!`);
+        
+        // Notify host via Firebase
+        notifyHostOfTip(currentUserName, selectedTipAmount);
+        
+        // Update gem display in header
+        fetchAndDisplayGemBalance();
+        
+        console.log(`💸 Tip sent: ${selectedTipAmount} gems to ${roomHostData.hostName}`);
+      } else {
+        throw new Error(data.error || 'Failed to send tip');
+      }
+    } catch (error) {
+      console.error('❌ Error sending tip:', error);
+      showToast(`❌ ${error.message}`);
+      
+      if (sendBtn) {
+        sendBtn.textContent = 'Send Tip';
+        sendBtn.disabled = false;
+      }
+    }
+  }
+  
+  function notifyHostOfTip(senderName, amount) {
+    // Send notification via Firebase to show toast to host
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) return;
+    
+    const tipNotifRef = db.ref(`tip_notifications/${sphereId}`);
+    tipNotifRef.push({
+      senderName,
+      amount,
+      timestamp: firebase.database.ServerValue.TIMESTAMP
+    });
+  }
+  
+  function listenForTipNotifications() {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) return;
+    
+    const tipNotifRef = db.ref(`tip_notifications/${sphereId}`);
+    
+    // Only listen to new tips (after now)
+    tipNotifRef.orderByChild('timestamp').startAt(Date.now()).on('child_added', (snapshot) => {
+      const tip = snapshot.val();
+      if (!tip) return;
+      
+      // Show toast to everyone in room
+      showToast(`🎉 ${tip.senderName} tipped 💎 ${tip.amount}!`);
+    });
+  }
+  
+  // Make functions globally available
+  window.openTipModal = openTipModal;
+  window.closeTipModal = closeTipModal;
+  window.selectTipAmount = selectTipAmount;
+  window.sendTip = sendTip;
 
   // Share Link Functions
   let currentShareMode = 'participant';

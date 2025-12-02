@@ -3820,6 +3820,11 @@ async function initializeApp() {
       // Set up Firebase presence
       await setupPresence(roomId);
       
+      // Initialize tipping (host tracking + notifications) - AFTER presence is set
+      // This ensures our presence is written before we determine who is host
+      initializeHostTracking();
+      listenForTipNotifications();
+      
       // Set up chat listeners
       setupChatListeners();
 
@@ -4436,9 +4441,7 @@ async function initializeApp() {
       // Initialize session limits (plan-based time limits)
       initializeSessionLimits();
       
-      // Initialize tipping (host tracking + notifications)
-      initializeHostTracking();
-      listenForTipNotifications();
+      // Note: Host tracking is initialized AFTER setupPresence() so our presence is set first
       
       showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
     }
@@ -7122,101 +7125,140 @@ function ensureSpectatorTracksForParticipant(participant) {
   let userGemBalance = 0;
   
   // Initialize host tracking when joining room
+  // Host = the first participant to join (earliest joinedAt timestamp)
   async function initializeHostTracking() {
-    if (isSpectator) {
-      // Spectators can tip, check who host is
-      await loadHostFromFirebase();
-      showTipButtonIfNotHost();
+    console.log('🎯 Initializing host tracking...');
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) {
+      console.warn('⚠️ No sphereId found for host tracking');
       return;
     }
     
-    // For participants, check if there's already a host
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) return;
-    
-    // Use existing 'presence' path which already has permissions
-    const hostRef = db.ref(`presence/${sphereId}/room_host`);
-    
     try {
-      const snapshot = await hostRef.once('value');
-      const existingHost = snapshot.val();
+      // Read all presence entries and find the host (earliest participant)
+      const presenceRef = db.ref(`presence/${sphereId}`);
+      const snapshot = await presenceRef.once('value');
+      const users = snapshot.val() || {};
       
-      if (!existingHost || !existingHost.hostId) {
-        // No host yet - this user becomes the host
-        const currentUserId = window.currentUserData?.userId || userId;
-        const currentUserName = window.currentUserData?.displayName || userName || 'Host';
-        
-        await hostRef.set({
-          hostId: currentUserId,
-          hostName: currentUserName,
-          setAt: firebase.database.ServerValue.TIMESTAMP
-        });
-        
-        roomHostData.hostId = currentUserId;
-        roomHostData.hostName = currentUserName;
+      console.log('👥 Presence snapshot:', Object.keys(users).length, 'entries');
+      
+      // Find all participants (not spectators)
+      const participants = Object.entries(users)
+        .filter(([key, user]) => user.type === 'participant' && user.status !== 'offline')
+        .map(([key, user]) => ({ key, ...user }));
+      
+      console.log('👥 Found', participants.length, 'active participants');
+      
+      if (participants.length === 0) {
+        // No participants yet - we're likely the first one
+        console.log('👑 No other participants - you are the host');
         roomHostData.isHost = true;
-        
+        roomHostData.hostId = window.currentUserData?.userId || userId;
+        roomHostData.hostName = window.currentUserData?.displayName || userName || 'Host';
+        showTipButtonIfNotHost();
+        showToast('👑 You are the host!');
+        return;
+      }
+      
+      // Find the participant with the earliest joinedAt timestamp
+      const sortedParticipants = participants.sort((a, b) => {
+        const aTime = a.joinedAt || Infinity;
+        const bTime = b.joinedAt || Infinity;
+        return aTime - bTime;
+      });
+      
+      const hostParticipant = sortedParticipants[0];
+      roomHostData.hostId = hostParticipant.userId;
+      roomHostData.hostName = hostParticipant.displayName || hostParticipant.name || 'Host';
+      
+      // Check if current user is the host
+      const currentUserId = window.currentUserData?.userId || userId;
+      roomHostData.isHost = (hostParticipant.userId === currentUserId);
+      
+      console.log('👤 Host determined:', roomHostData.hostName, '| Is you?', roomHostData.isHost);
+      
+      if (roomHostData.isHost) {
         console.log('👑 You are the host of this room');
         showToast('👑 You are the host!');
       } else {
-        // Host already exists
-        roomHostData.hostId = existingHost.hostId;
-        roomHostData.hostName = existingHost.hostName;
-        
-        const currentUserId = window.currentUserData?.userId || userId;
-        roomHostData.isHost = (existingHost.hostId === currentUserId);
-        
-        if (roomHostData.isHost) {
-          console.log('👑 You are the host of this room');
-        } else {
-          console.log(`👤 Host is: ${existingHost.hostName}`);
-        }
+        console.log(`👤 Host is: ${roomHostData.hostName} (${roomHostData.hostId})`);
       }
       
       // Show tip button for non-hosts
       showTipButtonIfNotHost();
       
+      // Listen for presence changes to update host if needed
+      listenForHostChanges(sphereId);
+      
     } catch (error) {
       console.error('❌ Error initializing host tracking:', error);
-    }
-  }
-  
-  async function loadHostFromFirebase() {
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) return;
-    
-    try {
-      // Use existing 'presence' path which already has permissions
-      const hostRef = db.ref(`presence/${sphereId}/room_host`);
-      const snapshot = await hostRef.once('value');
-      const hostData = snapshot.val();
-      
-      if (hostData) {
-        roomHostData.hostId = hostData.hostId;
-        roomHostData.hostName = hostData.hostName;
-        
-        const currentUserId = window.currentUserData?.userId || userId;
-        roomHostData.isHost = (hostData.hostId === currentUserId);
-      }
-    } catch (error) {
-      console.error('❌ Error loading host data:', error);
-      // Still show tip button on error - fallback behavior
+      // Show tip button anyway - fallback behavior
+      roomHostData.isHost = true; // Assume host on error
       showTipButtonIfNotHost();
     }
   }
   
+  // Listen for presence changes to dynamically determine host
+  function listenForHostChanges(sphereId) {
+    const presenceRef = db.ref(`presence/${sphereId}`);
+    
+    presenceRef.on('value', (snapshot) => {
+      const users = snapshot.val() || {};
+      
+      const participants = Object.entries(users)
+        .filter(([key, user]) => user.type === 'participant' && user.status !== 'offline')
+        .map(([key, user]) => ({ key, ...user }));
+      
+      if (participants.length === 0) return;
+      
+      // Find the earliest participant
+      const sortedParticipants = participants.sort((a, b) => {
+        const aTime = a.joinedAt || Infinity;
+        const bTime = b.joinedAt || Infinity;
+        return aTime - bTime;
+      });
+      
+      const hostParticipant = sortedParticipants[0];
+      const previousHostId = roomHostData.hostId;
+      
+      roomHostData.hostId = hostParticipant.userId;
+      roomHostData.hostName = hostParticipant.displayName || hostParticipant.name || 'Host';
+      
+      const currentUserId = window.currentUserData?.userId || userId;
+      roomHostData.isHost = (hostParticipant.userId === currentUserId);
+      
+      // If host changed, update UI
+      if (previousHostId !== roomHostData.hostId) {
+        console.log(`🔄 Host updated: ${roomHostData.hostName}`);
+        showTipButtonIfNotHost();
+      }
+    });
+  }
+  
+  async function loadHostFromFirebase() {
+    // Same logic as initializeHostTracking - determine host from presence
+    await initializeHostTracking();
+  }
+  
   function showTipButtonIfNotHost() {
+    console.log('💎 showTipButtonIfNotHost called');
     const tipBtn = document.getElementById('floating-tip-btn');
-    if (!tipBtn) return;
+    if (!tipBtn) {
+      console.error('❌ Tip button element not found!');
+      return;
+    }
     
     // Show tip button if:
     // 1. User is not the host, OR
     // 2. Self-tipping is enabled for testing
     const ALLOW_SELF_TIP = true; // Enable for testing
     
+    console.log('💎 Is host?', roomHostData.isHost, '| Allow self-tip?', ALLOW_SELF_TIP);
+    
     if (!roomHostData.isHost || ALLOW_SELF_TIP) {
       tipBtn.classList.remove('hidden');
-      console.log('💎 Tip button shown');
+      tipBtn.style.display = 'block'; // Force visibility
+      console.log('💎 Tip button NOW VISIBLE');
     } else {
       tipBtn.classList.add('hidden');
       console.log('👑 Tip button hidden (you are the host)');
@@ -7405,17 +7447,23 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   function listenForTipNotifications() {
+    console.log('🔔 Setting up tip notification listener...');
     const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) return;
+    if (!sphereId) {
+      console.warn('⚠️ No sphereId for tip notifications');
+      return;
+    }
     
     // Use existing 'chats' path which has permissions
     const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
+    console.log('🔔 Listening for tips at:', `chats/${sphereId}/tips`);
     
     // Only listen to new tips (after now)
     tipNotifRef.orderByChild('timestamp').startAt(Date.now()).on('child_added', (snapshot) => {
       const tip = snapshot.val();
       if (!tip) return;
       
+      console.log('🎉 Tip received:', tip);
       // Show toast to everyone in room
       showToast(`🎉 ${tip.senderName} tipped 💎 ${tip.amount}!`);
     });

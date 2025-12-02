@@ -17,3 +17,8 @@
   from = "/pricing"
   to = "/pricing.html"
   status = 200
+
+[[redirects]]
+  from = "/cashout"
+  to = "/cashout.html"
+  status = 200

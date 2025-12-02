@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatSpheres - Cash Out</title>
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --main-red: #e63946;
+      --gold: #FFD166;
+      --rose: #FFB6B9;
+      --light-rose: #FCE2E5;
+      --charcoal: #22223B;
+      --bg-main: #FFE7DD;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: var(--bg-main);
+      min-height: 100vh;
+      color: var(--charcoal);
+    }
+    
+    .header {
+      background: var(--light-rose);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      text-decoration: none;
+      color: var(--charcoal);
+    }
+    
+    .logo svg { width: 40px; height: 40px; }
+    .logo span { font-size: 1.25rem; font-weight: 800; }
+    
+    .nav-links {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+    
+    .nav-link {
+      color: var(--charcoal);
+      text-decoration: none;
+      font-weight: 600;
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      transition: all 0.2s;
+    }
+    
+    .nav-link:hover { background: var(--rose); }
+    
+    .main {
+      max-width: 600px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    
+    .page-title {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .page-title h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+    
+    .card {
+      background: var(--light-rose);
+      border-radius: 24px;
+      padding: 2rem;
+      border: 3px solid var(--gold);
+      margin-bottom: 1.5rem;
+    }
+    
+    .balance-display {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+    
+    .balance-icon { font-size: 4rem; margin-bottom: 0.5rem; }
+    
+    .balance-gems {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--charcoal);
+    }
+    
+    .balance-gems span { font-size: 1rem; font-weight: 600; }
+    
+    .balance-usd {
+      font-size: 1.75rem;
+      color: var(--main-red);
+      font-weight: 700;
+    }
+    
+    .info-box {
+      background: var(--rose);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    
+    .info-box.warning { background: var(--gold); }
+    .info-box.success { background: #86efac; }
+    
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    
+    .form-group label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    
+    .form-group select,
+    .form-group input {
+      width: 100%;
+      padding: 0.75rem;
+      border-radius: 12px;
+      border: 2px solid var(--rose);
+      font-family: inherit;
+      font-size: 1rem;
+    }
+    
+    .form-group select:focus,
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 1rem;
+      border: none;
+      border-radius: 12px;
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: var(--gold);
+      color: var(--charcoal);
+    }
+    
+    .btn-primary:hover:not(:disabled) {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .help-text {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      text-align: center;
+      margin-top: 1rem;
+    }
+    
+    .message {
+      padding: 1rem;
+      border-radius: 12px;
+      margin-bottom: 1rem;
+      text-align: center;
+      font-weight: 600;
+    }
+    
+    .message.error { background: #fecaca; color: #dc2626; }
+    .message.success { background: #86efac; color: #166534; }
+    
+    .hidden { display: none !important; }
+    
+    .history-section { margin-top: 2rem; }
+    
+    .history-item {
+      background: white;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .history-item .amount { font-weight: 700; }
+    
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    
+    .status-pending { background: var(--gold); }
+    .status-processing { background: #93c5fd; }
+    .status-completed { background: #86efac; }
+    .status-rejected { background: #fecaca; }
+    
+    .signin-prompt {
+      text-align: center;
+      padding: 3rem;
+    }
+    
+    .signin-prompt .btn {
+      max-width: 200px;
+      margin: 1rem auto 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <a href="https://www.chatspheres.com" class="logo">
+      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+        <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+      </svg>
+      <span>ChatSpheres</span>
+    </a>
+    <nav class="nav-links">
+      <a href="/" class="nav-link">Video Chat</a>
+      <a href="/pricing" class="nav-link">💎 Pricing</a>
+      <span id="auth-status" class="nav-link"></span>
+    </nav>
+  </header>
+  
+  <main class="main">
+    <div class="page-title">
+      <h1>💰 Cash Out</h1>
+      <p>Convert your cashable gems to real money</p>
+    </div>
+    
+    <!-- Sign In Required -->
+    <div id="signin-required" class="signin-prompt hidden">
+      <div style="font-size: 4rem; margin-bottom: 1rem;">🔐</div>
+      <h2>Sign In Required</h2>
+      <p>Please sign in to access your cashable gems.</p>
+      <button class="btn btn-primary" onclick="window.location.href='/'">Sign In</button>
+    </div>
+    
+    <!-- Main Content -->
+    <div id="main-content" class="hidden">
+      <!-- Balance Card -->
+      <div class="card">
+        <div class="balance-display">
+          <div class="balance-icon">💎</div>
+          <div class="balance-gems">
+            <span id="cashable-gems">0</span> <span>cashable gems</span>
+          </div>
+          <div class="balance-usd">
+            ≈ $<span id="cashable-usd">0.00</span>
+          </div>
+        </div>
+        
+        <!-- Pending Notice -->
+        <div id="pending-notice" class="info-box warning hidden">
+          <p style="font-weight: 700;">⏳ Payout Pending</p>
+          <p style="font-size: 0.875rem;">Your payout request is being processed.</p>
+          <p id="pending-amount" style="font-weight: 700; margin-top: 0.5rem;"></p>
+        </div>
+        
+        <!-- Not Enough Gems -->
+        <div id="minimum-notice" class="info-box hidden">
+          <p>You need at least <strong>500 gems ($4.95)</strong> to cash out.</p>
+          <p style="font-size: 0.875rem; margin-top: 0.5rem;">Keep hosting and earning tips! 🎉</p>
+        </div>
+        
+        <!-- Payout Form -->
+        <div id="payout-form">
+          <div id="message" class="message hidden"></div>
+          
+          <div class="form-group">
+            <label>Payout Method</label>
+            <select id="payout-method">
+              <option value="paypal">PayPal</option>
+              <option value="venmo">Venmo</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label>PayPal Email / Venmo Username</label>
+            <input type="text" id="payout-email" placeholder="your@email.com">
+          </div>
+          
+          <button id="payout-btn" class="btn btn-primary" onclick="requestPayout()" disabled>
+            Cash Out
+          </button>
+          
+          <p class="help-text">
+            Rate: 100 gems = $0.99<br>
+            Minimum: 500 gems ($4.95)<br>
+            Processing: 3-5 business days
+          </p>
+        </div>
+      </div>
+      
+      <!-- Spendable Gems Info -->
+      <div class="card" style="border-color: var(--rose);">
+        <h3 style="margin-bottom: 0.5rem;">💎 Your Spendable Gems</h3>
+        <p style="font-size: 1.5rem; font-weight: 700;"><span id="spendable-gems">0</span> gems</p>
+        <p style="font-size: 0.875rem; opacity: 0.7; margin-top: 0.5rem;">
+          Spendable gems are for tipping hosts. Only cashable gems (earned from tips) can be cashed out.
+        </p>
+      </div>
+      
+      <!-- Payout History -->
+      <div id="history-section" class="history-section hidden">
+        <h3 style="margin-bottom: 1rem;">📜 Payout History</h3>
+        <div id="history-list"></div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let currentUser = null;
+    let supabaseClient = null;
+    let payoutData = null;
+    
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initSupabase();
+      await checkAuth();
+    });
+    
+    async function initSupabase() {
+      const config = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = config.supabase || {};
+      const authConfig = config.auth || {};
+      
+      if (window.supabase && supabaseConfig.url && supabaseConfig.anonKey) {
+        const cookieDomain = authConfig.cookieDomain || '.chatspheres.com';
+        
+        supabaseClient = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true,
+            storage: {
+              getItem: (key) => {
+                const cookies = document.cookie.split(';');
+                for (const cookie of cookies) {
+                  const [name, value] = cookie.trim().split('=');
+                  if (name === key) return decodeURIComponent(value);
+                }
+                try { return localStorage.getItem(key); } catch(e) { return null; }
+              },
+              setItem: (key, value) => {
+                const maxAge = 60 * 60 * 24 * 365;
+                let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                if (window.location.protocol === 'https:') cookieStr += '; Secure';
+                if (cookieDomain !== 'localhost') cookieStr += `; domain=${cookieDomain}`;
+                document.cookie = cookieStr;
+                try { localStorage.setItem(key, value); } catch(e) {}
+              },
+              removeItem: (key) => {
+                let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                if (cookieDomain !== 'localhost') cookieStr += `; domain=${cookieDomain}`;
+                document.cookie = cookieStr;
+                try { localStorage.removeItem(key); } catch(e) {}
+              }
+            }
+          }
+        });
+      }
+    }
+    
+    async function checkAuth() {
+      if (!supabaseClient) {
+        showSignInRequired();
+        return;
+      }
+      
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        if (session?.user) {
+          currentUser = session.user;
+          document.getElementById('auth-status').textContent = '👤 ' + (currentUser.email || 'Signed In');
+          document.getElementById('signin-required').classList.add('hidden');
+          document.getElementById('main-content').classList.remove('hidden');
+          await loadPayoutData();
+        } else {
+          showSignInRequired();
+        }
+      } catch (error) {
+        console.error('Auth error:', error);
+        showSignInRequired();
+      }
+    }
+    
+    function showSignInRequired() {
+      document.getElementById('signin-required').classList.remove('hidden');
+      document.getElementById('main-content').classList.add('hidden');
+    }
+    
+    async function loadPayoutData() {
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUser.id}`);
+        const data = await response.json();
+        
+        payoutData = data.payout || {};
+        const gems = data.gems || {};
+        
+        // Update spendable gems
+        document.getElementById('spendable-gems').textContent = (gems.spendable_gems || 0).toLocaleString();
+        
+        // Update cashable gems
+        document.getElementById('cashable-gems').textContent = (payoutData.cashableGems || 0).toLocaleString();
+        document.getElementById('cashable-usd').textContent = (payoutData.cashableUsd || 0).toFixed(2);
+        
+        // Pre-fill saved payout info
+        if (payoutData.payoutEmail) {
+          document.getElementById('payout-email').value = payoutData.payoutEmail;
+        }
+        if (payoutData.payoutMethod) {
+          document.getElementById('payout-method').value = payoutData.payoutMethod;
+        }
+        
+        // Check for pending requests
+        if (payoutData.pendingRequests && payoutData.pendingRequests.length > 0) {
+          const pending = payoutData.pendingRequests[0];
+          document.getElementById('pending-notice').classList.remove('hidden');
+          document.getElementById('pending-amount').textContent = 
+            `${pending.gems_amount.toLocaleString()} gems ($${parseFloat(pending.usd_amount).toFixed(2)})`;
+          document.getElementById('payout-form').classList.add('hidden');
+        } else if (payoutData.canRequestPayout) {
+          document.getElementById('pending-notice').classList.add('hidden');
+          document.getElementById('payout-form').classList.remove('hidden');
+          document.getElementById('payout-btn').disabled = false;
+          document.getElementById('payout-btn').textContent = `Cash Out $${payoutData.cashableUsd.toFixed(2)}`;
+        } else if (payoutData.cashableGems < 500) {
+          document.getElementById('minimum-notice').classList.remove('hidden');
+          document.getElementById('payout-form').classList.add('hidden');
+        }
+        
+        // Load history
+        await loadPayoutHistory();
+        
+      } catch (error) {
+        console.error('Error loading payout data:', error);
+      }
+    }
+    
+    async function loadPayoutHistory() {
+      // This would need a separate endpoint, but for now we use pending requests
+      if (payoutData.pendingRequests && payoutData.pendingRequests.length > 0) {
+        document.getElementById('history-section').classList.remove('hidden');
+        const historyList = document.getElementById('history-list');
+        historyList.innerHTML = payoutData.pendingRequests.map(req => `
+          <div class="history-item">
+            <div>
+              <div class="amount">$${parseFloat(req.usd_amount).toFixed(2)}</div>
+              <div style="font-size: 0.875rem; opacity: 0.7;">
+                ${new Date(req.requested_at).toLocaleDateString()}
+              </div>
+            </div>
+            <span class="status-badge status-${req.status}">${req.status.toUpperCase()}</span>
+          </div>
+        `).join('');
+      }
+    }
+    
+    async function requestPayout() {
+      const btn = document.getElementById('payout-btn');
+      const messageEl = document.getElementById('message');
+      const payoutEmail = document.getElementById('payout-email').value.trim();
+      const payoutMethod = document.getElementById('payout-method').value;
+      
+      messageEl.classList.add('hidden');
+      
+      if (!payoutEmail) {
+        showMessage('Please enter your PayPal email or Venmo username', 'error');
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+      
+      try {
+        const response = await fetch('/.netlify/functions/request-payout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            payoutMethod,
+            payoutEmail
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showMessage(data.message, 'success');
+          await loadPayoutData(); // Refresh
+        } else {
+          throw new Error(data.error || 'Failed to request payout');
+        }
+      } catch (error) {
+        console.error('Payout error:', error);
+        showMessage(error.message, 'error');
+        btn.disabled = false;
+        btn.textContent = 'Cash Out';
+      }
+    }
+    
+    function showMessage(text, type) {
+      const el = document.getElementById('message');
+      el.textContent = text;
+      el.className = `message ${type}`;
+      el.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>

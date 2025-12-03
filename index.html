@@ -1753,7 +1753,7 @@
           authInitialized = true;
           console.log('✅ User authenticated:', session.user.email);
           // Update UI with user data
-          updateUserDataFromAuth(session.user);
+          await updateUserDataFromAuth(session.user);
           return session.user;
         }
 
@@ -1771,14 +1771,14 @@
     function setupAuthListener() {
       if (!supabaseClient) return;
 
-      supabaseClient.auth.onAuthStateChange((event, session) => {
+      supabaseClient.auth.onAuthStateChange(async (event, session) => {
         console.log('🔄 Auth state changed:', event);
         
         if (session?.user) {
           supabaseAuthUser = session.user;
           console.log('✅ User signed in:', session.user.email);
           hideAuthModal();
-          updateUserDataFromAuth(session.user);
+          await updateUserDataFromAuth(session.user);
         } else {
           supabaseAuthUser = null;
           console.log('ℹ️ User signed out');
@@ -1787,16 +1787,22 @@
     }
 
     // Update window.currentUserData from Supabase auth user
-    function updateUserDataFromAuth(user) {
+    // Fetches profile from profiles table and prioritizes that over Google auth metadata
+    async function updateUserDataFromAuth(user) {
       if (!user) return;
       
+      // Default to Google auth metadata as fallback
       const metadata = user.user_metadata || {};
+      const fallbackName = metadata.name || metadata.full_name || user.email?.split('@')[0] || 'User';
+      const fallbackAvatar = metadata.avatar_url || metadata.picture || '';
+      
+      // Set initial data from auth
       window.currentUserData = {
         ...window.currentUserData,
-        username: metadata.name || metadata.full_name || user.email?.split('@')[0] || 'User',
-        displayName: metadata.name || metadata.full_name || user.email?.split('@')[0] || 'User',
+        username: fallbackName,
+        displayName: fallbackName,
         email: user.email,
-        avatar: metadata.avatar_url || metadata.picture || '',
+        avatar: fallbackAvatar,
         userId: user.id,
         isAuthenticated: true
       };
@@ -1804,6 +1810,31 @@
       // Update global userId for session tracking
       userId = user.id;
       userName = window.currentUserData.username;
+      
+      // Now fetch profile from database to override with user's custom settings
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          const mainProfile = data.mainProfile || {};
+          
+          // Override with profile data if available (prioritize user's custom settings)
+          if (mainProfile.displayName) {
+            window.currentUserData.displayName = mainProfile.displayName;
+            userName = mainProfile.displayName;
+          }
+          if (mainProfile.username) {
+            window.currentUserData.username = mainProfile.username;
+          }
+          if (mainProfile.avatarUrl) {
+            window.currentUserData.avatar = mainProfile.avatarUrl;
+          }
+          
+          console.log('✅ Loaded profile from database:', mainProfile);
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not fetch profile, using auth metadata:', error);
+      }
       
       // Update header auth buttons
       updateHeaderAuthState(true, window.currentUserData.displayName);
@@ -2192,7 +2223,7 @@
       
       if (user) {
         // User is authenticated, update data and proceed
-        updateUserDataFromAuth(user);
+        await updateUserDataFromAuth(user);
         return true;
       }
 
@@ -3804,7 +3835,7 @@ async function initializeApp() {
   if (existingUser) {
     // User is authenticated via Supabase - use that data
     console.log('✅ User authenticated via Supabase');
-    updateUserDataFromAuth(existingUser);
+    await updateUserDataFromAuth(existingUser);
   } else if (userIdFromURL && usernameFromURL && isValidUuid(userIdFromURL)) {
     // User came with valid auth from another app (URL params)
     console.log('✅ User authenticated via URL params');

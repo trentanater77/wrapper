@@ -69,6 +69,13 @@ exports.handler = async function(event) {
       .eq('user_id', userId)
       .single();
 
+    // Get main profile (display_name, bio, avatar)
+    const { data: mainProfile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
     // Get pending payout requests
     const { data: pendingPayouts } = await supabase
       .from('payout_requests')
@@ -104,10 +111,17 @@ exports.handler = async function(event) {
         cashable_gems: 0,
         promo_gems: 0,
       },
-      // Profile & Branding
+      // Main Profile (from profiles table)
+      mainProfile: {
+        username: mainProfile?.username || null,
+        displayName: mainProfile?.display_name || null,
+        bio: mainProfile?.bio || null,
+        avatarUrl: mainProfile?.avatar_url || null,
+      },
+      // Branding Profile (from user_profiles table)
       profile: {
-        displayName: userProfile?.display_name || null,
-        bio: userProfile?.bio || null,
+        displayName: userProfile?.display_name || mainProfile?.display_name || null,
+        bio: userProfile?.bio || mainProfile?.bio || null,
         customLogoUrl: userProfile?.custom_logo_url || null,
         logoUpdatedAt: userProfile?.logo_updated_at || null,
       },

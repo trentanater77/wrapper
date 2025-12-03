@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile Settings - ChatSpheres</title>
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    /* Page-specific styles */
+    .profile-hero {
+      text-align: center;
+      padding: var(--space-xl) 0;
+    }
+    
+    .profile-title {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .profile-subtitle {
+      font-size: 1rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    /* Profile sections */
+    .profile-section {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      margin-bottom: var(--space-lg);
+      border: 3px solid var(--rose);
+    }
+    
+    .profile-section h2 {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    /* Avatar section */
+    .avatar-section {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xl);
+      flex-wrap: wrap;
+    }
+    
+    .avatar-preview {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      flex-shrink: 0;
+    }
+    
+    .avatar-image {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid var(--gold);
+      background: var(--rose);
+    }
+    
+    .avatar-placeholder {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--rose);
+      border: 4px solid var(--gold);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+    }
+    
+    .avatar-edit-btn {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--gold);
+      border: 3px solid var(--light-rose);
+      color: var(--charcoal);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-fast);
+    }
+    
+    .avatar-edit-btn:hover {
+      background: var(--main-red);
+      color: var(--light-rose);
+      transform: scale(1.1);
+    }
+    
+    .avatar-controls {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .avatar-controls p {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-md);
+    }
+    
+    /* Form styles */
+    .profile-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-md);
+    }
+    
+    @media (min-width: 600px) {
+      .form-row.two-col {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    
+    .char-count {
+      font-size: 0.75rem;
+      color: var(--charcoal);
+      opacity: 0.6;
+      text-align: right;
+      margin-top: var(--space-xs);
+    }
+    
+    /* Billing section */
+    .billing-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-lg);
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      border: 2px solid var(--rose);
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+    
+    .billing-info {
+      flex: 1;
+      min-width: 200px;
+    }
+    
+    .billing-plan {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .billing-plan .badge {
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-full);
+      font-size: 0.7rem;
+      font-weight: var(--font-weight-extrabold);
+    }
+    
+    .billing-plan .badge.active {
+      background: var(--gold);
+      color: var(--charcoal);
+    }
+    
+    .billing-plan .badge.free {
+      background: var(--rose);
+      color: var(--charcoal);
+    }
+    
+    .billing-details {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-top: var(--space-xs);
+    }
+    
+    .no-subscription {
+      text-align: center;
+      padding: var(--space-lg);
+    }
+    
+    .no-subscription p {
+      margin-bottom: var(--space-md);
+      color: var(--charcoal);
+    }
+    
+    /* Messages */
+    .message {
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-md);
+      font-weight: var(--font-weight-semibold);
+      text-align: center;
+    }
+    
+    .message.success {
+      background: var(--gold);
+      color: var(--charcoal);
+    }
+    
+    .message.error {
+      background: var(--main-red);
+      color: var(--light-rose);
+    }
+    
+    /* Loading states */
+    .loading-skeleton {
+      background: linear-gradient(90deg, var(--rose) 25%, var(--light-rose) 50%, var(--rose) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: var(--radius-md);
+    }
+    
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+    
+    /* Sign in required state */
+    .signin-required {
+      text-align: center;
+      padding: var(--space-3xl) var(--space-xl);
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      border: 3px solid var(--rose);
+    }
+    
+    .signin-required-icon {
+      font-size: 4rem;
+      margin-bottom: var(--space-md);
+    }
+    
+    .signin-required h2 {
+      font-size: 1.5rem;
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .signin-required p {
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-lg);
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <ul class="nav-links">
+      <li><a href="/" class="nav-link"><span class="nav-link-icon">🔮</span> Video Chat</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/profile.html" class="nav-link active"><span class="nav-link-icon">👤</span> Profile</a></li>
+      <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cash Out</a></li>
+      <li><a href="/branding.html" id="nav-branding-link" class="nav-link" style="display: none;"><span class="nav-link-icon">🎨</span> Branding</a></li>
+    </ul>
+    
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <button onclick="showAuthModal()" class="btn btn-ghost btn-full" style="margin-bottom: var(--space-sm);">Sign In</button>
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign Up</a>
+    </div>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div id="nav-user-info" class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="signOut()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="auth-modal">
+    <div class="auth-modal-content">
+      <button onclick="hideAuthModal()" class="auth-close">×</button>
+      
+      <div class="auth-modal-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <h2>Welcome to ChatSpheres</h2>
+        <p>Sign in to continue</p>
+      </div>
+      
+      <div id="auth-message" class="auth-message hidden"></div>
+      
+      <form id="signin-form" class="auth-form" onsubmit="handleSignIn(event)">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="signin-email" class="form-input" required placeholder="you@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="signin-password" class="form-input" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+      </form>
+      
+      <div class="auth-divider">
+        <span>or continue with</span>
+      </div>
+      
+      <button onclick="handleGoogleSignIn()" class="google-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+      
+      <p class="auth-signup-link">
+        Don't have an account? <a href="https://www.chatspheres.com/sign-up/">Sign Up</a>
+      </p>
+    </div>
+  </div>
+  
+  <!-- Page Content -->
+  <div class="page-wrapper">
+    <div class="page-content">
+      <main class="container container-sm" style="padding-top: var(--space-lg); padding-bottom: var(--space-2xl);">
+        <!-- Hero -->
+        <div class="profile-hero">
+          <h1 class="profile-title">👤 Profile Settings</h1>
+          <p class="profile-subtitle">Manage your profile and subscription</p>
+        </div>
+        
+        <!-- Sign In Required State -->
+        <div id="signin-required" class="signin-required hidden">
+          <div class="signin-required-icon">🔐</div>
+          <h2>Sign In Required</h2>
+          <p>Please sign in to manage your profile and billing settings.</p>
+          <button onclick="showAuthModal()" class="btn btn-primary">Sign In</button>
+        </div>
+        
+        <!-- Main Content (shown when logged in) -->
+        <div id="main-content" class="hidden">
+          <!-- Messages -->
+          <div id="message" class="message hidden"></div>
+          
+          <!-- Avatar & Basic Info Section -->
+          <div class="profile-section">
+            <h2>📸 Profile Picture & Info</h2>
+            
+            <div class="avatar-section">
+              <div class="avatar-preview">
+                <img id="avatar-image" class="avatar-image hidden" src="" alt="Your avatar">
+                <div id="avatar-placeholder" class="avatar-placeholder">👤</div>
+                <label for="avatar-input" class="avatar-edit-btn" title="Change avatar">
+                  📷
+                </label>
+                <input type="file" id="avatar-input" accept="image/jpeg,image/png,image/gif,image/webp" style="display: none;" onchange="handleAvatarChange(event)">
+              </div>
+              
+              <div class="avatar-controls">
+                <p>Upload a new profile picture. Recommended size: 200x200px. Max 5MB.</p>
+                <button id="remove-avatar-btn" class="btn btn-ghost hidden" onclick="removeAvatar()">
+                  Remove Avatar
+                </button>
+              </div>
+            </div>
+            
+            <form class="profile-form" style="margin-top: var(--space-xl);" onsubmit="saveProfile(event)">
+              <div class="form-row two-col">
+                <div class="form-group">
+                  <label class="form-label">Display Name</label>
+                  <input type="text" id="display-name" class="form-input" placeholder="Your display name" maxlength="50">
+                  <div class="char-count"><span id="name-count">0</span>/50</div>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">Username</label>
+                  <input type="text" id="username" class="form-input" placeholder="username" disabled style="opacity: 0.6;">
+                  <div class="char-count" style="opacity: 0.5;">Cannot be changed</div>
+                </div>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">Bio</label>
+                <textarea id="bio" class="form-textarea" placeholder="Tell us about yourself..." maxlength="300" rows="3"></textarea>
+                <div class="char-count"><span id="bio-count">0</span>/300</div>
+              </div>
+              
+              <button type="submit" id="save-profile-btn" class="btn btn-primary">
+                💾 Save Changes
+              </button>
+            </form>
+          </div>
+          
+          <!-- Billing Section -->
+          <div class="profile-section">
+            <h2>💳 Billing & Subscription</h2>
+            
+            <div id="billing-content">
+              <!-- Has Subscription -->
+              <div id="has-subscription" class="hidden">
+                <div class="billing-card">
+                  <div class="billing-info">
+                    <div class="billing-plan">
+                      <span id="plan-name">Free</span>
+                      <span id="plan-badge" class="badge active">Active</span>
+                    </div>
+                    <div class="billing-details" id="billing-details">
+                      Renews on <span id="renewal-date">-</span>
+                    </div>
+                  </div>
+                  <button id="manage-billing-btn" class="btn btn-secondary" onclick="openBillingPortal()">
+                    ⚙️ Manage Billing
+                  </button>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; margin-top: var(--space-md);">
+                  Cancel your subscription, update payment method, or view invoices in the Stripe billing portal.
+                </p>
+              </div>
+              
+              <!-- No Subscription -->
+              <div id="no-subscription" class="no-subscription hidden">
+                <p>You're currently on the <strong>Free</strong> plan.</p>
+                <a href="/pricing.html" class="btn btn-primary">
+                  ✨ Upgrade to Pro
+                </a>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Account Section -->
+          <div class="profile-section">
+            <h2>🔒 Account</h2>
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-md);">
+              <div>
+                <div style="font-weight: var(--font-weight-bold); color: var(--charcoal);">Email</div>
+                <div id="account-email" style="color: var(--charcoal); opacity: 0.7;">-</div>
+              </div>
+              <button onclick="signOut()" class="btn btn-ghost">
+                🚪 Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+      
+      <!-- Footer -->
+      <footer class="site-footer" style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem;">
+        <p>
+          Need help? <a href="mailto:support@chatspheres.com" style="color: var(--main-red);">Contact Support</a>
+        </p>
+      </footer>
+    </div>
+  </div>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
+  
+  <script>
+    let currentUser = null;
+    let supabaseClient = null;
+    let userData = null;
+    let pendingAvatarFile = null;
+    
+    document.addEventListener('DOMContentLoaded', async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await initSupabase();
+      await checkAuth();
+      setupFormListeners();
+    });
+    
+    async function initSupabase() {
+      const config = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = config.supabase || {};
+      const authConfig = config.auth || {};
+      
+      if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+        console.error('❌ Supabase config not loaded');
+        return;
+      }
+      
+      if (window.supabase && supabaseConfig.url && supabaseConfig.anonKey) {
+        const cookieDomain = authConfig.cookieDomain || '.chatspheres.com';
+        
+        supabaseClient = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey, {
+          auth: {
+            persistSession: true,
+            storage: {
+              getItem: (key) => {
+                const cookies = document.cookie.split(';');
+                for (const cookie of cookies) {
+                  const [name, value] = cookie.trim().split('=');
+                  if (name === key) return decodeURIComponent(value);
+                }
+                try { return localStorage.getItem(key); } catch(e) { return null; }
+              },
+              setItem: (key, value) => {
+                const maxAge = 60 * 60 * 24 * 365;
+                let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                if (window.location.protocol === 'https:') cookieStr += '; Secure';
+                if (cookieDomain !== 'localhost') cookieStr += `; domain=${cookieDomain}`;
+                document.cookie = cookieStr;
+                try { localStorage.setItem(key, value); } catch(e) {}
+              },
+              removeItem: (key) => {
+                document.cookie = `${key}=; path=/; max-age=0`;
+                try { localStorage.removeItem(key); } catch(e) {}
+              }
+            }
+          }
+        });
+      }
+    }
+    
+    async function checkAuth() {
+      if (!supabaseClient) {
+        showSignInRequired();
+        return;
+      }
+      
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        if (session?.user) {
+          currentUser = session.user;
+          updateNavForUser(currentUser);
+          document.getElementById('signin-required').classList.add('hidden');
+          document.getElementById('main-content').classList.remove('hidden');
+          await loadUserData();
+        } else {
+          showSignInRequired();
+        }
+      } catch (error) {
+        console.error('Auth error:', error);
+        showSignInRequired();
+      }
+    }
+    
+    function showSignInRequired() {
+      document.getElementById('signin-required').classList.remove('hidden');
+      document.getElementById('main-content').classList.add('hidden');
+      updateNavForGuest();
+    }
+    
+    function updateNavForUser(user) {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const userName = document.getElementById('nav-user-name');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'none';
+      if (userSection) userSection.style.display = 'block';
+      if (headerGemBadge) headerGemBadge.style.display = 'flex';
+      
+      const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      if (userName) userName.textContent = name;
+    }
+    
+    function updateNavForGuest() {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'block';
+      if (userSection) userSection.style.display = 'none';
+      if (headerGemBadge) headerGemBadge.style.display = 'none';
+    }
+    
+    async function loadUserData() {
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUser.id}`);
+        const data = await response.json();
+        userData = data;
+        
+        // Update account email
+        document.getElementById('account-email').textContent = currentUser.email;
+        
+        // Update nav gems
+        const totalGems = data.totalGems || 0;
+        const navGems = document.getElementById('nav-user-gems');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        if (navGems) navGems.textContent = totalGems.toLocaleString();
+        if (headerGemBadge) {
+          const gemCount = headerGemBadge.querySelector('.gem-count');
+          if (gemCount) gemCount.textContent = totalGems.toLocaleString();
+        }
+        
+        // Show branding link for pro users
+        const brandingLink = document.getElementById('nav-branding-link');
+        if (brandingLink && data.limits?.canCustomBrand) {
+          brandingLink.style.display = 'flex';
+        }
+        
+        // Populate profile form
+        const mainProfile = data.mainProfile || {};
+        document.getElementById('display-name').value = mainProfile.displayName || '';
+        document.getElementById('username').value = mainProfile.username || '';
+        document.getElementById('bio').value = mainProfile.bio || '';
+        updateCharCounts();
+        
+        // Show avatar
+        if (mainProfile.avatarUrl) {
+          document.getElementById('avatar-image').src = mainProfile.avatarUrl;
+          document.getElementById('avatar-image').classList.remove('hidden');
+          document.getElementById('avatar-placeholder').classList.add('hidden');
+          document.getElementById('remove-avatar-btn').classList.remove('hidden');
+        }
+        
+        // Update billing section
+        updateBillingSection(data);
+        
+      } catch (error) {
+        console.error('Error loading user data:', error);
+        showMessage('Failed to load profile data.', 'error');
+      }
+    }
+    
+    function updateBillingSection(data) {
+      const hasSubEl = document.getElementById('has-subscription');
+      const noSubEl = document.getElementById('no-subscription');
+      
+      const plan = data.plan || 'free';
+      const subscription = data.subscription || {};
+      
+      if (plan !== 'free' && subscription.stripe_customer_id) {
+        hasSubEl.classList.remove('hidden');
+        noSubEl.classList.add('hidden');
+        
+        // Plan name
+        const planNames = {
+          host_pro: 'Host Pro',
+          ad_free_premium: 'Ad-Free Premium',
+          ad_free_plus: 'Ad-Free Plus',
+          pro_bundle: 'Pro Bundle',
+        };
+        document.getElementById('plan-name').textContent = planNames[plan] || plan;
+        
+        // Badge
+        const badge = document.getElementById('plan-badge');
+        if (subscription.status === 'active') {
+          badge.textContent = 'Active';
+          badge.className = 'badge active';
+        } else if (subscription.status === 'canceled') {
+          badge.textContent = 'Canceled';
+          badge.className = 'badge';
+          badge.style.background = 'var(--main-red)';
+          badge.style.color = 'var(--light-rose)';
+        } else {
+          badge.textContent = subscription.status || 'Unknown';
+          badge.className = 'badge';
+        }
+        
+        // Renewal date
+        if (subscription.current_period_end) {
+          const date = new Date(subscription.current_period_end);
+          document.getElementById('renewal-date').textContent = date.toLocaleDateString();
+          
+          if (subscription.canceled_at) {
+            document.getElementById('billing-details').textContent = `Access until ${date.toLocaleDateString()}`;
+          }
+        }
+      } else {
+        hasSubEl.classList.add('hidden');
+        noSubEl.classList.remove('hidden');
+      }
+    }
+    
+    function setupFormListeners() {
+      // Character count listeners
+      document.getElementById('display-name').addEventListener('input', updateCharCounts);
+      document.getElementById('bio').addEventListener('input', updateCharCounts);
+    }
+    
+    function updateCharCounts() {
+      const nameInput = document.getElementById('display-name');
+      const bioInput = document.getElementById('bio');
+      document.getElementById('name-count').textContent = nameInput.value.length;
+      document.getElementById('bio-count').textContent = bioInput.value.length;
+    }
+    
+    function handleAvatarChange(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // Validate
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        showMessage('Invalid image type. Please use JPEG, PNG, GIF, or WebP.', 'error');
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        showMessage('Image too large. Max 5MB.', 'error');
+        return;
+      }
+      
+      // Preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('avatar-image').src = e.target.result;
+        document.getElementById('avatar-image').classList.remove('hidden');
+        document.getElementById('avatar-placeholder').classList.add('hidden');
+        document.getElementById('remove-avatar-btn').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+      
+      pendingAvatarFile = file;
+    }
+    
+    function removeAvatar() {
+      document.getElementById('avatar-image').src = '';
+      document.getElementById('avatar-image').classList.add('hidden');
+      document.getElementById('avatar-placeholder').classList.remove('hidden');
+      document.getElementById('remove-avatar-btn').classList.add('hidden');
+      document.getElementById('avatar-input').value = '';
+      pendingAvatarFile = null;
+    }
+    
+    async function saveProfile(event) {
+      event.preventDefault();
+      
+      const btn = document.getElementById('save-profile-btn');
+      const originalText = btn.textContent;
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+      
+      try {
+        const displayName = document.getElementById('display-name').value.trim();
+        const bio = document.getElementById('bio').value.trim();
+        
+        const payload = {
+          userId: currentUser.id,
+          displayName,
+          bio,
+        };
+        
+        // If there's a pending avatar, convert to base64
+        if (pendingAvatarFile) {
+          const base64 = await fileToBase64(pendingAvatarFile);
+          payload.avatarBase64 = base64;
+          payload.avatarContentType = pendingAvatarFile.type;
+        }
+        
+        const response = await fetch('/.netlify/functions/update-profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showMessage('✅ Profile saved successfully!', 'success');
+          pendingAvatarFile = null;
+          
+          // Update avatar if returned
+          if (data.profile?.avatarUrl) {
+            document.getElementById('avatar-image').src = data.profile.avatarUrl;
+          }
+        } else {
+          throw new Error(data.error || 'Failed to save profile');
+        }
+      } catch (error) {
+        console.error('Save profile error:', error);
+        showMessage(error.message || 'Failed to save profile.', 'error');
+      } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+    
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // Remove the data URL prefix
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+    
+    async function openBillingPortal() {
+      const btn = document.getElementById('manage-billing-btn');
+      const originalText = btn.textContent;
+      btn.textContent = 'Loading...';
+      btn.disabled = true;
+      
+      try {
+        const response = await fetch('/.netlify/functions/create-portal-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            returnUrl: window.location.href,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          throw new Error(data.error || 'Failed to open billing portal');
+        }
+      } catch (error) {
+        console.error('Billing portal error:', error);
+        showMessage(error.message || 'Failed to open billing portal.', 'error');
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    }
+    
+    function showMessage(text, type = 'success') {
+      const el = document.getElementById('message');
+      el.textContent = text;
+      el.className = `message ${type}`;
+      el.classList.remove('hidden');
+      
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Auto-hide after 5s
+      setTimeout(() => {
+        el.classList.add('hidden');
+      }, 5000);
+    }
+    
+    // Auth functions
+    function showAuthModal() {
+      const modal = document.getElementById('auth-modal');
+      if (modal) modal.classList.add('active');
+    }
+    window.showAuthModal = showAuthModal;
+    
+    function hideAuthModal() {
+      const modal = document.getElementById('auth-modal');
+      if (modal) modal.classList.remove('active');
+    }
+    window.hideAuthModal = hideAuthModal;
+    
+    function showAuthMessage(msg, isError = true) {
+      const el = document.getElementById('auth-message');
+      if (el) {
+        el.textContent = msg;
+        el.style.background = isError ? 'var(--main-red)' : 'var(--gold)';
+        el.style.color = isError ? 'var(--light-rose)' : 'var(--charcoal)';
+        el.classList.remove('hidden');
+      }
+    }
+    
+    async function handleSignIn(event) {
+      event.preventDefault();
+      if (!supabaseClient) {
+        showAuthMessage('Authentication unavailable. Please refresh.');
+        return;
+      }
+      
+      const email = document.getElementById('signin-email')?.value?.trim();
+      const password = document.getElementById('signin-password')?.value;
+      
+      try {
+        const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) {
+          showAuthMessage(error.message);
+          return;
+        }
+        showAuthMessage('✅ Signed in!', false);
+        setTimeout(() => {
+          hideAuthModal();
+          window.location.reload();
+        }, 500);
+      } catch (e) {
+        showAuthMessage('Sign in failed. Please try again.');
+      }
+    }
+    
+    async function handleGoogleSignIn() {
+      if (!supabaseClient) {
+        showAuthMessage('Authentication unavailable. Please refresh.');
+        return;
+      }
+      
+      const config = window.__CHATSPHERES_CONFIG__ || {};
+      const authConfig = config.auth || {};
+      const redirectUrl = authConfig.redirectUrl || `${window.location.origin}/.netlify/functions/auth-callback`;
+      
+      try {
+        await supabaseClient.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: redirectUrl }
+        });
+      } catch (e) {
+        showAuthMessage('Google sign in failed.');
+      }
+    }
+    
+    async function signOut() {
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+      }
+      window.location.reload();
+    }
+  </script>
+</body>
+</html>

@@ -598,6 +598,20 @@
   <span class="text-2xl">💎</span>
 </button>
 
+<!-- Floating Report Button (shown during calls) -->
+<button id="floating-report-btn" onclick="showReportModal()" 
+  class="hidden fixed bottom-24 left-6 z-50 bg-charcoal hover:bg-main-red text-white p-4 rounded-full shadow-lg transition-all transform hover:scale-110 opacity-70 hover:opacity-100"
+  title="Report user">
+  <span class="text-2xl">🚩</span>
+</button>
+
+<!-- Floating Block Button (shown during calls) -->
+<button id="floating-block-btn" onclick="blockUser(otherParticipantId, otherParticipantName)" 
+  class="hidden fixed bottom-40 left-6 z-50 bg-charcoal hover:bg-main-red text-white p-3 rounded-full shadow-lg transition-all transform hover:scale-110 opacity-70 hover:opacity-100"
+  title="Block user (never match again)">
+  <span class="text-xl">🚫</span>
+</button>
+
 <!-- Session Limit / Upgrade Modal -->
 <div id="upgrade-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
   <div class="bg-light-rose rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-gold relative overflow-hidden">
@@ -1483,6 +1497,125 @@
     <!-- Footer -->
     <p class="text-center text-xs text-charcoal opacity-60">
       Talk with purpose. Connect with heart. 💬
+    </p>
+  </div>
+</div>
+
+<!-- ========== RATING MODAL ========== -->
+<div id="rating-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-light-rose rounded-3xl p-6 max-w-sm w-full shadow-2xl border-4 border-gold relative">
+    <!-- Close button -->
+    <button onclick="skipRating()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+    
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 mx-auto mb-4 bg-gold rounded-full flex items-center justify-center">
+        <span class="text-3xl">⭐</span>
+      </div>
+      <h2 class="text-xl font-bold text-charcoal mb-2">How was your chat?</h2>
+      <p id="rating-with-user" class="text-charcoal opacity-70 text-sm">with <strong id="rating-other-user-name">User</strong></p>
+      <p class="text-charcoal opacity-60 text-xs mt-2">Your feedback keeps ChatSpheres safe and helps us match you with better people.</p>
+    </div>
+    
+    <!-- Rating Buttons -->
+    <div class="flex justify-center gap-6 mb-6">
+      <button onclick="submitRating('good')" class="rating-btn flex flex-col items-center p-4 rounded-2xl border-3 border-rose hover:border-gold hover:bg-gold transition-all group">
+        <span class="text-4xl mb-2 group-hover:scale-125 transition-transform">👍</span>
+        <span class="text-charcoal font-semibold">Good</span>
+      </button>
+      <button onclick="submitRating('bad')" class="rating-btn flex flex-col items-center p-4 rounded-2xl border-3 border-rose hover:border-main-red hover:bg-rose transition-all group">
+        <span class="text-4xl mb-2 group-hover:scale-125 transition-transform">👎</span>
+        <span class="text-charcoal font-semibold">Bad</span>
+      </button>
+    </div>
+    
+    <!-- Optional Feedback -->
+    <div class="mb-4">
+      <label class="block text-charcoal text-sm font-semibold mb-2">Feedback (optional)</label>
+      <textarea 
+        id="rating-feedback" 
+        placeholder="Tell us more about your experience..."
+        maxlength="500"
+        rows="2"
+        class="w-full px-4 py-3 rounded-xl border-2 border-rose focus:border-gold focus:outline-none bg-bg-main text-charcoal placeholder-gray-400 resize-none"
+      ></textarea>
+      <p class="text-right text-xs text-charcoal opacity-50 mt-1"><span id="feedback-char-count">0</span>/500</p>
+    </div>
+    
+    <!-- Skip Link -->
+    <p class="text-center">
+      <button onclick="skipRating()" class="text-charcoal opacity-60 hover:opacity-100 text-sm underline">Skip for now</button>
+    </p>
+  </div>
+</div>
+
+<!-- ========== REPORT MODAL ========== -->
+<div id="report-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-light-rose rounded-3xl p-6 max-w-sm w-full shadow-2xl border-4 border-main-red relative">
+    <!-- Close button -->
+    <button onclick="closeReportModal()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+    
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center">
+        <span class="text-3xl">🚩</span>
+      </div>
+      <h2 class="text-xl font-bold text-charcoal mb-2">Report User</h2>
+      <p id="report-user-name" class="text-charcoal opacity-70 text-sm">Reporting: <strong>User</strong></p>
+    </div>
+    
+    <!-- Report Categories -->
+    <div class="space-y-2 mb-4">
+      <button onclick="selectReportCategory('inappropriate')" class="report-category-btn w-full text-left px-4 py-3 rounded-xl border-2 border-rose hover:border-main-red hover:bg-rose transition-all flex items-center gap-3">
+        <span class="text-xl">🔞</span>
+        <span class="text-charcoal font-semibold">Inappropriate Content</span>
+      </button>
+      <button onclick="selectReportCategory('harassment')" class="report-category-btn w-full text-left px-4 py-3 rounded-xl border-2 border-rose hover:border-main-red hover:bg-rose transition-all flex items-center gap-3">
+        <span class="text-xl">👊</span>
+        <span class="text-charcoal font-semibold">Harassment / Threats</span>
+      </button>
+      <button onclick="selectReportCategory('underage')" class="report-category-btn w-full text-left px-4 py-3 rounded-xl border-2 border-rose hover:border-main-red hover:bg-rose transition-all flex items-center gap-3">
+        <span class="text-xl">👶</span>
+        <span class="text-charcoal font-semibold">Underage User</span>
+      </button>
+      <button onclick="selectReportCategory('spam')" class="report-category-btn w-full text-left px-4 py-3 rounded-xl border-2 border-rose hover:border-main-red hover:bg-rose transition-all flex items-center gap-3">
+        <span class="text-xl">🤖</span>
+        <span class="text-charcoal font-semibold">Spam / Bot</span>
+      </button>
+      <button onclick="selectReportCategory('other')" class="report-category-btn w-full text-left px-4 py-3 rounded-xl border-2 border-rose hover:border-main-red hover:bg-rose transition-all flex items-center gap-3">
+        <span class="text-xl">⚠️</span>
+        <span class="text-charcoal font-semibold">Other</span>
+      </button>
+    </div>
+    
+    <!-- Optional Description (shown after category selected) -->
+    <div id="report-description-section" class="hidden mb-4">
+      <label class="block text-charcoal text-sm font-semibold mb-2">Details (optional)</label>
+      <textarea 
+        id="report-description" 
+        placeholder="What happened?"
+        maxlength="500"
+        rows="2"
+        class="w-full px-4 py-3 rounded-xl border-2 border-rose focus:border-main-red focus:outline-none bg-bg-main text-charcoal placeholder-gray-400 resize-none"
+      ></textarea>
+    </div>
+    
+    <!-- Submit Button (shown after category selected) -->
+    <button id="submit-report-btn" onclick="submitReport()" class="hidden w-full bg-main-red hover:bg-red-700 text-white font-bold py-3 px-6 rounded-xl transition-all">
+      Submit Report
+    </button>
+    
+    <!-- Cancel Link -->
+    <p class="text-center mt-3">
+      <button onclick="closeReportModal()" class="text-charcoal opacity-60 hover:opacity-100 text-sm underline">Cancel</button>
     </p>
   </div>
 </div>
@@ -3690,6 +3823,9 @@
       }
       
       console.log('✅ Comprehensive cleanup complete');
+      
+      // Hide floating action buttons
+      hideFloatingActionButtons();
 
       if (timerInterval) {
         clearInterval(timerInterval);
@@ -3874,6 +4010,15 @@ async function initializeApp() {
     // User is authenticated via Supabase - use that data
     console.log('✅ User authenticated via Supabase');
     await updateUserDataFromAuth(existingUser);
+    
+    // Check if user is suspended
+    const isSuspended = await checkUserSuspension();
+    if (isSuspended) {
+      return; // Stop initialization - user redirected to contact page
+    }
+    
+    // Check for pending rating from a previous call
+    checkPendingRating();
   } else if (userIdFromURL && usernameFromURL && isValidUuid(userIdFromURL)) {
     // User came with valid auth from another app (URL params)
     console.log('✅ User authenticated via URL params');
@@ -4541,6 +4686,26 @@ async function initializeApp() {
       badgeHtml = `<span class="user-badge text-xs px-1.5 py-0.5 rounded-full font-bold" style="background: ${badgeColor}20; color: ${badgeColor}; border: 1px solid ${badgeColor}40;" title="${badgeLabel}">${badgeEmoji}</span>`;
     }
 
+    // Check if message should be hidden (user is muted)
+    const senderId = message.userId;
+    if (senderId && mutedChatUserIds.has(senderId)) {
+      messageEl.style.display = 'none';
+      messageEl.dataset.muted = 'true';
+    }
+    
+    // Mute button (only shown to host for non-host messages)
+    let muteButtonHtml = '';
+    if (roomHostData.isHost && senderId && senderId !== roomHostData.hostId && message.userType !== 'participant') {
+      const isMuted = mutedChatUserIds.has(senderId);
+      muteButtonHtml = `
+        <button onclick="toggleMuteUser('${senderId}', '${escapeHtml(senderName)}')" 
+          class="ml-auto text-xs opacity-50 hover:opacity-100 ${isMuted ? 'text-green-600' : 'text-main-red'}" 
+          title="${isMuted ? 'Unmute user' : 'Mute user'}">
+          ${isMuted ? '🔊' : '🔇'}
+        </button>
+      `;
+    }
+
     messageEl.innerHTML = `
       <div class="flex items-start space-x-2">
         <div class="flex-shrink-0">
@@ -4554,11 +4719,15 @@ async function initializeApp() {
             ${badgeHtml}
             ${message.userType === 'participant' ? '<span class="text-xs bg-main-red text-white px-1 rounded">HOST</span>' : ''}
             <span class="text-xs text-gray-500">${timestamp}</span>
+            ${muteButtonHtml}
           </div>
           <p class="text-charcoal dark:text-white text-sm break-words">${escapeHtml(message.text)}</p>
         </div>
       </div>
     `;
+    
+    // Store user ID for mute functionality
+    messageEl.dataset.userId = senderId || '';
 
     return messageEl;
   }
@@ -4655,6 +4824,11 @@ async function initializeApp() {
     const text = chatInput.value.trim();
     if (!text) return;
     
+    // Spam prevention check
+    if (!validateChatMessage(text)) {
+      return;
+    }
+    
     try {
       await pushChatMessageToFirebase(text, 'spectator-chat');
       chatInput.value = '';
@@ -4674,6 +4848,11 @@ async function initializeApp() {
     
     const text = chatInput.value.trim();
     if (!text) return;
+    
+    // Spam prevention check
+    if (!validateChatMessage(text)) {
+      return;
+    }
     
     try {
       await pushChatMessageToFirebase(text, 'participant-chat');
@@ -4755,6 +4934,14 @@ async function initializeApp() {
 
   function handleLeftMeeting() {
     console.log('👋 Local participant left the meeting');
+    
+    // Show rating modal if there was another participant
+    if (otherParticipantId && !isSpectator) {
+      setTimeout(() => {
+        showRatingModal(otherParticipantId, otherParticipantName);
+      }, 500);
+    }
+    
     executeComprehensiveCleanup('left-meeting');
   }
 
@@ -4771,6 +4958,8 @@ async function initializeApp() {
       if (!isSpectatorParticipant) {
         const remoteUserId = getParticipantUserId(event.participant);
         if (remoteUserId) {
+          // Track other participant for rating
+          updateOtherParticipant(remoteUserId, participantDisplayName);
           try {
             await updatePartnerUserId(remoteUserId, 'participant-joined');
           } catch (error) {
@@ -7616,6 +7805,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         roomHostData.hostId = window.currentUserData?.userId || userId;
         roomHostData.hostName = window.currentUserData?.displayName || userName || 'Host';
         showTipButtonIfNotHost();
+        loadMutedUsers(); // Load muted users for host
         showToast('👑 You are the host!');
         return;
       }
@@ -7639,6 +7829,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       if (roomHostData.isHost) {
         console.log('👑 You are the host of this room');
+        loadMutedUsers(); // Load muted users for host
         showToast('👑 You are the host!');
       } else {
         console.log(`👤 Host is: ${roomHostData.hostName} (${roomHostData.hostId})`);
@@ -7703,6 +7894,9 @@ function ensureSpectatorTracksForParticipant(participant) {
   function showTipButtonIfNotHost() {
     console.log('💎 showTipButtonIfNotHost called');
     const tipBtn = document.getElementById('floating-tip-btn');
+    const reportBtn = document.getElementById('floating-report-btn');
+    const blockBtn = document.getElementById('floating-block-btn');
+    
     if (!tipBtn) {
       console.error('❌ Tip button element not found!');
       return;
@@ -7722,6 +7916,40 @@ function ensureSpectatorTracksForParticipant(participant) {
       tipBtn.classList.add('hidden');
       tipBtn.style.display = 'none';
       console.log('👑 Tip button hidden (you are the host)');
+    }
+    
+    // Always show report/block buttons during calls (for both hosts and non-hosts)
+    // But only if there's another participant and user is logged in
+    if (!isSpectator && window.currentUserData?.userId && !window.currentUserData.isGuest) {
+      if (reportBtn) {
+        reportBtn.classList.remove('hidden');
+        reportBtn.style.display = 'block';
+      }
+      if (blockBtn) {
+        blockBtn.classList.remove('hidden');
+        blockBtn.style.display = 'block';
+      }
+      console.log('🚩 Report/Block buttons NOW VISIBLE');
+    }
+  }
+  
+  // Hide floating action buttons (called during cleanup)
+  function hideFloatingActionButtons() {
+    const tipBtn = document.getElementById('floating-tip-btn');
+    const reportBtn = document.getElementById('floating-report-btn');
+    const blockBtn = document.getElementById('floating-block-btn');
+    
+    if (tipBtn) {
+      tipBtn.classList.add('hidden');
+      tipBtn.style.display = 'none';
+    }
+    if (reportBtn) {
+      reportBtn.classList.add('hidden');
+      reportBtn.style.display = 'none';
+    }
+    if (blockBtn) {
+      blockBtn.classList.add('hidden');
+      blockBtn.style.display = 'none';
     }
   }
   
@@ -9066,6 +9294,438 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
 
+  // ========================================
+  // MODERATION SYSTEM
+  // ========================================
+  
+  // State for moderation
+  let pendingRatingData = null;
+  let selectedReportCategory = null;
+  let reportTargetUserId = null;
+  let reportTargetUserName = null;
+  
+  // Chat spam prevention
+  let lastChatMessageTime = 0;
+  let lastChatMessageText = '';
+  const CHAT_RATE_LIMIT_MS = 2000; // 2 seconds between messages
+  
+  // Muted chat users (host-only feature)
+  let mutedChatUserIds = new Set();
+  
+  // Track the other participant for rating
+  let otherParticipantId = null;
+  let otherParticipantName = null;
+  
+  // Set up feedback character counter
+  document.addEventListener('DOMContentLoaded', () => {
+    const feedbackTextarea = document.getElementById('rating-feedback');
+    const charCount = document.getElementById('feedback-char-count');
+    if (feedbackTextarea && charCount) {
+      feedbackTextarea.addEventListener('input', () => {
+        charCount.textContent = feedbackTextarea.value.length;
+      });
+    }
+  });
+  
+  // Show rating modal after call ends
+  function showRatingModal(otherUserId, otherUserName) {
+    if (!otherUserId || !window.currentUserData?.userId) {
+      console.log('⏭️ Skipping rating modal - missing user data');
+      return;
+    }
+    
+    // Don't show rating for guests rating guests
+    if (window.currentUserData.isGuest) {
+      console.log('⏭️ Skipping rating modal - guest user');
+      return;
+    }
+    
+    pendingRatingData = {
+      raterId: window.currentUserData.userId,
+      ratedId: otherUserId,
+      roomId: conversationRoomId || roomUrl,
+    };
+    
+    const displayName = otherUserName || 'your chat partner';
+    document.getElementById('rating-other-user-name').textContent = displayName;
+    document.getElementById('rating-modal').classList.remove('hidden');
+    document.getElementById('rating-feedback').value = '';
+    document.getElementById('feedback-char-count').textContent = '0';
+  }
+  
+  // Submit rating
+  async function submitRating(rating) {
+    if (!pendingRatingData) {
+      console.error('No pending rating data');
+      return;
+    }
+    
+    const feedback = document.getElementById('rating-feedback')?.value?.trim() || '';
+    
+    try {
+      const response = await fetch('/.netlify/functions/submit-rating', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...pendingRatingData,
+          rating: rating,
+          feedback: feedback || null,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showToast(rating === 'good' ? '👍 Thanks for your feedback!' : '👎 Thanks for letting us know');
+      } else {
+        console.error('Rating submission failed:', data.error);
+      }
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+    }
+    
+    closeRatingModal();
+  }
+  
+  // Skip rating
+  function skipRating() {
+    // Save as pending rating for next visit
+    if (pendingRatingData) {
+      fetch('/.netlify/functions/save-pending-rating', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: pendingRatingData.raterId,
+          roomId: pendingRatingData.roomId,
+          otherUserId: pendingRatingData.ratedId,
+          otherUserName: document.getElementById('rating-other-user-name')?.textContent,
+        }),
+      }).catch(err => console.log('Could not save pending rating:', err));
+    }
+    closeRatingModal();
+  }
+  
+  // Close rating modal
+  function closeRatingModal() {
+    document.getElementById('rating-modal').classList.add('hidden');
+    pendingRatingData = null;
+  }
+  
+  // Show report modal
+  function showReportModal(targetUserId, targetUserName) {
+    if (!targetUserId) {
+      // Use the other participant if no target specified
+      targetUserId = otherParticipantId;
+      targetUserName = otherParticipantName;
+    }
+    
+    if (!targetUserId) {
+      showToast('❌ No user to report');
+      return;
+    }
+    
+    reportTargetUserId = targetUserId;
+    reportTargetUserName = targetUserName || 'User';
+    selectedReportCategory = null;
+    
+    document.getElementById('report-user-name').innerHTML = `Reporting: <strong>${reportTargetUserName}</strong>`;
+    document.getElementById('report-description-section').classList.add('hidden');
+    document.getElementById('submit-report-btn').classList.add('hidden');
+    document.getElementById('report-description').value = '';
+    
+    // Reset category button styles
+    document.querySelectorAll('.report-category-btn').forEach(btn => {
+      btn.classList.remove('border-main-red', 'bg-rose');
+      btn.classList.add('border-rose');
+    });
+    
+    document.getElementById('report-modal').classList.remove('hidden');
+  }
+  
+  // Select report category
+  function selectReportCategory(category) {
+    selectedReportCategory = category;
+    
+    // Update button styles
+    document.querySelectorAll('.report-category-btn').forEach(btn => {
+      btn.classList.remove('border-main-red', 'bg-rose');
+      btn.classList.add('border-rose');
+    });
+    event.currentTarget.classList.remove('border-rose');
+    event.currentTarget.classList.add('border-main-red', 'bg-rose');
+    
+    // Show description and submit button
+    document.getElementById('report-description-section').classList.remove('hidden');
+    document.getElementById('submit-report-btn').classList.remove('hidden');
+  }
+  
+  // Submit report
+  async function submitReport() {
+    if (!selectedReportCategory || !reportTargetUserId) {
+      showToast('❌ Please select a category');
+      return;
+    }
+    
+    const description = document.getElementById('report-description')?.value?.trim() || '';
+    
+    try {
+      const response = await fetch('/.netlify/functions/submit-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reporterId: window.currentUserData?.userId,
+          reportedId: reportTargetUserId,
+          roomId: conversationRoomId || roomUrl,
+          category: selectedReportCategory,
+          description: description || null,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showToast('🚩 Report submitted. Thank you for keeping ChatSpheres safe!');
+        if (data.userSuspended) {
+          console.log('User was auto-suspended due to multiple reports');
+        }
+      } else {
+        showToast(`❌ ${data.error || 'Failed to submit report'}`);
+      }
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      showToast('❌ Failed to submit report. Please try again.');
+    }
+    
+    closeReportModal();
+  }
+  
+  // Close report modal
+  function closeReportModal() {
+    document.getElementById('report-modal').classList.add('hidden');
+    selectedReportCategory = null;
+    reportTargetUserId = null;
+  }
+  
+  // Block user
+  async function blockUser(blockedId, blockedName) {
+    if (!window.currentUserData?.userId || !blockedId) {
+      showToast('❌ Cannot block user');
+      return;
+    }
+    
+    if (confirm(`Block ${blockedName || 'this user'}? You will never be matched with them again.`)) {
+      try {
+        const response = await fetch('/.netlify/functions/block-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            blockerId: window.currentUserData.userId,
+            blockedId: blockedId,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showToast('🚫 User blocked. You won\'t see them again.');
+        } else {
+          showToast(`❌ ${data.error || 'Failed to block user'}`);
+        }
+      } catch (error) {
+        console.error('Error blocking user:', error);
+        showToast('❌ Failed to block user. Please try again.');
+      }
+    }
+  }
+  
+  // Toggle mute user in chat (host only)
+  async function toggleMuteUser(userId, userName) {
+    if (!roomHostData.isHost) {
+      showToast('❌ Only hosts can mute users');
+      return;
+    }
+    
+    const isMuted = mutedChatUserIds.has(userId);
+    const action = isMuted ? 'unmute' : 'mute';
+    
+    try {
+      const response = await fetch('/.netlify/functions/mute-chat-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: conversationRoomId || roomUrl,
+          hostId: roomHostData.hostId,
+          mutedUserId: userId,
+          action: action,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        if (isMuted) {
+          mutedChatUserIds.delete(userId);
+          showToast(`🔊 ${userName || 'User'} unmuted`);
+        } else {
+          mutedChatUserIds.add(userId);
+          showToast(`🔇 ${userName || 'User'} muted`);
+        }
+        
+        // Re-render chat to show/hide muted messages
+        refreshChatMessages();
+      } else {
+        showToast(`❌ ${data.error || 'Failed to ' + action + ' user'}`);
+      }
+    } catch (error) {
+      console.error('Error toggling mute:', error);
+      showToast('❌ Failed to update mute status. Please try again.');
+    }
+  }
+  
+  // Refresh chat messages (re-render with current mute state)
+  function refreshChatMessages() {
+    const chatContainers = [
+      document.getElementById('live-chat-messages'),
+      document.getElementById('participant-chat-messages')
+    ].filter(Boolean);
+    
+    chatContainers.forEach(container => {
+      const messages = container.querySelectorAll('.chat-message');
+      messages.forEach(msgEl => {
+        const userId = msgEl.dataset.userId;
+        if (userId && mutedChatUserIds.has(userId)) {
+          msgEl.style.display = 'none';
+        } else {
+          msgEl.style.display = '';
+        }
+        
+        // Update mute button icon
+        const muteBtn = msgEl.querySelector('button[onclick^="toggleMuteUser"]');
+        if (muteBtn && userId) {
+          const isMuted = mutedChatUserIds.has(userId);
+          muteBtn.textContent = isMuted ? '🔊' : '🔇';
+          muteBtn.title = isMuted ? 'Unmute user' : 'Mute user';
+          muteBtn.className = muteBtn.className.replace(/text-(main-red|green-600)/g, isMuted ? 'text-green-600' : 'text-main-red');
+        }
+      });
+    });
+  }
+  
+  // Load muted users for this room (host only)
+  async function loadMutedUsers() {
+    if (!roomHostData.isHost) return;
+    
+    try {
+      const roomId = conversationRoomId || roomUrl;
+      const response = await fetch(`/.netlify/functions/mute-chat-user?roomId=${encodeURIComponent(roomId)}`);
+      const data = await response.json();
+      
+      if (data.mutedUserIds && Array.isArray(data.mutedUserIds)) {
+        mutedChatUserIds = new Set(data.mutedUserIds);
+        refreshChatMessages();
+      }
+    } catch (error) {
+      console.log('Could not load muted users:', error);
+    }
+  }
+  
+  // Chat spam prevention wrapper
+  function validateChatMessage(text) {
+    const now = Date.now();
+    
+    // Rate limit check
+    if (now - lastChatMessageTime < CHAT_RATE_LIMIT_MS) {
+      const waitTime = Math.ceil((CHAT_RATE_LIMIT_MS - (now - lastChatMessageTime)) / 1000);
+      showToast(`⏳ Slow down! Wait ${waitTime} second${waitTime > 1 ? 's' : ''}.`);
+      return false;
+    }
+    
+    // Duplicate message check
+    if (text === lastChatMessageText && lastChatMessageText !== '') {
+      showToast('⚠️ You already sent that message.');
+      return false;
+    }
+    
+    // Character limit (already enforced by maxlength, but double-check)
+    if (text.length > 200) {
+      showToast('⚠️ Message too long (200 chars max).');
+      return false;
+    }
+    
+    // Empty message check
+    if (!text.trim()) {
+      return false;
+    }
+    
+    // Update tracking
+    lastChatMessageTime = now;
+    lastChatMessageText = text;
+    
+    return true;
+  }
+  
+  // Check for pending rating on page load
+  async function checkPendingRating() {
+    if (!window.currentUserData?.userId || window.currentUserData.isGuest) {
+      return;
+    }
+    
+    try {
+      const response = await fetch(`/.netlify/functions/get-pending-rating?userId=${window.currentUserData.userId}`);
+      const data = await response.json();
+      
+      if (data.hasPending && data.pendingRating) {
+        // Show rating modal for previous call
+        setTimeout(() => {
+          pendingRatingData = {
+            raterId: window.currentUserData.userId,
+            ratedId: data.pendingRating.otherUserId,
+            roomId: data.pendingRating.roomId,
+          };
+          document.getElementById('rating-other-user-name').textContent = data.pendingRating.otherUserName || 'your previous chat partner';
+          document.getElementById('rating-modal').classList.remove('hidden');
+        }, 1000);
+      }
+    } catch (error) {
+      console.log('Could not check pending rating:', error);
+    }
+  }
+  
+  // Check if user is suspended
+  async function checkUserSuspension() {
+    if (!window.currentUserData?.userId) {
+      return false;
+    }
+    
+    try {
+      const response = await fetch(`/.netlify/functions/check-suspension?userId=${window.currentUserData.userId}`);
+      const data = await response.json();
+      
+      if (data.isSuspended) {
+        // Show suspension message and prevent joining
+        alert(`Your account has been suspended.\n\nReason: ${data.suspension.reason}\n\nIf you believe this is a mistake, please contact support.`);
+        window.location.href = '/contact.html';
+        return true;
+      }
+    } catch (error) {
+      console.log('Could not check suspension:', error);
+    }
+    
+    return false;
+  }
+  
+  // Update other participant tracking (called when someone joins)
+  function updateOtherParticipant(participantId, participantName) {
+    if (participantId && participantId !== window.currentUserData?.userId) {
+      otherParticipantId = participantId;
+      otherParticipantName = participantName;
+    }
+  }
+  
+  // ========================================
+  // END MODERATION SYSTEM
+  // ========================================
+
   // Make functions global
   window.toggleSpectatorExpansion = toggleSpectatorExpansion;
   window.showAuthModal = showAuthModal;
@@ -9076,6 +9736,18 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.handleGoogleSignIn = handleGoogleSignIn;
   window.continueAsGuest = continueAsGuest;
   window.signOut = signOut;
+  
+  // Moderation functions
+  window.showRatingModal = showRatingModal;
+  window.submitRating = submitRating;
+  window.skipRating = skipRating;
+  window.closeRatingModal = closeRatingModal;
+  window.showReportModal = showReportModal;
+  window.selectReportCategory = selectReportCategory;
+  window.submitReport = submitReport;
+  window.closeReportModal = closeReportModal;
+  window.blockUser = blockUser;
+  window.toggleMuteUser = toggleMuteUser;
 
   // Initialize
   console.log("ChatSpheres Video Chat Room Loading... 🌟");

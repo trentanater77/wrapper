@@ -113,17 +113,26 @@ exports.handler = async function(event) {
 /**
  * Handle checkout.session.completed
  * This fires when a user completes the Stripe checkout
+ * Handles both subscriptions and one-time gem purchases
  */
 async function handleCheckoutComplete(session) {
   const userId = session.metadata?.user_id;
-  const planType = session.metadata?.plan_type || 'free';
   const customerId = session.customer;
-  const subscriptionId = session.subscription;
 
   if (!userId) {
     console.error('❌ No user_id in checkout session metadata');
     return;
   }
+
+  // Check if this is a gem purchase (one-time payment)
+  if (session.mode === 'payment' && session.metadata?.type === 'gem_purchase') {
+    await handleGemPurchase(session);
+    return;
+  }
+
+  // Otherwise, handle as subscription
+  const planType = session.metadata?.plan_type || 'free';
+  const subscriptionId = session.subscription;
 
   console.log(`🎉 Checkout complete for user ${userId}, plan: ${planType}`);
 
@@ -152,12 +161,94 @@ async function handleCheckoutComplete(session) {
     throw error;
   }
 
-// If this is an Ad-Free plan or Pro Bundle, add bonus gems
-    if (planType === 'ad_free_premium' || planType === 'pro_bundle') {
-      await addBonusGems(userId, 1200, 'subscription_bonus');
-    } else if (planType === 'ad_free_plus') {
-      await addBonusGems(userId, 500, 'subscription_bonus');
+  // If this is an Ad-Free plan or Pro Bundle, add bonus gems
+  if (planType === 'ad_free_premium' || planType === 'pro_bundle') {
+    await addBonusGems(userId, 1200, 'subscription_bonus');
+  } else if (planType === 'ad_free_plus') {
+    await addBonusGems(userId, 500, 'subscription_bonus');
+  }
+}
+
+/**
+ * Handle gem pack purchase (one-time payment)
+ */
+async function handleGemPurchase(session) {
+  const userId = session.metadata?.user_id;
+  const gems = parseInt(session.metadata?.gems, 10);
+  const packName = session.metadata?.pack_name || 'Gem Pack';
+  const paymentIntentId = session.payment_intent;
+
+  if (!userId || !gems || isNaN(gems)) {
+    console.error('❌ Invalid gem purchase metadata:', session.metadata);
+    return;
+  }
+
+  console.log(`💎 Gem purchase: ${gems} gems for user ${userId} (${packName})`);
+
+  try {
+    // Check if gem balance record exists
+    const { data: existing } = await supabase
+      .from('gem_balances')
+      .select('id, spendable_gems')
+      .eq('user_id', userId)
+      .single();
+
+    if (!existing) {
+      // Create new record with purchased gems
+      const { error: insertError } = await supabase
+        .from('gem_balances')
+        .insert({ 
+          user_id: userId, 
+          spendable_gems: gems, 
+          cashable_gems: 0,
+          promo_gems: 0
+        });
+      
+      if (insertError) {
+        console.error('❌ Error inserting gem balance:', insertError);
+        throw insertError;
+      }
+      console.log(`💎 Created gem balance with ${gems} purchased gems for user ${userId}`);
+    } else {
+      // Update existing record - add to current balance
+      const newBalance = (existing.spendable_gems || 0) + gems;
+      const { error: updateError } = await supabase
+        .from('gem_balances')
+        .update({ 
+          spendable_gems: newBalance,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+      
+      if (updateError) {
+        console.error('❌ Error updating gem balance:', updateError);
+        throw updateError;
+      }
+      console.log(`💎 Updated gem balance: ${existing.spendable_gems} + ${gems} = ${newBalance} for user ${userId}`);
     }
+
+    // Log transaction
+    const { error: txError } = await supabase
+      .from('gem_transactions')
+      .insert({
+        user_id: userId,
+        transaction_type: 'purchase',
+        amount: gems,
+        wallet_type: 'spendable',
+        description: `Purchased: ${packName} (${gems} gems)`,
+        stripe_payment_id: paymentIntentId,
+      });
+    
+    if (txError) {
+      console.error('❌ Error logging gem transaction:', txError);
+      // Don't throw - gems were added, just logging failed
+    }
+
+    console.log(`✅ Successfully credited ${gems} gems to user ${userId}`);
+  } catch (error) {
+    console.error('❌ Error processing gem purchase:', error);
+    throw error;
+  }
 }
 
 /**

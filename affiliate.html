@@ -431,7 +431,7 @@
         <span class="gem-count">0</span>
       </div>
       
-      <button id="nav-toggle" class="nav-toggle" aria-label="Toggle menu">
+      <button id="menu-toggle" class="nav-toggle" aria-label="Toggle menu">
         <span class="hamburger-icon">
           <span></span>
           <span></span>
@@ -446,7 +446,7 @@
   
   <!-- Navigation Menu -->
   <nav id="nav-menu" class="nav-menu">
-    <button id="nav-close" class="nav-close" aria-label="Close menu">✕</button>
+    <button id="menu-close" class="nav-close" aria-label="Close menu" onclick="document.getElementById('nav-menu').classList.remove('active'); document.getElementById('nav-overlay').classList.remove('active'); document.getElementById('menu-toggle').classList.remove('active'); document.body.style.overflow = '';">✕</button>
     <ul class="nav-list">
       <li><a href="/" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
       <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎲</span> Matchmaking</a></li>
@@ -717,14 +717,31 @@
       const maxRetries = 30; // Wait up to 3 seconds
       let retries = 0;
       
-      while ((!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) && retries < maxRetries) {
+      // Wait for config to load
+      while (!window.__CHATSPHERES_CONFIG__?.supabase?.url && retries < maxRetries) {
         await new Promise(resolve => setTimeout(resolve, 100));
         retries++;
       }
       
-      if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
-        supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-        console.log('✅ Supabase client initialized');
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      const SUPABASE_URL = supabaseConfig.url || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || '';
+      
+      if (window.supabase && window.supabase.createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true,
+              flowType: 'pkce',
+            }
+          });
+          console.log('✅ Supabase client initialized');
+        } catch (error) {
+          console.error('❌ Failed to create Supabase client:', error);
+        }
       } else {
         console.error('❌ Failed to load Supabase config after', retries * 100, 'ms');
       }

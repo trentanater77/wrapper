@@ -714,7 +714,7 @@
     
     // Supabase initialization
     async function initSupabase() {
-      const maxRetries = 10;
+      const maxRetries = 30; // Wait up to 3 seconds
       let retries = 0;
       
       while ((!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) && retries < maxRetries) {
@@ -724,13 +724,34 @@
       
       if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
         supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+        console.log('✅ Supabase client initialized');
+      } else {
+        console.error('❌ Failed to load Supabase config after', retries * 100, 'ms');
       }
+    }
+    
+    // Ensure Supabase is ready before auth operations
+    async function ensureSupabase() {
+      if (supabaseClient) return true;
+      
+      // Try to initialize again
+      await initSupabase();
+      
+      if (!supabaseClient) {
+        showAuthMessage('Unable to connect to authentication service. Please refresh the page.', true);
+        return false;
+      }
+      return true;
     }
     
     // Check authentication
     async function checkAuth() {
       if (!supabaseClient) {
         console.error('Supabase not initialized');
+        // Show guest UI by default
+        updateNavForGuest();
+        document.getElementById('signin-required').classList.remove('hidden');
+        document.getElementById('referral-content').classList.add('hidden');
         return;
       }
       
@@ -747,8 +768,24 @@
           document.getElementById('signin-required').classList.remove('hidden');
           document.getElementById('referral-content').classList.add('hidden');
         }
+        
+        // Set up auth state listener
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (session?.user) {
+            currentUser = session.user;
+            updateNavForUser(currentUser);
+            showReferralContent();
+            loadReferralData();
+          } else {
+            currentUser = null;
+            updateNavForGuest();
+            document.getElementById('signin-required').classList.remove('hidden');
+            document.getElementById('referral-content').classList.add('hidden');
+          }
+        });
       } catch (error) {
         console.error('Auth check error:', error);
+        updateNavForGuest();
       }
     }
     
@@ -877,6 +914,8 @@
     async function handleSignIn(event) {
       event.preventDefault();
       
+      if (!await ensureSupabase()) return;
+      
       const email = document.getElementById('auth-email').value;
       const password = document.getElementById('auth-password').value;
       
@@ -901,6 +940,8 @@
     
     // Google sign in
     async function handleGoogleSignIn() {
+      if (!await ensureSupabase()) return;
+      
       try {
         const { error } = await supabaseClient.auth.signInWithOAuth({
           provider: 'google',
@@ -918,6 +959,8 @@
     
     // Sign out
     async function signOut() {
+      if (!supabaseClient) return;
+      
       try {
         await supabaseClient.auth.signOut();
         currentUser = null;

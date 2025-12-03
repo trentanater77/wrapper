@@ -465,29 +465,26 @@
 <!-- Auth Modal -->
 <div id="auth-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.9); backdrop-filter: blur(8px);">
   <div class="rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-gold relative overflow-hidden" style="background: var(--light-rose);">
+    <!-- Close Button -->
+    <button onclick="hideAuthModal()" class="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full transition-colors z-20" style="background: var(--rose); color: var(--charcoal);">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+    
     <!-- Decorative background pattern -->
     <div class="absolute inset-0 opacity-5 pointer-events-none" style="background: radial-gradient(circle at 30% 70%, #e63946 0%, transparent 50%), radial-gradient(circle at 70% 30%, #FFD166 0%, transparent 50%);"></div>
     
     <!-- Logo -->
     <div class="text-center mb-6 relative z-10">
       <svg viewBox="0 0 64 64" width="56" height="56" fill="none" xmlns="http://www.w3.org/2000/svg" class="mx-auto mb-3">
-        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+        <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+        <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
         <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
       </svg>
-      <h2 class="text-2xl font-bold text-charcoal">Welcome to ChatSpheres</h2>
-      <p class="text-gray-600 text-sm mt-1">Sign in to connect with purpose</p>
-    </div>
-    
-    <!-- Auth Tabs -->
-    <div class="flex mb-6 bg-gray-100 rounded-full p-1 relative z-10">
-      <button id="auth-tab-signin" onclick="switchAuthTab('signin')" class="flex-1 py-2 px-4 rounded-full font-semibold text-sm transition-all bg-main-red text-white">
-        Sign In
-      </button>
-      <button id="auth-tab-signup" onclick="switchAuthTab('signup')" class="flex-1 py-2 px-4 rounded-full font-semibold text-sm transition-all text-gray-600 hover:text-charcoal">
-        Sign Up
-      </button>
+      <h2 class="text-2xl font-bold text-charcoal">Welcome Back</h2>
+      <p class="text-sm mt-1" style="color: var(--charcoal); opacity: 0.7;">Sign in to connect with purpose</p>
     </div>
     
     <!-- Error/Success Messages -->
@@ -498,54 +495,31 @@
       <div>
         <label class="block text-sm font-semibold text-charcoal mb-1">Email</label>
         <input type="email" id="signin-email" required
-          class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-main-red focus:outline-none transition-colors"
+          class="w-full px-4 py-3 rounded-xl focus:outline-none transition-colors"
+          style="background: var(--bg-main); border: 2px solid var(--rose);"
           placeholder="you@example.com">
       </div>
       <div>
         <label class="block text-sm font-semibold text-charcoal mb-1">Password</label>
         <input type="password" id="signin-password" required
-          class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-main-red focus:outline-none transition-colors"
+          class="w-full px-4 py-3 rounded-xl focus:outline-none transition-colors"
+          style="background: var(--bg-main); border: 2px solid var(--rose);"
           placeholder="••••••••">
       </div>
-      <button type="submit" id="signin-submit" class="w-full py-3 bg-main-red text-white font-bold rounded-xl hover:bg-red-600 transition-colors">
+      <button type="submit" id="signin-submit" class="w-full py-3 font-bold rounded-full transition-colors" style="background: var(--gold); color: var(--charcoal);">
         Sign In
-      </button>
-    </form>
-    
-    <!-- Sign Up Form -->
-    <form id="signup-form" class="space-y-4 relative z-10 hidden" onsubmit="handleSignUp(event)">
-      <div>
-        <label class="block text-sm font-semibold text-charcoal mb-1">Display Name</label>
-        <input type="text" id="signup-name" required
-          class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-main-red focus:outline-none transition-colors"
-          placeholder="Your name">
-      </div>
-      <div>
-        <label class="block text-sm font-semibold text-charcoal mb-1">Email</label>
-        <input type="email" id="signup-email" required
-          class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-main-red focus:outline-none transition-colors"
-          placeholder="you@example.com">
-      </div>
-      <div>
-        <label class="block text-sm font-semibold text-charcoal mb-1">Password</label>
-        <input type="password" id="signup-password" required minlength="6"
-          class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-main-red focus:outline-none transition-colors"
-          placeholder="••••••••  (min 6 characters)">
-      </div>
-      <button type="submit" id="signup-submit" class="w-full py-3 bg-main-red text-white font-bold rounded-xl hover:bg-red-600 transition-colors">
-        Create Account
       </button>
     </form>
     
     <!-- Divider -->
     <div class="flex items-center my-6 relative z-10">
-      <div class="flex-1 border-t border-gray-200"></div>
-      <span class="px-4 text-gray-500 text-sm">or continue with</span>
-      <div class="flex-1 border-t border-gray-200"></div>
+      <div class="flex-1" style="border-top: 1px solid var(--rose);"></div>
+      <span class="px-4 text-sm" style="color: var(--charcoal); opacity: 0.6;">or continue with</span>
+      <div class="flex-1" style="border-top: 1px solid var(--rose);"></div>
     </div>
     
     <!-- Google Sign In -->
-    <button onclick="handleGoogleSignIn()" id="google-signin-btn" class="w-full py-3 border-2 rounded-xl font-semibold text-charcoal transition-all flex items-center justify-center gap-3 relative z-10" style="background: var(--bg-main); border-color: var(--rose);">
+    <button onclick="handleGoogleSignIn()" id="google-signin-btn" class="w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 relative z-10" style="background: var(--bg-main); border: 2px solid var(--rose); color: var(--charcoal);">
       <svg width="20" height="20" viewBox="0 0 24 24">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -555,9 +529,13 @@
       Continue with Google
     </button>
     
-    <!-- Skip auth for guests (optional) -->
-    <div class="text-center mt-6 relative z-10">
-      <button onclick="continueAsGuest()" class="text-gray-500 hover:text-main-red text-sm underline transition-colors">
+    <!-- Sign Up Link & Guest -->
+    <div class="text-center mt-6 relative z-10 space-y-3">
+      <p class="text-sm" style="color: var(--charcoal);">
+        Don't have an account? 
+        <a href="https://www.chatspheres.com/sign-up/" class="font-bold underline" style="color: var(--main-red);">Sign Up</a>
+      </p>
+      <button onclick="continueAsGuest()" class="text-sm underline transition-colors" style="color: var(--charcoal); opacity: 0.6;">
         Continue as guest
       </button>
     </div>
@@ -854,7 +832,7 @@
           <a href="/matchmaking.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">Find Match</a>
           <a href="/recordings.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">📹 Recordings</a>
           <a href="/pricing.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--gold);">💎 Pricing</a>
-          <button onclick="showAuthModal(); switchAuthTab('signin');" class="px-3 py-1 text-sm font-semibold rounded-full transition-colors" style="color: var(--charcoal); border: 2px solid var(--charcoal);">Sign In</button>
+          <button onclick="showAuthModal();" class="px-3 py-1 text-sm font-semibold rounded-full transition-colors" style="color: var(--charcoal); border: 2px solid var(--charcoal);">Sign In</button>
         </div>
         <div id="header-auth-user" class="hidden lg:flex items-center space-x-2 ml-4">
           <a href="/matchmaking.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">Find Match</a>
@@ -960,8 +938,9 @@
         <div style="height: 1px; background: var(--rose); margin: 1rem 0;"></div>
         
         <!-- Mobile Auth Buttons -->
-        <div id="mobile-auth-guest" class="space-y-2">
-          <button onclick="showAuthModal(); switchAuthTab('signin'); toggleVideoMenu();" class="w-full px-4 py-3 rounded-full font-bold transition" style="background: var(--gold); color: var(--charcoal);">Sign In</button>
+        <div id="mobile-auth-guest" class="space-y-3">
+          <button onclick="showAuthModal(); toggleVideoMenu();" class="w-full px-4 py-3 rounded-full font-bold transition" style="background: var(--gold); color: var(--charcoal);">Sign In</button>
+          <a href="https://www.chatspheres.com/sign-up/" class="block w-full px-4 py-3 rounded-full font-bold text-center transition" style="background: var(--main-red); color: var(--light-rose);">Sign Up</a>
         </div>
         <div id="mobile-auth-user" class="hidden space-y-3">
           <div class="flex items-center gap-2 px-4 py-2 rounded-xl" style="background: var(--rose);">

@@ -814,7 +814,7 @@
     <!-- Guest Links -->
     <div id="nav-guest-links" class="nav-user-section">
       <button onclick="showAuthModalFromHeader()" class="btn btn-ghost btn-full" style="margin-bottom: var(--space-sm);">Sign In</button>
-      <button onclick="showAuthModalFromHeader('signup')" class="btn btn-primary btn-full">Sign Up</button>
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign Up</a>
     </div>
     
     <!-- User Section (shown when logged in) -->
@@ -969,12 +969,6 @@
         <p>Sign in to find your match</p>
       </div>
       
-      <!-- Auth Tabs -->
-      <div class="auth-tabs">
-        <button id="auth-tab-signin" onclick="switchAuthTab('signin')" class="auth-tab active">Sign In</button>
-        <button id="auth-tab-signup" onclick="switchAuthTab('signup')" class="auth-tab">Sign Up</button>
-      </div>
-      
       <!-- Error/Success Messages -->
       <div id="auth-message" class="auth-message hidden"></div>
       
@@ -989,23 +983,6 @@
           <input type="password" id="signin-password" class="form-input" required placeholder="••••••••">
         </div>
         <button type="submit" class="btn btn-primary btn-full">Sign In</button>
-      </form>
-      
-      <!-- Sign Up Form -->
-      <form id="signup-form" class="auth-form hidden" onsubmit="handleSignUp(event)">
-        <div class="form-group">
-          <label class="form-label">Display Name</label>
-          <input type="text" id="signup-name" class="form-input" required placeholder="Your name">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email</label>
-          <input type="email" id="signup-email" class="form-input" required placeholder="you@example.com">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Password</label>
-          <input type="password" id="signup-password" class="form-input" required minlength="6" placeholder="•••••••• (min 6 characters)">
-        </div>
-        <button type="submit" class="btn btn-primary btn-full">Create Account</button>
       </form>
       
       <!-- Divider -->
@@ -1023,6 +1000,12 @@
         </svg>
         Continue with Google
       </button>
+      
+      <!-- Sign Up Link -->
+      <p style="text-align: center; margin-top: var(--space-lg); color: var(--charcoal);">
+        Don't have an account? 
+        <a href="https://www.chatspheres.com/sign-up/" style="color: var(--main-red); font-weight: 700; text-decoration: underline;">Sign Up</a>
+      </p>
       
       <!-- Close button -->
       <button onclick="hideAuthModal()" class="auth-close">×</button>

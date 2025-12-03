@@ -317,46 +317,40 @@
   </nav>
   
   <!-- Auth Modal -->
-  <div id="auth-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.9); backdrop-filter: blur(8px);">
-    <div class="rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 relative overflow-hidden" style="background: var(--light-rose); border-color: var(--gold);">
-      <button onclick="hideAuthModal()" class="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full transition-colors z-20" style="background: var(--rose); color: var(--charcoal);">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
+  <div id="auth-modal" class="auth-modal">
+    <div class="auth-modal-content">
+      <button onclick="hideAuthModal()" class="auth-close">×</button>
       
-      <div class="text-center mb-6 relative z-10">
-        <svg viewBox="0 0 64 64" width="56" height="56" fill="none" xmlns="http://www.w3.org/2000/svg" class="mx-auto mb-3">
+      <div class="auth-modal-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
           <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
           <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         </svg>
-        <h2 class="text-2xl font-bold" style="color: var(--charcoal);">Welcome Back</h2>
-        <p class="text-sm mt-1" style="color: var(--charcoal); opacity: 0.7;">Sign in to continue</p>
+        <h2>Welcome to ChatSpheres</h2>
+        <p>Sign in to continue</p>
       </div>
       
-      <div id="auth-message" class="hidden mb-4 p-3 rounded-xl text-sm font-medium text-center relative z-10"></div>
+      <div id="auth-message" class="auth-message hidden"></div>
       
-      <form id="signin-form" class="space-y-4 relative z-10" onsubmit="handleSignIn(event)">
-        <div>
-          <label class="block text-sm font-semibold mb-1" style="color: var(--charcoal);">Email</label>
-          <input type="email" id="signin-email" required class="w-full px-4 py-3 rounded-xl focus:outline-none" style="background: var(--bg-main); border: 2px solid var(--rose);" placeholder="you@example.com">
+      <form id="signin-form" class="auth-form" onsubmit="handleSignIn(event)">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="signin-email" class="form-input" required placeholder="you@example.com">
         </div>
-        <div>
-          <label class="block text-sm font-semibold mb-1" style="color: var(--charcoal);">Password</label>
-          <input type="password" id="signin-password" required class="w-full px-4 py-3 rounded-xl focus:outline-none" style="background: var(--bg-main); border: 2px solid var(--rose);" placeholder="••••••••">
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="signin-password" class="form-input" required placeholder="••••••••">
         </div>
-        <button type="submit" class="w-full py-3 font-bold rounded-full transition-colors" style="background: var(--gold); color: var(--charcoal);">Sign In</button>
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
       </form>
       
-      <div class="flex items-center my-6 relative z-10">
-        <div class="flex-1" style="border-top: 1px solid var(--rose);"></div>
-        <span class="px-4 text-sm" style="color: var(--charcoal); opacity: 0.6;">or continue with</span>
-        <div class="flex-1" style="border-top: 1px solid var(--rose);"></div>
+      <div class="auth-divider">
+        <span>or continue with</span>
       </div>
       
-      <button onclick="handleGoogleSignIn()" class="w-full py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-3 relative z-10" style="background: var(--bg-main); border: 2px solid var(--rose); color: var(--charcoal);">
+      <button onclick="handleGoogleSignIn()" class="google-btn">
         <svg width="20" height="20" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -366,8 +360,8 @@
         Continue with Google
       </button>
       
-      <p class="text-center mt-6 text-sm relative z-10" style="color: var(--charcoal);">
-        Don't have an account? <a href="https://www.chatspheres.com/sign-up/" class="font-bold underline" style="color: var(--main-red);">Sign Up</a>
+      <p class="auth-signup-link">
+        Don't have an account? <a href="https://www.chatspheres.com/sign-up/">Sign Up</a>
       </p>
     </div>
   </div>
@@ -740,13 +734,15 @@
     // Auth Modal Functions
     function showAuthModal() {
       const modal = document.getElementById('auth-modal');
-      if (modal) modal.classList.remove('hidden');
+      if (modal) modal.classList.add('active');
     }
+    window.showAuthModal = showAuthModal;
     
     function hideAuthModal() {
       const modal = document.getElementById('auth-modal');
-      if (modal) modal.classList.add('hidden');
+      if (modal) modal.classList.remove('active');
     }
+    window.hideAuthModal = hideAuthModal;
     
     function showAuthMessage(msg, isError = true) {
       const el = document.getElementById('auth-message');

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community Guidelines - ChatSpheres</title>
+  <meta name="description" content="ChatSpheres Community Guidelines - Our rules for creating a safe, respectful, and engaging community.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .legal-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .legal-title {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .legal-updated {
+      font-size: 0.9rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .legal-content {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      border: 3px solid var(--rose);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .legal-content h2 {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--main-red);
+      margin-top: var(--space-xl);
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-sm);
+      border-bottom: 2px solid var(--rose);
+    }
+    
+    .legal-content h2:first-child {
+      margin-top: 0;
+    }
+    
+    .legal-content h3 {
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-top: var(--space-lg);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .legal-content p {
+      color: var(--charcoal);
+      line-height: 1.7;
+      margin-bottom: var(--space-md);
+    }
+    
+    .legal-content ul, .legal-content ol {
+      color: var(--charcoal);
+      margin-bottom: var(--space-md);
+      padding-left: var(--space-xl);
+    }
+    
+    .legal-content li {
+      margin-bottom: var(--space-sm);
+      line-height: 1.6;
+    }
+    
+    .legal-content strong {
+      color: var(--charcoal);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .legal-content a {
+      color: var(--main-red);
+      text-decoration: underline;
+    }
+    
+    .highlight-box {
+      background: var(--bg-main);
+      border-left: 4px solid var(--gold);
+      padding: var(--space-md) var(--space-lg);
+      margin: var(--space-lg) 0;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    }
+    
+    .highlight-box p {
+      margin: 0;
+      font-weight: var(--font-weight-semibold);
+    }
+    
+    .highlight-box.warning {
+      border-left-color: var(--main-red);
+    }
+    
+    .highlight-box.success {
+      border-left-color: #22c55e;
+    }
+    
+    .rule-card {
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin: var(--space-md) 0;
+      border: 2px solid var(--rose);
+    }
+    
+    .rule-card h4 {
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .rule-card p {
+      margin-bottom: 0;
+      font-size: 0.95rem;
+    }
+    
+    .enforcement-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: var(--space-lg) 0;
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    
+    .enforcement-table th, .enforcement-table td {
+      padding: var(--space-md);
+      text-align: left;
+      border-bottom: 1px solid var(--rose);
+    }
+    
+    .enforcement-table th {
+      background: var(--rose);
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+    }
+    
+    .enforcement-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .badge-warning {
+      display: inline-block;
+      padding: 2px 8px;
+      background: var(--gold);
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .badge-danger {
+      display: inline-block;
+      padding: 2px 8px;
+      background: var(--main-red);
+      color: white;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .do-dont-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-md);
+      margin: var(--space-lg) 0;
+    }
+    
+    .do-card, .dont-card {
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      border: 2px solid;
+    }
+    
+    .do-card {
+      border-color: #22c55e;
+    }
+    
+    .do-card h4 {
+      color: #16a34a;
+    }
+    
+    .dont-card {
+      border-color: var(--main-red);
+    }
+    
+    .dont-card h4 {
+      color: var(--main-red);
+    }
+    
+    .do-card h4, .dont-card h4 {
+      font-size: 1rem;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .do-card ul, .dont-card ul {
+      padding-left: var(--space-lg);
+      margin: 0;
+    }
+    
+    .do-card li, .dont-card li {
+      font-size: 0.9rem;
+    }
+    
+    .legal-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-xl);
+      justify-content: center;
+    }
+    
+    .legal-nav a {
+      padding: var(--space-sm) var(--space-md);
+      background: var(--rose);
+      border-radius: var(--radius-full);
+      color: var(--charcoal);
+      text-decoration: none;
+      font-weight: var(--font-weight-semibold);
+      font-size: 0.875rem;
+      transition: all var(--transition-fast);
+    }
+    
+    .legal-nav a:hover, .legal-nav a.active {
+      background: var(--gold);
+    }
+    
+    .back-to-top {
+      position: fixed;
+      bottom: var(--space-lg);
+      right: var(--space-lg);
+      width: 48px;
+      height: 48px;
+      background: var(--gold);
+      border: none;
+      border-radius: 50%;
+      color: var(--charcoal);
+      font-size: 1.25rem;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      transition: all var(--transition-fast);
+      display: none;
+    }
+    
+    .back-to-top.visible {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .back-to-top:hover {
+      background: var(--main-red);
+      color: var(--light-rose);
+      transform: translateY(-2px);
+    }
+    
+    @media (max-width: 768px) {
+      .legal-title {
+        font-size: 1.75rem;
+      }
+      
+      .legal-content {
+        padding: var(--space-lg);
+      }
+      
+      .do-dont-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Simple Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      <a href="/" class="btn btn-ghost">← Back to App</a>
+    </div>
+  </header>
+  
+  <!-- Page Content -->
+  <div class="page-wrapper">
+    <div class="page-content">
+      <main class="container container-md" style="padding-top: var(--space-lg); padding-bottom: var(--space-2xl);">
+        
+        <!-- Hero -->
+        <div class="legal-hero">
+          <h1 class="legal-title">🤝 Community Guidelines</h1>
+          <p class="legal-updated">Last Updated: December 2, 2025</p>
+        </div>
+        
+        <!-- Legal Navigation -->
+        <nav class="legal-nav">
+          <a href="/terms.html">Terms of Service</a>
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/community-guidelines.html" class="active">Community Guidelines</a>
+          <a href="/creator-agreement.html">Creator Agreement</a>
+        </nav>
+        
+        <!-- Content -->
+        <div class="legal-content">
+          <h2>Welcome to ChatSpheres!</h2>
+          <p>ChatSpheres is built on the idea that meaningful conversations can happen between anyone. Whether you're debating philosophy, sharing life experiences, or exploring new topics, we want this to be a space where every voice is valued.</p>
+          
+          <div class="highlight-box success">
+            <p>💬 Our motto: "Talk with purpose. Connect with heart."</p>
+          </div>
+          
+          <p>These guidelines help keep our community safe, respectful, and engaging for everyone. By using ChatSpheres, you agree to follow these rules.</p>
+          
+          <h2>✅ What We Encourage</h2>
+          
+          <div class="rule-card">
+            <h4>🎯 Stay On Topic</h4>
+            <p>Join spheres and rooms that match your interests. Meaningful conversations happen when everyone's invested in the topic.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>🤝 Respect Diverse Perspectives</h4>
+            <p>You'll meet people with different backgrounds and opinions. Engage thoughtfully, even when you disagree. The best debates are respectful ones.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>🌟 Be Authentic</h4>
+            <p>Use your real identity or a consistent persona. Authentic connections are what make ChatSpheres special.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>💎 Support Creators</h4>
+            <p>If you enjoy a host's content, consider tipping or subscribing. Your support helps creators keep making great content.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>🐱 Have Fun!</h4>
+            <p>ChatSpheres is meant to be enjoyable. Bring your curiosity, humor, and open mind.</p>
+          </div>
+          
+          <h2>🚫 Prohibited Content & Behavior</h2>
+          <p>The following are strictly prohibited on ChatSpheres. Violations may result in immediate account termination.</p>
+          
+          <h3>Zero Tolerance (Immediate Ban)</h3>
+          
+          <div class="rule-card" style="border-color: var(--main-red);">
+            <h4>⛔ Illegal Activity</h4>
+            <p>Any content related to illegal drugs, weapons trafficking, or child exploitation. We report such content to law enforcement.</p>
+          </div>
+          
+          <div class="rule-card" style="border-color: var(--main-red);">
+            <h4>⛔ Child Safety</h4>
+            <p>Any content that sexualizes, endangers, or exploits minors in any way. This includes discussions promoting such content.</p>
+          </div>
+          
+          <div class="rule-card" style="border-color: var(--main-red);">
+            <h4>⛔ Terrorism & Violence</h4>
+            <p>Content that promotes terrorism, violence against individuals or groups, or provides instructions for harmful acts.</p>
+          </div>
+          
+          <h3>Serious Violations</h3>
+          
+          <div class="rule-card">
+            <h4>🚫 Hate Speech</h4>
+            <p>Content that attacks, demeans, or promotes hatred against individuals or groups based on race, ethnicity, religion, gender, sexual orientation, disability, or national origin.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>🚫 Harassment & Bullying</h4>
+            <p>Repeatedly targeting, threatening, intimidating, or humiliating other users. This includes doxxing (revealing personal information), stalking, and coordinated harassment.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>🚫 Sexual Content</h4>
+            <p>Nudity, sexual acts, or sexually explicit content. ChatSpheres is not a platform for adult content.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>🚫 Self-Harm & Dangerous Activities</h4>
+            <p>Content that promotes, glorifies, or provides instructions for self-harm, suicide, eating disorders, or dangerous challenges.</p>
+          </div>
+          
+          <h3>Other Violations</h3>
+          
+          <div class="rule-card">
+            <h4>⚠️ Spam & Manipulation</h4>
+            <p>Repeated low-effort rooms, fake engagement, bot accounts, or any attempt to game the platform's systems.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>⚠️ Impersonation</h4>
+            <p>Pretending to be someone else, including public figures, other users, or ChatSpheres staff.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>⚠️ Misinformation</h4>
+            <p>Deliberately spreading false information that could cause real-world harm, especially regarding health, safety, or elections.</p>
+          </div>
+          
+          <div class="rule-card">
+            <h4>⚠️ Commercial Spam</h4>
+            <p>Using ChatSpheres primarily to promote products, services, or other platforms without genuine engagement.</p>
+          </div>
+          
+          <h2>📊 Quick Reference</h2>
+          
+          <div class="do-dont-grid">
+            <div class="do-card">
+              <h4>✅ Do</h4>
+              <ul>
+                <li>Engage respectfully</li>
+                <li>Report violations</li>
+                <li>Support creators you enjoy</li>
+                <li>Stay on topic in rooms</li>
+                <li>Use authentic profile info</li>
+                <li>Give constructive feedback</li>
+              </ul>
+            </div>
+            <div class="dont-card">
+              <h4>❌ Don't</h4>
+              <ul>
+                <li>Attack or harass others</li>
+                <li>Share illegal content</li>
+                <li>Spam or self-promote excessively</li>
+                <li>Share others' personal info</li>
+                <li>Impersonate others</li>
+                <li>Evade bans with new accounts</li>
+              </ul>
+            </div>
+          </div>
+          
+          <h2>⚖️ Enforcement</h2>
+          <p>We take a graduated approach to enforcement, depending on the severity of the violation:</p>
+          
+          <table class="enforcement-table">
+            <tr>
+              <th>Offense</th>
+              <th>Action</th>
+              <th>Duration</th>
+            </tr>
+            <tr>
+              <td><span class="badge-warning">First Offense</span> (Minor)</td>
+              <td>Warning</td>
+              <td>N/A</td>
+            </tr>
+            <tr>
+              <td><span class="badge-warning">Second Offense</span></td>
+              <td>Temporary Suspension</td>
+              <td>7 days</td>
+            </tr>
+            <tr>
+              <td><span class="badge-danger">Third Offense</span></td>
+              <td>Permanent Ban + Gem Forfeiture</td>
+              <td>Permanent</td>
+            </tr>
+            <tr>
+              <td><span class="badge-danger">Zero Tolerance Violation</span></td>
+              <td>Immediate Permanent Ban</td>
+              <td>Permanent (+ Law Enforcement Report)</td>
+            </tr>
+          </table>
+          
+          <h3>What Happens When You're Banned?</h3>
+          <ul>
+            <li>Your access to ChatSpheres is immediately revoked</li>
+            <li>Unused purchased Gems are forfeited (no refunds)</li>
+            <li>Pending payouts may be canceled</li>
+            <li>Creating new accounts to evade a ban is prohibited and will result in those accounts being banned</li>
+          </ul>
+          
+          <h2>🚨 Reporting</h2>
+          <p>If you see content or behavior that violates these guidelines:</p>
+          
+          <ol>
+            <li><strong>In a Room:</strong> Click the report button (🚩) during or after the call</li>
+            <li><strong>User Profile:</strong> Visit their profile and click "Report User"</li>
+            <li><strong>Email:</strong> Contact us at <a href="mailto:chatspheres.worldwide@gmail.com">chatspheres.worldwide@gmail.com</a></li>
+          </ol>
+          
+          <p>Please include as much detail as possible: usernames, room names, timestamps, and descriptions of what happened. All reports are confidential.</p>
+          
+          <div class="highlight-box">
+            <p>👀 We review all reports within 24 hours. Your reports help keep ChatSpheres safe.</p>
+          </div>
+          
+          <h2>📝 Appeals</h2>
+          <p>If you believe your account was suspended or banned in error, you may appeal by emailing <a href="mailto:chatspheres.worldwide@gmail.com">chatspheres.worldwide@gmail.com</a> with:</p>
+          <ul>
+            <li>Your username and email</li>
+            <li>The reason for your suspension/ban (if known)</li>
+            <li>Why you believe it was a mistake</li>
+          </ul>
+          
+          <p>Appeals are reviewed within 7 business days. Our decision is final.</p>
+          
+          <h2>🔄 Updates</h2>
+          <p>These guidelines may be updated from time to time. Material changes will be announced via email or in-app notification. Continued use of ChatSpheres after changes constitutes acceptance.</p>
+          
+          <div class="highlight-box">
+            <p>💖 Thank you for being part of our community! Together, we're building something special.</p>
+          </div>
+        </div>
+        
+      </main>
+      
+      <!-- Footer -->
+      <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose);">
+        <p>
+          <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
+          <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
+          <a href="/community-guidelines.html" style="color: var(--main-red);">Guidelines</a> · 
+          <a href="/contact.html" style="color: var(--main-red);">Contact</a>
+        </p>
+        <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+      </footer>
+    </div>
+  </div>
+  
+  <!-- Back to Top Button -->
+  <button id="back-to-top" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+  
+  <script>
+    // Show/hide back to top button
+    window.addEventListener('scroll', () => {
+      const btn = document.getElementById('back-to-top');
+      if (window.scrollY > 300) {
+        btn.classList.add('visible');
+      } else {
+        btn.classList.remove('visible');
+      }
+    });
+  </script>
+</body>
+</html>

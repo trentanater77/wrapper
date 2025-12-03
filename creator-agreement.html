@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Creator Agreement - ChatSpheres</title>
+  <meta name="description" content="ChatSpheres Creator Agreement - Terms for earning and cashing out Gems on our platform.">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .legal-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .legal-title {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .legal-updated {
+      font-size: 0.9rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .legal-content {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      border: 3px solid var(--rose);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .legal-content h2 {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--main-red);
+      margin-top: var(--space-xl);
+      margin-bottom: var(--space-md);
+      padding-bottom: var(--space-sm);
+      border-bottom: 2px solid var(--rose);
+    }
+    
+    .legal-content h2:first-child {
+      margin-top: 0;
+    }
+    
+    .legal-content h3 {
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-top: var(--space-lg);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .legal-content p {
+      color: var(--charcoal);
+      line-height: 1.7;
+      margin-bottom: var(--space-md);
+    }
+    
+    .legal-content ul, .legal-content ol {
+      color: var(--charcoal);
+      margin-bottom: var(--space-md);
+      padding-left: var(--space-xl);
+    }
+    
+    .legal-content li {
+      margin-bottom: var(--space-sm);
+      line-height: 1.6;
+    }
+    
+    .legal-content strong {
+      color: var(--charcoal);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .legal-content a {
+      color: var(--main-red);
+      text-decoration: underline;
+    }
+    
+    .highlight-box {
+      background: var(--bg-main);
+      border-left: 4px solid var(--gold);
+      padding: var(--space-md) var(--space-lg);
+      margin: var(--space-lg) 0;
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    }
+    
+    .highlight-box p {
+      margin: 0;
+      font-weight: var(--font-weight-semibold);
+    }
+    
+    .highlight-box.warning {
+      border-left-color: var(--main-red);
+    }
+    
+    .info-card {
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin: var(--space-md) 0;
+      border: 2px solid var(--rose);
+    }
+    
+    .info-card h4 {
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .info-card p {
+      margin-bottom: 0;
+      font-size: 0.95rem;
+    }
+    
+    .earnings-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: var(--space-lg) 0;
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    
+    .earnings-table th, .earnings-table td {
+      padding: var(--space-md);
+      text-align: left;
+      border-bottom: 1px solid var(--rose);
+    }
+    
+    .earnings-table th {
+      background: var(--gold);
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+    }
+    
+    .earnings-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .earnings-table td:last-child {
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .gem-icon {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      border-radius: 4px;
+      transform: rotate(45deg);
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+    
+    .kyc-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+      margin: var(--space-lg) 0;
+    }
+    
+    .kyc-step {
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      text-align: center;
+      border: 2px solid var(--rose);
+    }
+    
+    .kyc-step-number {
+      width: 40px;
+      height: 40px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: var(--font-weight-bold);
+      font-size: 1.25rem;
+      color: var(--charcoal);
+      margin: 0 auto var(--space-sm);
+    }
+    
+    .kyc-step h4 {
+      font-size: 0.95rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .kyc-step p {
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+      margin: 0;
+    }
+    
+    .legal-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-xl);
+      justify-content: center;
+    }
+    
+    .legal-nav a {
+      padding: var(--space-sm) var(--space-md);
+      background: var(--rose);
+      border-radius: var(--radius-full);
+      color: var(--charcoal);
+      text-decoration: none;
+      font-weight: var(--font-weight-semibold);
+      font-size: 0.875rem;
+      transition: all var(--transition-fast);
+    }
+    
+    .legal-nav a:hover, .legal-nav a.active {
+      background: var(--gold);
+    }
+    
+    .back-to-top {
+      position: fixed;
+      bottom: var(--space-lg);
+      right: var(--space-lg);
+      width: 48px;
+      height: 48px;
+      background: var(--gold);
+      border: none;
+      border-radius: 50%;
+      color: var(--charcoal);
+      font-size: 1.25rem;
+      cursor: pointer;
+      box-shadow: var(--shadow-md);
+      transition: all var(--transition-fast);
+      display: none;
+    }
+    
+    .back-to-top.visible {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .back-to-top:hover {
+      background: var(--main-red);
+      color: var(--light-rose);
+      transform: translateY(-2px);
+    }
+    
+    @media (max-width: 768px) {
+      .legal-title {
+        font-size: 1.75rem;
+      }
+      
+      .legal-content {
+        padding: var(--space-lg);
+      }
+      
+      .earnings-table {
+        font-size: 0.875rem;
+      }
+      
+      .earnings-table th, .earnings-table td {
+        padding: var(--space-sm);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Simple Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      <a href="/" class="btn btn-ghost">← Back to App</a>
+    </div>
+  </header>
+  
+  <!-- Page Content -->
+  <div class="page-wrapper">
+    <div class="page-content">
+      <main class="container container-md" style="padding-top: var(--space-lg); padding-bottom: var(--space-2xl);">
+        
+        <!-- Hero -->
+        <div class="legal-hero">
+          <h1 class="legal-title">💎 Creator Agreement</h1>
+          <p class="legal-updated">Last Updated: December 2, 2025</p>
+        </div>
+        
+        <!-- Legal Navigation -->
+        <nav class="legal-nav">
+          <a href="/terms.html">Terms of Service</a>
+          <a href="/privacy.html">Privacy Policy</a>
+          <a href="/community-guidelines.html">Community Guidelines</a>
+          <a href="/creator-agreement.html" class="active">Creator Agreement</a>
+        </nav>
+        
+        <!-- Content -->
+        <div class="legal-content">
+          <h2>1. Introduction</h2>
+          <p>Welcome to the ChatSpheres Creator Program! This Creator Agreement ("Agreement") governs your participation in earning and cashing out Gems on our platform. By earning Gems through hosting, tips, or referrals, you agree to these terms.</p>
+          
+          <div class="highlight-box">
+            <p>🌟 Ready to earn? This agreement explains how the Gem economy works and how you can cash out your earnings.</p>
+          </div>
+          
+          <h2>2. How You Earn Gems</h2>
+          
+          <div class="info-card">
+            <h4>💬 Tips from Viewers</h4>
+            <p>When viewers enjoy your content, they can tip you with Gems. You receive 100% of tips (minus platform processing fee).</p>
+          </div>
+          
+          <div class="info-card">
+            <h4>🔗 Referral Bonus</h4>
+            <p>When you invite new users through your referral link and they sign up, both you AND the new user earn 500 Gems each (when minimum activity threshold is met).</p>
+          </div>
+          
+          <div class="info-card">
+            <h4>🏆 Special Events</h4>
+            <p>Participate in platform events, challenges, and promotions to earn bonus Gems.</p>
+          </div>
+          
+          <h2>3. Gem Value & Conversion</h2>
+          
+          <p>Gems can be converted to real money when you cash out:</p>
+          
+          <table class="earnings-table">
+            <tr>
+              <th>Gems</th>
+              <th>Approximate Value</th>
+              <th>Minimum Cashout</th>
+            </tr>
+            <tr>
+              <td>💎 1,000 Gems</td>
+              <td>$5.00 USD</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>💎 5,000 Gems</td>
+              <td>$25.00 USD</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>💎 10,000 Gems</td>
+              <td>$50.00 USD</td>
+              <td>✓ Minimum for cashout</td>
+            </tr>
+            <tr>
+              <td>💎 20,000 Gems</td>
+              <td>$100.00 USD</td>
+              <td>-</td>
+            </tr>
+          </table>
+          
+          <div class="highlight-box warning">
+            <p>⚠️ Important: Gem values shown are approximate. Actual payout rates may vary based on platform policies and currency exchange rates.</p>
+          </div>
+          
+          <h2>4. Cashout Requirements</h2>
+          
+          <h3>4.1 Minimum Payout</h3>
+          <ul>
+            <li><strong>Minimum balance:</strong> 10,000 Gems ($50 USD equivalent)</li>
+            <li><strong>Processing time:</strong> Within 7 business days</li>
+            <li><strong>Payment methods:</strong> PayPal, Bank Transfer (availability varies by region)</li>
+          </ul>
+          
+          <h3>4.2 Identity Verification (KYC)</h3>
+          <p>Before your first cashout, and for any payout over $500, you must complete identity verification:</p>
+          
+          <div class="kyc-steps">
+            <div class="kyc-step">
+              <div class="kyc-step-number">1</div>
+              <h4>Verify Email</h4>
+              <p>Confirm your email address</p>
+            </div>
+            <div class="kyc-step">
+              <div class="kyc-step-number">2</div>
+              <h4>Upload ID</h4>
+              <p>Government-issued photo ID</p>
+            </div>
+            <div class="kyc-step">
+              <div class="kyc-step-number">3</div>
+              <h4>Selfie Verification</h4>
+              <p>Match your ID photo</p>
+            </div>
+            <div class="kyc-step">
+              <div class="kyc-step-number">4</div>
+              <h4>Approval</h4>
+              <p>1-3 business days review</p>
+            </div>
+          </div>
+          
+          <p>This is required by financial regulations to prevent fraud and money laundering. We use Stripe Identity for secure verification.</p>
+          
+          <h3>4.3 Enhanced Verification</h3>
+          <p>For accounts cashing out more than $10,000 per month, additional documentation may be required and accounts may be flagged for manual review (AML compliance).</p>
+          
+          <h2>5. Tax Responsibilities</h2>
+          
+          <div class="highlight-box warning">
+            <p>🧾 Important Tax Information: You are solely responsible for reporting and paying taxes on your ChatSpheres earnings.</p>
+          </div>
+          
+          <h3>5.1 US Creators</h3>
+          <ul>
+            <li>If you earn <strong>$600 or more</strong> in a calendar year, we are required to issue you a <strong>1099-MISC form</strong></li>
+            <li>You must provide a valid W-9 form before receiving payouts exceeding the threshold</li>
+            <li>Report your earnings as self-employment income on your tax return</li>
+          </ul>
+          
+          <h3>5.2 International Creators</h3>
+          <ul>
+            <li>You are responsible for understanding and complying with your local tax laws</li>
+            <li>We may be required to withhold taxes in certain jurisdictions</li>
+            <li>You must provide a W-8BEN form if required</li>
+          </ul>
+          
+          <h3>5.3 Our Role</h3>
+          <p>ChatSpheres does not provide tax advice. Consult a qualified tax professional for guidance on your specific situation.</p>
+          
+          <h2>6. Prohibited Activities</h2>
+          
+          <p>The following activities will result in Gem forfeiture and possible account termination:</p>
+          
+          <ul>
+            <li><strong>Fake engagement:</strong> Using bots, fake accounts, or coordinated groups to artificially inflate tips or referrals</li>
+            <li><strong>Self-referrals:</strong> Creating multiple accounts to claim referral bonuses</li>
+            <li><strong>Tip manipulation:</strong> Tip-for-tip schemes or paying users to tip you</li>
+            <li><strong>Fraud:</strong> Misrepresenting yourself, scamming viewers, or any deceptive practices</li>
+            <li><strong>Money laundering:</strong> Using the platform to launder illicit funds</li>
+            <li><strong>Terms violations:</strong> Any violation of our Terms of Service or Community Guidelines</li>
+          </ul>
+          
+          <h2>7. Gem Forfeiture</h2>
+          
+          <p>Your Gems may be forfeited (with no payout) if:</p>
+          <ul>
+            <li>You violate this Agreement or our Terms of Service</li>
+            <li>Your account is permanently banned</li>
+            <li>Gems were obtained fraudulently</li>
+            <li>You fail to complete identity verification when requested</li>
+            <li>You request cashout after account termination</li>
+          </ul>
+          
+          <p>We reserve the right to withhold pending payouts while investigating potential violations.</p>
+          
+          <h2>8. Platform Fees</h2>
+          
+          <p>ChatSpheres takes the following fees from creator earnings:</p>
+          
+          <table class="earnings-table">
+            <tr>
+              <th>Earning Type</th>
+              <th>Platform Fee</th>
+              <th>You Receive</th>
+            </tr>
+            <tr>
+              <td>Viewer Tips</td>
+              <td>20%</td>
+              <td>80%</td>
+            </tr>
+            <tr>
+              <td>Referral Bonuses</td>
+              <td>0%</td>
+              <td>100%</td>
+            </tr>
+            <tr>
+              <td>Event Prizes</td>
+              <td>0%</td>
+              <td>100%</td>
+            </tr>
+          </table>
+          
+          <p><em>Note: Additional payment processing fees may apply depending on your payout method (typically 1-3%).</em></p>
+          
+          <h2>9. Changes to This Agreement</h2>
+          
+          <p>We may modify this Agreement at any time. Significant changes will be communicated via:</p>
+          <ul>
+            <li>Email notification to your registered address</li>
+            <li>In-app notification</li>
+            <li>Update to the "Last Updated" date above</li>
+          </ul>
+          
+          <p>Continued participation in the Creator Program after changes constitutes acceptance of the new terms.</p>
+          
+          <h2>10. Termination</h2>
+          
+          <p>Either party may terminate this Agreement at any time:</p>
+          <ul>
+            <li><strong>By you:</strong> Stop earning Gems or delete your account</li>
+            <li><strong>By us:</strong> For any reason, with or without notice (though we'll try to give you time to cash out legitimately earned Gems)</li>
+          </ul>
+          
+          <p>Upon termination, pending legitimate cashout requests will be honored if identity verification is complete.</p>
+          
+          <h2>11. Contact & Support</h2>
+          
+          <p>For questions about the Creator Program, payouts, or this Agreement:</p>
+          <ul>
+            <li><strong>Email:</strong> <a href="mailto:chatspheres.worldwide@gmail.com">chatspheres.worldwide@gmail.com</a></li>
+            <li><strong>Support:</strong> <a href="/contact.html">Contact Form</a></li>
+            <li><strong>Cashout Issues:</strong> <a href="/cashout.html">Cashout Dashboard</a></li>
+          </ul>
+          
+          <div class="highlight-box">
+            <p>🚀 Ready to start creating? <a href="/matchmaking.html">Jump into a room</a> and start building your audience!</p>
+          </div>
+          
+          <h2>12. Acknowledgment</h2>
+          
+          <p>By earning Gems on ChatSpheres, you acknowledge that you have read, understood, and agree to be bound by this Creator Agreement, including our <a href="/terms.html">Terms of Service</a>, <a href="/privacy.html">Privacy Policy</a>, and <a href="/community-guidelines.html">Community Guidelines</a>.</p>
+          
+        </div>
+        
+      </main>
+      
+      <!-- Footer -->
+      <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose);">
+        <p>
+          <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
+          <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
+          <a href="/community-guidelines.html" style="color: var(--main-red);">Guidelines</a> · 
+          <a href="/contact.html" style="color: var(--main-red);">Contact</a>
+        </p>
+        <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+      </footer>
+    </div>
+  </div>
+  
+  <!-- Back to Top Button -->
+  <button id="back-to-top" class="back-to-top" onclick="window.scrollTo({top: 0, behavior: 'smooth'})">↑</button>
+  
+  <script>
+    // Show/hide back to top button
+    window.addEventListener('scroll', () => {
+      const btn = document.getElementById('back-to-top');
+      if (window.scrollY > 300) {
+        btn.classList.add('visible');
+      } else {
+        btn.classList.remove('visible');
+      }
+    });
+  </script>
+</body>
+</html>

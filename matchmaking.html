@@ -809,6 +809,7 @@
     <ul class="nav-links">
       <li><a href="/profile.html" class="nav-link"><span class="nav-link-icon">👤</span> Profile</a></li>
       <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cash Out</a></li>
+      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
       <li><a href="/branding.html" id="nav-branding-link" class="nav-link" style="display: none;"><span class="nav-link-icon">🎨</span> Branding</a></li>
     </ul>
     
@@ -1090,14 +1091,46 @@
         }
         
         // Listen for auth changes
-        supabaseClient.auth.onAuthStateChange((event, session) => {
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
           if (session?.user) {
             updateHeaderForUser(session.user);
             hideAuthModal();
+            
+            // Track referral signup if this is a new user
+            if (event === 'SIGNED_IN') {
+              const storedRefCode = sessionStorage.getItem('chatspheres_referral_code');
+              if (storedRefCode) {
+                console.log('🔗 Tracking referral signup for code:', storedRefCode);
+                fetch('/.netlify/functions/track-referral', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'signup',
+                    referralCode: storedRefCode,
+                    referredUserId: session.user.id
+                  })
+                }).then(() => {
+                  sessionStorage.removeItem('chatspheres_referral_code');
+                }).catch(err => console.log('Referral signup tracking failed:', err));
+              }
+            }
           } else {
             updateHeaderForGuest();
           }
         });
+        
+        // Check for referral code in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const refCode = urlParams.get('ref');
+        if (refCode) {
+          sessionStorage.setItem('chatspheres_referral_code', refCode);
+          console.log('📎 Referral code detected:', refCode);
+          fetch('/.netlify/functions/track-referral', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'click', referralCode: refCode })
+          }).catch(err => console.log('Referral tracking not available'));
+        }
       }
       
       function updateHeaderForUser(user) {

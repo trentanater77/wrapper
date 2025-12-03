@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact Us - ChatSpheres</title>
+  <meta name="description" content="Get in touch with ChatSpheres support team. We're here to help!">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .contact-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .contact-title {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .contact-subtitle {
+      font-size: 1.1rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-xl);
+      margin-bottom: var(--space-2xl);
+    }
+    
+    @media (max-width: 768px) {
+      .contact-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .contact-title {
+        font-size: 1.75rem;
+      }
+    }
+    
+    .contact-card {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      border: 3px solid var(--rose);
+    }
+    
+    .contact-card h2 {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-md);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .contact-card p {
+      color: var(--charcoal);
+      margin-bottom: var(--space-lg);
+      line-height: 1.6;
+    }
+    
+    .email-link {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-md) var(--space-lg);
+      background: var(--gold);
+      color: var(--charcoal);
+      text-decoration: none;
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      transition: all var(--transition-fast);
+    }
+    
+    .email-link:hover {
+      background: var(--main-red);
+      color: var(--light-rose);
+      transform: translateY(-2px);
+    }
+    
+    .contact-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-xs);
+    }
+    
+    .form-label {
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      font-size: 0.9rem;
+    }
+    
+    .form-input, .form-textarea, .form-select {
+      padding: var(--space-md);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-size: 1rem;
+      font-family: var(--font-family);
+      background: var(--bg-main);
+      color: var(--charcoal);
+      transition: border-color var(--transition-fast);
+    }
+    
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    
+    .form-textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+    
+    .form-submit {
+      padding: var(--space-md) var(--space-xl);
+      background: var(--gold);
+      color: var(--charcoal);
+      border: none;
+      border-radius: var(--radius-full);
+      font-size: 1rem;
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+    }
+    
+    .form-submit:hover {
+      background: var(--main-red);
+      color: var(--light-rose);
+      transform: translateY(-2px);
+    }
+    
+    .form-submit:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .form-message {
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      text-align: center;
+      font-weight: var(--font-weight-semibold);
+      display: none;
+    }
+    
+    .form-message.success {
+      background: var(--gold);
+      color: var(--charcoal);
+      display: block;
+    }
+    
+    .form-message.error {
+      background: var(--main-red);
+      color: var(--light-rose);
+      display: block;
+    }
+    
+    .quick-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-md);
+      margin-top: var(--space-xl);
+    }
+    
+    .quick-link-card {
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      text-align: center;
+      border: 2px solid var(--rose);
+      text-decoration: none;
+      color: var(--charcoal);
+      transition: all var(--transition-fast);
+    }
+    
+    .quick-link-card:hover {
+      border-color: var(--gold);
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .quick-link-icon {
+      font-size: 2rem;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .quick-link-title {
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .quick-link-desc {
+      font-size: 0.85rem;
+      opacity: 0.8;
+    }
+    
+    .faq-section {
+      margin-top: var(--space-2xl);
+    }
+    
+    .faq-title {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .faq-item {
+      background: var(--light-rose);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-md);
+      border: 2px solid var(--rose);
+    }
+    
+    .faq-question {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-sm);
+    }
+    
+    .faq-answer {
+      color: var(--charcoal);
+      line-height: 1.6;
+      padding-left: var(--space-xl);
+    }
+    
+    .faq-answer a {
+      color: var(--main-red);
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Simple Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      <a href="/" class="btn btn-ghost">← Back to App</a>
+    </div>
+  </header>
+  
+  <!-- Page Content -->
+  <div class="page-wrapper">
+    <div class="page-content">
+      <main class="container container-md" style="padding-top: var(--space-lg); padding-bottom: var(--space-2xl);">
+        
+        <!-- Hero -->
+        <div class="contact-hero">
+          <h1 class="contact-title">📬 Contact Us</h1>
+          <p class="contact-subtitle">Have a question, feedback, or need help? We'd love to hear from you!</p>
+        </div>
+        
+        <!-- Contact Grid -->
+        <div class="contact-grid">
+          
+          <!-- Email Card -->
+          <div class="contact-card">
+            <h2>📧 Email Us</h2>
+            <p>For the fastest response, email us directly. We typically respond within 24-48 hours.</p>
+            <a href="mailto:chatspheres.worldwide@gmail.com" class="email-link">
+              <span>✉️</span>
+              chatspheres.worldwide@gmail.com
+            </a>
+          </div>
+          
+          <!-- Contact Form Card -->
+          <div class="contact-card">
+            <h2>📝 Send a Message</h2>
+            <p>Fill out the form and we'll get back to you as soon as possible.</p>
+            
+            <div id="form-message" class="form-message"></div>
+            
+            <form id="contact-form" class="contact-form" onsubmit="submitForm(event)">
+              <div class="form-group">
+                <label class="form-label" for="name">Your Name</label>
+                <input type="text" id="name" class="form-input" placeholder="John Doe" required>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" class="form-input" placeholder="you@example.com" required>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" for="topic">Topic</label>
+                <select id="topic" class="form-select" required>
+                  <option value="">Select a topic...</option>
+                  <option value="general">General Inquiry</option>
+                  <option value="support">Technical Support</option>
+                  <option value="billing">Billing & Payments</option>
+                  <option value="cashout">Gem Cashout</option>
+                  <option value="report">Report a User</option>
+                  <option value="partnership">Partnership Inquiry</option>
+                  <option value="feedback">Feedback & Suggestions</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label" for="message">Message</label>
+                <textarea id="message" class="form-textarea" placeholder="Tell us what's on your mind..." required></textarea>
+              </div>
+              
+              <button type="submit" id="submit-btn" class="form-submit">
+                <span>📤</span>
+                Send Message
+              </button>
+            </form>
+          </div>
+        </div>
+        
+        <!-- Quick Links -->
+        <div class="quick-links">
+          <a href="/terms.html" class="quick-link-card">
+            <div class="quick-link-icon">📜</div>
+            <div class="quick-link-title">Terms of Service</div>
+            <div class="quick-link-desc">Read our terms</div>
+          </a>
+          <a href="/privacy.html" class="quick-link-card">
+            <div class="quick-link-icon">🔒</div>
+            <div class="quick-link-title">Privacy Policy</div>
+            <div class="quick-link-desc">Your data & rights</div>
+          </a>
+          <a href="/community-guidelines.html" class="quick-link-card">
+            <div class="quick-link-icon">🤝</div>
+            <div class="quick-link-title">Community Guidelines</div>
+            <div class="quick-link-desc">Our community rules</div>
+          </a>
+          <a href="/affiliate.html" class="quick-link-card">
+            <div class="quick-link-icon">🔗</div>
+            <div class="quick-link-title">Affiliate Program</div>
+            <div class="quick-link-desc">Earn by sharing</div>
+          </a>
+        </div>
+        
+        <!-- FAQ Section -->
+        <section class="faq-section">
+          <h2 class="faq-title">❓ Frequently Asked Questions</h2>
+          
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>💎</span>
+              How long does it take to receive my Gem cashout?
+            </div>
+            <p class="faq-answer">Cashouts are processed within 7 business days after identity verification is complete. First-time cashouts may take longer due to KYC requirements.</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>🎥</span>
+              Why isn't my camera/microphone working?
+            </div>
+            <p class="faq-answer">Make sure you've granted browser permissions for camera and microphone. Try refreshing the page or using a different browser (Chrome or Firefox work best).</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>💳</span>
+              Can I get a refund on my subscription?
+            </div>
+            <p class="faq-answer">We offer refunds within 48 hours of initial subscription purchase. After that, you can cancel anytime but won't receive a refund for the remaining period. See our <a href="/terms.html">Terms of Service</a> for details.</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>🚫</span>
+              How do I report someone for inappropriate behavior?
+            </div>
+            <p class="faq-answer">Click the report button (🚩) during the call, or visit the user's profile and click "Report User." You can also email us with details. All reports are confidential.</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">
+              <span>🔗</span>
+              How does the affiliate program work?
+            </div>
+            <p class="faq-answer">Share your unique referral link! When someone signs up and becomes active, both you AND the new user earn Gems. Visit our <a href="/affiliate.html">Affiliate page</a> to get your link.</p>
+          </div>
+        </section>
+        
+      </main>
+      
+      <!-- Footer -->
+      <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose);">
+        <p>
+          <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
+          <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
+          <a href="/community-guidelines.html" style="color: var(--main-red);">Guidelines</a> · 
+          <a href="/contact.html" style="color: var(--main-red);">Contact</a>
+        </p>
+        <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+      </footer>
+    </div>
+  </div>
+  
+  <script>
+    async function submitForm(event) {
+      event.preventDefault();
+      
+      const btn = document.getElementById('submit-btn');
+      const messageEl = document.getElementById('form-message');
+      const originalText = btn.innerHTML;
+      
+      // Get form data
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const topic = document.getElementById('topic').value;
+      const message = document.getElementById('message').value.trim();
+      
+      // Disable button
+      btn.disabled = true;
+      btn.innerHTML = '<span>⏳</span> Sending...';
+      
+      try {
+        // Construct mailto link as fallback / simple approach
+        const subject = encodeURIComponent(`[${topic}] Contact from ${name}`);
+        const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\nTopic: ${topic}\n\nMessage:\n${message}`);
+        
+        // Open email client
+        window.location.href = `mailto:chatspheres.worldwide@gmail.com?subject=${subject}&body=${body}`;
+        
+        // Show success message
+        messageEl.textContent = '✅ Opening your email client... If it didn\'t open, please email us directly.';
+        messageEl.className = 'form-message success';
+        
+        // Reset form
+        document.getElementById('contact-form').reset();
+        
+      } catch (error) {
+        console.error('Form error:', error);
+        messageEl.textContent = '❌ Something went wrong. Please email us directly at chatspheres.worldwide@gmail.com';
+        messageEl.className = 'form-message error';
+      }
+      
+      // Re-enable button
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+  </script>
+</body>
+</html>

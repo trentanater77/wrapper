@@ -1779,6 +1779,26 @@
           console.log('✅ User signed in:', session.user.email);
           hideAuthModal();
           await updateUserDataFromAuth(session.user);
+          
+          // Track referral signup if this is a new user
+          if (event === 'SIGNED_IN') {
+            const storedRefCode = sessionStorage.getItem('chatspheres_referral_code');
+            if (storedRefCode) {
+              console.log('🔗 Tracking referral signup for code:', storedRefCode);
+              fetch('/.netlify/functions/track-referral', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'signup',
+                  referralCode: storedRefCode,
+                  referredUserId: session.user.id
+                })
+              }).then(() => {
+                // Clear the stored code after tracking
+                sessionStorage.removeItem('chatspheres_referral_code');
+              }).catch(err => console.log('Referral signup tracking failed:', err));
+            }
+          }
         } else {
           supabaseAuthUser = null;
           console.log('ℹ️ User signed out');
@@ -2246,6 +2266,24 @@
 
     // Set up auth listener on load
     setupAuthListener();
+
+    // Check for referral code in URL and store it
+    (function trackReferralCode() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refCode = urlParams.get('ref');
+      if (refCode) {
+        // Store referral code in session storage for later use during signup
+        sessionStorage.setItem('chatspheres_referral_code', refCode);
+        console.log('📎 Referral code detected:', refCode);
+        
+        // Track the click
+        fetch('/.netlify/functions/track-referral', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'click', referralCode: refCode })
+        }).catch(err => console.log('Referral tracking not available yet'));
+      }
+    })();
 
     // LiveKit runtime configuration
     const livekitRuntimeConfig = runtimeConfig;

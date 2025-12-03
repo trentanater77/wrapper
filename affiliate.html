@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Affiliate Program - ChatSpheres</title>
+  <meta name="description" content="Earn Gems by sharing ChatSpheres! Both you AND your friends get rewarded.">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Client Config -->
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .affiliate-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .affiliate-title {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .affiliate-subtitle {
+      font-size: 1.1rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .hero-badge {
+      display: inline-block;
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--gold);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-top: var(--space-lg);
+    }
+    
+    /* Double-sided highlight */
+    .double-sided-banner {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--rose) 100%);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      margin-bottom: var(--space-xl);
+      text-align: center;
+      border: 3px solid var(--gold);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .double-sided-banner::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+      animation: shimmer 3s ease-in-out infinite;
+    }
+    
+    @keyframes shimmer {
+      0%, 100% { transform: translateX(-50%) translateY(-50%); }
+      50% { transform: translateX(-30%) translateY(-30%); }
+    }
+    
+    .double-sided-banner h2 {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      position: relative;
+    }
+    
+    .double-sided-banner p {
+      color: var(--charcoal);
+      font-size: 1.1rem;
+      position: relative;
+    }
+    
+    .double-sided-banner .gem-amount {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--main-red);
+    }
+    
+    /* Referral Link Section */
+    .referral-section {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      border: 3px solid var(--rose);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .referral-section h2 {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .referral-link-box {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+    
+    .referral-link-input {
+      flex: 1;
+      padding: var(--space-md);
+      background: var(--bg-main);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-family: monospace;
+      font-size: 0.9rem;
+      color: var(--charcoal);
+    }
+    
+    .copy-btn {
+      padding: var(--space-md) var(--space-lg);
+      background: var(--gold);
+      border: none;
+      border-radius: var(--radius-lg);
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+    
+    .copy-btn:hover {
+      background: var(--main-red);
+      color: var(--light-rose);
+    }
+    
+    .copy-btn.copied {
+      background: #22c55e;
+      color: white;
+    }
+    
+    .share-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+      margin-top: var(--space-lg);
+    }
+    
+    .share-btn {
+      padding: var(--space-sm) var(--space-lg);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-full);
+      background: var(--bg-main);
+      color: var(--charcoal);
+      font-weight: var(--font-weight-semibold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .share-btn:hover {
+      border-color: var(--gold);
+      transform: translateY(-2px);
+    }
+    
+    .share-btn.twitter:hover { background: #1DA1F2; color: white; border-color: #1DA1F2; }
+    .share-btn.reddit:hover { background: #FF4500; color: white; border-color: #FF4500; }
+    .share-btn.whatsapp:hover { background: #25D366; color: white; border-color: #25D366; }
+    
+    /* Sign In Required */
+    .signin-required {
+      text-align: center;
+      padding: var(--space-2xl);
+    }
+    
+    .signin-required-icon {
+      font-size: 4rem;
+      margin-bottom: var(--space-md);
+    }
+    
+    .signin-required h3 {
+      font-size: 1.5rem;
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .signin-required p {
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-lg);
+    }
+    
+    /* Stats Section */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .stat-card {
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      text-align: center;
+      border: 2px solid var(--rose);
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--main-red);
+    }
+    
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+    }
+    
+    /* How It Works */
+    .how-it-works {
+      margin-bottom: var(--space-xl);
+    }
+    
+    .how-it-works h2 {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: var(--space-lg);
+    }
+    
+    .step-card {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      border: 3px solid var(--rose);
+      text-align: center;
+      position: relative;
+    }
+    
+    .step-number {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 40px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: var(--font-weight-bold);
+      font-size: 1.25rem;
+      color: var(--charcoal);
+      border: 3px solid var(--bg-main);
+    }
+    
+    .step-icon {
+      font-size: 3rem;
+      margin-bottom: var(--space-md);
+      margin-top: var(--space-sm);
+    }
+    
+    .step-card h3 {
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .step-card p {
+      color: var(--charcoal);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    
+    /* Rewards Breakdown */
+    .rewards-section {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      border: 3px solid var(--rose);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .rewards-section h2 {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .rewards-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    
+    .rewards-table th, .rewards-table td {
+      padding: var(--space-md);
+      text-align: left;
+      border-bottom: 1px solid var(--rose);
+    }
+    
+    .rewards-table th {
+      background: var(--gold);
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+    }
+    
+    .rewards-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .gem-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      background: linear-gradient(135deg, #60a5fa, #a78bfa);
+      border-radius: var(--radius-full);
+      color: white;
+      font-weight: var(--font-weight-bold);
+      font-size: 0.9rem;
+    }
+    
+    /* FAQ */
+    .faq-section {
+      margin-bottom: var(--space-xl);
+    }
+    
+    .faq-section h2 {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .faq-item {
+      background: var(--light-rose);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-md);
+      border: 2px solid var(--rose);
+    }
+    
+    .faq-question {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .faq-answer {
+      color: var(--charcoal);
+      line-height: 1.6;
+    }
+    
+    @media (max-width: 768px) {
+      .affiliate-title {
+        font-size: 1.75rem;
+      }
+      
+      .referral-link-box {
+        flex-direction: column;
+      }
+      
+      .share-buttons {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div id="header-gem-badge" class="header-gem-badge hidden">
+        <span class="gem-icon">💎</span>
+        <span class="gem-count">0</span>
+      </div>
+      
+      <button id="nav-toggle" class="nav-toggle" aria-label="Toggle menu">
+        <span class="hamburger-icon">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+    </div>
+  </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">✕</button>
+    <ul class="nav-list">
+      <li><a href="/" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎲</span> Matchmaking</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">🎬</span> Recordings</a></li>
+      <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cashout</a></li>
+      <li id="nav-branding-link" style="display: none;"><a href="/branding.html" class="nav-link"><span class="nav-link-icon">🎨</span> Branding</a></li>
+      <li><a href="/profile.html" class="nav-link"><span class="nav-link-icon">👤</span> Profile</a></li>
+      <li><a href="/affiliate.html" class="nav-link active"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+    </ul>
+    <div class="nav-divider"></div>
+    <div id="nav-guest-links" class="nav-guest-links">
+      <button onclick="showAuthModal()" class="btn btn-primary btn-full">Sign In</button>
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-ghost btn-full" target="_blank">Create Account</a>
+    </div>
+    <div id="nav-user-section" class="nav-user-section hidden">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar" id="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <span class="nav-user-name" id="nav-user-name">User</span>
+          <span class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</span>
+        </div>
+      </div>
+      <button onclick="signOut()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="auth-modal">
+    <div class="auth-modal-content">
+      <button class="auth-close" onclick="hideAuthModal()">✕</button>
+      <div class="auth-modal-logo">
+        <svg viewBox="0 0 64 64" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+      </div>
+      <h2>Welcome to ChatSpheres</h2>
+      <p class="auth-subtitle">Sign in to get your referral link</p>
+      <div id="auth-message" class="auth-message hidden"></div>
+      <form id="auth-form" class="auth-form" onsubmit="handleSignIn(event)">
+        <div class="form-group">
+          <label class="form-label" for="auth-email">Email</label>
+          <input type="email" id="auth-email" class="form-input" placeholder="you@example.com" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="auth-password">Password</label>
+          <input type="password" id="auth-password" class="form-input" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
+      </form>
+      <div class="auth-divider"><span>or</span></div>
+      <button onclick="handleGoogleSignIn()" class="google-btn">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9.003 18c2.43 0 4.467-.806 5.956-2.18l-2.909-2.26c-.806.54-1.836.86-3.047.86-2.344 0-4.328-1.584-5.036-3.711H.958v2.332C2.44 15.983 5.485 18 9.003 18z"/><path fill="#FBBC05" d="M3.964 10.712c-.18-.54-.282-1.117-.282-1.71 0-.593.102-1.17.282-1.71V4.96H.957C.347 6.175 0 7.55 0 9.002c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9.003 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.464.891 11.428 0 9.002 0 5.485 0 2.44 2.017.958 4.96L3.964 7.29c.708-2.127 2.692-3.71 5.036-3.71z"/></svg>
+        Continue with Google
+      </button>
+      <p class="auth-signup-link">Don't have an account? <a href="https://www.chatspheres.com/sign-up/" target="_blank">Sign up</a></p>
+    </div>
+  </div>
+  
+  <!-- Page Content -->
+  <div class="page-wrapper">
+    <div class="page-content">
+      <main class="container container-md" style="padding-top: var(--space-lg); padding-bottom: var(--space-2xl);">
+        
+        <!-- Hero -->
+        <div class="affiliate-hero">
+          <h1 class="affiliate-title">🔗 Double-Sided Referrals</h1>
+          <p class="affiliate-subtitle">Unlike boring referral programs, <strong>BOTH you AND your friend</strong> earn Gems when they join!</p>
+          <div class="hero-badge">💎 500 Gems Each!</div>
+        </div>
+        
+        <!-- Double-Sided Banner -->
+        <div class="double-sided-banner">
+          <h2>🎁 You Share. You Both Win!</h2>
+          <p>When someone signs up with your link and joins their first conversation, you get <span class="gem-amount">💎 500</span> and they get <span class="gem-amount">💎 500</span></p>
+        </div>
+        
+        <!-- Referral Link Section (requires login) -->
+        <div class="referral-section">
+          <h2>🔗 Your Referral Link</h2>
+          
+          <!-- Logged out state -->
+          <div id="signin-required" class="signin-required">
+            <div class="signin-required-icon">🔐</div>
+            <h3>Sign In to Get Your Link</h3>
+            <p>Create an account or sign in to get your unique referral link and start earning!</p>
+            <button onclick="showAuthModal()" class="btn btn-primary">Sign In</button>
+          </div>
+          
+          <!-- Logged in state -->
+          <div id="referral-content" class="hidden">
+            <div class="referral-link-box">
+              <input type="text" id="referral-link" class="referral-link-input" readonly>
+              <button id="copy-btn" class="copy-btn" onclick="copyLink()">
+                <span id="copy-icon">📋</span>
+                <span id="copy-text">Copy</span>
+              </button>
+            </div>
+            
+            <div class="share-buttons">
+              <a href="#" id="share-twitter" class="share-btn twitter" target="_blank">
+                <span>𝕏</span> Twitter
+              </a>
+              <a href="#" id="share-reddit" class="share-btn reddit" target="_blank">
+                <span>🔴</span> Reddit
+              </a>
+              <a href="#" id="share-whatsapp" class="share-btn whatsapp" target="_blank">
+                <span>💬</span> WhatsApp
+              </a>
+            </div>
+            
+            <!-- Stats -->
+            <div class="stats-grid" style="margin-top: var(--space-xl);">
+              <div class="stat-card">
+                <div class="stat-value" id="stat-clicks">0</div>
+                <div class="stat-label">Link Clicks</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-signups">0</div>
+                <div class="stat-label">Sign Ups</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-active">0</div>
+                <div class="stat-label">Active Users</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value" id="stat-earned">💎 0</div>
+                <div class="stat-label">Gems Earned</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- How It Works -->
+        <section class="how-it-works">
+          <h2>✨ How It Works</h2>
+          <div class="steps-grid">
+            <div class="step-card">
+              <div class="step-number">1</div>
+              <div class="step-icon">🔗</div>
+              <h3>Share Your Link</h3>
+              <p>Copy your unique referral link and share it anywhere - Twitter, Reddit, Discord, or with friends!</p>
+            </div>
+            <div class="step-card">
+              <div class="step-number">2</div>
+              <div class="step-icon">👋</div>
+              <h3>They Sign Up</h3>
+              <p>Your friend creates an account using your link. They're automatically connected to you!</p>
+            </div>
+            <div class="step-card">
+              <div class="step-number">3</div>
+              <div class="step-icon">🎥</div>
+              <h3>They Join a Chat</h3>
+              <p>Once they complete their first video conversation (at least 2 minutes), the bonus activates!</p>
+            </div>
+            <div class="step-card">
+              <div class="step-number">4</div>
+              <div class="step-icon">💎</div>
+              <h3>You Both Earn!</h3>
+              <p>Both you AND your friend receive 500 Gems instantly. It's a win-win!</p>
+            </div>
+          </div>
+        </section>
+        
+        <!-- Rewards Breakdown -->
+        <section class="rewards-section">
+          <h2>💰 Rewards Breakdown</h2>
+          <table class="rewards-table">
+            <thead>
+              <tr>
+                <th>Action</th>
+                <th>You Get</th>
+                <th>They Get</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Friend Signs Up & Completes First Chat</td>
+                <td><span class="gem-badge">💎 500</span></td>
+                <td><span class="gem-badge">💎 500</span></td>
+              </tr>
+              <tr>
+                <td>Friend Makes First Purchase</td>
+                <td><span class="gem-badge">💎 250</span></td>
+                <td><span class="gem-badge">💎 100 Bonus</span></td>
+              </tr>
+              <tr>
+                <td>Friend Subscribes (Host Pro or higher)</td>
+                <td><span class="gem-badge">💎 1000</span></td>
+                <td><span class="gem-badge">💎 500 Bonus</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="text-align: center; margin-top: var(--space-md); color: var(--charcoal); opacity: 0.7; font-size: 0.9rem;">
+            * Gems are cashable! 10,000 Gems = $50 USD. See our <a href="/creator-agreement.html" style="color: var(--main-red);">Creator Agreement</a> for details.
+          </p>
+        </section>
+        
+        <!-- FAQ -->
+        <section class="faq-section">
+          <h2>❓ Frequently Asked Questions</h2>
+          
+          <div class="faq-item">
+            <div class="faq-question">Why do both people get Gems?</div>
+            <p class="faq-answer">Because boring referral programs only reward the inviter! We believe new users deserve a welcome bonus too. Happy users = better conversations for everyone.</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">Is there a limit to how many people I can refer?</div>
+            <p class="faq-answer">Nope! Refer as many friends as you want. The more the merrier (and the more Gems you earn!).</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">When do I get my Gems?</div>
+            <p class="faq-answer">Gems are credited instantly when your referral completes their first 2-minute video conversation. You'll see them in your balance right away!</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">Can I cash out my referral Gems?</div>
+            <p class="faq-answer">Absolutely! Earned Gems (from referrals, tips, etc.) are fully cashable. Minimum cashout is 10,000 Gems ($50). See our <a href="/cashout.html" style="color: var(--main-red);">Cashout page</a> for details.</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">What counts as "completing" a conversation?</div>
+            <p class="faq-answer">The referred user must join a video room and stay for at least 2 minutes of active conversation. Spectating doesn't count - they need to participate!</p>
+          </div>
+          
+          <div class="faq-item">
+            <div class="faq-question">Can I refer myself with a second account?</div>
+            <p class="faq-answer">Nice try! 😄 Self-referrals are against our terms and will result in Gem forfeiture and possible account suspension. Play fair!</p>
+          </div>
+        </section>
+        
+      </main>
+      
+      <!-- Footer -->
+      <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose);">
+        <p>
+          <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
+          <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
+          <a href="/community-guidelines.html" style="color: var(--main-red);">Guidelines</a> · 
+          <a href="/contact.html" style="color: var(--main-red);">Contact</a>
+        </p>
+        <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+      </footer>
+    </div>
+  </div>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
+  
+  <script>
+    // State
+    let currentUser = null;
+    let supabaseClient = null;
+    let referralCode = null;
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      await initSupabase();
+      await checkAuth();
+    });
+    
+    // Supabase initialization
+    async function initSupabase() {
+      const maxRetries = 10;
+      let retries = 0;
+      
+      while ((!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY) && retries < maxRetries) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+      
+      if (window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+        supabaseClient = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      }
+    }
+    
+    // Check authentication
+    async function checkAuth() {
+      if (!supabaseClient) {
+        console.error('Supabase not initialized');
+        return;
+      }
+      
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        if (session?.user) {
+          currentUser = session.user;
+          updateNavForUser(currentUser);
+          showReferralContent();
+          await loadReferralData();
+        } else {
+          updateNavForGuest();
+          document.getElementById('signin-required').classList.remove('hidden');
+          document.getElementById('referral-content').classList.add('hidden');
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+      }
+    }
+    
+    // Update nav for logged in user
+    function updateNavForUser(user) {
+      document.getElementById('nav-guest-links').classList.add('hidden');
+      document.getElementById('nav-user-section').classList.remove('hidden');
+      
+      const displayName = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      document.getElementById('nav-user-name').textContent = displayName;
+      
+      // Get avatar
+      if (user.user_metadata?.avatar_url) {
+        document.getElementById('nav-user-avatar').innerHTML = `<img src="${user.user_metadata.avatar_url}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+      }
+      
+      // Fetch gem balance
+      fetchGemBalance(user.id);
+    }
+    
+    // Update nav for guest
+    function updateNavForGuest() {
+      document.getElementById('nav-guest-links').classList.remove('hidden');
+      document.getElementById('nav-user-section').classList.add('hidden');
+      document.getElementById('header-gem-badge').classList.add('hidden');
+    }
+    
+    // Fetch gem balance
+    async function fetchGemBalance(userId) {
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+        const data = await response.json();
+        
+        const totalGems = data.totalGems || 0;
+        document.getElementById('nav-user-gems').textContent = totalGems.toLocaleString();
+        document.getElementById('header-gem-badge').querySelector('.gem-count').textContent = totalGems.toLocaleString();
+        document.getElementById('header-gem-badge').classList.remove('hidden');
+        
+        // Show branding link if applicable
+        if (data.limits?.canCustomBrand) {
+          document.getElementById('nav-branding-link').style.display = 'flex';
+        }
+      } catch (error) {
+        console.error('Error fetching gem balance:', error);
+      }
+    }
+    
+    // Show referral content
+    function showReferralContent() {
+      document.getElementById('signin-required').classList.add('hidden');
+      document.getElementById('referral-content').classList.remove('hidden');
+    }
+    
+    // Load referral data
+    async function loadReferralData() {
+      if (!currentUser) return;
+      
+      // Generate referral code from user ID (first 8 chars)
+      referralCode = currentUser.id.substring(0, 8).toUpperCase();
+      
+      // Set referral link
+      const referralLink = `https://sphere.chatspheres.com/?ref=${referralCode}`;
+      document.getElementById('referral-link').value = referralLink;
+      
+      // Set share links
+      const shareText = encodeURIComponent("Join me on ChatSpheres for real video conversations! We both get 500 Gems 💎");
+      const shareUrl = encodeURIComponent(referralLink);
+      
+      document.getElementById('share-twitter').href = `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`;
+      document.getElementById('share-reddit').href = `https://reddit.com/submit?url=${shareUrl}&title=${shareText}`;
+      document.getElementById('share-whatsapp').href = `https://wa.me/?text=${shareText}%20${shareUrl}`;
+      
+      // Load stats from API
+      try {
+        const response = await fetch(`/.netlify/functions/get-referral-stats?userId=${currentUser.id}`);
+        if (response.ok) {
+          const stats = await response.json();
+          document.getElementById('stat-clicks').textContent = stats.clicks || 0;
+          document.getElementById('stat-signups').textContent = stats.signups || 0;
+          document.getElementById('stat-active').textContent = stats.active || 0;
+          document.getElementById('stat-earned').textContent = `💎 ${(stats.gemsEarned || 0).toLocaleString()}`;
+        }
+      } catch (error) {
+        console.log('Stats not available yet');
+      }
+    }
+    
+    // Copy referral link
+    function copyLink() {
+      const linkInput = document.getElementById('referral-link');
+      const copyBtn = document.getElementById('copy-btn');
+      const copyIcon = document.getElementById('copy-icon');
+      const copyText = document.getElementById('copy-text');
+      
+      navigator.clipboard.writeText(linkInput.value).then(() => {
+        copyBtn.classList.add('copied');
+        copyIcon.textContent = '✓';
+        copyText.textContent = 'Copied!';
+        
+        setTimeout(() => {
+          copyBtn.classList.remove('copied');
+          copyIcon.textContent = '📋';
+          copyText.textContent = 'Copy';
+        }, 2000);
+      });
+    }
+    
+    // Auth Modal functions
+    function showAuthModal() {
+      document.getElementById('auth-modal').classList.add('active');
+    }
+    
+    function hideAuthModal() {
+      document.getElementById('auth-modal').classList.remove('active');
+      document.getElementById('auth-message').classList.add('hidden');
+    }
+    
+    function showAuthMessage(message, isError = false) {
+      const msgEl = document.getElementById('auth-message');
+      msgEl.textContent = message;
+      msgEl.className = `auth-message ${isError ? 'error' : 'success'}`;
+      msgEl.classList.remove('hidden');
+    }
+    
+    // Email/Password sign in
+    async function handleSignIn(event) {
+      event.preventDefault();
+      
+      const email = document.getElementById('auth-email').value;
+      const password = document.getElementById('auth-password').value;
+      
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error) throw error;
+        
+        hideAuthModal();
+        currentUser = data.user;
+        updateNavForUser(currentUser);
+        showReferralContent();
+        await loadReferralData();
+        
+      } catch (error) {
+        showAuthMessage(error.message, true);
+      }
+    }
+    
+    // Google sign in
+    async function handleGoogleSignIn() {
+      try {
+        const { error } = await supabaseClient.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.href
+          }
+        });
+        
+        if (error) throw error;
+        
+      } catch (error) {
+        showAuthMessage(error.message, true);
+      }
+    }
+    
+    // Sign out
+    async function signOut() {
+      try {
+        await supabaseClient.auth.signOut();
+        currentUser = null;
+        updateNavForGuest();
+        document.getElementById('signin-required').classList.remove('hidden');
+        document.getElementById('referral-content').classList.add('hidden');
+      } catch (error) {
+        console.error('Sign out error:', error);
+      }
+    }
+    
+    // Expose functions globally
+    window.showAuthModal = showAuthModal;
+    window.hideAuthModal = hideAuthModal;
+    window.signOut = signOut;
+    window.copyLink = copyLink;
+  </script>
+</body>
+</html>

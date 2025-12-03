@@ -527,6 +527,11 @@
       </a>
       
       <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
         <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
           <span class="menu-bar"></span>
           <span class="menu-bar"></span>
@@ -552,12 +557,25 @@
     
     <ul class="nav-links">
       <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cash Out</a></li>
+      <li><a href="/branding.html" id="nav-branding-link" class="nav-link" style="display: none;"><span class="nav-link-icon">🎨</span> Branding</a></li>
     </ul>
     
     <!-- Guest Links -->
     <div id="nav-guest-links" class="nav-user-section">
       <button onclick="showAuthModal()" class="btn btn-ghost btn-full" style="margin-bottom: var(--space-sm);">Sign In</button>
       <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign Up</a>
+    </div>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div id="nav-user-info" class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="signOut()" class="btn btn-ghost btn-full">Sign Out</button>
     </div>
   </nav>
   
@@ -1090,6 +1108,12 @@
           if (gemCount) gemCount.textContent = gems.toLocaleString();
         }
         if (navGems) navGems.textContent = gems.toLocaleString();
+        
+        // Show branding link for pro users
+        const brandingLink = document.getElementById('nav-branding-link');
+        if (brandingLink && data.limits?.canCustomBrand) {
+          brandingLink.style.display = 'flex';
+        }
       } catch (e) {
         console.error('Error fetching gem balance:', e);
       }
@@ -1170,5 +1194,8 @@
       }
     }
   </script>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
 </body>
 </html>

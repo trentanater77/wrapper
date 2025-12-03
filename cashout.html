@@ -481,6 +481,8 @@
     let payoutData = null;
     
     document.addEventListener('DOMContentLoaded', async () => {
+      // Wait a bit for config to load
+      await new Promise(resolve => setTimeout(resolve, 100));
       await initSupabase();
       await checkAuth();
     });
@@ -489,6 +491,11 @@
       const config = window.__CHATSPHERES_CONFIG__ || {};
       const supabaseConfig = config.supabase || {};
       const authConfig = config.auth || {};
+      
+      if (!supabaseConfig.url || !supabaseConfig.anonKey) {
+        console.error('❌ Supabase config not loaded');
+        return;
+      }
       
       if (window.supabase && supabaseConfig.url && supabaseConfig.anonKey) {
         const cookieDomain = authConfig.cookieDomain || '.chatspheres.com';
@@ -587,7 +594,7 @@
         const data = await response.json();
         
         payoutData = data.payout || {};
-        const gems = data.gems || {};
+        const gemsData = data.gems || {};
         
         // Show branding link for pro users
         const brandingLink = document.getElementById('nav-branding-link');
@@ -596,17 +603,17 @@
         }
         
         // Update nav gems
-        const gems = data.totalGems || 0;
+        const totalGems = data.totalGems || 0;
         const navGems = document.getElementById('nav-user-gems');
         const headerGemBadge = document.getElementById('header-gem-badge');
-        if (navGems) navGems.textContent = gems.toLocaleString();
+        if (navGems) navGems.textContent = totalGems.toLocaleString();
         if (headerGemBadge) {
           const gemCount = headerGemBadge.querySelector('.gem-count');
-          if (gemCount) gemCount.textContent = gems.toLocaleString();
+          if (gemCount) gemCount.textContent = totalGems.toLocaleString();
         }
         
         // Update spendable gems
-        document.getElementById('spendable-gems').textContent = (gems.spendable_gems || 0).toLocaleString();
+        document.getElementById('spendable-gems').textContent = (gemsData.spendable_gems || 0).toLocaleString();
         
         // Update cashable gems
         document.getElementById('cashable-gems').textContent = (payoutData.cashableGems || 0).toLocaleString();

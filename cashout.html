@@ -554,18 +554,31 @@
     function showSignInRequired() {
       document.getElementById('signin-required').classList.remove('hidden');
       document.getElementById('main-content').classList.add('hidden');
+      updateNavForGuest();
     }
     
     function updateNavForUser(user) {
       const guestLinks = document.getElementById('nav-guest-links');
       const userSection = document.getElementById('nav-user-section');
       const userName = document.getElementById('nav-user-name');
+      const headerGemBadge = document.getElementById('header-gem-badge');
       
       if (guestLinks) guestLinks.style.display = 'none';
       if (userSection) userSection.style.display = 'block';
+      if (headerGemBadge) headerGemBadge.style.display = 'flex';
       
       const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
       if (userName) userName.textContent = name;
+    }
+    
+    function updateNavForGuest() {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'block';
+      if (userSection) userSection.style.display = 'none';
+      if (headerGemBadge) headerGemBadge.style.display = 'none';
     }
     
     async function loadPayoutData() {
@@ -583,8 +596,14 @@
         }
         
         // Update nav gems
+        const gems = data.totalGems || 0;
         const navGems = document.getElementById('nav-user-gems');
-        if (navGems) navGems.textContent = (data.totalGems || 0).toLocaleString();
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        if (navGems) navGems.textContent = gems.toLocaleString();
+        if (headerGemBadge) {
+          const gemCount = headerGemBadge.querySelector('.gem-count');
+          if (gemCount) gemCount.textContent = gems.toLocaleString();
+        }
         
         // Update spendable gems
         document.getElementById('spendable-gems').textContent = (gems.spendable_gems || 0).toLocaleString();

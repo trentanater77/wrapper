@@ -471,6 +471,7 @@
     async function checkAuth() {
       if (!supabaseClient) {
         showSigninRequired();
+        updateNavForGuest();
         return;
       }
       
@@ -479,15 +480,49 @@
         
         if (!user) {
           showSigninRequired();
+          updateNavForGuest();
           return;
         }
         
         currentUser = user;
+        updateNavForUser(user);
         await loadUserData();
       } catch (error) {
         console.error('Auth error:', error);
         showSigninRequired();
+        updateNavForGuest();
       }
+    }
+    
+    function updateNavForUser(user) {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const userName = document.getElementById('nav-user-name');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'none';
+      if (userSection) userSection.style.display = 'block';
+      if (headerGemBadge) headerGemBadge.style.display = 'flex';
+      
+      const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      if (userName) userName.textContent = name;
+    }
+    
+    function updateNavForGuest() {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'block';
+      if (userSection) userSection.style.display = 'none';
+      if (headerGemBadge) headerGemBadge.style.display = 'none';
+    }
+    
+    async function signOut() {
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+      }
+      window.location.reload();
     }
     
     async function loadUserData() {
@@ -495,6 +530,16 @@
         const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUser.id}`);
         const data = await response.json();
         userData = data;
+        
+        // Update gem count in nav
+        const gems = data.totalGems || 0;
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        const navGems = document.getElementById('nav-user-gems');
+        if (headerGemBadge) {
+          const gemCount = headerGemBadge.querySelector('.gem-count');
+          if (gemCount) gemCount.textContent = gems.toLocaleString();
+        }
+        if (navGems) navGems.textContent = gems.toLocaleString();
         
         // Check if user can use branding
         if (!data.limits?.canCustomBrand) {

@@ -1728,6 +1728,7 @@
     async function initializeAuth() {
       if (!supabaseClient) {
         console.warn('⚠️ Supabase client not available for auth');
+        updateHeaderAuthState(false);
         return null;
       }
 
@@ -1740,6 +1741,7 @@
         
         if (error) {
           console.error('❌ Error getting auth session:', error);
+          updateHeaderAuthState(false);
           return null;
         }
 
@@ -1747,13 +1749,17 @@
           supabaseAuthUser = session.user;
           authInitialized = true;
           console.log('✅ User authenticated:', session.user.email);
+          // Update UI with user data
+          updateUserDataFromAuth(session.user);
           return session.user;
         }
 
         console.log('ℹ️ No active auth session');
+        updateHeaderAuthState(false);
         return null;
       } catch (error) {
         console.error('❌ Auth initialization error:', error);
+        updateHeaderAuthState(false);
         return null;
       }
     }

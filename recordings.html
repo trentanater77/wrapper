@@ -1028,7 +1028,79 @@
           }
         });
       }
+      // Check auth state on init
+      checkAuthState();
     })();
+    
+    async function checkAuthState() {
+      if (!supabaseClient) return;
+      
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        
+        if (session?.user) {
+          updateNavForUser(session.user);
+        } else {
+          updateNavForGuest();
+        }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        updateNavForGuest();
+      }
+    }
+    
+    function updateNavForUser(user) {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const userName = document.getElementById('nav-user-name');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'none';
+      if (userSection) userSection.style.display = 'block';
+      if (headerGemBadge) headerGemBadge.style.display = 'flex';
+      
+      const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      if (userName) userName.textContent = name;
+      
+      // Fetch gem balance
+      fetchGemBalance(user.id);
+    }
+    
+    function updateNavForGuest() {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'block';
+      if (userSection) userSection.style.display = 'none';
+      if (headerGemBadge) headerGemBadge.style.display = 'none';
+    }
+    
+    async function fetchGemBalance(userId) {
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+        const data = await response.json();
+        const gems = data.totalGems || 0;
+        
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        const navGems = document.getElementById('nav-user-gems');
+        
+        if (headerGemBadge) {
+          const gemCount = headerGemBadge.querySelector('.gem-count');
+          if (gemCount) gemCount.textContent = gems.toLocaleString();
+        }
+        if (navGems) navGems.textContent = gems.toLocaleString();
+      } catch (e) {
+        console.error('Error fetching gem balance:', e);
+      }
+    }
+    
+    async function signOut() {
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+      }
+      window.location.reload();
+    }
     
     function showAuthModal() {
       const modal = document.getElementById('auth-modal');

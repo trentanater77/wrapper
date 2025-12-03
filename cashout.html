@@ -297,6 +297,12 @@
       <li><a href="/branding.html" id="nav-branding-link" class="nav-link" style="display: none;"><span class="nav-link-icon">🎨</span> Branding</a></li>
     </ul>
     
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <a href="/" class="btn btn-ghost btn-full" style="margin-bottom: var(--space-sm); text-decoration: none;">Sign In</a>
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign Up</a>
+    </div>
+    
     <!-- User Section (shown when logged in) -->
     <div id="nav-user-section" class="nav-user-section" style="display: none;">
       <div class="nav-user-info">
@@ -501,9 +507,11 @@
     }
     
     function updateNavForUser(user) {
+      const guestLinks = document.getElementById('nav-guest-links');
       const userSection = document.getElementById('nav-user-section');
       const userName = document.getElementById('nav-user-name');
       
+      if (guestLinks) guestLinks.style.display = 'none';
       if (userSection) userSection.style.display = 'block';
       
       const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';

@@ -19,175 +19,59 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
 
   <style>
-    :root {
-      --main-red: #e63946;
-      --gold: #FFD166;
-      --rose: #FFB6B9;
-      --light-rose: #FCE2E5;
-      --charcoal: #22223B;
-      --bg-main: #FFE7DD;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Nunito', sans-serif;
-      background: var(--bg-main);
-      color: var(--charcoal);
-      min-height: 100vh;
-    }
-
-    /* Decorative background circles */
-    .bg-circles {
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      overflow: hidden;
-    }
-
-    .bg-circles::before,
-    .bg-circles::after {
-      content: '';
-      position: absolute;
-      border-radius: 50%;
-      border: 3px solid var(--rose);
-      opacity: 0.3;
-    }
-
-    .bg-circles::before {
-      width: 400px;
-      height: 400px;
-      top: -100px;
-      right: -100px;
-    }
-
-    .bg-circles::after {
-      width: 300px;
-      height: 300px;
-      bottom: -50px;
-      left: -50px;
-    }
-
-    /* Header */
-    .header {
-      background: var(--light-rose);
-      padding: 1rem 2rem;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      position: relative;
-      z-index: 10;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      text-decoration: none;
-      color: var(--charcoal);
-    }
-
-    .logo svg {
-      width: 40px;
-      height: 40px;
-    }
-
-    .logo span {
-      font-size: 1.25rem;
-      font-weight: 800;
-    }
-
-    .header-nav {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .nav-link {
-      color: var(--charcoal);
-      text-decoration: none;
-      font-weight: 600;
-      padding: 0.5rem 1rem;
-      border-radius: 999px;
-      transition: all 0.2s;
-      font-size: 0.9rem;
-    }
-
-    .nav-link:hover {
-      background: var(--rose);
-    }
-
-    .nav-link.active {
-      background: var(--gold);
-    }
-
-    /* Main content */
-    .container {
-      position: relative;
-      z-index: 1;
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-
-    /* Page header */
-    .page-header {
+    /* Page-specific styles */
+    .recordings-hero {
       text-align: center;
-      margin-bottom: 2.5rem;
+      padding: var(--space-2xl) 0 var(--space-xl);
     }
-
-    .page-title {
+    
+    .recordings-title {
       font-size: 2.5rem;
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--charcoal);
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--space-sm);
       letter-spacing: -0.02em;
     }
-
-    .page-subtitle {
+    
+    .recordings-subtitle {
+      font-size: 1.1rem;
       color: var(--charcoal);
       opacity: 0.7;
-      font-size: 1.1rem;
-      font-weight: 600;
     }
-
+    
     /* Stats bar */
     .stats-bar {
       display: flex;
       justify-content: center;
-      gap: 1.5rem;
-      margin-bottom: 2.5rem;
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
       flex-wrap: wrap;
     }
-
+    
     .stat-item {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.6rem 1.2rem;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-lg);
       background: var(--light-rose);
-      border-radius: 999px;
+      border-radius: var(--radius-full);
       font-size: 0.95rem;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
       border: 2px solid var(--rose);
     }
-
+    
     .stat-number {
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--main-red);
     }
-
+    
     /* Loading state */
     .loading-container {
       display: flex;
@@ -195,110 +79,87 @@
       align-items: center;
       justify-content: center;
       min-height: 400px;
-      gap: 1.5rem;
+      gap: var(--space-lg);
     }
-
-    .loader {
-      width: 48px;
-      height: 48px;
-      border: 4px solid var(--rose);
-      border-top-color: var(--main-red);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
+    
     .loading-text {
       color: var(--charcoal);
       font-size: 1rem;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
     }
-
+    
     /* Empty state */
     .empty-state {
       text-align: center;
-      padding: 4rem 2rem;
+      padding: var(--space-3xl) var(--space-xl);
       background: var(--light-rose);
-      border-radius: 24px;
+      border-radius: var(--radius-xl);
       border: 3px solid var(--rose);
     }
-
+    
     .empty-icon {
       font-size: 4rem;
-      margin-bottom: 1rem;
+      margin-bottom: var(--space-md);
     }
-
+    
     .empty-title {
       font-size: 1.5rem;
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--charcoal);
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--space-sm);
     }
-
+    
     .empty-text {
       color: var(--charcoal);
       opacity: 0.7;
-      margin-bottom: 1.5rem;
+      margin-bottom: var(--space-lg);
     }
-
+    
     /* Recordings grid */
     .recordings-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: var(--space-lg);
     }
-
+    
     @media (max-width: 480px) {
       .recordings-grid {
         grid-template-columns: 1fr;
       }
     }
-
+    
     /* Recording card */
     .recording-card {
       background: var(--light-rose);
-      border-radius: 24px;
+      border-radius: var(--radius-xl);
       border: 3px solid var(--rose);
       overflow: hidden;
-      transition: all 0.3s ease;
-      animation: fadeIn 0.5s ease both;
+      transition: all var(--transition-normal);
+      animation: fadeInUp 0.5s ease both;
     }
-
+    
     .recording-card:hover {
       border-color: var(--gold);
       transform: translateY(-4px);
-      box-shadow: 0 12px 30px rgba(230, 57, 70, 0.15);
+      box-shadow: var(--shadow-lg);
     }
-
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
+    
     /* Video container */
     .video-container {
       position: relative;
       aspect-ratio: 16 / 9;
       background: var(--charcoal);
       overflow: hidden;
+      cursor: pointer;
     }
-
+    
     .video-container video {
       width: 100%;
       height: 100%;
       object-fit: contain;
       background: var(--charcoal);
     }
-
+    
     .video-placeholder {
       position: absolute;
       inset: 0;
@@ -308,18 +169,18 @@
       justify-content: center;
       background: var(--charcoal);
       color: var(--light-rose);
-      gap: 0.75rem;
+      gap: var(--space-sm);
     }
-
+    
     .video-placeholder-icon {
       font-size: 3rem;
     }
-
+    
     .video-placeholder-text {
       font-size: 0.9rem;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
     }
-
+    
     /* Play overlay */
     .play-overlay {
       position: absolute;
@@ -329,14 +190,13 @@
       justify-content: center;
       background: rgba(34, 34, 59, 0.4);
       opacity: 0;
-      transition: opacity 0.2s;
-      cursor: pointer;
+      transition: opacity var(--transition-fast);
     }
-
+    
     .video-container:hover .play-overlay {
       opacity: 1;
     }
-
+    
     .play-btn-overlay {
       width: 70px;
       height: 70px;
@@ -347,391 +207,389 @@
       justify-content: center;
       font-size: 2rem;
       color: var(--charcoal);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      transition: transform 0.2s, background 0.2s;
+      box-shadow: var(--shadow-lg);
+      transition: all var(--transition-fast);
     }
-
+    
     .play-btn-overlay:hover {
       transform: scale(1.1);
       background: var(--main-red);
-      color: white;
+      color: var(--light-rose);
     }
-
+    
     /* Card content */
     .card-content {
-      padding: 1.25rem;
+      padding: var(--space-lg);
     }
-
+    
     .card-header {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      margin-bottom: 0.75rem;
-      gap: 1rem;
+      margin-bottom: var(--space-sm);
+      gap: var(--space-md);
     }
-
+    
     .recording-topic {
       font-size: 1.1rem;
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
       color: var(--charcoal);
       line-height: 1.4;
       flex: 1;
     }
-
+    
     .privacy-badge {
       display: inline-flex;
       align-items: center;
       gap: 0.3rem;
       padding: 0.25rem 0.75rem;
-      border-radius: 999px;
+      border-radius: var(--radius-full);
       font-size: 0.75rem;
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
       text-transform: uppercase;
       flex-shrink: 0;
     }
-
+    
     .privacy-badge.public {
       background: var(--gold);
       color: var(--charcoal);
     }
-
+    
     .privacy-badge.private {
       background: var(--main-red);
-      color: white;
+      color: var(--light-rose);
     }
-
+    
     /* Meta info */
     .meta-info {
       display: flex;
       flex-wrap: wrap;
-      gap: 1rem;
-      margin-bottom: 1rem;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
       color: var(--charcoal);
       opacity: 0.8;
       font-size: 0.85rem;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
     }
-
+    
     .meta-item {
       display: flex;
       align-items: center;
       gap: 0.4rem;
     }
-
+    
     /* Participants */
     .participants-section {
-      margin-top: 1rem;
-      padding-top: 1rem;
+      margin-top: var(--space-md);
+      padding-top: var(--space-md);
       border-top: 2px solid var(--rose);
     }
-
+    
     .participants-label {
       font-size: 0.75rem;
       color: var(--charcoal);
       opacity: 0.6;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-sm);
     }
-
+    
     .participants-list {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: var(--space-sm);
     }
-
+    
     .participant-tag {
       padding: 0.25rem 0.75rem;
       background: var(--bg-main);
       border: 2px solid var(--rose);
-      border-radius: 999px;
+      border-radius: var(--radius-full);
       font-size: 0.8rem;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
       color: var(--charcoal);
     }
-
+    
     /* Actions */
     .card-actions {
       display: flex;
-      gap: 0.75rem;
-      margin-top: 1rem;
+      gap: var(--space-sm);
+      margin-top: var(--space-md);
     }
-
+    
     .action-btn {
       flex: 1;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      padding: 0.75rem 1rem;
-      border-radius: 999px;
+      gap: var(--space-sm);
+      padding: 0.75rem var(--space-md);
+      border-radius: var(--radius-full);
       font-size: 0.9rem;
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-fast);
       border: none;
       text-decoration: none;
-      font-family: 'Nunito', sans-serif;
+      font-family: var(--font-family);
     }
-
+    
     .action-btn.primary {
       background: var(--gold);
       color: var(--charcoal);
     }
-
+    
     .action-btn.primary:hover {
       background: var(--main-red);
-      color: white;
+      color: var(--light-rose);
       transform: translateY(-2px);
     }
-
+    
     .action-btn.secondary {
       background: var(--bg-main);
       color: var(--charcoal);
       border: 2px solid var(--rose);
     }
-
+    
     .action-btn.secondary:hover {
       background: var(--rose);
       border-color: var(--main-red);
     }
-
+    
     .action-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
       transform: none !important;
     }
-
-    /* Modal for video playback */
-    .modal-overlay {
+    
+    /* Video Modal */
+    .video-modal-overlay {
       position: fixed;
       inset: 0;
       background: rgba(34, 34, 59, 0.95);
-      z-index: 1000;
+      z-index: var(--z-modal);
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 2rem;
+      padding: var(--space-xl);
       opacity: 0;
       visibility: hidden;
-      transition: all 0.3s ease;
+      transition: all var(--transition-normal);
     }
-
-    .modal-overlay.active {
+    
+    .video-modal-overlay.active {
       opacity: 1;
       visibility: visible;
     }
-
-    .modal-content {
+    
+    .video-modal-content {
       position: relative;
       width: 100%;
       max-width: 1000px;
       background: var(--light-rose);
-      border-radius: 24px;
+      border-radius: var(--radius-xl);
       overflow: hidden;
       border: 3px solid var(--gold);
       transform: scale(0.9);
-      transition: transform 0.3s ease;
+      transition: transform var(--transition-normal);
     }
-
-    .modal-overlay.active .modal-content {
+    
+    .video-modal-overlay.active .video-modal-content {
       transform: scale(1);
     }
-
-    .modal-close {
+    
+    .modal-close-btn {
       position: absolute;
-      top: 1rem;
-      right: 1rem;
+      top: var(--space-md);
+      right: var(--space-md);
       width: 44px;
       height: 44px;
       border-radius: 50%;
       background: var(--main-red);
       border: none;
-      color: white;
+      color: var(--light-rose);
       font-size: 1.5rem;
       cursor: pointer;
       z-index: 10;
-      transition: all 0.2s ease;
+      transition: all var(--transition-fast);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
     }
-
-    .modal-close:hover {
+    
+    .modal-close-btn:hover {
       background: var(--charcoal);
       transform: scale(1.1);
     }
-
+    
     .modal-video {
       width: 100%;
       aspect-ratio: 16 / 9;
       background: var(--charcoal);
       object-fit: contain;
     }
-
+    
     .modal-info {
-      padding: 1.5rem;
+      padding: var(--space-lg);
     }
-
+    
     .modal-title {
       font-size: 1.5rem;
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--charcoal);
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--space-sm);
     }
-
+    
     .modal-meta {
       color: var(--charcoal);
       opacity: 0.7;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
     }
-
+    
     /* Error state */
     .error-state {
       text-align: center;
-      padding: 4rem 2rem;
+      padding: var(--space-3xl) var(--space-xl);
       background: var(--light-rose);
-      border-radius: 24px;
+      border-radius: var(--radius-xl);
       border: 3px solid var(--main-red);
     }
-
+    
     .error-icon {
       font-size: 4rem;
-      margin-bottom: 1rem;
+      margin-bottom: var(--space-md);
     }
-
+    
     .error-title {
       font-size: 1.5rem;
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--main-red);
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--space-sm);
     }
-
+    
     .error-message {
       color: var(--charcoal);
       opacity: 0.7;
       max-width: 400px;
       margin: 0 auto;
     }
-
+    
     .retry-btn {
-      margin-top: 1.5rem;
-      padding: 0.75rem 2rem;
-      background: var(--gold);
-      color: var(--charcoal);
-      border: none;
-      border-radius: 999px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: 'Nunito', sans-serif;
+      margin-top: var(--space-lg);
     }
-
-    .retry-btn:hover {
-      background: var(--main-red);
-      color: white;
-      transform: translateY(-2px);
-    }
-
+    
     /* Responsive */
     @media (max-width: 768px) {
-      .container {
-        padding: 1rem;
-      }
-
-      .page-title {
+      .recordings-title {
         font-size: 1.75rem;
       }
-
-      .header {
-        flex-direction: column;
-        gap: 1rem;
-        padding: 1rem;
+      
+      .video-modal-overlay {
+        padding: var(--space-md);
       }
-
-      .header-nav {
-        justify-content: center;
+      
+      .video-modal-content {
+        border-radius: var(--radius-lg);
       }
-
-      .modal-content {
-        border-radius: 16px;
-      }
-
-      .modal-overlay {
-        padding: 1rem;
-      }
-
+      
       .stats-bar {
-        gap: 0.75rem;
+        gap: var(--space-sm);
       }
-
+      
       .stat-item {
-        padding: 0.5rem 1rem;
+        padding: var(--space-sm) var(--space-md);
         font-size: 0.85rem;
       }
     }
   </style>
 </head>
 <body>
-  <div class="bg-circles"></div>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
   
   <!-- Header -->
-  <header class="header">
-    <a href="https://www.chatspheres.com" class="logo">
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-      </svg>
-      <span>ChatSpheres</span>
-    </a>
-    <nav class="header-nav">
-      <a href="/" class="nav-link">Video Chat</a>
-      <a href="/matchmaking.html" class="nav-link">Find Match</a>
-      <a href="/recordings.html" class="nav-link active">📹 Recordings</a>
-      <a href="/pricing.html" class="nav-link">💎 Pricing</a>
-      <a href="/cashout.html" class="nav-link">💰 Cash Out</a>
-    </nav>
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
   </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <ul class="nav-links">
+      <li><a href="/" class="nav-link"><span class="nav-link-icon">🔮</span> Video Chat</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/recordings.html" class="nav-link active"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cash Out</a></li>
+    </ul>
+  </nav>
 
-  <div class="container">
-    <!-- Page Header -->
-    <div class="page-header">
-      <h1 class="page-title">📹 Sphere Recordings</h1>
-      <p class="page-subtitle">Two seats. One topic. Infinite insight.</p>
-    </div>
+  <!-- Page Content -->
+  <div class="page-wrapper">
+    <div class="page-content">
+      <div class="container" style="padding-top: var(--space-lg); padding-bottom: var(--space-2xl);">
+        <!-- Hero -->
+        <div class="recordings-hero">
+          <h1 class="recordings-title">📹 Sphere Recordings</h1>
+          <p class="recordings-subtitle">Two seats. One topic. Infinite insight.</p>
+        </div>
 
-    <!-- Stats Bar -->
-    <div class="stats-bar" id="stats-bar" style="display: none;">
-      <div class="stat-item">
-        <span class="stat-number" id="total-count">0</span>
-        <span>Recordings</span>
-      </div>
-      <div class="stat-item">
-        <span>🌐</span>
-        <span class="stat-number" id="public-count">0</span>
-        <span>Public</span>
-      </div>
-    </div>
+        <!-- Stats Bar -->
+        <div class="stats-bar" id="stats-bar" style="display: none;">
+          <div class="stat-item">
+            <span class="stat-number" id="total-count">0</span>
+            <span>Recordings</span>
+          </div>
+          <div class="stat-item">
+            <span>🌐</span>
+            <span class="stat-number" id="public-count">0</span>
+            <span>Public</span>
+          </div>
+        </div>
 
-    <!-- Content Area -->
-    <div id="content">
-      <!-- Loading State -->
-      <div class="loading-container" id="loading-state">
-        <div class="loader"></div>
-        <p class="loading-text">Loading recordings...</p>
+        <!-- Content Area -->
+        <div id="content">
+          <!-- Loading State -->
+          <div class="loading-container" id="loading-state">
+            <div class="spinner spinner-lg"></div>
+            <p class="loading-text">Loading recordings...</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Video Modal -->
-  <div class="modal-overlay" id="video-modal">
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeModal()">×</button>
+  <div class="video-modal-overlay" id="video-modal">
+    <div class="video-modal-content">
+      <button class="modal-close-btn" onclick="closeModal()">×</button>
       <video class="modal-video" id="modal-video" controls></video>
       <div class="modal-info">
         <h2 class="modal-title" id="modal-title"></h2>
@@ -739,6 +597,9 @@
       </div>
     </div>
   </div>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
 
   <script>
     // Global state
@@ -819,30 +680,12 @@
       const validRecordings = [];
       
       for (const recording of recordings) {
-        // Skip if no download URL
-        if (!recording.downloadUrl) {
-          console.log('Skipping recording without downloadUrl:', recording.id);
-          continue;
-        }
-        
-        // Skip if still processing
-        if (recording.status === 'processing') {
-          console.log('Skipping processing recording:', recording.id);
-          continue;
-        }
-        
-        // Skip if upload progress < 100
-        if (recording.uploadProgress !== undefined && recording.uploadProgress < 100) {
-          console.log('Skipping incomplete upload:', recording.id);
-          continue;
-        }
+        if (!recording.downloadUrl) continue;
+        if (recording.status === 'processing') continue;
+        if (recording.uploadProgress !== undefined && recording.uploadProgress < 100) continue;
 
-        // Check if URL is valid (not expired) by doing a HEAD request
         const isValid = await checkUrlValidity(recording.downloadUrl);
-        if (!isValid) {
-          console.log('Skipping expired/invalid recording:', recording.id);
-          continue;
-        }
+        if (!isValid) continue;
 
         validRecordings.push(recording);
       }
@@ -852,36 +695,13 @@
 
     async function checkUrlValidity(url) {
       try {
-        // Quick HEAD request to check if URL is valid
-        const response = await fetch(url, { 
-          method: 'HEAD',
-          mode: 'cors'
-        });
-        
-        // If we get a 200, it's valid
-        if (response.ok) {
-          return true;
-        }
-        
-        // 403/401 usually means expired token
-        if (response.status === 403 || response.status === 401) {
-          return false;
-        }
-        
+        const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
+        if (response.ok) return true;
+        if (response.status === 403 || response.status === 401) return false;
         return false;
       } catch (error) {
-        // CORS errors might happen, but we can still try
-        // For CORS errors, we'll assume it might be valid and let video element handle it
-        if (error.name === 'TypeError' && error.message.includes('CORS')) {
-          return true; // Let it through, video element will show error if invalid
-        }
-        
-        // Check if it's an XML error response (expired token)
-        if (url.includes('storage.googleapis.com') || url.includes('s3.')) {
-          // For cloud storage URLs, we'll validate when playing
-          return true;
-        }
-        
+        if (error.name === 'TypeError' && error.message.includes('CORS')) return true;
+        if (url.includes('storage.googleapis.com') || url.includes('s3.')) return true;
         return false;
       }
     }
@@ -904,7 +724,6 @@
       const privacy = recording.privacy || 'public';
       const participants = recording.participants || [];
       
-      // Decode room URL for display
       let roomName = 'Sphere';
       try {
         if (recording.roomUrl) {
@@ -987,12 +806,10 @@
 
     function handleVideoError(videoElement, recordingId) {
       console.warn('Video failed to load:', recordingId);
-      // Hide the card if video is invalid
       const card = videoElement.closest('.recording-card');
       if (card) {
         card.style.display = 'none';
       }
-      // Update stats after hiding
       updateVisibleStats();
     }
 
@@ -1025,7 +842,7 @@
           <div class="empty-icon">🎬</div>
           <h2 class="empty-title">This sphere is cooling down</h2>
           <p class="empty-text">When users record their sphere sessions, they'll appear here.</p>
-          <a href="/" class="action-btn primary" style="display: inline-flex; margin-top: 1rem;">
+          <a href="/" class="btn btn-primary">
             🔮 Join a Sphere
           </a>
         </div>
@@ -1039,7 +856,7 @@
           <div class="error-icon">😿</div>
           <h2 class="error-title">${escapeHtml(title)}</h2>
           <p class="error-message">${escapeHtml(message)}</p>
-          <button class="retry-btn" onclick="location.reload()">Try Again</button>
+          <button class="btn btn-primary retry-btn" onclick="location.reload()">Try Again</button>
         </div>
       `;
     }
@@ -1055,7 +872,6 @@
       modalTitle.textContent = title;
       modalMeta.textContent = '📅 ' + date;
       
-      // Handle video errors in modal
       video.onerror = function() {
         modalTitle.textContent = 'Recording Expired';
         modalMeta.textContent = 'This recording link has expired. The video is no longer available.';

@@ -20,130 +20,41 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
   
   <style>
-    :root {
-      --main-red: #e63946;
-      --gold: #FFD166;
-      --rose: #FFB6B9;
-      --light-rose: #FCE2E5;
-      --charcoal: #22223B;
-      --bg-main: #FFE7DD;
-    }
-    
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
-    body {
-      font-family: 'Nunito', sans-serif;
-      background-color: var(--bg-main);
-      min-height: 100vh;
-      color: var(--charcoal);
-    }
-    
-    /* Header */
-    .header {
-      background: var(--light-rose);
-      padding: 1rem 2rem;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      text-decoration: none;
-      color: var(--charcoal);
-    }
-    
-    .logo svg {
-      width: 40px;
-      height: 40px;
-    }
-    
-    .logo span {
-      font-size: 1.25rem;
-      font-weight: 800;
-    }
-    
-    .header-nav {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
-    
-    .nav-link {
-      color: var(--charcoal);
-      text-decoration: none;
-      font-weight: 600;
-      padding: 0.5rem 1rem;
-      border-radius: 999px;
-      transition: all 0.2s;
-    }
-    
-    .nav-link:hover {
-      background: var(--rose);
-    }
-    
-    .btn-primary {
-      background: var(--gold);
-      color: var(--charcoal);
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 999px;
-      font-weight: 700;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all 0.2s;
-    }
-    
-    .btn-primary:hover {
-      background: var(--main-red);
-      color: var(--light-rose);
-      transform: translateY(-2px);
-    }
-    
-    /* Main Content */
-    .main {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 3rem 1.5rem;
-    }
-    
-    .page-title {
+    /* Page-specific styles */
+    .pricing-hero {
       text-align: center;
-      margin-bottom: 3rem;
+      padding: var(--space-2xl) 0 var(--space-xl);
     }
     
-    .page-title h1 {
+    .pricing-title {
       font-size: 2.5rem;
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--charcoal);
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--space-sm);
     }
     
-    .page-title p {
+    .pricing-subtitle {
+      font-size: 1.1rem;
       color: var(--charcoal);
       opacity: 0.7;
-      font-size: 1.1rem;
     }
     
-    /* Success/Cancel Messages */
+    /* Messages */
     .message {
       max-width: 600px;
-      margin: 0 auto 2rem;
-      padding: 1rem 1.5rem;
-      border-radius: 12px;
+      margin: 0 auto var(--space-lg);
+      padding: var(--space-md) var(--space-lg);
+      border-radius: var(--radius-lg);
       text-align: center;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
+      animation: fadeInDown 0.4s ease-out;
     }
     
     .message.success {
@@ -158,48 +69,134 @@
       border: 2px solid var(--charcoal);
     }
     
-    .message.hidden {
-      display: none;
+    /* Sign In Prompt */
+    .signin-prompt {
+      background: var(--rose);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md) var(--space-lg);
+      margin-bottom: var(--space-lg);
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+      flex-wrap: wrap;
     }
     
-    /* Pricing Cards Container */
+    .signin-prompt p {
+      font-weight: var(--font-weight-semibold);
+      margin: 0;
+    }
+    
+    /* Current Plan Badge */
+    .current-plan-badge {
+      background: var(--gold);
+      color: var(--charcoal);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-full);
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-bold);
+      display: inline-block;
+    }
+    
+    /* Billing Toggle */
+    .billing-toggle {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+      flex-wrap: wrap;
+    }
+    
+    .billing-toggle span {
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      opacity: 0.6;
+      transition: opacity var(--transition-fast);
+    }
+    
+    .billing-toggle span.active {
+      opacity: 1;
+    }
+    
+    .toggle-switch {
+      width: 60px;
+      height: 32px;
+      background: var(--rose);
+      border-radius: var(--radius-full);
+      position: relative;
+      cursor: pointer;
+      transition: background var(--transition-normal);
+    }
+    
+    .toggle-switch.active {
+      background: var(--gold);
+    }
+    
+    .toggle-switch::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 24px;
+      height: 24px;
+      background: var(--charcoal);
+      border-radius: 50%;
+      transition: left var(--transition-normal);
+    }
+    
+    .toggle-switch.active::before {
+      left: 32px;
+    }
+    
+    .save-badge {
+      background: var(--main-red);
+      color: var(--light-rose);
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    /* Pricing Sections */
     .pricing-section {
-      margin-bottom: 4rem;
+      margin-bottom: var(--space-2xl);
     }
     
     .pricing-section h2 {
       font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-lg);
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: var(--space-sm);
     }
     
     .pricing-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--space-lg);
     }
     
     /* Pricing Card */
     .pricing-card {
       background: var(--light-rose);
-      border-radius: 24px;
-      padding: 2rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      border: 3px solid transparent;
-      transition: all 0.3s;
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      border: 3px solid var(--rose);
+      transition: all var(--transition-normal);
       position: relative;
     }
     
     .pricing-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+      transform: translateY(-6px);
+      box-shadow: var(--shadow-lg);
     }
     
     .pricing-card.featured {
       border-color: var(--gold);
+      box-shadow: var(--shadow-glow-gold);
     }
     
     .pricing-card.best-value {
@@ -207,48 +204,45 @@
       background: linear-gradient(135deg, var(--light-rose) 0%, var(--rose) 100%);
     }
     
-    .pricing-card.featured::before {
-      content: '⭐ POPULAR';
+    .pricing-card.featured::before,
+    .pricing-card.best-value::before {
       position: absolute;
-      top: -12px;
+      top: -14px;
       left: 50%;
       transform: translateX(-50%);
+      padding: 0.25rem 1rem;
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-extrabold);
+      letter-spacing: 0.02em;
+    }
+    
+    .pricing-card.featured::before {
+      content: '⭐ POPULAR';
       background: var(--gold);
       color: var(--charcoal);
-      padding: 0.25rem 1rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 800;
     }
     
     .pricing-card.best-value::before {
       content: '🔥 BEST VALUE';
-      position: absolute;
-      top: -12px;
-      left: 50%;
-      transform: translateX(-50%);
       background: var(--main-red);
       color: var(--light-rose);
-      padding: 0.25rem 1rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 800;
     }
     
     .plan-name {
       font-size: 1.5rem;
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--charcoal);
-      margin-bottom: 0.5rem;
+      margin-bottom: var(--space-sm);
     }
     
     .plan-price {
-      margin-bottom: 1.5rem;
+      margin-bottom: var(--space-lg);
     }
     
     .price-amount {
       font-size: 2.5rem;
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--main-red);
     }
     
@@ -265,27 +259,28 @@
       padding: 0.25rem 0.5rem;
       border-radius: 6px;
       font-size: 0.75rem;
-      font-weight: 700;
-      margin-left: 0.5rem;
+      font-weight: var(--font-weight-bold);
+      margin-left: var(--space-sm);
     }
     
     .plan-features {
       list-style: none;
-      margin-bottom: 2rem;
+      margin-bottom: var(--space-xl);
     }
     
     .plan-features li {
-      padding: 0.5rem 0;
+      padding: var(--space-sm) 0;
       display: flex;
       align-items: flex-start;
-      gap: 0.5rem;
+      gap: var(--space-sm);
       font-size: 0.95rem;
     }
     
     .plan-features li::before {
       content: '✓';
       color: var(--main-red);
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
+      flex-shrink: 0;
     }
     
     .plan-features li.disabled {
@@ -299,14 +294,14 @@
     
     .plan-btn {
       width: 100%;
-      padding: 1rem;
+      padding: var(--space-md);
       border: none;
-      border-radius: 999px;
+      border-radius: var(--radius-full);
       font-size: 1rem;
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
       cursor: pointer;
-      transition: all 0.2s;
-      font-family: 'Nunito', sans-serif;
+      transition: all var(--transition-fast);
     }
     
     .plan-btn.primary {
@@ -314,7 +309,7 @@
       color: var(--charcoal);
     }
     
-    .plan-btn.primary:hover {
+    .plan-btn.primary:hover:not(:disabled) {
       background: var(--main-red);
       color: var(--light-rose);
       transform: scale(1.02);
@@ -325,7 +320,7 @@
       color: var(--charcoal);
     }
     
-    .plan-btn.secondary:hover {
+    .plan-btn.secondary:hover:not(:disabled) {
       background: var(--main-red);
       color: var(--light-rose);
     }
@@ -335,7 +330,7 @@
       color: var(--light-rose);
     }
     
-    .plan-btn.switch:hover {
+    .plan-btn.switch:hover:not(:disabled) {
       background: var(--main-red);
     }
     
@@ -351,150 +346,141 @@
       cursor: default;
     }
     
-    /* Billing Toggle */
-    .billing-toggle {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 1rem;
-      margin-bottom: 2rem;
+    /* Cashout Section */
+    .cashout-card {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      max-width: 500px;
+      margin: 0 auto;
+      border: 3px solid var(--gold);
     }
     
-    .billing-toggle span {
-      font-weight: 600;
-      color: var(--charcoal);
-      opacity: 0.6;
-    }
-    
-    .billing-toggle span.active {
-      opacity: 1;
-    }
-    
-    .toggle-switch {
-      width: 60px;
-      height: 32px;
-      background: var(--rose);
-      border-radius: 999px;
-      position: relative;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-    
-    .toggle-switch.active {
-      background: var(--gold);
-    }
-    
-    .toggle-switch::before {
-      content: '';
-      position: absolute;
-      top: 4px;
-      left: 4px;
-      width: 24px;
-      height: 24px;
-      background: var(--charcoal);
-      border-radius: 50%;
-      transition: all 0.3s;
-    }
-    
-    .toggle-switch.active::before {
-      left: 32px;
-    }
-    
-    .save-badge {
-      background: var(--main-red);
-      color: var(--light-rose);
-      padding: 0.25rem 0.75rem;
-      border-radius: 999px;
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-    
-    /* Current Plan Badge */
-    .current-plan-badge {
-      background: var(--gold);
-      color: var(--charcoal);
-      padding: 0.5rem 1rem;
-      border-radius: 999px;
-      font-size: 0.875rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      display: inline-block;
-    }
-    
-    /* Sign In Prompt */
-    .signin-prompt {
-      background: var(--rose);
-      border-radius: 12px;
-      padding: 1rem 1.5rem;
-      margin-bottom: 2rem;
+    .cashout-balance {
       text-align: center;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .cashout-icon {
+      font-size: 3rem;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .cashout-gems {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+    }
+    
+    .cashout-gems span {
+      font-size: 1rem;
+      font-weight: var(--font-weight-semibold);
+    }
+    
+    .cashout-usd {
+      font-size: 1.5rem;
+      color: var(--main-red);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .payout-form {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: var(--space-md);
     }
     
-    .signin-prompt p {
-      font-weight: 600;
-      margin: 0;
+    .payout-info {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+      text-align: center;
     }
     
-    .signin-prompt.hidden {
-      display: none;
+    .payout-error {
+      color: var(--main-red);
+      text-align: center;
+      font-weight: var(--font-weight-semibold);
     }
     
-    /* Switch Plan Modal */
-    .modal-overlay {
+    .payout-success {
+      color: var(--charcoal);
+      background: var(--gold);
+      padding: var(--space-sm);
+      border-radius: var(--radius-md);
+      text-align: center;
+      font-weight: var(--font-weight-semibold);
+    }
+    
+    .pending-notice {
+      background: var(--gold);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+      text-align: center;
+    }
+    
+    /* Switch Modal */
+    .switch-modal-overlay {
       position: fixed;
       top: 0;
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(34, 34, 59, 0.85);
+      backdrop-filter: blur(4px);
       display: flex;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: var(--z-modal);
+      opacity: 0;
+      visibility: hidden;
+      transition: all var(--transition-normal);
     }
     
-    .modal-overlay.hidden {
-      display: none;
+    .switch-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
     }
     
-    .modal {
+    .switch-modal {
       background: var(--light-rose);
-      border-radius: 24px;
-      padding: 2rem;
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
       max-width: 400px;
       width: 90%;
       text-align: center;
+      transform: scale(0.9);
+      transition: transform var(--transition-normal);
     }
     
-    .modal h3 {
+    .switch-modal-overlay.active .switch-modal {
+      transform: scale(1);
+    }
+    
+    .switch-modal h3 {
       font-size: 1.5rem;
-      margin-bottom: 1rem;
+      margin-bottom: var(--space-md);
     }
     
-    .modal p {
-      margin-bottom: 1.5rem;
+    .switch-modal p {
+      margin-bottom: var(--space-lg);
       color: var(--charcoal);
     }
     
-    .modal-buttons {
+    .switch-modal-buttons {
       display: flex;
-      gap: 1rem;
+      gap: var(--space-md);
       justify-content: center;
     }
     
     .modal-btn {
       padding: 0.75rem 1.5rem;
-      border-radius: 999px;
-      font-weight: 700;
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
       cursor: pointer;
       border: none;
-      font-family: 'Nunito', sans-serif;
-      transition: all 0.2s;
+      transition: all var(--transition-fast);
     }
     
     .modal-btn.confirm {
@@ -502,268 +488,349 @@
       color: var(--light-rose);
     }
     
+    .modal-btn.confirm:hover {
+      background: var(--charcoal);
+    }
+    
     .modal-btn.cancel {
       background: var(--charcoal);
       color: var(--light-rose);
     }
     
+    .modal-btn.cancel:hover {
+      background: var(--rose);
+      color: var(--charcoal);
+    }
+    
     /* Footer */
-    .footer {
+    .site-footer {
       text-align: center;
-      padding: 2rem;
+      padding: var(--space-xl);
       color: var(--charcoal);
       font-size: 0.875rem;
+      border-top: 2px solid var(--rose);
+      margin-top: var(--space-2xl);
     }
     
-    .footer a {
+    .site-footer a {
       color: var(--main-red);
       text-decoration: none;
+      font-weight: var(--font-weight-semibold);
     }
     
-    .footer a:hover {
+    .site-footer a:hover {
       text-decoration: underline;
     }
     
-    .hidden {
-      display: none !important;
+    /* Responsive */
+    @media (max-width: 768px) {
+      .pricing-title {
+        font-size: 1.75rem;
+      }
+      
+      .pricing-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .pricing-card {
+        padding: var(--space-lg);
+      }
+      
+      .price-amount {
+        font-size: 2rem;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
   <!-- Header -->
-  <header class="header">
-    <a href="https://www.chatspheres.com" class="logo">
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
-        <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
-        <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-      </svg>
-      <span>ChatSpheres</span>
-    </a>
-    <nav class="header-nav">
-      <a href="/matchmaking.html" class="nav-link">Find Match</a>
-      <a href="/index.html" class="nav-link">Video Chat</a>
-      <a href="/recordings.html" class="nav-link">📹 Recordings</a>
-      <a href="/branding.html" id="branding-link" class="nav-link" style="display: none;">🎨 Branding</a>
-      <a href="/cashout.html" class="nav-link">💰 Cash Out</a>
-      <div id="header-auth"></div>
-    </nav>
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
   </header>
   
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <ul class="nav-links">
+      <li><a href="/" class="nav-link"><span class="nav-link-icon">🔮</span> Video Chat</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link active"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cash Out</a></li>
+      <li><a href="/branding.html" id="nav-branding-link" class="nav-link" style="display: none;"><span class="nav-link-icon">🎨</span> Branding</a></li>
+    </ul>
+    
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <button onclick="redirectToSignIn()" class="btn btn-primary btn-full">Sign In</button>
+    </div>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div id="nav-user-info" class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="signOut()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
   <!-- Switch Plan Modal -->
-  <div id="switch-modal" class="modal-overlay hidden">
-    <div class="modal">
+  <div id="switch-modal" class="switch-modal-overlay">
+    <div class="switch-modal">
       <h3>🔄 Switch Plan?</h3>
-      <p id="switch-modal-text">Switch from <strong id="from-plan">Free</strong> to <strong id="to-plan">Host Pro</strong>?</p>
+      <p>Switch from <strong id="from-plan">Free</strong> to <strong id="to-plan">Host Pro</strong>?</p>
       <p style="font-size: 0.875rem; opacity: 0.8;">Stripe will automatically prorate your billing.</p>
-      <div class="modal-buttons">
+      <div class="switch-modal-buttons">
         <button class="modal-btn cancel" onclick="closeSwitchModal()">Cancel</button>
         <button class="modal-btn confirm" id="confirm-switch-btn" onclick="confirmSwitch()">Switch Plan</button>
       </div>
     </div>
   </div>
   
-  <!-- Main Content -->
-  <main class="main">
-    <!-- Page Title -->
-    <div class="page-title">
-      <h1>Choose Your Plan</h1>
-      <p>Unlock unlimited conversations and exclusive features</p>
-    </div>
-    
-    <!-- Success/Cancel Messages -->
-    <div id="success-message" class="message success hidden">
-      🎉 Welcome to the club! Your subscription is now active.
-    </div>
-    <div id="canceled-message" class="message canceled hidden">
-      No worries! You can upgrade anytime.
-    </div>
-    
-    <!-- Sign In Prompt (shown when not logged in) -->
-    <div id="signin-prompt" class="signin-prompt hidden">
-      <p>🔐 Sign in to subscribe and manage your plan</p>
-      <button onclick="redirectToSignIn()" class="btn-primary">Sign In</button>
-    </div>
-    
-    <!-- Current Plan Display -->
-    <div id="current-plan-display" class="hidden" style="text-align: center; margin-bottom: 2rem;">
-      <span class="current-plan-badge">✓ Current Plan: <span id="current-plan-name">Free</span></span>
-    </div>
-    
-    <!-- Pricing Content (always visible) -->
-    <div id="pricing-content">
-      <!-- Billing Toggle -->
-      <div class="billing-toggle">
-        <span id="monthly-label" class="active">Monthly</span>
-        <div id="billing-toggle" class="toggle-switch" onclick="toggleBilling()"></div>
-        <span id="yearly-label">Yearly</span>
-        <span class="save-badge">Save up to 25%</span>
-      </div>
-      
-      <!-- Bundle Section -->
-      <section class="pricing-section">
-        <h2>🎁 Best Value Bundle</h2>
-        <div class="pricing-grid">
-          <!-- Pro Bundle -->
-          <div class="pricing-card best-value">
-            <h3 class="plan-name">Pro Bundle</h3>
-            <div class="plan-price">
-              <span class="price-amount" id="bundle-price">$24.99</span>
-              <span class="price-period" id="bundle-period">/ month</span>
-              <span class="price-savings" id="bundle-savings">Save $5/mo</span>
-            </div>
-            <ul class="plan-features">
-              <li><strong>Everything in Host Pro:</strong></li>
-              <li>3 hours per room</li>
-              <li>Recording enabled</li>
-              <li>Custom branding</li>
-              <li>Green Room (paid entry)</li>
-              <li><strong>Plus Ad-Free Premium:</strong></li>
-              <li>No ads anywhere</li>
-              <li>1,200 gems per month</li>
-              <li>Exclusive badge</li>
-            </ul>
-            <button id="btn-pro-bundle" class="plan-btn primary" onclick="subscribe('pro_bundle')">
-              Get the Bundle
-            </button>
-          </div>
+  <!-- Page Content -->
+  <div class="page-wrapper">
+    <div class="page-content">
+      <main class="container" style="padding-top: var(--space-lg); padding-bottom: var(--space-2xl);">
+        <!-- Hero -->
+        <div class="pricing-hero">
+          <h1 class="pricing-title">Choose Your Plan</h1>
+          <p class="pricing-subtitle">Unlock unlimited conversations and exclusive features</p>
         </div>
-      </section>
-      
-      <!-- Host Plans -->
-      <section class="pricing-section">
-        <h2>🎥 For Hosts & Creators</h2>
-        <div class="pricing-grid">
-          <!-- Free Plan -->
-          <div class="pricing-card">
-            <h3 class="plan-name">Free</h3>
-            <div class="plan-price">
-              <span class="price-amount">$0</span>
-              <span class="price-period">/ forever</span>
-            </div>
-            <ul class="plan-features">
-              <li>60 minutes per room</li>
-              <li>Unlimited guests</li>
-              <li>Basic video chat</li>
-              <li>Red Room tipping</li>
-              <li class="disabled">Recording</li>
-              <li class="disabled">Custom branding</li>
-              <li class="disabled">Green Room (paid entry)</li>
-            </ul>
-            <button id="btn-free" class="plan-btn secondary" disabled>Free Forever</button>
+        
+        <!-- Success/Cancel Messages -->
+        <div id="success-message" class="message success hidden">
+          🎉 Welcome to the club! Your subscription is now active.
+        </div>
+        <div id="canceled-message" class="message canceled hidden">
+          No worries! You can upgrade anytime.
+        </div>
+        
+        <!-- Sign In Prompt (shown when not logged in) -->
+        <div id="signin-prompt" class="signin-prompt hidden">
+          <p>🔐 Sign in to subscribe and manage your plan</p>
+          <button onclick="redirectToSignIn()" class="btn btn-primary">Sign In</button>
+        </div>
+        
+        <!-- Current Plan Display -->
+        <div id="current-plan-display" class="hidden" style="text-align: center; margin-bottom: var(--space-lg);">
+          <span class="current-plan-badge">✓ Current Plan: <span id="current-plan-name">Free</span></span>
+        </div>
+        
+        <!-- Pricing Content -->
+        <div id="pricing-content">
+          <!-- Billing Toggle -->
+          <div class="billing-toggle">
+            <span id="monthly-label" class="active">Monthly</span>
+            <div id="billing-toggle" class="toggle-switch" onclick="toggleBilling()"></div>
+            <span id="yearly-label">Yearly</span>
+            <span class="save-badge">Save up to 25%</span>
           </div>
           
-          <!-- Host Pro -->
-          <div class="pricing-card featured">
-            <h3 class="plan-name">Host Pro</h3>
-            <div class="plan-price">
-              <span class="price-amount" id="host-pro-price">$19.99</span>
-              <span class="price-period" id="host-pro-period">/ month</span>
+          <!-- Bundle Section -->
+          <section class="pricing-section">
+            <h2>🎁 Best Value Bundle</h2>
+            <div class="pricing-grid">
+              <!-- Pro Bundle -->
+              <div class="pricing-card best-value">
+                <h3 class="plan-name">Pro Bundle</h3>
+                <div class="plan-price">
+                  <span class="price-amount" id="bundle-price">$24.99</span>
+                  <span class="price-period" id="bundle-period">/ month</span>
+                  <span class="price-savings" id="bundle-savings">Save $5/mo</span>
+                </div>
+                <ul class="plan-features">
+                  <li><strong>Everything in Host Pro:</strong></li>
+                  <li>3 hours per room</li>
+                  <li>Recording enabled</li>
+                  <li>Custom branding</li>
+                  <li>Green Room (paid entry)</li>
+                  <li><strong>Plus Ad-Free Premium:</strong></li>
+                  <li>No ads anywhere</li>
+                  <li>1,200 gems per month</li>
+                  <li>Exclusive badge</li>
+                </ul>
+                <button id="btn-pro-bundle" class="plan-btn primary" onclick="subscribe('pro_bundle')">
+                  Get the Bundle
+                </button>
+              </div>
             </div>
-            <ul class="plan-features">
-              <li>3 hours per room</li>
-              <li>Unlimited guests</li>
-              <li>HD video chat</li>
-              <li>Red Room tipping</li>
-              <li>Recording enabled</li>
-              <li>Custom branding</li>
-              <li>Green Room (paid entry)</li>
-            </ul>
-            <button id="btn-host-pro" class="plan-btn primary" onclick="subscribe('host_pro')">
-              Upgrade to Pro
-            </button>
-          </div>
-        </div>
-      </section>
-      
-      <!-- Viewer Plans -->
-      <section class="pricing-section">
-        <h2>👁️ For Viewers</h2>
-        <div class="pricing-grid">
-          <!-- Ad-Free Premium -->
-          <div class="pricing-card">
-            <h3 class="plan-name">Ad-Free Premium</h3>
-            <div class="plan-price">
-              <span class="price-amount" id="ad-free-price">$9.99</span>
-              <span class="price-period" id="ad-free-period">/ month</span>
-            </div>
-            <ul class="plan-features">
-              <li>No ads on any stream</li>
-              <li>1,200 gems per month</li>
-              <li>Priority support</li>
-              <li>Exclusive badge</li>
-            </ul>
-            <button id="btn-ad-free" class="plan-btn primary" onclick="subscribe('ad_free_premium')">
-              Go Ad-Free
-            </button>
-          </div>
-        </div>
-      </section>
-      
-      <!-- Cash Out Section (for hosts with cashable gems) -->
-      <section id="cashout-section" class="pricing-section hidden" style="margin-top: 3rem;">
-        <h2>💰 Cash Out Your Gems</h2>
-        <div class="cashout-card" style="background: var(--light-rose); border-radius: 24px; padding: 2rem; max-width: 500px; margin: 0 auto; border: 3px solid var(--gold);">
-          <div style="text-align: center; margin-bottom: 1.5rem;">
-            <div style="font-size: 3rem; margin-bottom: 0.5rem;">💎</div>
-            <div style="font-size: 2rem; font-weight: 800; color: var(--charcoal);">
-              <span id="cashable-gems">0</span> <span style="font-size: 1rem; font-weight: 600;">cashable gems</span>
-            </div>
-            <div style="font-size: 1.5rem; color: var(--main-red); font-weight: 700;">
-              ≈ $<span id="cashable-usd">0.00</span>
-            </div>
-          </div>
+          </section>
           
-          <!-- Pending Request Notice -->
-          <div id="pending-payout-notice" class="hidden" style="background: var(--gold); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; text-align: center;">
-            <p style="font-weight: 700;">⏳ Payout Pending</p>
-            <p style="font-size: 0.875rem;">You have a payout request being processed.</p>
-          </div>
+          <!-- Host Plans -->
+          <section class="pricing-section">
+            <h2>🎥 For Hosts & Creators</h2>
+            <div class="pricing-grid">
+              <!-- Free Plan -->
+              <div class="pricing-card">
+                <h3 class="plan-name">Free</h3>
+                <div class="plan-price">
+                  <span class="price-amount">$0</span>
+                  <span class="price-period">/ forever</span>
+                </div>
+                <ul class="plan-features">
+                  <li>60 minutes per room</li>
+                  <li>Unlimited guests</li>
+                  <li>Basic video chat</li>
+                  <li>Red Room tipping</li>
+                  <li class="disabled">Recording</li>
+                  <li class="disabled">Custom branding</li>
+                  <li class="disabled">Green Room (paid entry)</li>
+                </ul>
+                <button id="btn-free" class="plan-btn secondary" disabled>Free Forever</button>
+              </div>
+              
+              <!-- Host Pro -->
+              <div class="pricing-card featured">
+                <h3 class="plan-name">Host Pro</h3>
+                <div class="plan-price">
+                  <span class="price-amount" id="host-pro-price">$19.99</span>
+                  <span class="price-period" id="host-pro-period">/ month</span>
+                </div>
+                <ul class="plan-features">
+                  <li>3 hours per room</li>
+                  <li>Unlimited guests</li>
+                  <li>HD video chat</li>
+                  <li>Red Room tipping</li>
+                  <li>Recording enabled</li>
+                  <li>Custom branding</li>
+                  <li>Green Room (paid entry)</li>
+                </ul>
+                <button id="btn-host-pro" class="plan-btn primary" onclick="subscribe('host_pro')">
+                  Upgrade to Pro
+                </button>
+              </div>
+            </div>
+          </section>
           
-          <!-- Payout Form -->
-          <div id="payout-form" style="display: flex; flex-direction: column; gap: 1rem;">
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-              <label style="font-weight: 700;">Payout Method</label>
-              <select id="payout-method" style="padding: 0.75rem; border-radius: 12px; border: 2px solid var(--rose); font-family: inherit; font-size: 1rem;">
-                <option value="paypal">PayPal</option>
-                <option value="venmo">Venmo</option>
-              </select>
+          <!-- Viewer Plans -->
+          <section class="pricing-section">
+            <h2>👁️ For Viewers</h2>
+            <div class="pricing-grid">
+              <!-- Ad-Free Premium -->
+              <div class="pricing-card">
+                <h3 class="plan-name">Ad-Free Premium</h3>
+                <div class="plan-price">
+                  <span class="price-amount" id="ad-free-price">$9.99</span>
+                  <span class="price-period" id="ad-free-period">/ month</span>
+                </div>
+                <ul class="plan-features">
+                  <li>No ads on any stream</li>
+                  <li>1,200 gems per month</li>
+                  <li>Priority support</li>
+                  <li>Exclusive badge</li>
+                </ul>
+                <button id="btn-ad-free" class="plan-btn primary" onclick="subscribe('ad_free_premium')">
+                  Go Ad-Free
+                </button>
+              </div>
             </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-              <label style="font-weight: 700;">PayPal Email / Venmo Username</label>
-              <input type="text" id="payout-email" placeholder="your@email.com" style="padding: 0.75rem; border-radius: 12px; border: 2px solid var(--rose); font-family: inherit; font-size: 1rem;">
+          </section>
+          
+          <!-- Cash Out Section -->
+          <section id="cashout-section" class="pricing-section hidden" style="margin-top: var(--space-2xl);">
+            <h2>💰 Cash Out Your Gems</h2>
+            <div class="cashout-card">
+              <div class="cashout-balance">
+                <div class="cashout-icon">💎</div>
+                <div class="cashout-gems">
+                  <span id="cashable-gems">0</span> <span>cashable gems</span>
+                </div>
+                <div class="cashout-usd">
+                  ≈ $<span id="cashable-usd">0.00</span>
+                </div>
+              </div>
+              
+              <!-- Pending Request Notice -->
+              <div id="pending-payout-notice" class="pending-notice hidden">
+                <p style="font-weight: 700;">⏳ Payout Pending</p>
+                <p style="font-size: 0.875rem;">You have a payout request being processed.</p>
+              </div>
+              
+              <!-- Payout Form -->
+              <div id="payout-form" class="payout-form">
+                <div class="form-group">
+                  <label class="form-label">Payout Method</label>
+                  <select id="payout-method" class="form-select">
+                    <option value="paypal">PayPal</option>
+                    <option value="venmo">Venmo</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label class="form-label">PayPal Email / Venmo Username</label>
+                  <input type="text" id="payout-email" class="form-input" placeholder="your@email.com">
+                </div>
+                
+                <p class="payout-info">
+                  Minimum payout: 500 gems ($4.95)<br>
+                  Rate: 100 gems = $0.99<br>
+                  Processing time: 3-5 business days
+                </p>
+                
+                <button id="request-payout-btn" onclick="requestPayout()" class="btn btn-primary btn-full" disabled>
+                  Request Payout
+                </button>
+                
+                <div id="payout-error" class="payout-error hidden"></div>
+                <div id="payout-success" class="payout-success hidden"></div>
+              </div>
             </div>
-            
-            <div style="font-size: 0.875rem; color: var(--charcoal); opacity: 0.8; text-align: center;">
-              Minimum payout: 500 gems ($4.95)<br>
-              Rate: 100 gems = $0.99<br>
-              Processing time: 3-5 business days
-            </div>
-            
-            <button id="request-payout-btn" onclick="requestPayout()" class="btn-primary" style="padding: 1rem; font-size: 1rem; width: 100%;" disabled>
-              Request Payout
-            </button>
-            
-            <div id="payout-error" class="hidden" style="color: var(--main-red); text-align: center; font-weight: 600;"></div>
-            <div id="payout-success" class="hidden" style="color: #10b981; text-align: center; font-weight: 600;"></div>
-          </div>
+          </section>
         </div>
-      </section>
+      </main>
+      
+      <!-- Footer -->
+      <footer class="site-footer">
+        <p>
+          Need help? <a href="mailto:support@chatspheres.com">Contact Support</a>
+          &nbsp;•&nbsp;
+          <a href="https://www.chatspheres.com/terms">Terms of Service</a>
+          &nbsp;•&nbsp;
+          <a href="https://www.chatspheres.com/privacy">Privacy Policy</a>
+        </p>
+      </footer>
     </div>
-  </main>
+  </div>
   
-  <!-- Footer -->
-  <footer class="footer">
-    <p>
-      Need help? <a href="mailto:support@chatspheres.com">Contact Support</a>
-      &nbsp;•&nbsp;
-      <a href="https://www.chatspheres.com/terms">Terms of Service</a>
-      &nbsp;•&nbsp;
-      <a href="https://www.chatspheres.com/privacy">Privacy Policy</a>
-    </p>
-  </footer>
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
   
   <script>
     // State
@@ -859,12 +926,12 @@
         
         if (session?.user) {
           currentUser = session.user;
-          updateHeaderAuth(currentUser);
+          updateNavForUser(currentUser);
           hideSignInPrompt();
           await loadUserSubscription();
         } else {
           showSignInPrompt();
-          updateHeaderAuth(null);
+          updateNavForGuest();
         }
       } catch (error) {
         console.error('Auth check error:', error);
@@ -886,10 +953,14 @@
         }
         
         // Show branding link for pro users
-        const brandingLink = document.getElementById('branding-link');
+        const brandingLink = document.getElementById('nav-branding-link');
         if (brandingLink && data.limits?.canCustomBrand) {
-          brandingLink.style.display = 'inline';
+          brandingLink.style.display = 'flex';
         }
+        
+        // Update gem count
+        const totalGems = data.totalGems || 0;
+        updateGemCount(totalGems);
         
         // Load cashout data
         if (data.payout) {
@@ -898,6 +969,39 @@
       } catch (error) {
         console.error('Error loading subscription:', error);
       }
+    }
+    
+    function updateGemCount(gems) {
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      const gemCount = headerGemBadge?.querySelector('.gem-count');
+      const navGems = document.getElementById('nav-user-gems');
+      
+      if (gemCount) gemCount.textContent = gems.toLocaleString();
+      if (navGems) navGems.textContent = gems.toLocaleString();
+    }
+    
+    function updateNavForUser(user) {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const userName = document.getElementById('nav-user-name');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'none';
+      if (userSection) userSection.style.display = 'block';
+      if (headerGemBadge) headerGemBadge.style.display = 'flex';
+      
+      const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      if (userName) userName.textContent = name;
+    }
+    
+    function updateNavForGuest() {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'block';
+      if (userSection) userSection.style.display = 'none';
+      if (headerGemBadge) headerGemBadge.style.display = 'none';
     }
     
     // Cashout functionality
@@ -911,18 +1015,15 @@
       const payoutEmailInput = document.getElementById('payout-email');
       const payoutMethodSelect = document.getElementById('payout-method');
       
-      // Only show if user has any cashable gems or pending requests
       if (payoutData.cashableGems > 0 || payoutData.pendingRequests?.length > 0) {
         section.classList.remove('hidden');
       } else {
-        return; // Nothing to show
+        return;
       }
       
-      // Update display
       gemsEl.textContent = payoutData.cashableGems.toLocaleString();
       usdEl.textContent = payoutData.cashableUsd.toFixed(2);
       
-      // Pre-fill saved payout info
       if (payoutData.payoutEmail) {
         payoutEmailInput.value = payoutData.payoutEmail;
       }
@@ -930,7 +1031,6 @@
         payoutMethodSelect.value = payoutData.payoutMethod;
       }
       
-      // Check for pending requests
       if (payoutData.pendingRequests && payoutData.pendingRequests.length > 0) {
         pendingNotice.classList.remove('hidden');
         payoutBtn.disabled = true;
@@ -953,7 +1053,6 @@
       const payoutEmail = document.getElementById('payout-email').value.trim();
       const payoutMethod = document.getElementById('payout-method').value;
       
-      // Reset messages
       errorEl.classList.add('hidden');
       successEl.classList.add('hidden');
       
@@ -988,8 +1087,6 @@
         if (data.success) {
           successEl.textContent = data.message;
           successEl.classList.remove('hidden');
-          
-          // Reload subscription data to update cashout section
           await loadUserSubscription();
         } else {
           throw new Error(data.error || 'Failed to request payout');
@@ -1025,7 +1122,6 @@
           btn.classList.remove('primary');
           btn.classList.add('current');
         } else if (currentPlan !== 'free') {
-          // User has a different paid plan - show switch option
           btn.textContent = `Switch to ${planNames[planType]}`;
           btn.classList.remove('primary');
           btn.classList.add('switch');
@@ -1039,43 +1135,6 @@
     
     function hideSignInPrompt() {
       document.getElementById('signin-prompt').classList.add('hidden');
-    }
-    
-    function updateHeaderAuth(user) {
-      const headerAuth = document.getElementById('header-auth');
-      if (user) {
-        const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
-        headerAuth.innerHTML = `
-          <div id="header-gem-balance" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; background: var(--gold); border-radius: 999px; cursor: pointer; margin-right: 0.5rem;" title="Your gem balance">
-            <span>💎</span>
-            <span id="gem-count" style="font-size: 0.875rem; font-weight: 700; color: var(--charcoal);">0</span>
-          </div>
-          <span style="font-weight: 600; margin-right: 0.5rem;">${name}</span>
-          <button onclick="signOut()" class="btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Logout</button>
-        `;
-        
-        // Fetch and display gem balance
-        fetchAndDisplayGemBalance(user.id);
-      } else {
-        headerAuth.innerHTML = `<button onclick="redirectToSignIn()" class="btn-primary">Sign In</button>`;
-      }
-    }
-    
-    async function fetchAndDisplayGemBalance(userId) {
-      const gemCountEl = document.getElementById('gem-count');
-      if (!gemCountEl || !userId) return;
-      
-      try {
-        const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
-        if (!response.ok) return;
-        
-        const data = await response.json();
-        const totalGems = data.totalGems || 0;
-        gemCountEl.textContent = totalGems.toLocaleString();
-        console.log('💎 Gem balance loaded:', totalGems);
-      } catch (error) {
-        console.error('❌ Error fetching gem balance:', error);
-      }
     }
     
     function toggleBilling() {
@@ -1099,29 +1158,28 @@
     }
     
     function updatePrices() {
-      // Host Pro
       document.getElementById('host-pro-price').textContent = prices.host_pro[billingPeriod];
       document.getElementById('host-pro-period').textContent = billingPeriod === 'monthly' ? '/ month' : '/ year';
       
-      // Ad-Free Premium
       document.getElementById('ad-free-price').textContent = prices.ad_free_premium[billingPeriod];
       document.getElementById('ad-free-period').textContent = billingPeriod === 'monthly' ? '/ month' : '/ year';
       
-      // Pro Bundle
       document.getElementById('bundle-price').textContent = prices.pro_bundle[billingPeriod];
       document.getElementById('bundle-period').textContent = billingPeriod === 'monthly' ? '/ month' : '/ year';
       document.getElementById('bundle-savings').textContent = savings.pro_bundle[billingPeriod];
     }
     
     async function subscribe(planType) {
-      // REQUIRE sign in first
       if (!currentUser) {
-        alert('Please sign in first to subscribe!');
+        if (typeof showToast === 'function') {
+          showToast('Please sign in first to subscribe!', 'error');
+        } else {
+          alert('Please sign in first to subscribe!');
+        }
         redirectToSignIn();
         return;
       }
       
-      // If user has a paid plan and switching to different plan, show confirmation
       if (currentPlan !== 'free' && currentPlan !== planType) {
         showSwitchModal(planType);
         return;
@@ -1134,24 +1192,23 @@
       pendingSwitchPlan = toPlan;
       document.getElementById('from-plan').textContent = planNames[currentPlan];
       document.getElementById('to-plan').textContent = planNames[toPlan];
-      document.getElementById('switch-modal').classList.remove('hidden');
+      document.getElementById('switch-modal').classList.add('active');
     }
     
     function closeSwitchModal() {
       pendingSwitchPlan = null;
-      document.getElementById('switch-modal').classList.add('hidden');
+      document.getElementById('switch-modal').classList.remove('active');
     }
     
     async function confirmSwitch() {
       if (pendingSwitchPlan) {
-        const planToSwitch = pendingSwitchPlan; // Save before closing modal
+        const planToSwitch = pendingSwitchPlan;
         closeSwitchModal();
         await processSubscription(planToSwitch);
       }
     }
     
     async function processSubscription(planType) {
-      // Map plan types to button IDs
       const buttonIds = {
         'host_pro': 'btn-host-pro',
         'ad_free_premium': 'btn-ad-free',
@@ -1191,7 +1248,11 @@
         }
       } catch (error) {
         console.error('Subscription error:', error);
-        alert('Something went wrong. Please try again.');
+        if (typeof showToast === 'function') {
+          showToast('Something went wrong. Please try again.', 'error');
+        } else {
+          alert('Something went wrong. Please try again.');
+        }
         button.textContent = originalText;
         button.disabled = false;
       }

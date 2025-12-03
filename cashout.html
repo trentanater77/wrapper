@@ -7,358 +7,417 @@
   
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
   <script src="/.netlify/functions/client-config"></script>
   
   <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
   <style>
-    :root {
-      --main-red: #e63946;
-      --gold: #FFD166;
-      --rose: #FFB6B9;
-      --light-rose: #FCE2E5;
-      --charcoal: #22223B;
-      --bg-main: #FFE7DD;
-    }
-    
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    body {
-      font-family: 'Nunito', sans-serif;
-      background: var(--bg-main);
-      min-height: 100vh;
-      color: var(--charcoal);
-    }
-    
-    .header {
-      background: var(--light-rose);
-      padding: 1rem 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      text-decoration: none;
-      color: var(--charcoal);
-    }
-    
-    .logo svg { width: 40px; height: 40px; }
-    .logo span { font-size: 1.25rem; font-weight: 800; }
-    
-    .nav-links {
-      display: flex;
-      gap: 1rem;
-      align-items: center;
-    }
-    
-    .nav-link {
-      color: var(--charcoal);
-      text-decoration: none;
-      font-weight: 600;
-      padding: 0.5rem 1rem;
-      border-radius: 999px;
-      transition: all 0.2s;
-    }
-    
-    .nav-link:hover { background: var(--rose); }
-    
-    .main {
-      max-width: 600px;
-      margin: 2rem auto;
-      padding: 0 1rem;
-    }
-    
-    .page-title {
+    /* Page-specific styles */
+    .cashout-hero {
       text-align: center;
-      margin-bottom: 2rem;
+      padding: var(--space-xl) 0;
     }
     
-    .page-title h1 {
+    .cashout-title {
       font-size: 2rem;
-      font-weight: 800;
-      margin-bottom: 0.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
     }
     
-    .card {
+    .cashout-subtitle {
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    /* Cards */
+    .cashout-card {
       background: var(--light-rose);
-      border-radius: 24px;
-      padding: 2rem;
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
       border: 3px solid var(--gold);
-      margin-bottom: 1.5rem;
+      margin-bottom: var(--space-lg);
     }
     
+    .info-card {
+      border-color: var(--rose);
+    }
+    
+    /* Balance Display */
     .balance-display {
       text-align: center;
-      margin-bottom: 1.5rem;
+      margin-bottom: var(--space-lg);
     }
     
-    .balance-icon { font-size: 4rem; margin-bottom: 0.5rem; }
+    .balance-icon {
+      font-size: 4rem;
+      margin-bottom: var(--space-sm);
+      animation: bounce 2s ease-in-out infinite;
+    }
     
     .balance-gems {
       font-size: 2.5rem;
-      font-weight: 800;
+      font-weight: var(--font-weight-extrabold);
       color: var(--charcoal);
     }
     
-    .balance-gems span { font-size: 1rem; font-weight: 600; }
+    .balance-gems span {
+      font-size: 1rem;
+      font-weight: var(--font-weight-semibold);
+    }
     
     .balance-usd {
       font-size: 1.75rem;
       color: var(--main-red);
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
     }
     
+    /* Info Box */
     .info-box {
       background: var(--rose);
-      border-radius: 12px;
-      padding: 1rem;
-      margin-bottom: 1.5rem;
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      margin-bottom: var(--space-lg);
       text-align: center;
     }
     
-    .info-box.warning { background: var(--gold); }
-    .info-box.success { background: #86efac; }
-    
-    .form-group {
-      margin-bottom: 1rem;
-    }
-    
-    .form-group label {
-      display: block;
-      font-weight: 700;
-      margin-bottom: 0.5rem;
-    }
-    
-    .form-group select,
-    .form-group input {
-      width: 100%;
-      padding: 0.75rem;
-      border-radius: 12px;
-      border: 2px solid var(--rose);
-      font-family: inherit;
-      font-size: 1rem;
-    }
-    
-    .form-group select:focus,
-    .form-group input:focus {
-      outline: none;
-      border-color: var(--gold);
-    }
-    
-    .btn {
-      width: 100%;
-      padding: 1rem;
-      border: none;
-      border-radius: 12px;
-      font-family: inherit;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    
-    .btn-primary {
+    .info-box.warning {
       background: var(--gold);
-      color: var(--charcoal);
     }
     
-    .btn-primary:hover:not(:disabled) {
-      background: var(--main-red);
-      color: white;
+    .info-box.success {
+      background: var(--gold);
+      border: 2px solid var(--charcoal);
     }
     
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    .info-box p {
+      margin: 0;
     }
     
+    .info-box p + p {
+      margin-top: var(--space-xs);
+    }
+    
+    /* Payout Preview */
+    .payout-preview {
+      background: var(--charcoal);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .payout-preview-label {
+      font-size: 0.875rem;
+      color: var(--light-rose);
+      opacity: 0.8;
+    }
+    
+    .payout-preview-amount {
+      font-size: 1.75rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--gold);
+    }
+    
+    /* Help Text */
     .help-text {
       font-size: 0.875rem;
       color: var(--charcoal);
       opacity: 0.7;
       text-align: center;
-      margin-top: 1rem;
+      line-height: 1.6;
     }
     
+    /* Messages */
     .message {
-      padding: 1rem;
-      border-radius: 12px;
-      margin-bottom: 1rem;
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-md);
       text-align: center;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
     }
     
-    .message.error { background: #fecaca; color: #dc2626; }
-    .message.success { background: #86efac; color: #166534; }
+    .message.error {
+      background: var(--main-red);
+      color: var(--light-rose);
+    }
     
-    .hidden { display: none !important; }
+    .message.success {
+      background: var(--gold);
+      color: var(--charcoal);
+    }
     
-    .history-section { margin-top: 2rem; }
+    /* History Section */
+    .history-section {
+      margin-top: var(--space-xl);
+    }
+    
+    .history-title {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-md);
+    }
     
     .history-item {
-      background: white;
-      border-radius: 12px;
-      padding: 1rem;
-      margin-bottom: 0.75rem;
+      background: var(--bg-main);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
     
-    .history-item .amount { font-weight: 700; }
+    .history-item .amount {
+      font-weight: var(--font-weight-bold);
+    }
     
     .status-badge {
       padding: 0.25rem 0.75rem;
-      border-radius: 999px;
+      border-radius: var(--radius-full);
       font-size: 0.75rem;
-      font-weight: 700;
+      font-weight: var(--font-weight-bold);
     }
     
-    .status-pending { background: var(--gold); }
-    .status-processing { background: #93c5fd; }
-    .status-completed { background: #86efac; }
-    .status-rejected { background: #fecaca; }
+    .status-pending {
+      background: var(--gold);
+      color: var(--charcoal);
+    }
     
+    .status-processing {
+      background: var(--rose);
+      color: var(--charcoal);
+    }
+    
+    .status-completed {
+      background: var(--charcoal);
+      color: var(--gold);
+    }
+    
+    .status-rejected {
+      background: var(--main-red);
+      color: var(--light-rose);
+    }
+    
+    /* Sign In Prompt */
     .signin-prompt {
       text-align: center;
-      padding: 3rem;
+      padding: var(--space-2xl);
     }
     
-    .signin-prompt .btn {
-      max-width: 200px;
-      margin: 1rem auto 0;
+    .signin-prompt-icon {
+      font-size: 4rem;
+      margin-bottom: var(--space-md);
+    }
+    
+    .signin-prompt h2 {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .signin-prompt p {
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-lg);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .cashout-title {
+        font-size: 1.5rem;
+      }
+      
+      .balance-gems {
+        font-size: 2rem;
+      }
+      
+      .balance-usd {
+        font-size: 1.5rem;
+      }
     }
   </style>
 </head>
 <body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
   <!-- Header -->
-  <header class="header">
-    <a href="https://www.chatspheres.com" class="logo">
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-      </svg>
-      <span>ChatSpheres</span>
-    </a>
-    <nav class="nav-links">
-      <a href="/" class="nav-link">Video Chat</a>
-      <a href="/match" class="nav-link">Find Match</a>
-      <a href="/recordings" class="nav-link">📹 Recordings</a>
-      <a href="/branding.html" id="branding-link" class="nav-link" style="display: none;">🎨 Branding</a>
-      <a href="/pricing" class="nav-link">💎 Pricing</a>
-      <span id="auth-status" class="nav-link"></span>
-    </nav>
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
   </header>
   
-  <main class="main">
-    <div class="page-title">
-      <h1>💰 Cash Out</h1>
-      <p>Convert your cashable gems to real money</p>
-    </div>
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <ul class="nav-links">
+      <li><a href="/" class="nav-link"><span class="nav-link-icon">🔮</span> Video Chat</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
     
-    <!-- Sign In Required -->
-    <div id="signin-required" class="signin-prompt hidden">
-      <div style="font-size: 4rem; margin-bottom: 1rem;">🔐</div>
-      <h2>Sign In Required</h2>
-      <p>Please sign in to access your cashable gems.</p>
-      <button class="btn btn-primary" onclick="window.location.href='/'">Sign In</button>
-    </div>
+    <div class="nav-divider"></div>
     
-    <!-- Main Content -->
-    <div id="main-content" class="hidden">
-      <!-- Balance Card -->
-      <div class="card">
-        <div class="balance-display">
-          <div class="balance-icon">💎</div>
-          <div class="balance-gems">
-            <span id="cashable-gems">0</span> <span>cashable gems</span>
-          </div>
-          <div class="balance-usd">
-            ≈ $<span id="cashable-usd">0.00</span>
-          </div>
+    <ul class="nav-links">
+      <li><a href="/cashout.html" class="nav-link active"><span class="nav-link-icon">💰</span> Cash Out</a></li>
+      <li><a href="/branding.html" id="nav-branding-link" class="nav-link" style="display: none;"><span class="nav-link-icon">🎨</span> Branding</a></li>
+    </ul>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="signOut()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
+  <!-- Page Content -->
+  <div class="page-wrapper">
+    <div class="page-content">
+      <main class="container container-sm" style="padding-top: var(--space-lg); padding-bottom: var(--space-2xl);">
+        <!-- Hero -->
+        <div class="cashout-hero">
+          <h1 class="cashout-title">💰 Cash Out</h1>
+          <p class="cashout-subtitle">Convert your cashable gems to real money</p>
         </div>
         
-        <!-- Pending Notice -->
-        <div id="pending-notice" class="info-box warning hidden">
-          <p style="font-weight: 700;">⏳ Payout Pending</p>
-          <p style="font-size: 0.875rem;">Your payout request is being processed.</p>
-          <p id="pending-amount" style="font-weight: 700; margin-top: 0.5rem;"></p>
+        <!-- Sign In Required -->
+        <div id="signin-required" class="signin-prompt hidden">
+          <div class="signin-prompt-icon">🔐</div>
+          <h2>Sign In Required</h2>
+          <p>Please sign in to access your cashable gems.</p>
+          <button class="btn btn-primary" onclick="window.location.href='/'">Sign In</button>
         </div>
         
-        <!-- Not Enough Gems -->
-        <div id="minimum-notice" class="info-box hidden">
-          <p>You need at least <strong>500 gems ($4.95)</strong> to cash out.</p>
-          <p style="font-size: 0.875rem; margin-top: 0.5rem;">Keep hosting and earning tips! 🎉</p>
-        </div>
-        
-        <!-- Payout Form -->
-        <div id="payout-form">
-          <div id="message" class="message hidden"></div>
-          
-          <div class="form-group">
-            <label>Amount to Cash Out (gems)</label>
-            <input type="number" id="payout-amount" min="500" placeholder="500" oninput="updatePayoutPreview()">
-            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.25rem;">
-              Minimum: 500 gems | Max: <span id="max-gems">0</span> gems
-            </p>
-          </div>
-          
-          <div class="form-group">
-            <label>You'll Receive</label>
-            <div style="font-size: 1.5rem; font-weight: 700; color: var(--main-red);">
-              $<span id="payout-preview">0.00</span>
+        <!-- Main Content -->
+        <div id="main-content" class="hidden">
+          <!-- Balance Card -->
+          <div class="cashout-card">
+            <div class="balance-display">
+              <div class="balance-icon">💎</div>
+              <div class="balance-gems">
+                <span id="cashable-gems">0</span> <span>cashable gems</span>
+              </div>
+              <div class="balance-usd">
+                ≈ $<span id="cashable-usd">0.00</span>
+              </div>
+            </div>
+            
+            <!-- Pending Notice -->
+            <div id="pending-notice" class="info-box warning hidden">
+              <p style="font-weight: 700;">⏳ Payout Pending</p>
+              <p style="font-size: 0.875rem;">Your payout request is being processed.</p>
+              <p id="pending-amount" style="font-weight: 700; margin-top: 0.5rem;"></p>
+            </div>
+            
+            <!-- Not Enough Gems -->
+            <div id="minimum-notice" class="info-box hidden">
+              <p>You need at least <strong>500 gems ($4.95)</strong> to cash out.</p>
+              <p style="font-size: 0.875rem; margin-top: 0.5rem;">Keep hosting and earning tips! 🎉</p>
+            </div>
+            
+            <!-- Payout Form -->
+            <div id="payout-form">
+              <div id="message" class="message hidden"></div>
+              
+              <div class="form-group">
+                <label class="form-label">Amount to Cash Out (gems)</label>
+                <input type="number" id="payout-amount" class="form-input" min="500" placeholder="500" oninput="updatePayoutPreview()">
+                <p style="font-size: 0.75rem; opacity: 0.7; margin-top: 0.25rem;">
+                  Minimum: 500 gems | Max: <span id="max-gems">0</span> gems
+                </p>
+              </div>
+              
+              <div class="payout-preview">
+                <div class="payout-preview-label">You'll Receive</div>
+                <div class="payout-preview-amount">$<span id="payout-preview">0.00</span></div>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">Payout Method</label>
+                <select id="payout-method" class="form-select">
+                  <option value="paypal">PayPal</option>
+                  <option value="venmo">Venmo</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label class="form-label">PayPal Email / Venmo Username</label>
+                <input type="text" id="payout-email" class="form-input" placeholder="your@email.com">
+              </div>
+              
+              <button id="payout-btn" class="btn btn-primary btn-full" onclick="requestPayout()" disabled>
+                Cash Out
+              </button>
+              
+              <p class="help-text" style="margin-top: var(--space-md);">
+                Rate: 100 gems = $0.99<br>
+                Minimum: 500 gems ($4.95)<br>
+                Processing: 3-5 business days
+              </p>
             </div>
           </div>
           
-          <div class="form-group">
-            <label>Payout Method</label>
-            <select id="payout-method">
-              <option value="paypal">PayPal</option>
-              <option value="venmo">Venmo</option>
-            </select>
+          <!-- Spendable Gems Info -->
+          <div class="cashout-card info-card">
+            <h3 style="margin-bottom: 0.5rem; font-weight: 700;">💎 Your Spendable Gems</h3>
+            <p style="font-size: 1.5rem; font-weight: 700;"><span id="spendable-gems">0</span> gems</p>
+            <p style="font-size: 0.875rem; opacity: 0.7; margin-top: 0.5rem;">
+              Spendable gems are for tipping hosts. Only cashable gems (earned from tips) can be cashed out.
+            </p>
           </div>
           
-          <div class="form-group">
-            <label>PayPal Email / Venmo Username</label>
-            <input type="text" id="payout-email" placeholder="your@email.com">
+          <!-- Payout History -->
+          <div id="history-section" class="history-section hidden">
+            <h3 class="history-title">📜 Payout History</h3>
+            <div id="history-list"></div>
           </div>
-          
-          <button id="payout-btn" class="btn btn-primary" onclick="requestPayout()" disabled>
-            Cash Out
-          </button>
-          
-          <p class="help-text">
-            Rate: 100 gems = $0.99<br>
-            Minimum: 500 gems ($4.95)<br>
-            Processing: 3-5 business days
-          </p>
         </div>
-      </div>
-      
-      <!-- Spendable Gems Info -->
-      <div class="card" style="border-color: var(--rose);">
-        <h3 style="margin-bottom: 0.5rem;">💎 Your Spendable Gems</h3>
-        <p style="font-size: 1.5rem; font-weight: 700;"><span id="spendable-gems">0</span> gems</p>
-        <p style="font-size: 0.875rem; opacity: 0.7; margin-top: 0.5rem;">
-          Spendable gems are for tipping hosts. Only cashable gems (earned from tips) can be cashed out.
-        </p>
-      </div>
-      
-      <!-- Payout History -->
-      <div id="history-section" class="history-section hidden">
-        <h3 style="margin-bottom: 1rem;">📜 Payout History</h3>
-        <div id="history-list"></div>
-      </div>
+      </main>
     </div>
-  </main>
+  </div>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
 
   <script>
     let currentUser = null;
@@ -423,7 +482,7 @@
         
         if (session?.user) {
           currentUser = session.user;
-          document.getElementById('auth-status').textContent = '👤 ' + (currentUser.email || 'Signed In');
+          updateNavForUser(currentUser);
           document.getElementById('signin-required').classList.add('hidden');
           document.getElementById('main-content').classList.remove('hidden');
           await loadPayoutData();
@@ -441,6 +500,16 @@
       document.getElementById('main-content').classList.add('hidden');
     }
     
+    function updateNavForUser(user) {
+      const userSection = document.getElementById('nav-user-section');
+      const userName = document.getElementById('nav-user-name');
+      
+      if (userSection) userSection.style.display = 'block';
+      
+      const name = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      if (userName) userName.textContent = name;
+    }
+    
     async function loadPayoutData() {
       try {
         const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUser.id}`);
@@ -450,10 +519,14 @@
         const gems = data.gems || {};
         
         // Show branding link for pro users
-        const brandingLink = document.getElementById('branding-link');
+        const brandingLink = document.getElementById('nav-branding-link');
         if (brandingLink && data.limits?.canCustomBrand) {
-          brandingLink.style.display = 'inline';
+          brandingLink.style.display = 'flex';
         }
+        
+        // Update nav gems
+        const navGems = document.getElementById('nav-user-gems');
+        if (navGems) navGems.textContent = (data.totalGems || 0).toLocaleString();
         
         // Update spendable gems
         document.getElementById('spendable-gems').textContent = (gems.spendable_gems || 0).toLocaleString();
@@ -502,7 +575,6 @@
     }
     
     async function loadPayoutHistory() {
-      // This would need a separate endpoint, but for now we use pending requests
       if (payoutData.pendingRequests && payoutData.pendingRequests.length > 0) {
         document.getElementById('history-section').classList.remove('hidden');
         const historyList = document.getElementById('history-list');
@@ -530,7 +602,6 @@
       
       previewEl.textContent = usd.toFixed(2);
       
-      // Enable/disable button based on valid amount
       const maxGems = payoutData?.cashableGems || 0;
       const isValid = gems >= 500 && gems <= maxGems;
       
@@ -583,7 +654,7 @@
         
         if (data.success) {
           showMessage(data.message, 'success');
-          await loadPayoutData(); // Refresh
+          await loadPayoutData();
         } else {
           throw new Error(data.error || 'Failed to request payout');
         }
@@ -600,6 +671,13 @@
       el.textContent = text;
       el.className = `message ${type}`;
       el.classList.remove('hidden');
+    }
+    
+    async function signOut() {
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+      }
+      window.location.href = '/';
     }
   </script>
 </body>

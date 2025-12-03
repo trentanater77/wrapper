@@ -25,13 +25,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- Styles -->
-  <link rel="stylesheet" href="/assets/css/matchmaking.css">
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
   
   <!-- Favicon (vesica piscis) -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
   
   <style>
+    /* Page-specific styles */
+    
     /* Shake animation for invalid input */
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
@@ -42,10 +44,720 @@
       animation: shake 0.4s ease;
     }
     
-    /* Initial screen states */
+    /* Main Container */
+    .matchmaking-main {
+      min-height: calc(100vh - var(--header-height));
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: var(--space-xl) var(--space-lg);
+      position: relative;
+      z-index: 1;
+    }
+    
+    /* Screen states */
     #input-screen { display: block; }
     #scanning-screen { display: none; }
     #match-screen { display: none; }
+    
+    /* Input Screen */
+    .input-screen {
+      text-align: center;
+      max-width: 700px;
+      width: 100%;
+      animation: fadeInUp 0.6s ease-out;
+    }
+    
+    .main-question {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      line-height: 1.2;
+    }
+    
+    .sub-question {
+      font-size: 1.1rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-2xl);
+    }
+    
+    /* Topic Input */
+    .input-wrapper {
+      position: relative;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .topic-input {
+      width: 100%;
+      padding: 1.25rem 1.75rem;
+      font-size: 1.2rem;
+      font-family: var(--font-family);
+      border: 3px solid var(--rose);
+      border-radius: var(--radius-xl);
+      background: var(--light-rose);
+      color: var(--charcoal);
+      outline: none;
+      transition: all var(--transition-normal);
+    }
+    
+    .topic-input::placeholder {
+      color: var(--charcoal);
+      opacity: 0.5;
+    }
+    
+    .topic-input:focus {
+      border-color: var(--gold);
+      background: var(--bg-main);
+      box-shadow: var(--shadow-glow-gold);
+    }
+    
+    /* Submit Button */
+    .submit-btn {
+      background: var(--gold);
+      color: var(--charcoal);
+      border: none;
+      border-radius: var(--radius-full);
+      padding: 1rem 3rem;
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      box-shadow: var(--shadow-glow-gold);
+    }
+    
+    .submit-btn:hover {
+      background: var(--main-red);
+      color: var(--light-rose);
+      transform: scale(1.02);
+      box-shadow: var(--shadow-glow-red);
+    }
+    
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* Trending Section */
+    .trending-section {
+      margin-top: var(--space-2xl);
+    }
+    
+    .trending-label {
+      font-size: 0.85rem;
+      font-weight: var(--font-weight-bold);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--charcoal);
+      opacity: 0.6;
+      margin-bottom: var(--space-md);
+    }
+    
+    .trending-chips {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: var(--space-sm);
+    }
+    
+    .chip {
+      display: inline-flex;
+      padding: var(--space-sm) 1.25rem;
+      border-radius: var(--radius-full);
+      font-size: 0.9rem;
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      background: var(--light-rose);
+      color: var(--charcoal);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .chip:hover {
+      background: var(--gold);
+      border-color: var(--gold);
+      transform: translateY(-2px);
+    }
+    
+    .chip.selected {
+      background: var(--main-red);
+      color: var(--light-rose);
+      border-color: var(--main-red);
+    }
+    
+    /* Mode Section */
+    .mode-section {
+      margin-top: var(--space-xl);
+      padding-top: var(--space-xl);
+      border-top: 2px solid var(--rose);
+    }
+    
+    .mode-label {
+      font-size: 0.85rem;
+      font-weight: var(--font-weight-bold);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--charcoal);
+      opacity: 0.6;
+      margin-bottom: var(--space-md);
+    }
+    
+    .mode-buttons {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+    
+    .mode-btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius-full);
+      font-size: 0.95rem;
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      background: var(--light-rose);
+      color: var(--charcoal);
+      border: 3px solid transparent;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .mode-btn:hover {
+      border-color: var(--gold);
+    }
+    
+    .mode-btn.active {
+      background: var(--gold);
+      border-color: var(--gold);
+    }
+    
+    /* ========== SCANNING SCREEN ========== */
+    .scanning-screen {
+      display: none;
+      text-align: center;
+      max-width: 500px;
+      width: 100%;
+    }
+    
+    .scanning-screen.active {
+      display: block;
+      animation: fadeInUp 0.5s ease-out;
+    }
+    
+    /* Radar Animation */
+    .radar-container {
+      width: 250px;
+      height: 250px;
+      margin: 0 auto var(--space-xl);
+      position: relative;
+    }
+    
+    .radar-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 3px solid var(--main-red);
+      opacity: 0;
+      animation: radarPulse 2s ease-out infinite;
+    }
+    
+    .radar-circle:nth-child(1) { width: 80px; height: 80px; animation-delay: 0s; }
+    .radar-circle:nth-child(2) { width: 140px; height: 140px; animation-delay: 0.4s; }
+    .radar-circle:nth-child(3) { width: 200px; height: 200px; animation-delay: 0.8s; }
+    .radar-circle:nth-child(4) { width: 250px; height: 250px; animation-delay: 1.2s; }
+    
+    @keyframes radarPulse {
+      0% { opacity: 0.8; transform: translate(-50%, -50%) scale(0.8); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+    }
+    
+    .radar-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 60px;
+      height: 60px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 0 30px rgba(255, 209, 102, 0.6);
+      animation: centerPulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes centerPulse {
+      0%, 100% { transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 30px rgba(255, 209, 102, 0.6); }
+      50% { transform: translate(-50%, -50%) scale(1.1); box-shadow: 0 0 50px rgba(255, 209, 102, 0.8); }
+    }
+    
+    .scanning-text {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .scanning-subtext {
+      font-size: 1rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-md);
+    }
+    
+    .user-topic {
+      display: inline-block;
+      padding: var(--space-sm) 1.25rem;
+      background: var(--light-rose);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .queue-status {
+      font-size: 0.9rem;
+      color: var(--charcoal);
+      opacity: 0.6;
+    }
+    
+    .cancel-btn {
+      margin-top: var(--space-xl);
+      padding: 0.75rem 2rem;
+      border-radius: var(--radius-full);
+      background: transparent;
+      border: 2px solid var(--rose);
+      color: var(--charcoal);
+      font-weight: var(--font-weight-bold);
+      font-size: 0.95rem;
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .cancel-btn:hover {
+      background: var(--rose);
+    }
+    
+    /* ========== MATCH FOUND SCREEN ========== */
+    .match-screen {
+      display: none;
+      text-align: center;
+      max-width: 550px;
+      width: 100%;
+    }
+    
+    .match-screen.active {
+      display: block;
+      animation: matchReveal 0.6s ease-out;
+    }
+    
+    @keyframes matchReveal {
+      0% { opacity: 0; transform: scale(0.8); }
+      50% { transform: scale(1.05); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    
+    .match-celebration {
+      font-size: 4rem;
+      margin-bottom: var(--space-md);
+      animation: bounce 0.6s ease infinite;
+    }
+    
+    .match-title {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--main-red);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .match-topics {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-xl);
+      border: 3px solid var(--rose);
+    }
+    
+    .topic-comparison {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+    
+    .topic-item {
+      padding: 0.75rem 1.25rem;
+      background: var(--bg-main);
+      border-radius: var(--radius-lg);
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      max-width: 200px;
+    }
+    
+    .topic-item.yours {
+      border: 2px solid var(--gold);
+    }
+    
+    .topic-item.theirs {
+      border: 2px solid var(--main-red);
+    }
+    
+    .topic-item small {
+      opacity: 0.7;
+      display: block;
+      margin-bottom: 4px;
+    }
+    
+    .topic-connector {
+      font-size: 1.5rem;
+    }
+    
+    .similarity-badge {
+      display: inline-block;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--gold);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      font-size: 0.9rem;
+      color: var(--charcoal);
+      margin-top: var(--space-md);
+    }
+    
+    .connecting-text {
+      font-size: 1.1rem;
+      color: var(--charcoal);
+      margin-bottom: var(--space-lg);
+      animation: pulse 1s ease-in-out infinite;
+    }
+    
+    .join-btn {
+      background: var(--main-red);
+      color: var(--light-rose);
+      border: none;
+      border-radius: var(--radius-full);
+      padding: 1rem 3rem;
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      box-shadow: var(--shadow-glow-red);
+    }
+    
+    .join-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 30px rgba(230, 57, 70, 0.5);
+    }
+    
+    /* ========== RATING MODAL ========== */
+    .rating-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(34, 34, 59, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: var(--z-modal);
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-md);
+    }
+    
+    .rating-modal.active {
+      display: flex;
+    }
+    
+    .rating-content {
+      background: var(--bg-main);
+      border-radius: var(--radius-xl);
+      padding: var(--space-2xl);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      animation: scaleIn 0.3s ease-out;
+    }
+    
+    .rating-title {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .rating-subtitle {
+      font-size: 1rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .rating-buttons {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .rate-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 3px solid var(--rose);
+      background: var(--light-rose);
+      font-size: 2rem;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .rate-btn:hover {
+      transform: scale(1.1);
+    }
+    
+    .rate-btn.positive:hover {
+      background: var(--gold);
+      border-color: var(--gold);
+    }
+    
+    .rate-btn.negative:hover {
+      background: var(--rose);
+      border-color: var(--main-red);
+    }
+    
+    .skip-rating {
+      background: none;
+      border: none;
+      color: var(--charcoal);
+      opacity: 0.6;
+      font-size: 0.9rem;
+      font-family: var(--font-family);
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    
+    .skip-rating:hover {
+      opacity: 1;
+    }
+    
+    /* ========== AUTH MODAL ========== */
+    .auth-modal {
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-max);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-md);
+      background: rgba(34, 34, 59, 0.9);
+      backdrop-filter: blur(8px);
+    }
+    
+    .auth-modal.active {
+      display: flex;
+    }
+    
+    .auth-modal-content {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      max-width: 400px;
+      width: 100%;
+      box-shadow: var(--shadow-lg);
+      border: 4px solid var(--gold);
+      position: relative;
+      animation: scaleIn 0.3s ease-out;
+    }
+    
+    .auth-modal-logo {
+      text-align: center;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .auth-modal-logo svg {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto var(--space-sm);
+    }
+    
+    .auth-modal-logo h2 {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin: 0;
+    }
+    
+    .auth-modal-logo p {
+      color: var(--charcoal);
+      opacity: 0.7;
+      font-size: 0.875rem;
+      margin-top: var(--space-xs);
+    }
+    
+    .auth-tabs {
+      display: flex;
+      margin-bottom: var(--space-lg);
+      background: var(--rose);
+      border-radius: var(--radius-full);
+      padding: 4px;
+    }
+    
+    .auth-tab {
+      flex: 1;
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-semibold);
+      font-size: 0.875rem;
+      font-family: var(--font-family);
+      border: none;
+      cursor: pointer;
+      background: transparent;
+      color: var(--charcoal);
+      opacity: 0.7;
+      transition: all var(--transition-fast);
+    }
+    
+    .auth-tab.active {
+      background: var(--main-red);
+      color: var(--light-rose);
+      opacity: 1;
+    }
+    
+    .auth-message {
+      margin-bottom: var(--space-md);
+      padding: var(--space-sm);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-medium);
+      text-align: center;
+    }
+    
+    .auth-message.error {
+      background: var(--main-red);
+      color: var(--light-rose);
+    }
+    
+    .auth-message.success {
+      background: var(--gold);
+      color: var(--charcoal);
+    }
+    
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      margin: var(--space-lg) 0;
+    }
+    
+    .auth-divider::before,
+    .auth-divider::after {
+      content: '';
+      flex: 1;
+      border-top: 1px solid var(--rose);
+    }
+    
+    .auth-divider span {
+      padding: 0 var(--space-md);
+      color: var(--charcoal);
+      opacity: 0.6;
+      font-size: 0.875rem;
+    }
+    
+    .google-btn {
+      width: 100%;
+      padding: var(--space-md);
+      background: var(--bg-main);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-weight: var(--font-weight-semibold);
+      font-family: var(--font-family);
+      color: var(--charcoal);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      transition: all var(--transition-fast);
+    }
+    
+    .google-btn:hover {
+      background: var(--rose);
+      border-color: var(--main-red);
+    }
+    
+    .auth-close {
+      position: absolute;
+      top: var(--space-md);
+      right: var(--space-md);
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--charcoal);
+      opacity: 0.5;
+      line-height: 1;
+      transition: opacity var(--transition-fast);
+    }
+    
+    .auth-close:hover {
+      opacity: 1;
+    }
+    
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      .main-question {
+        font-size: 1.75rem;
+      }
+      
+      .topic-input {
+        padding: var(--space-md) 1.25rem;
+        font-size: 1rem;
+      }
+      
+      .trending-chips {
+        gap: var(--space-xs);
+      }
+      
+      .chip {
+        padding: 0.4rem var(--space-md);
+        font-size: 0.85rem;
+      }
+      
+      .mode-buttons {
+        gap: var(--space-xs);
+      }
+      
+      .mode-btn {
+        padding: 0.6rem 1.25rem;
+        font-size: 0.9rem;
+      }
+      
+      .radar-container {
+        width: 200px;
+        height: 200px;
+      }
+      
+      .radar-circle:nth-child(1) { width: 60px; height: 60px; }
+      .radar-circle:nth-child(2) { width: 110px; height: 110px; }
+      .radar-circle:nth-child(3) { width: 160px; height: 160px; }
+      .radar-circle:nth-child(4) { width: 200px; height: 200px; }
+    }
   </style>
 </head>
 <body>
@@ -53,145 +765,175 @@
   <div class="bg-pattern"></div>
   
   <!-- Header -->
-  <header class="header">
-    <a href="https://www.chatspheres.com" class="logo-container" style="text-decoration: none;">
-      <!-- Vesica Piscis Logo -->
-      <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-        <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-      </svg>
-      <span class="logo-text">ChatSpheres</span>
-    </a>
-    <div class="header-actions" style="display: flex; align-items: center; gap: 1rem;">
-      <!-- Auth buttons - will be shown/hidden via JS -->
-      <div id="auth-buttons-guest" style="display: flex; gap: 0.5rem; align-items: center;">
-        <a href="/index.html" class="back-btn" style="margin-right: 0.5rem;">Video Chat</a>
-        <a href="/recordings.html" style="color: #22223B; font-weight: 600; text-decoration: none; margin-right: 0.5rem;">📹 Recordings</a>
-        <a href="/pricing.html" style="color: #FFD166; font-weight: 600; text-decoration: none; margin-right: 0.5rem;">💎 Pricing</a>
-        <button onclick="showAuthModalFromHeader()" style="background: transparent; border: 2px solid #22223B; color: #22223B; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; cursor: pointer; font-family: 'Nunito', sans-serif;">Sign In</button>
-        <button onclick="showAuthModalFromHeader('signup')" style="background: #FFD166; border: none; color: #22223B; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 700; cursor: pointer; font-family: 'Nunito', sans-serif;">Sign Up</button>
-      </div>
-      <div id="auth-buttons-user" style="display: none; align-items: center; gap: 0.75rem;">
-        <a href="/index.html" class="back-btn" style="margin-right: 0.5rem;">Video Chat</a>
-        <a href="/recordings.html" style="color: #22223B; font-weight: 600; text-decoration: none; margin-right: 0.5rem;">📹 Recordings</a>
-        <a href="/branding.html" id="branding-link" style="color: #22223B; font-weight: 600; text-decoration: none; margin-right: 0.5rem; display: none;">🎨 Branding</a>
-        <a href="/pricing.html" style="color: #FFD166; font-weight: 600; text-decoration: none; margin-right: 0.5rem;">💎 Pricing</a>
-        <a href="/cashout.html" style="color: #22223B; font-weight: 600; text-decoration: none; margin-right: 0.5rem;">💰 Cash Out</a>
-        <!-- Gem Balance -->
-        <div id="header-gem-balance" onclick="window.location.href='/cashout.html'" style="display: flex; align-items: center; gap: 0.25rem; padding: 0.5rem 0.75rem; background: #FFD166; border-radius: 999px; cursor: pointer; transition: all 0.2s;" title="Your gem balance - Click to cash out">
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
           <span>💎</span>
-          <span id="gem-count" style="font-size: 0.875rem; font-weight: 700; color: #22223B;">0</span>
+          <span class="gem-count">0</span>
         </div>
-        <span id="header-user-name" style="font-weight: 600; color: #22223B;"></span>
-        <button onclick="handleLogout()" style="background: #e63946; border: none; color: white; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; cursor: pointer; font-family: 'Nunito', sans-serif;">Logout</button>
+        
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
       </div>
     </div>
   </header>
   
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <ul class="nav-links">
+      <li><a href="/" class="nav-link"><span class="nav-link-icon">🔮</span> Video Chat</a></li>
+      <li><a href="/matchmaking.html" class="nav-link active"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cash Out</a></li>
+      <li><a href="/branding.html" id="nav-branding-link" class="nav-link" style="display: none;"><span class="nav-link-icon">🎨</span> Branding</a></li>
+    </ul>
+    
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <button onclick="showAuthModalFromHeader()" class="btn btn-ghost btn-full" style="margin-bottom: var(--space-sm);">Sign In</button>
+      <button onclick="showAuthModalFromHeader('signup')" class="btn btn-primary btn-full">Sign Up</button>
+    </div>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
   <!-- Main Container -->
-  <main class="main-container">
-    
-    <!-- ========== INPUT SCREEN ========== -->
-    <section id="input-screen" class="input-screen active">
-      <h1 class="main-question">What's on your mind?</h1>
-      <p class="sub-question">Type a topic, find someone to talk about it</p>
+  <div class="page-wrapper">
+    <main class="matchmaking-main">
       
-      <div class="input-wrapper">
-        <input 
-          type="text" 
-          id="topic-input" 
-          class="topic-input" 
-          placeholder="Star Wars, career advice, philosophy..."
-          maxlength="200"
-          autocomplete="off"
-          autofocus
-        >
-      </div>
-      
-      <button id="submit-btn" class="submit-btn">
-        <span>Find My Match</span>
-        <span>→</span>
-      </button>
-      
-      <!-- Trending Topics -->
-      <div class="trending-section">
-        <p class="trending-label">🔥 Trending Now</p>
-        <div class="trending-chips">
-          <button class="chip" data-topic="Life advice and tough decisions">Life Advice</button>
-          <button class="chip" data-topic="Technology and AI future">Tech & AI</button>
-          <button class="chip" data-topic="Movies and TV shows">Movies & TV</button>
-          <button class="chip" data-topic="Career and work life balance">Career Talk</button>
-          <button class="chip" data-topic="Philosophy and meaning of life">Philosophy</button>
-          <button class="chip" data-topic="Relationships and dating">Relationships</button>
+      <!-- ========== INPUT SCREEN ========== -->
+      <section id="input-screen" class="input-screen">
+        <h1 class="main-question">What's on your mind?</h1>
+        <p class="sub-question">Type a topic, find someone to talk about it</p>
+        
+        <div class="input-wrapper">
+          <input 
+            type="text" 
+            id="topic-input" 
+            class="topic-input" 
+            placeholder="Star Wars, career advice, philosophy..."
+            maxlength="200"
+            autocomplete="off"
+            autofocus
+          >
         </div>
-      </div>
-      
-      <!-- Mode Selector -->
-      <div class="mode-section">
-        <p class="mode-label">💬 Conversation Style</p>
-        <div class="mode-buttons">
-          <button class="mode-btn active" data-mode="casual">
-            ☕ Casual Chat
-          </button>
-          <button class="mode-btn" data-mode="debate">
-            ⚔️ Friendly Debate
-          </button>
-          <button class="mode-btn" data-mode="vent">
-            💭 Vent Session
-          </button>
-        </div>
-      </div>
-    </section>
-    
-    <!-- ========== SCANNING SCREEN ========== -->
-    <section id="scanning-screen" class="scanning-screen">
-      <!-- Radar Animation -->
-      <div class="radar-container">
-        <div class="radar-circle"></div>
-        <div class="radar-circle"></div>
-        <div class="radar-circle"></div>
-        <div class="radar-circle"></div>
-        <div class="radar-center">🔍</div>
-      </div>
-      
-      <h2 class="scanning-text">Scanning the Sphere...</h2>
-      <p class="scanning-subtext">Finding someone who wants to talk about</p>
-      <div class="user-topic" id="user-topic-display">"Your topic"</div>
-      <p class="queue-status" id="queue-status">Connecting to matchmaking...</p>
-      
-      <button id="cancel-btn" class="cancel-btn">Cancel Search</button>
-    </section>
-    
-    <!-- ========== MATCH FOUND SCREEN ========== -->
-    <section id="match-screen" class="match-screen">
-      <div class="match-celebration">🎉</div>
-      <h2 class="match-title">Match Found!</h2>
-      
-      <div class="match-topics">
-        <div class="topic-comparison">
-          <div class="topic-item yours">
-            <small style="opacity: 0.7; display: block; margin-bottom: 4px;">You typed</small>
-            <span id="match-your-topic">Your topic</span>
-          </div>
-          <span class="topic-connector">↔️</span>
-          <div class="topic-item theirs">
-            <small style="opacity: 0.7; display: block; margin-bottom: 4px;">They typed</small>
-            <span id="match-their-topic">Their topic</span>
+        
+        <button id="submit-btn" class="submit-btn">
+          <span>Find My Match</span>
+          <span>→</span>
+        </button>
+        
+        <!-- Trending Topics -->
+        <div class="trending-section">
+          <p class="trending-label">🔥 Trending Now</p>
+          <div class="trending-chips">
+            <button class="chip" data-topic="Life advice and tough decisions">Life Advice</button>
+            <button class="chip" data-topic="Technology and AI future">Tech & AI</button>
+            <button class="chip" data-topic="Movies and TV shows">Movies & TV</button>
+            <button class="chip" data-topic="Career and work life balance">Career Talk</button>
+            <button class="chip" data-topic="Philosophy and meaning of life">Philosophy</button>
+            <button class="chip" data-topic="Relationships and dating">Relationships</button>
           </div>
         </div>
-        <div class="similarity-badge" id="similarity-badge">85% Match</div>
-      </div>
+        
+        <!-- Mode Selector -->
+        <div class="mode-section">
+          <p class="mode-label">💬 Conversation Style</p>
+          <div class="mode-buttons">
+            <button class="mode-btn active" data-mode="casual">
+              ☕ Casual Chat
+            </button>
+            <button class="mode-btn" data-mode="debate">
+              ⚔️ Friendly Debate
+            </button>
+            <button class="mode-btn" data-mode="vent">
+              💭 Vent Session
+            </button>
+          </div>
+        </div>
+      </section>
       
-      <p class="connecting-text">Get ready for a great conversation!</p>
+      <!-- ========== SCANNING SCREEN ========== -->
+      <section id="scanning-screen" class="scanning-screen">
+        <!-- Radar Animation -->
+        <div class="radar-container">
+          <div class="radar-circle"></div>
+          <div class="radar-circle"></div>
+          <div class="radar-circle"></div>
+          <div class="radar-circle"></div>
+          <div class="radar-center">🔍</div>
+        </div>
+        
+        <h2 class="scanning-text">Scanning the Sphere...</h2>
+        <p class="scanning-subtext">Finding someone who wants to talk about</p>
+        <div class="user-topic" id="user-topic-display">"Your topic"</div>
+        <p class="queue-status" id="queue-status">Connecting to matchmaking...</p>
+        
+        <button id="cancel-btn" class="cancel-btn">Cancel Search</button>
+      </section>
       
-      <button id="join-room-btn" class="join-btn">
-        🚀 Join Video Chat
-      </button>
-    </section>
-    
-  </main>
+      <!-- ========== MATCH FOUND SCREEN ========== -->
+      <section id="match-screen" class="match-screen">
+        <div class="match-celebration">🎉</div>
+        <h2 class="match-title">Match Found!</h2>
+        
+        <div class="match-topics">
+          <div class="topic-comparison">
+            <div class="topic-item yours">
+              <small>You typed</small>
+              <span id="match-your-topic">Your topic</span>
+            </div>
+            <span class="topic-connector">↔️</span>
+            <div class="topic-item theirs">
+              <small>They typed</small>
+              <span id="match-their-topic">Their topic</span>
+            </div>
+          </div>
+          <div class="similarity-badge" id="similarity-badge">85% Match</div>
+        </div>
+        
+        <p class="connecting-text">Get ready for a great conversation!</p>
+        
+        <button id="join-room-btn" class="join-btn">
+          🚀 Join Video Chat
+        </button>
+      </section>
+      
+    </main>
+  </div>
   
   <!-- ========== RATING MODAL ========== -->
   <div id="rating-modal" class="rating-modal">
@@ -213,68 +955,66 @@
   </div>
 
   <!-- ========== AUTH MODAL ========== -->
-  <div id="auth-modal" class="hidden" style="position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(34, 34, 59, 0.9); backdrop-filter: blur(8px);">
-    <div style="background: white; border-radius: 24px; padding: 2rem; max-width: 400px; width: 100%; box-shadow: 0 25px 50px rgba(0,0,0,0.25); border: 4px solid #FFD166; position: relative;">
+  <div id="auth-modal" class="auth-modal">
+    <div class="auth-modal-content">
       <!-- Logo -->
-      <div style="text-align: center; margin-bottom: 1.5rem;">
-        <svg viewBox="0 0 64 64" width="48" height="48" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 0.75rem;">
-          <circle cx="24" cy="32" r="20" stroke="#fff" stroke-width="6"/>
-          <circle cx="40" cy="32" r="20" stroke="#fff" stroke-width="6"/>
+      <div class="auth-modal-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
           <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         </svg>
-        <h2 style="font-size: 1.5rem; font-weight: 700; color: #22223B; margin: 0;">Welcome to ChatSpheres</h2>
-        <p style="color: #666; font-size: 0.875rem; margin-top: 0.25rem;">Sign in to find your match</p>
+        <h2>Welcome to ChatSpheres</h2>
+        <p>Sign in to find your match</p>
       </div>
       
       <!-- Auth Tabs -->
-      <div style="display: flex; margin-bottom: 1.5rem; background: #f3f4f6; border-radius: 999px; padding: 4px;">
-        <button id="auth-tab-signin" onclick="switchAuthTab('signin')" style="flex: 1; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; background: #e63946; color: white; font-family: 'Nunito', sans-serif;">Sign In</button>
-        <button id="auth-tab-signup" onclick="switchAuthTab('signup')" style="flex: 1; padding: 0.5rem 1rem; border-radius: 999px; font-weight: 600; font-size: 0.875rem; border: none; cursor: pointer; background: transparent; color: #666; font-family: 'Nunito', sans-serif;">Sign Up</button>
+      <div class="auth-tabs">
+        <button id="auth-tab-signin" onclick="switchAuthTab('signin')" class="auth-tab active">Sign In</button>
+        <button id="auth-tab-signup" onclick="switchAuthTab('signup')" class="auth-tab">Sign Up</button>
       </div>
       
       <!-- Error/Success Messages -->
-      <div id="auth-message" class="hidden" style="margin-bottom: 1rem; padding: 0.75rem; border-radius: 12px; font-size: 0.875rem; font-weight: 500; text-align: center;"></div>
+      <div id="auth-message" class="auth-message hidden"></div>
       
       <!-- Sign In Form -->
-      <form id="signin-form" onsubmit="handleSignIn(event)" style="display: flex; flex-direction: column; gap: 1rem;">
-        <div>
-          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Email</label>
-          <input type="email" id="signin-email" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="you@example.com">
+      <form id="signin-form" class="auth-form" onsubmit="handleSignIn(event)">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="signin-email" class="form-input" required placeholder="you@example.com">
         </div>
-        <div>
-          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Password</label>
-          <input type="password" id="signin-password" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="••••••••">
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="signin-password" class="form-input" required placeholder="••••••••">
         </div>
-        <button type="submit" style="width: 100%; padding: 0.75rem; background: #e63946; color: white; font-weight: 700; border-radius: 12px; border: none; cursor: pointer; font-size: 1rem; font-family: 'Nunito', sans-serif;">Sign In</button>
+        <button type="submit" class="btn btn-primary btn-full">Sign In</button>
       </form>
       
       <!-- Sign Up Form -->
-      <form id="signup-form" onsubmit="handleSignUp(event)" style="display: none; flex-direction: column; gap: 1rem;">
-        <div>
-          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Display Name</label>
-          <input type="text" id="signup-name" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="Your name">
+      <form id="signup-form" class="auth-form hidden" onsubmit="handleSignUp(event)">
+        <div class="form-group">
+          <label class="form-label">Display Name</label>
+          <input type="text" id="signup-name" class="form-input" required placeholder="Your name">
         </div>
-        <div>
-          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Email</label>
-          <input type="email" id="signup-email" required style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="you@example.com">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="signup-email" class="form-input" required placeholder="you@example.com">
         </div>
-        <div>
-          <label style="display: block; font-size: 0.875rem; font-weight: 600; color: #22223B; margin-bottom: 0.25rem;">Password</label>
-          <input type="password" id="signup-password" required minlength="6" style="width: 100%; padding: 0.75rem 1rem; border: 2px solid #e5e7eb; border-radius: 12px; font-size: 1rem; font-family: 'Nunito', sans-serif; box-sizing: border-box;" placeholder="••••••••  (min 6 characters)">
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="signup-password" class="form-input" required minlength="6" placeholder="•••••••• (min 6 characters)">
         </div>
-        <button type="submit" style="width: 100%; padding: 0.75rem; background: #e63946; color: white; font-weight: 700; border-radius: 12px; border: none; cursor: pointer; font-size: 1rem; font-family: 'Nunito', sans-serif;">Create Account</button>
+        <button type="submit" class="btn btn-primary btn-full">Create Account</button>
       </form>
       
       <!-- Divider -->
-      <div style="display: flex; align-items: center; margin: 1.5rem 0;">
-        <div style="flex: 1; border-top: 1px solid #e5e7eb;"></div>
-        <span style="padding: 0 1rem; color: #9ca3af; font-size: 0.875rem;">or continue with</span>
-        <div style="flex: 1; border-top: 1px solid #e5e7eb;"></div>
+      <div class="auth-divider">
+        <span>or continue with</span>
       </div>
       
       <!-- Google Sign In -->
-      <button onclick="handleGoogleSignIn()" style="width: 100%; padding: 0.75rem; background: white; border: 2px solid #e5e7eb; border-radius: 12px; font-weight: 600; color: #22223B; cursor: pointer; font-family: 'Nunito', sans-serif; display: flex; align-items: center; justify-content: center; gap: 0.75rem;">
+      <button onclick="handleGoogleSignIn()" class="google-btn">
         <svg width="20" height="20" viewBox="0 0 24 24">
           <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
           <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -285,11 +1025,14 @@
       </button>
       
       <!-- Close button -->
-      <button onclick="hideAuthModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #9ca3af; line-height: 1;">×</button>
+      <button onclick="hideAuthModal()" class="auth-close">×</button>
     </div>
   </div>
   
-  <!-- Scripts -->
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
+  
+  <!-- Matchmaking Scripts -->
   <script src="/assets/js/matchmaking.js"></script>
   
   <!-- Auth Script -->
@@ -374,12 +1117,15 @@
       }
       
       function updateHeaderForUser(user) {
-        const guestButtons = document.getElementById('auth-buttons-guest');
-        const userButtons = document.getElementById('auth-buttons-user');
-        const userName = document.getElementById('header-user-name');
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const userName = document.getElementById('nav-user-name');
+        const headerGemBadge = document.getElementById('header-gem-badge');
         
-        if (guestButtons) guestButtons.style.display = 'none';
-        if (userButtons) userButtons.style.display = 'flex';
+        if (guestLinks) guestLinks.style.display = 'none';
+        if (userSection) userSection.style.display = 'block';
+        if (headerGemBadge) headerGemBadge.style.display = 'flex';
+        
         if (userName) {
           const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
           userName.textContent = name;
@@ -390,49 +1136,46 @@
       }
       
       async function fetchAndDisplayGemBalance(userId) {
-        const gemCountEl = document.getElementById('gem-count');
-        if (!gemCountEl || !userId) {
-          if (gemCountEl) gemCountEl.textContent = '0';
-          return;
-        }
+        const gemCount = document.getElementById('header-gem-badge')?.querySelector('.gem-count');
+        const navGems = document.getElementById('nav-user-gems');
+        if (!userId) return;
         
         try {
           const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
-          if (!response.ok) {
-            gemCountEl.textContent = '0';
-            return;
-          }
+          if (!response.ok) return;
           
           const data = await response.json();
           const totalGems = data.totalGems || 0;
-          gemCountEl.textContent = totalGems.toLocaleString();
+          
+          if (gemCount) gemCount.textContent = totalGems.toLocaleString();
+          if (navGems) navGems.textContent = totalGems.toLocaleString();
           console.log('💎 Gem balance loaded:', totalGems);
           
           // Show branding link for pro users
-          const brandingLink = document.getElementById('branding-link');
+          const brandingLink = document.getElementById('nav-branding-link');
           if (brandingLink && data.limits?.canCustomBrand) {
-            brandingLink.style.display = 'inline';
+            brandingLink.style.display = 'flex';
           }
         } catch (error) {
           console.error('❌ Error fetching gem balance:', error);
-          gemCountEl.textContent = '0';
         }
       }
       
       function updateHeaderForGuest() {
-        const guestButtons = document.getElementById('auth-buttons-guest');
-        const userButtons = document.getElementById('auth-buttons-user');
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const headerGemBadge = document.getElementById('header-gem-badge');
         
-        if (guestButtons) guestButtons.style.display = 'flex';
-        if (userButtons) userButtons.style.display = 'none';
+        if (guestLinks) guestLinks.style.display = 'block';
+        if (userSection) userSection.style.display = 'none';
+        if (headerGemBadge) headerGemBadge.style.display = 'none';
       }
       
       // Modal functions
       window.showAuthModalFromHeader = function(tab = 'signin') {
         const modal = document.getElementById('auth-modal');
         if (modal) {
-          modal.classList.remove('hidden');
-          modal.style.display = 'flex';
+          modal.classList.add('active');
           switchAuthTab(tab);
         }
       };
@@ -440,8 +1183,7 @@
       window.hideAuthModal = function() {
         const modal = document.getElementById('auth-modal');
         if (modal) {
-          modal.classList.add('hidden');
-          modal.style.display = 'none';
+          modal.classList.remove('active');
         }
       };
       
@@ -452,15 +1194,15 @@
         const signupForm = document.getElementById('signup-form');
         
         if (tab === 'signin') {
-          signinTab.style.background = '#e63946'; signinTab.style.color = 'white';
-          signupTab.style.background = 'transparent'; signupTab.style.color = '#666';
-          signinForm.style.display = 'flex';
-          signupForm.style.display = 'none';
+          signinTab.classList.add('active');
+          signupTab.classList.remove('active');
+          signinForm.classList.remove('hidden');
+          signupForm.classList.add('hidden');
         } else {
-          signupTab.style.background = '#e63946'; signupTab.style.color = 'white';
-          signinTab.style.background = 'transparent'; signinTab.style.color = '#666';
-          signupForm.style.display = 'flex';
-          signinForm.style.display = 'none';
+          signupTab.classList.add('active');
+          signinTab.classList.remove('active');
+          signupForm.classList.remove('hidden');
+          signinForm.classList.add('hidden');
         }
       };
       
@@ -468,9 +1210,7 @@
         const el = document.getElementById('auth-message');
         if (el) {
           el.textContent = msg;
-          el.style.display = 'block';
-          el.style.background = isError ? '#fee2e2' : '#dcfce7';
-          el.style.color = isError ? '#dc2626' : '#16a34a';
+          el.className = `auth-message ${isError ? 'error' : 'success'}`;
           el.classList.remove('hidden');
         }
       }

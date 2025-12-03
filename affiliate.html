@@ -426,16 +426,18 @@
         <span class="site-logo-text">ChatSpheres</span>
       </a>
       
-      <div id="header-gem-badge" class="header-gem-badge hidden">
-        <span class="gem-icon">💎</span>
-        <span class="gem-count">0</span>
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
       </div>
-      
-      <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
-        <span class="menu-bar"></span>
-        <span class="menu-bar"></span>
-        <span class="menu-bar"></span>
-      </button>
     </div>
   </header>
   
@@ -444,28 +446,35 @@
   
   <!-- Navigation Menu -->
   <nav id="nav-menu" class="nav-menu">
-    <button id="menu-close" class="nav-close" aria-label="Close menu" onclick="document.getElementById('nav-menu').classList.remove('active'); document.getElementById('nav-overlay').classList.remove('active'); document.getElementById('menu-toggle').classList.remove('active'); document.body.style.overflow = '';">✕</button>
-    <ul class="nav-list">
-      <li><a href="/" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
-      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎲</span> Matchmaking</a></li>
+    <ul class="nav-links">
+      <li><a href="/" class="nav-link"><span class="nav-link-icon">🔮</span> Video Chat</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
       <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
-      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">🎬</span> Recordings</a></li>
-      <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cashout</a></li>
-      <li id="nav-branding-link" style="display: none;"><a href="/branding.html" class="nav-link"><span class="nav-link-icon">🎨</span> Branding</a></li>
-      <li><a href="/profile.html" class="nav-link"><span class="nav-link-icon">👤</span> Profile</a></li>
-      <li><a href="/affiliate.html" class="nav-link active"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
     </ul>
+    
     <div class="nav-divider"></div>
-    <div id="nav-guest-links" class="nav-guest-links">
-      <button onclick="showAuthModal()" class="btn btn-primary btn-full">Sign In</button>
-      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-ghost btn-full" target="_blank">Create Account</a>
+    
+    <ul class="nav-links">
+      <li><a href="/profile.html" class="nav-link"><span class="nav-link-icon">👤</span> Profile</a></li>
+      <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cash Out</a></li>
+      <li><a href="/affiliate.html" class="nav-link active"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+      <li><a href="/branding.html" id="nav-branding-link" class="nav-link" style="display: none;"><span class="nav-link-icon">🎨</span> Branding</a></li>
+    </ul>
+    
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <button onclick="showAuthModal()" class="btn btn-ghost btn-full" style="margin-bottom: var(--space-sm);">Sign In</button>
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;" target="_blank">Sign Up</a>
     </div>
-    <div id="nav-user-section" class="nav-user-section hidden">
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
       <div class="nav-user-info">
         <div class="nav-user-avatar" id="nav-user-avatar">👤</div>
         <div class="nav-user-details">
-          <span class="nav-user-name" id="nav-user-name">User</span>
-          <span class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</span>
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
         </div>
       </div>
       <button onclick="signOut()" class="btn btn-ghost btn-full">Sign Out</button>
@@ -806,15 +815,22 @@
     
     // Update nav for logged in user
     function updateNavForUser(user) {
-      document.getElementById('nav-guest-links').classList.add('hidden');
-      document.getElementById('nav-user-section').classList.remove('hidden');
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'none';
+      if (userSection) userSection.style.display = 'block';
+      if (headerGemBadge) headerGemBadge.style.display = 'flex';
       
       const displayName = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
-      document.getElementById('nav-user-name').textContent = displayName;
+      const userNameEl = document.getElementById('nav-user-name');
+      if (userNameEl) userNameEl.textContent = displayName;
       
       // Get avatar
-      if (user.user_metadata?.avatar_url) {
-        document.getElementById('nav-user-avatar').innerHTML = `<img src="${user.user_metadata.avatar_url}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+      const avatarEl = document.getElementById('nav-user-avatar');
+      if (avatarEl && user.user_metadata?.avatar_url) {
+        avatarEl.innerHTML = `<img src="${user.user_metadata.avatar_url}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
       }
       
       // Fetch gem balance
@@ -823,9 +839,13 @@
     
     // Update nav for guest
     function updateNavForGuest() {
-      document.getElementById('nav-guest-links').classList.remove('hidden');
-      document.getElementById('nav-user-section').classList.add('hidden');
-      document.getElementById('header-gem-badge').classList.add('hidden');
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'block';
+      if (userSection) userSection.style.display = 'none';
+      if (headerGemBadge) headerGemBadge.style.display = 'none';
     }
     
     // Fetch gem balance
@@ -835,13 +855,20 @@
         const data = await response.json();
         
         const totalGems = data.totalGems || 0;
-        document.getElementById('nav-user-gems').textContent = totalGems.toLocaleString();
-        document.getElementById('header-gem-badge').querySelector('.gem-count').textContent = totalGems.toLocaleString();
-        document.getElementById('header-gem-badge').classList.remove('hidden');
+        const navUserGems = document.getElementById('nav-user-gems');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (navUserGems) navUserGems.textContent = totalGems.toLocaleString();
+        if (headerGemBadge) {
+          const gemCount = headerGemBadge.querySelector('.gem-count');
+          if (gemCount) gemCount.textContent = totalGems.toLocaleString();
+          headerGemBadge.style.display = 'flex';
+        }
         
         // Show branding link if applicable
         if (data.limits?.canCustomBrand) {
-          document.getElementById('nav-branding-link').style.display = 'flex';
+          const brandingLink = document.getElementById('nav-branding-link');
+          if (brandingLink) brandingLink.style.display = 'block';
         }
       } catch (error) {
         console.error('Error fetching gem balance:', error);

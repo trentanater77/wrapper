@@ -827,32 +827,16 @@
           <span class="text-xl font-extrabold" style="color: var(--charcoal);">ChatSpheres</span>
         </a>
         
-        <!-- Auth Header Buttons - Desktop (hidden on mobile) -->
-        <div id="header-auth-guest" class="hidden lg:flex items-center space-x-2 ml-4">
-          <a href="/matchmaking.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">Find Match</a>
-          <a href="/recordings.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">📹 Recordings</a>
-          <a href="/pricing.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--gold);">💎 Pricing</a>
-          <button onclick="showAuthModal();" class="px-3 py-1 text-sm font-semibold rounded-full transition-colors" style="color: var(--charcoal); border: 2px solid var(--charcoal);">Sign In</button>
-        </div>
-        <div id="header-auth-user" class="hidden lg:flex items-center space-x-2 ml-4">
-          <a href="/matchmaking.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">Find Match</a>
-          <a href="/recordings.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">📹 Recordings</a>
-          <button id="branding-btn" onclick="openBrandingModal()" class="hidden px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">🎨 Branding</button>
-          <a href="/pricing.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--gold);">💎 Pricing</a>
-          <a href="/cashout.html" class="px-3 py-1 text-sm font-semibold hover:text-main-red transition-colors" style="color: var(--charcoal);">💰 Cash Out</a>
-          <!-- Gem Balance -->
-          <div id="header-gem-balance" class="flex items-center gap-1 px-3 py-1 rounded-full cursor-pointer transition-colors" style="background: var(--gold);" onclick="window.location.href='/cashout.html'" title="Your gem balance - Click to cash out">
-            <span>💎</span>
-            <span id="gem-count" class="text-sm font-bold" style="color: var(--charcoal);">0</span>
-          </div>
-          <span id="header-username" class="text-sm font-semibold" style="color: var(--charcoal);"></span>
-          <button onclick="signOut()" class="px-3 py-1 text-sm font-semibold rounded-full transition-colors" style="background: var(--main-red); color: var(--light-rose);">Logout</button>
+        <!-- Gem Balance (shown when logged in) -->
+        <div id="header-gem-balance" class="hidden items-center gap-1 px-3 py-1 rounded-full cursor-pointer transition-colors" style="background: var(--gold);" onclick="window.location.href='/cashout.html'" title="Your gem balance - Click to cash out">
+          <span>💎</span>
+          <span id="gem-count" class="text-sm font-bold" style="color: var(--charcoal);">0</span>
         </div>
         
-        <!-- Mobile Menu Toggle -->
-        <button id="video-menu-toggle" onclick="toggleVideoMenu()" class="lg:hidden ml-2 p-2 rounded-lg transition-colors" style="background: var(--gold);" aria-label="Toggle menu">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--charcoal);">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+        <!-- Hamburger Menu Toggle (always visible) -->
+        <button id="video-menu-toggle" onclick="toggleVideoMenu()" class="ml-2 p-2 rounded-lg transition-colors hover:opacity-80" style="background: var(--gold);" aria-label="Toggle menu">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--charcoal);">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/>
           </svg>
         </button>
         
@@ -918,36 +902,78 @@
     </div>
   </header>
   
-  <!-- Mobile Navigation Menu -->
-  <div id="video-mobile-nav" class="hidden fixed inset-0 z-50">
-    <div class="absolute inset-0 bg-charcoal/60 backdrop-blur-sm" onclick="toggleVideoMenu()"></div>
-    <nav class="absolute right-0 top-0 h-full w-72 max-w-[85vw] overflow-y-auto" style="background: var(--light-rose); padding: 4rem 1rem 1rem;">
-      <button onclick="toggleVideoMenu()" class="absolute top-4 right-4 p-2" style="color: var(--charcoal);">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-      
-      <div class="space-y-2">
-        <a href="/matchmaking.html" class="block px-4 py-3 rounded-xl font-semibold transition" style="color: var(--charcoal);">🎯 Find Match</a>
-        <a href="/recordings.html" class="block px-4 py-3 rounded-xl font-semibold transition" style="color: var(--charcoal);">📹 Recordings</a>
-        <a href="/pricing.html" class="block px-4 py-3 rounded-xl font-semibold transition" style="color: var(--charcoal);">💎 Pricing</a>
-        <a href="/cashout.html" class="block px-4 py-3 rounded-xl font-semibold transition" style="color: var(--charcoal);">💰 Cash Out</a>
-        <a href="/branding.html" id="mobile-branding-link" class="hidden px-4 py-3 rounded-xl font-semibold transition" style="color: var(--charcoal);">🎨 Branding</a>
-        
-        <div style="height: 1px; background: var(--rose); margin: 1rem 0;"></div>
-        
-        <!-- Mobile Auth Buttons -->
-        <div id="mobile-auth-guest" class="space-y-3">
-          <button onclick="showAuthModal(); toggleVideoMenu();" class="w-full px-4 py-3 rounded-full font-bold transition" style="background: var(--gold); color: var(--charcoal);">Sign In</button>
-          <a href="https://www.chatspheres.com/sign-up/" class="block w-full px-4 py-3 rounded-full font-bold text-center transition" style="background: var(--main-red); color: var(--light-rose);">Sign Up</a>
+  <!-- Slide-out Navigation Menu -->
+  <div id="video-mobile-nav" class="hidden fixed inset-0 z-[100]">
+    <div class="absolute inset-0 bg-charcoal/70 backdrop-blur-sm" onclick="toggleVideoMenu()"></div>
+    <nav class="absolute right-0 top-0 h-full w-80 max-w-[90vw] overflow-y-auto shadow-2xl" style="background: var(--light-rose);">
+      <!-- Nav Header -->
+      <div class="flex items-center justify-between p-4" style="border-bottom: 2px solid var(--rose);">
+        <div class="flex items-center gap-2">
+          <svg viewBox="0 0 64 64" width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="3" fill="none"/>
+            <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="3" fill="none"/>
+          </svg>
+          <span class="font-bold" style="color: var(--charcoal);">Menu</span>
         </div>
+        <button onclick="toggleVideoMenu()" class="p-2 rounded-lg transition-colors" style="background: var(--rose); color: var(--charcoal);">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      
+      <!-- Nav Links -->
+      <div class="p-4 space-y-1">
+        <a href="/" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition hover:translate-x-1" style="color: var(--charcoal); background: var(--rose);">
+          <span>🔮</span> Video Chat
+        </a>
+        <a href="/matchmaking.html" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition hover:translate-x-1" style="color: var(--charcoal);">
+          <span>🎯</span> Find Match
+        </a>
+        <a href="/recordings.html" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition hover:translate-x-1" style="color: var(--charcoal);">
+          <span>📹</span> Recordings
+        </a>
+        <a href="/pricing.html" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition hover:translate-x-1" style="color: var(--charcoal);">
+          <span>💎</span> Pricing
+        </a>
+        
+        <div style="height: 2px; background: var(--rose); margin: 1rem 0;"></div>
+        
+        <a href="/cashout.html" class="flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition hover:translate-x-1" style="color: var(--charcoal);">
+          <span>💰</span> Cash Out
+        </a>
+        <a href="/branding.html" id="mobile-branding-link" class="hidden items-center gap-3 px-4 py-3 rounded-xl font-semibold transition hover:translate-x-1" style="color: var(--charcoal);">
+          <span>🎨</span> Branding
+        </a>
+      </div>
+      
+      <!-- User Section -->
+      <div class="absolute bottom-0 left-0 right-0 p-4" style="background: var(--rose); border-top: 2px solid var(--gold);">
+        <!-- Guest State -->
+        <div id="mobile-auth-guest" class="space-y-3">
+          <button onclick="showAuthModal(); toggleVideoMenu();" class="w-full px-4 py-3 rounded-full font-bold transition hover:scale-[1.02]" style="background: var(--gold); color: var(--charcoal);">
+            Sign In
+          </button>
+          <a href="https://www.chatspheres.com/sign-up/" class="block w-full px-4 py-3 rounded-full font-bold text-center transition hover:scale-[1.02]" style="background: var(--main-red); color: var(--light-rose); text-decoration: none;">
+            Sign Up
+          </a>
+        </div>
+        
+        <!-- Logged In State -->
         <div id="mobile-auth-user" class="hidden space-y-3">
-          <div class="flex items-center gap-2 px-4 py-2 rounded-xl" style="background: var(--rose);">
-            <span>👤</span>
-            <span id="mobile-username" class="font-semibold" style="color: var(--charcoal);">User</span>
+          <div class="flex items-center gap-3 px-4 py-3 rounded-xl" style="background: var(--light-rose);">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center text-lg" style="background: var(--gold);">👤</div>
+            <div>
+              <div id="mobile-username" class="font-bold" style="color: var(--charcoal);">User</div>
+              <div class="text-sm flex items-center gap-1" style="color: var(--charcoal); opacity: 0.7;">
+                <span>💎</span>
+                <span id="mobile-gem-count">0</span> gems
+              </div>
+            </div>
           </div>
-          <button onclick="signOut(); toggleVideoMenu();" class="w-full px-4 py-3 rounded-full font-bold transition" style="background: var(--main-red); color: var(--light-rose);">Sign Out</button>
+          <button onclick="signOut(); toggleVideoMenu();" class="w-full px-4 py-3 rounded-full font-bold transition hover:scale-[1.02]" style="background: var(--charcoal); color: var(--light-rose);">
+            Sign Out
+          </button>
         </div>
       </div>
     </nav>
@@ -1804,24 +1830,22 @@
 
     // Update header auth buttons based on auth state
     function updateHeaderAuthState(isLoggedIn, displayName = '') {
-      const guestButtons = document.getElementById('header-auth-guest');
-      const userButtons = document.getElementById('header-auth-user');
-      const usernameSpan = document.getElementById('header-username');
+      // Header elements
+      const headerGemBalance = document.getElementById('header-gem-balance');
       
-      // Mobile menu elements
+      // Menu elements
       const mobileGuestButtons = document.getElementById('mobile-auth-guest');
       const mobileUserButtons = document.getElementById('mobile-auth-user');
       const mobileUsername = document.getElementById('mobile-username');
       
       if (isLoggedIn) {
-        if (guestButtons) guestButtons.classList.add('hidden');
-        if (userButtons) {
-          userButtons.classList.remove('hidden');
-          userButtons.style.display = 'flex';
+        // Show gem balance in header
+        if (headerGemBalance) {
+          headerGemBalance.classList.remove('hidden');
+          headerGemBalance.style.display = 'flex';
         }
-        if (usernameSpan) usernameSpan.textContent = displayName;
         
-        // Mobile menu
+        // Menu: show user, hide guest
         if (mobileGuestButtons) mobileGuestButtons.classList.add('hidden');
         if (mobileUserButtons) mobileUserButtons.classList.remove('hidden');
         if (mobileUsername) mobileUsername.textContent = displayName;
@@ -1829,13 +1853,10 @@
         // Fetch and display gem balance
         fetchAndDisplayGemBalance();
       } else {
-        if (guestButtons) {
-          guestButtons.classList.remove('hidden');
-          guestButtons.style.display = 'flex';
-        }
-        if (userButtons) userButtons.classList.add('hidden');
+        // Hide gem balance in header
+        if (headerGemBalance) headerGemBalance.classList.add('hidden');
         
-        // Mobile menu
+        // Menu: show guest, hide user
         if (mobileGuestButtons) mobileGuestButtons.classList.remove('hidden');
         if (mobileUserButtons) mobileUserButtons.classList.add('hidden');
       }
@@ -1869,6 +1890,11 @@
         
         // Format with commas for large numbers
         gemCountEl.textContent = totalGems.toLocaleString();
+        
+        // Also update mobile gem count
+        const mobileGemCount = document.getElementById('mobile-gem-count');
+        if (mobileGemCount) mobileGemCount.textContent = totalGems.toLocaleString();
+        
         console.log(`💎 Gem balance loaded: ${totalGems}`);
         
         // Show branding button for pro users
@@ -1877,7 +1903,10 @@
         if (brandingBtn) {
           if (canBrand) {
             brandingBtn.classList.remove('hidden');
-            if (mobileBrandingLink) mobileBrandingLink.classList.remove('hidden');
+            if (mobileBrandingLink) {
+              mobileBrandingLink.classList.remove('hidden');
+              mobileBrandingLink.style.display = 'flex';
+            }
             console.log('🎨 Branding enabled for pro user');
           } else {
             brandingBtn.classList.add('hidden');

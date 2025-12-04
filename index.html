@@ -5125,6 +5125,11 @@ async function initializeApp() {
   }
 
   async function handleParticipantJoined(event) {
+    const participantId = event.participant.session_id;
+    const participantName = event.participant.user_name || 'Guest';
+    const localUserName = userName || window.currentUserData?.username;
+    const localSid = livekitRoom?.localParticipant?.sid;
+    
     // Skip if this is our own participant (shouldn't happen, but safety check)
     if (event.participant.local === true) {
       console.log('ℹ️ Ignoring local participant join event');
@@ -5132,20 +5137,25 @@ async function initializeApp() {
     }
     
     // Additional check: compare session IDs
-    const localSid = livekitRoom?.localParticipant?.sid;
-    if (localSid && event.participant.session_id === localSid) {
+    if (localSid && participantId === localSid) {
       console.log('ℹ️ Ignoring participant join event for local participant (sid match)');
       return;
     }
     
-    const participantName = event.participant.user_name || 'Guest';
+    // Check if this is a stale version of ourselves (same username, different session ID)
+    const isStaleSelfSession = localUserName && participantName === localUserName;
+    if (isStaleSelfSession) {
+      console.log('ℹ️ Ignoring stale self-session join event (old session with same username):', participantName);
+      return;
+    }
+    
     const participantData = getParticipantUserData(event.participant);
     const participantDisplayName = participantData?.displayName || participantName;
     const participantRole = getParticipantRole(event.participant);
     const isSpectatorParticipant = participantRole === 'spectator';
     
     console.log('👋 Participant joined:', participantDisplayName, isSpectatorParticipant ? '(spectator)' : '(participant)', 
-      'session_id:', event.participant.session_id?.substring(0, 12));
+      'session_id:', participantId?.substring(0, 12));
     
     if (!isSpectator) {
       if (!isSpectatorParticipant) {
@@ -5174,13 +5184,41 @@ async function initializeApp() {
   }
 
   function handleParticipantLeft(event) {
+    const participantId = event.participant.session_id;
     const participantName = event.participant.user_name || 'Guest';
     const participantData = getParticipantUserData(event.participant);
     const participantDisplayName = participantData?.displayName || participantName;
     const participantRole = getParticipantRole(event.participant);
     const isSpectatorParticipant = participantRole === 'spectator';
     
-    console.log('👋 Participant left:', participantDisplayName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    // Determine if this is the local participant (possibly from a stale session)
+    const localSid = livekitRoom?.localParticipant?.sid;
+    const localUserName = userName || window.currentUserData?.username;
+    const isLocalParticipant = 
+      event.participant?.local === true || 
+      (localSid && participantId === localSid);
+    
+    // Also check if this is a stale version of ourselves (same username, different session)
+    const isStaleSelfSession = localUserName && participantName === localUserName && !isLocalParticipant;
+    
+    console.log('👋 Participant left:', participantDisplayName, {
+      participantId: participantId?.substring(0, 12),
+      localSid: localSid?.substring(0, 12),
+      isSpectatorParticipant,
+      isLocalParticipant,
+      isStaleSelfSession
+    });
+    
+    // Ignore if this is ourselves or a stale version of ourselves
+    if (isLocalParticipant) {
+      console.log('ℹ️ Ignoring local participant leave event');
+      return;
+    }
+    
+    if (isStaleSelfSession) {
+      console.log('ℹ️ Ignoring stale self-session leave event (old session cleanup)');
+      return;
+    }
     
     if (!isSpectator) {
       if (!isSpectatorParticipant) {
@@ -5190,7 +5228,6 @@ async function initializeApp() {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
     } else {
-      const participantId = event.participant.session_id;
       removeSpectatorParticipant(participantId);
       updateSpectatorParticipants();
       showToast(`👋 ${participantDisplayName} left the conversation`);
@@ -5200,6 +5237,8 @@ async function initializeApp() {
   function handleParticipantUpdated(event) {
     // Only log when there are meaningful changes, not constant updates
     const participantId = event.participant.session_id;
+    const participantName = event.participant?.user_name || 'Guest';
+    const localUserName = userName || window.currentUserData?.username;
     
     // Determine if this is truly a local participant - use multiple checks
     const localSid = livekitRoom?.localParticipant?.sid;
@@ -5207,17 +5246,26 @@ async function initializeApp() {
       event.participant?.local === true || 
       (localSid && participantId === localSid);
     
+    // Check if this is a stale version of ourselves (same username, different session ID)
+    const isStaleSelfSession = localUserName && participantName === localUserName && !isLocalParticipant;
+    
     const participantRole = getParticipantRole(event.participant);
     
     // Skip logging and processing for local participant updates
     if (isLocalParticipant) return;
+    
+    // Skip stale self-session updates
+    if (isStaleSelfSession) {
+      console.log('ℹ️ Ignoring stale self-session update');
+      return;
+    }
 
     if (participantRole === 'spectator') {
       console.log('🔒 Ignoring spectator participant update to prevent disruption');
       return;
     }
     
-    console.log(`🔄 Remote participant updated: ${event.participant.user_name || participantId.slice(0,8)}`);
+    console.log(`🔄 Remote participant updated: ${participantName || participantId?.slice(0,8)}`);
     
     const tracks = event.participant.tracks;
     
@@ -5262,9 +5310,16 @@ async function initializeApp() {
     
     // Determine if this is truly a local participant - use multiple checks
     const localSid = livekitRoom?.localParticipant?.sid;
+    const participantId = event.participant?.session_id;
+    const participantName = event.participant?.user_name || 'Guest';
+    const localUserName = userName || window.currentUserData?.username;
+    
     const isLocalParticipant = 
       event.participant?.local === true || 
-      (localSid && event.participant?.session_id === localSid);
+      (localSid && participantId === localSid);
+    
+    // Check if this is a stale version of ourselves (same username, different session ID)
+    const isStaleSelfSession = localUserName && participantName === localUserName && !isLocalParticipant;
     
     console.log('🎥 Track details:', {
       kind: event.track?.kind,
@@ -5274,7 +5329,8 @@ async function initializeApp() {
       enabled: event.track?.enabled,
       participantLocal: event.participant?.local,
       isLocalParticipant: isLocalParticipant,
-      participantId: event.participant?.session_id,
+      isStaleSelfSession: isStaleSelfSession,
+      participantId: participantId?.substring(0, 12),
       participantName: event.participant?.user_name,
       localSid: localSid,
       isSpectator: isSpectator,
@@ -5284,6 +5340,12 @@ async function initializeApp() {
     // Validate track
     if (!event.track) {
       console.error('❌ handleTrackStarted called with no track!');
+      return;
+    }
+
+    // Ignore stale self-session track events (old session cleanup)
+    if (isStaleSelfSession) {
+      console.log('ℹ️ Ignoring stale self-session track start (old session with same username)');
       return;
     }
 
@@ -5358,20 +5420,34 @@ async function initializeApp() {
     
     // Determine if this is truly a local participant - use multiple checks
     const localSid = livekitRoom?.localParticipant?.sid;
+    const participantId = event.participant?.session_id;
+    const participantName = event.participant?.user_name || 'Guest';
+    const localUserName = userName || window.currentUserData?.username;
+    
     const isLocalParticipant = 
       event.participant?.local === true || 
-      (localSid && event.participant?.session_id === localSid);
+      (localSid && participantId === localSid);
+    
+    // Check if this is a stale version of ourselves (same username, different session ID)
+    const isStaleSelfSession = localUserName && participantName === localUserName && !isLocalParticipant;
     
     console.log('🛑 Track details:', {
       kind: event.track.kind,
       label: event.track.label,
       participantLocal: event.participant.local,
       isLocalParticipant: isLocalParticipant,
-      participantId: event.participant.session_id,
-      participantName: event.participant.user_name,
-      localSid: localSid,
+      isStaleSelfSession: isStaleSelfSession,
+      participantId: participantId?.substring(0, 12),
+      participantName: participantName,
+      localSid: localSid?.substring(0, 12),
       isSpectator: isSpectator
     });
+
+    // Ignore stale self-session track events (old session cleanup)
+    if (isStaleSelfSession) {
+      console.log('ℹ️ Ignoring stale self-session track stop (old session cleanup)');
+      return;
+    }
 
     if (!isLocalParticipant && getParticipantRole(event.participant) === 'spectator') {
       console.log('🔒 Ignoring spectator track stop to protect participant streams');

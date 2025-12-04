@@ -3515,26 +3515,21 @@
       // Safari-specific: Pre-warm getUserMedia with timeout (helps Safari connect properly)
       if (isSafari && !isSpectator) {
         console.log('🍎 Safari detected: Pre-warming media devices...');
-        try {
-          // Request permissions early with a timeout - Safari needs this before WebRTC connection
-          const mediaPromise = navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Media timeout')), 5000)
-          );
-          
-          const stream = await Promise.race([mediaPromise, timeoutPromise]);
-          console.log('✅ Safari pre-warm successful - media stream obtained');
-          // Stop tracks immediately, LiveKit will request them again
-          stream.getTracks().forEach(track => track.stop());
-        } catch (preWarmError) {
-          console.warn('⚠️ Safari pre-warm failed (continuing anyway):', preWarmError.message);
-          // Don't throw - continue with connection attempt without media
-        }
+        // Don't await - do this in parallel to not block connection
+        navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+          .then(stream => {
+            console.log('✅ Safari pre-warm successful');
+            stream.getTracks().forEach(track => track.stop());
+          })
+          .catch(err => {
+            console.warn('⚠️ Safari pre-warm failed:', err.message);
+          });
       }
       
-      // For Safari spectators, skip media entirely
+      // For Safari spectators, just mark gesture received
       if (isSafari && isSpectator) {
-        console.log('🍎 Safari spectator: skipping media pre-warm');
+        console.log('🍎 Safari spectator: marking gesture received');
+        userGestureReceived = true;
       }
       
       const token = await fetchLiveKitAccessToken({
@@ -3570,9 +3565,17 @@
       
       console.log('🔗 Connecting to LiveKit room with options:', connectOptions);
       
+      // For Safari, force hide overlay after 3 seconds no matter what
+      if (isSafari) {
+        setTimeout(() => {
+          console.log('🍎 Safari: Force hiding overlay after 3s');
+          hideWaitingOverlay();
+        }, 3000);
+      }
+      
       try {
-        // Add connection timeout for Safari (30 seconds)
-        const connectionTimeout = isSafari ? 30000 : 60000;
+        // Add connection timeout (shorter for Safari)
+        const connectionTimeout = isSafari ? 20000 : 60000;
         const connectPromise = LiveKitSDK.connect(LIVEKIT_WS_URL, token, connectOptions);
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Connection timeout - please refresh and try again')), connectionTimeout)
@@ -3601,7 +3604,7 @@
         hideWaitingOverlay();
         
         if (isSafari) {
-          showToast('🍎 Safari connection failed. Please check camera/mic permissions in Settings > Safari');
+          showToast('🍎 Safari: Check camera/mic permissions in Settings > Safari > Camera/Microphone');
         }
         
         throw connectError;
@@ -5274,6 +5277,8 @@ async function initializeApp() {
     
     if (!isSpectator) {
       if (!isSpectatorParticipant) {
+        console.log('🎯 Remote participant joined - setting up video...');
+        
         const remoteUserId = getParticipantUserId(event.participant);
         if (remoteUserId) {
           // Track other participant for rating
@@ -5284,11 +5289,26 @@ async function initializeApp() {
             console.error('❌ Failed to link partner on join:', error);
           }
         }
+        
+        // CRITICAL: Hide waiting overlay immediately
         hideWaitingOverlay();
         updateRemoteInfo(participantDisplayName);
-        if (!participantHasActiveCamera(event.participant)) {
+        
+        // Check if participant has video track and set it up
+        if (event.participant.tracks) {
+          const videoTrack = event.participant.tracks.video?.persistentTrack || 
+                            event.participant.tracks.camera?.persistentTrack;
+          if (videoTrack) {
+            console.log('🎥 Found video track on join, setting up...');
+            setupRemoteVideo(videoTrack);
+          } else {
+            console.log('📷 No video track found on join, showing placeholder');
+            updateRemotePlaceholderForCameraOff(event.participant);
+          }
+        } else if (!participantHasActiveCamera(event.participant)) {
           updateRemotePlaceholderForCameraOff(event.participant);
         }
+        
         showToast(`👋 ${participantDisplayName} joined the call!`);
       } else {
         console.log('🔒 Ignoring spectator join event to prevent participant disruption');
@@ -6243,7 +6263,8 @@ async function initializeApp() {
       trackKind: track?.kind,
       trackLabel: track?.label,
       trackReadyState: track?.readyState,
-      isSpectator
+      isSpectator,
+      isSafari
     });
     
     if (isSpectator) {
@@ -6264,85 +6285,90 @@ async function initializeApp() {
       return;
     }
     
-    // Check current state of remote video
-    const currentState = {
+    // Log current state for debugging
+    console.log('📹 Remote video current state:', {
       hasExistingStream: !!remoteVideo.srcObject,
       display: remoteVideo.style.display,
-      paused: remoteVideo.paused,
-      readyState: remoteVideo.readyState,
-      currentTrackId: remoteVideo.srcObject?.getVideoTracks()[0]?.id,
-      newTrackId: track.id
-    };
-    console.log('📹 Remote video current state:', currentState);
+      hidden: remoteVideo.classList.contains('hidden'),
+      paused: remoteVideo.paused
+    });
     
-    // For Safari, be more lenient with the "stable connection" check
-    const isStableCheck = !isSafari ? (remoteVideo.readyState >= 2) : (remoteVideo.readyState >= 1);
-    
-    // CRITICAL: Check if we already have a stable video connection
-    const hasStableConnection = remoteVideo.srcObject && 
-                               remoteVideo.style.display === 'block' && 
-                               !remoteVideo.paused && 
-                               isStableCheck;
-    
-    if (hasStableConnection && currentState.currentTrackId === currentState.newTrackId) {
-      console.log('🔒 BLOCKING video setup - stable connection already exists with same track');
-      return;
-    }
-    
-    // Allow track updates even if we have a connection (for track replacement scenarios)
-    if (currentState.currentTrackId === currentState.newTrackId) {
-      console.log('🎥 Remote video already set up with this track, skipping duplicate');
-      return;
-    }
-    
-    console.log('📹 Setting up new remote video stream...');
+    // SIMPLIFIED: Always set up the video - don't block
+    console.log('📹 Setting up remote video stream...');
     
     try {
+      // Create new stream with the track
       remoteVideo.srcObject = new MediaStream([track]);
+      
+      // Force visibility
       remoteVideo.style.display = 'block';
+      remoteVideo.style.visibility = 'visible';
+      remoteVideo.style.opacity = '1';
       remoteVideo.classList.remove('hidden');
-      placeholder.style.display = 'none';
-      placeholder.classList.add('hidden');
       
-      // CRITICAL: Always attempt to play the video - all browsers need this
+      // Hide placeholder
+      if (placeholder) {
+        placeholder.style.display = 'none';
+        placeholder.classList.add('hidden');
+      }
+      
+      // Hide waiting overlay
+      hideWaitingOverlay();
+      
+      // Set video attributes for Safari compatibility
+      remoteVideo.setAttribute('autoplay', '');
+      remoteVideo.setAttribute('playsinline', '');
+      remoteVideo.setAttribute('webkit-playsinline', '');
+      remoteVideo.muted = false;
+      
+      // CRITICAL: Always attempt to play the video
       console.log('▶️ Attempting to play remote video...');
-      remoteVideo.play().then(() => {
-        console.log('✅ Remote video now playing!');
-      }).catch(err => {
-        console.warn('⚠️ Remote video autoplay blocked:', err.message);
-        // Set up click handler to play on user interaction
-        const playOnInteraction = () => {
-          if (remoteVideo && remoteVideo.srcObject) {
-            remoteVideo.play().then(() => {
-              console.log('✅ Remote video playing after user interaction');
-            }).catch(e => console.log('Play retry failed:', e.message));
-          }
-          document.removeEventListener('click', playOnInteraction);
-          document.removeEventListener('touchstart', playOnInteraction);
-        };
-        document.addEventListener('click', playOnInteraction, { once: true });
-        document.addEventListener('touchstart', playOnInteraction, { once: true });
-        showToast('👆 Click/tap to start video');
-      });
       
-      // Double-check visibility after a short delay
+      const playVideo = () => {
+        remoteVideo.play().then(() => {
+          console.log('✅ Remote video now playing!');
+        }).catch(err => {
+          console.warn('⚠️ Remote video autoplay blocked:', err.message);
+          // Set up click handler to play on user interaction
+          const playOnInteraction = () => {
+            if (remoteVideo && remoteVideo.srcObject) {
+              remoteVideo.play().then(() => {
+                console.log('✅ Remote video playing after user interaction');
+              }).catch(e => console.log('Play retry failed:', e.message));
+            }
+            document.removeEventListener('click', playOnInteraction);
+            document.removeEventListener('touchstart', playOnInteraction);
+          };
+          document.addEventListener('click', playOnInteraction, { once: true });
+          document.addEventListener('touchstart', playOnInteraction, { once: true });
+          showToast('👆 Tap anywhere to start video');
+        });
+      };
+      
+      // Try to play immediately
+      playVideo();
+      
+      // Also try after a short delay (helps with Safari)
+      setTimeout(playVideo, 500);
+      setTimeout(playVideo, 1500);
+      
+      // Double-check visibility after delays
       setTimeout(() => {
         if (remoteVideo && remoteVideo.srcObject) {
           console.log('📹 Video status check:', {
             paused: remoteVideo.paused,
             readyState: remoteVideo.readyState,
             videoWidth: remoteVideo.videoWidth,
-            videoHeight: remoteVideo.videoHeight,
-            currentTime: remoteVideo.currentTime
+            videoHeight: remoteVideo.videoHeight
           });
           
-          // If video has dimensions but is paused, try playing again
-          if (remoteVideo.paused && remoteVideo.readyState >= 2) {
-            console.log('📹 Video ready but paused, attempting play...');
-            remoteVideo.play().catch(e => console.log('Delayed play attempt:', e.message));
+          // Force play again if paused
+          if (remoteVideo.paused) {
+            console.log('📹 Video still paused, attempting play...');
+            playVideo();
           }
         }
-      }, 1000);
+      }, 2000);
       
       console.log('✅ Remote video set up successfully', {
         srcObjectSet: !!remoteVideo.srcObject,
@@ -9717,10 +9743,37 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (participant) {
       console.log('🎭 Processing remote participant for participant view:', participantId, participant.user_name);
       
-      // Set up video tracks if available
-      if (participant.tracks && participant.tracks.video && participant.tracks.video.persistentTrack) {
+      // Try to get video track from multiple sources
+      let videoTrack = null;
+      
+      // Method 1: From normalized tracks
+      if (participant.tracks?.video?.persistentTrack) {
+        videoTrack = participant.tracks.video.persistentTrack;
+        console.log('🎥 Found video track via normalized tracks');
+      }
+      
+      // Method 2: From camera tracks
+      if (!videoTrack && participant.tracks?.camera?.persistentTrack) {
+        videoTrack = participant.tracks.camera.persistentTrack;
+        console.log('🎥 Found video track via camera tracks');
+      }
+      
+      // Method 3: Try to get from LiveKit directly
+      if (!videoTrack && livekitRoom) {
+        const lkParticipant = livekitRoom.remoteParticipants.get(participantId);
+        if (lkParticipant) {
+          const videoPublication = lkParticipant.getTrackPublication('camera') || 
+                                  Array.from(lkParticipant.videoTrackPublications.values())[0];
+          if (videoPublication?.track) {
+            videoTrack = videoPublication.track.mediaStreamTrack || videoPublication.track;
+            console.log('🎥 Found video track via LiveKit participant');
+          }
+        }
+      }
+      
+      if (videoTrack) {
         console.log('🎥 Setting up remote video for existing participant:', participantId);
-        setupRemoteVideo(participant.tracks.video.persistentTrack);
+        setupRemoteVideo(videoTrack);
         updateRemoteInfo(participant.user_name || 'Guest');
         hideWaitingOverlay();
         

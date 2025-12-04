@@ -4179,6 +4179,13 @@
     // CRITICAL: Ensure cleanup on page unload
     window.addEventListener('beforeunload', (event) => {
       console.log('🚪 Page unloading - executing cleanup');
+      
+      // CRITICAL: Save pending rating to localStorage before page unloads
+      // This ensures the rating modal shows when user returns
+      if (otherParticipantId && !isSpectator && window.currentUserData?.userId && !window.currentUserData?.isGuest) {
+        console.log('💾 Saving pending rating on page unload for:', otherParticipantId);
+        savePendingRatingToStorage(otherParticipantId, otherParticipantName);
+      }
 
       if (!cleanupExecuted && !isSpectator && supabaseClient && isValidUuid(userId)) {
         if (conversationSessionId) {
@@ -4262,6 +4269,17 @@
 
     window.addEventListener('pagehide', () => {
       executeComprehensiveCleanup('pagehide');
+    });
+    
+    // CRITICAL: Save pending rating when tab becomes hidden (user switches tabs)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        // Save pending rating data when tab becomes hidden
+        if (otherParticipantId && !isSpectator && window.currentUserData?.userId && !window.currentUserData?.isGuest) {
+          console.log('👁️ Tab hidden - saving pending rating for:', otherParticipantId);
+          savePendingRatingToStorage(otherParticipantId, otherParticipantName);
+        }
+      }
     });
 
 // Main initialization function
@@ -10636,7 +10654,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   let otherParticipantId = null;
   let otherParticipantName = null;
   
-  // Set up feedback character counter
+  // Set up feedback character counter and check for pending ratings on page load
   document.addEventListener('DOMContentLoaded', () => {
     const feedbackTextarea = document.getElementById('rating-feedback');
     const charCount = document.getElementById('feedback-char-count');
@@ -10645,6 +10663,16 @@ function ensureSpectatorTracksForParticipant(participant) {
         charCount.textContent = feedbackTextarea.value.length;
       });
     }
+    
+    // FALLBACK: Check localStorage for pending rating on page load
+    // This catches users who navigate directly to index.html with a pending rating
+    setTimeout(() => {
+      const existingData = getPendingRatingFromStorage();
+      if (existingData && existingData.ratedId && !document.getElementById('rating-modal').classList.contains('active')) {
+        console.log('📊 DOMContentLoaded: Found pending rating, checking if modal should show...');
+        checkAndShowPendingRatingFromStorage();
+      }
+    }, 3000); // Wait 3 seconds for auth to initialize
   });
   
   // Show rating modal after call ends
@@ -10697,11 +10725,15 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       if (data.success) {
         showToast(rating === 'good' ? '👍 Thanks for your feedback!' : '👎 Thanks for letting us know');
+        // CRITICAL: Only clear localStorage after SUCCESSFUL rating submission
+        markPendingRatingAsCompleted();
       } else {
         console.error('Rating submission failed:', data.error);
+        // Don't clear localStorage - user can try again
       }
     } catch (error) {
       console.error('Error submitting rating:', error);
+      // Don't clear localStorage on error - user can try again
     }
     
     // Check if we should redirect after rating
@@ -10715,10 +10747,19 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
-  // Skip rating
+  // Skip rating - KEEPS the pending rating so it shows again next time
   function skipRating() {
-    // Save as pending rating for next visit
+    console.log('⏭️ User skipped rating - keeping pending rating for next visit');
+    
+    // DON'T clear localStorage! The rating will show again when user returns
+    // Just save to database as backup (in case localStorage is cleared)
     if (pendingRatingData) {
+      const otherUserName = document.getElementById('rating-other-user-name')?.textContent;
+      
+      // Re-save to localStorage to ensure it persists
+      savePendingRatingToStorage(pendingRatingData.ratedId, otherUserName);
+      
+      // Also save to database as backup
       fetch('/.netlify/functions/save-pending-rating', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -10726,10 +10767,11 @@ function ensureSpectatorTracksForParticipant(participant) {
           userId: pendingRatingData.raterId,
           roomId: pendingRatingData.roomId,
           otherUserId: pendingRatingData.ratedId,
-          otherUserName: document.getElementById('rating-other-user-name')?.textContent,
+          otherUserName: otherUserName,
         }),
-      }).catch(err => console.log('Could not save pending rating:', err));
+      }).catch(err => console.log('Could not save pending rating to database:', err));
     }
+    
     closeRatingModal();
   }
   
@@ -11141,17 +11183,28 @@ function ensureSpectatorTracksForParticipant(participant) {
     return true;
   }
   
-  // Check for pending rating on page load
+  // Check for pending rating on page load - checks localStorage FIRST, then database
   async function checkPendingRating() {
     if (!window.currentUserData?.userId || window.currentUserData.isGuest) {
+      console.log('⏭️ Skipping pending rating check - no user or guest');
       return;
     }
     
+    // FIRST: Check localStorage (faster and more reliable)
+    const localStorageData = getPendingRatingFromStorage();
+    if (localStorageData && localStorageData.ratedId) {
+      console.log('📊 Found pending rating in localStorage - showing modal');
+      checkAndShowPendingRatingFromStorage();
+      return; // Don't check database if we found local data
+    }
+    
+    // FALLBACK: Check database
     try {
       const response = await fetch(`/.netlify/functions/get-pending-rating?userId=${window.currentUserData.userId}`);
       const data = await response.json();
       
       if (data.hasPending && data.pendingRating) {
+        console.log('📊 Found pending rating in database - showing modal');
         // Show rating modal for previous call
         setTimeout(() => {
           pendingRatingData = {
@@ -11159,12 +11212,20 @@ function ensureSpectatorTracksForParticipant(participant) {
             ratedId: data.pendingRating.otherUserId,
             roomId: data.pendingRating.roomId,
           };
+          
+          // Also save to localStorage for next time
+          savePendingRatingToStorage(data.pendingRating.otherUserId, data.pendingRating.otherUserName);
+          
           document.getElementById('rating-other-user-name').textContent = data.pendingRating.otherUserName || 'your previous chat partner';
           document.getElementById('rating-modal').classList.remove('hidden');
+          document.getElementById('rating-feedback').value = '';
+          
+          const charCount = document.getElementById('feedback-char-count');
+          if (charCount) charCount.textContent = '0';
         }, 1000);
       }
     } catch (error) {
-      console.log('Could not check pending rating:', error);
+      console.log('Could not check pending rating from database:', error);
     }
   }
   
@@ -11196,6 +11257,125 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (participantId && participantId !== window.currentUserData?.userId) {
       otherParticipantId = participantId;
       otherParticipantName = participantName;
+      
+      // CRITICAL: Save to localStorage immediately so we can show rating even if user closes tab
+      savePendingRatingToStorage(participantId, participantName);
+    }
+  }
+  
+  // ========================================
+  // PERSISTENT RATING SYSTEM - ALWAYS SHOW RATING
+  // ========================================
+  
+  const PENDING_RATING_STORAGE_KEY = 'chatspheres_pending_rating';
+  
+  // Save pending rating to localStorage
+  function savePendingRatingToStorage(otherUserId, otherUserName) {
+    if (!otherUserId || !window.currentUserData?.userId || window.currentUserData?.isGuest || isSpectator) {
+      return;
+    }
+    
+    const pendingData = {
+      raterId: window.currentUserData.userId,
+      ratedId: otherUserId,
+      otherUserName: otherUserName || 'your chat partner',
+      roomId: conversationRoomId || roomUrl || 'unknown',
+      timestamp: Date.now(),
+      rated: false
+    };
+    
+    try {
+      localStorage.setItem(PENDING_RATING_STORAGE_KEY, JSON.stringify(pendingData));
+      console.log('💾 Saved pending rating to localStorage:', pendingData.ratedId);
+    } catch (e) {
+      console.warn('Could not save pending rating to localStorage:', e);
+    }
+  }
+  
+  // Get pending rating from localStorage
+  function getPendingRatingFromStorage() {
+    try {
+      const data = localStorage.getItem(PENDING_RATING_STORAGE_KEY);
+      if (!data) return null;
+      
+      const parsed = JSON.parse(data);
+      
+      // Only return if it's for the current user and not expired (24 hours)
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      if (parsed.raterId === window.currentUserData?.userId && 
+          !parsed.rated &&
+          (Date.now() - parsed.timestamp) < twentyFourHours) {
+        return parsed;
+      }
+      
+      // Clean up expired data
+      if ((Date.now() - parsed.timestamp) >= twentyFourHours) {
+        clearPendingRatingFromStorage();
+      }
+      
+      return null;
+    } catch (e) {
+      console.warn('Could not read pending rating from localStorage:', e);
+      return null;
+    }
+  }
+  
+  // Clear pending rating from localStorage (only after successful submission)
+  function clearPendingRatingFromStorage() {
+    try {
+      localStorage.removeItem(PENDING_RATING_STORAGE_KEY);
+      console.log('🗑️ Cleared pending rating from localStorage');
+    } catch (e) {
+      console.warn('Could not clear pending rating from localStorage:', e);
+    }
+  }
+  
+  // Mark pending rating as completed but keep data for verification
+  function markPendingRatingAsCompleted() {
+    try {
+      const data = localStorage.getItem(PENDING_RATING_STORAGE_KEY);
+      if (data) {
+        const parsed = JSON.parse(data);
+        parsed.rated = true;
+        localStorage.setItem(PENDING_RATING_STORAGE_KEY, JSON.stringify(parsed));
+      }
+    } catch (e) {
+      console.warn('Could not mark pending rating as completed:', e);
+    }
+    // Clear after a small delay to allow submission
+    setTimeout(clearPendingRatingFromStorage, 1000);
+  }
+  
+  // Check and show pending rating modal (call on page load)
+  function checkAndShowPendingRatingFromStorage() {
+    // Don't show if we're a spectator or guest
+    if (isSpectator || window.currentUserData?.isGuest || !window.currentUserData?.userId) {
+      console.log('⏭️ Skipping localStorage rating check - spectator/guest');
+      return;
+    }
+    
+    const pendingData = getPendingRatingFromStorage();
+    if (pendingData && pendingData.ratedId) {
+      console.log('📊 Found pending rating in localStorage:', pendingData.ratedId);
+      
+      // Show rating modal after a short delay
+      setTimeout(() => {
+        pendingRatingData = {
+          raterId: pendingData.raterId,
+          ratedId: pendingData.ratedId,
+          roomId: pendingData.roomId,
+        };
+        
+        const displayName = pendingData.otherUserName || 'your previous chat partner';
+        document.getElementById('rating-other-user-name').textContent = displayName;
+        document.getElementById('rating-modal').classList.remove('hidden');
+        document.getElementById('rating-feedback').value = '';
+        
+        const charCount = document.getElementById('feedback-char-count');
+        if (charCount) charCount.textContent = '0';
+        
+        console.log('📊 Showing rating modal from localStorage for:', displayName);
+      }, 500);
     }
   }
   

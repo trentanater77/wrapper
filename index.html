@@ -1620,6 +1620,47 @@
   </div>
 </div>
 
+<!-- ========== SPECTATOR MANAGEMENT MODAL (Host Only) ========== -->
+<div id="spectator-management-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-light-rose rounded-3xl p-6 max-w-lg w-full shadow-2xl max-h-[80vh] overflow-hidden flex flex-col">
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold text-charcoal">👥 Manage Spectators</h2>
+      <button onclick="closeSpectatorManagementModal()" class="text-charcoal hover:text-main-red transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Info Text -->
+    <p class="text-charcoal text-sm opacity-70 mb-4">
+      As the host, you can kick or mute spectators from your room.
+    </p>
+    
+    <!-- Spectator List -->
+    <div id="spectator-list" class="flex-1 overflow-y-auto space-y-2 min-h-[100px]">
+      <div class="text-center text-charcoal opacity-60 py-8">
+        <p>Loading spectators...</p>
+      </div>
+    </div>
+    
+    <!-- Close Button -->
+    <div class="mt-4 pt-4 border-t border-rose">
+      <button onclick="closeSpectatorManagementModal()" class="w-full py-3 px-6 bg-charcoal text-white font-bold rounded-full hover:bg-main-red transition-all">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Floating Spectator Management Button (Host Only) -->
+<button id="floating-spectator-btn" onclick="showSpectatorManagementModal()" 
+  class="hidden fixed bottom-40 right-4 z-40 bg-charcoal text-white px-4 py-3 rounded-full shadow-lg hover:bg-gold hover:text-charcoal transition-all font-bold text-sm"
+  title="Manage spectators">
+  👥 Manage Viewers
+</button>
+
 <script>
   // Firebase config - Main database
   const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
@@ -7695,6 +7736,27 @@ function ensureSpectatorTracksForParticipant(participant) {
 
     console.log('👋 Leave button clicked');
     
+    // IMPORTANT: Show rating modal BEFORE cleanup if there was another participant
+    if (otherParticipantId && !isSpectator && !window.currentUserData?.isGuest) {
+      console.log('📊 Showing rating modal before leaving...');
+      
+      // Store the rating data before cleanup
+      window.pendingLeaveRating = {
+        otherUserId: otherParticipantId,
+        otherUserName: otherParticipantName
+      };
+      
+      // Show the rating modal
+      showRatingModal(otherParticipantId, otherParticipantName);
+      
+      // Execute cleanup in background but don't reload yet
+      // The rating modal close/submit will trigger the reload
+      await executeComprehensiveCleanup('leave-button');
+      
+      // Don't reload - the rating modal will handle it
+      return;
+    }
+    
     // Execute comprehensive cleanup
     await executeComprehensiveCleanup('leave-button');
     
@@ -8082,13 +8144,21 @@ function ensureSpectatorTracksForParticipant(participant) {
 
     timerExpiredHandled = true;
     clearInterval(timerInterval);
-    showToast('⏰ Time\'s up! Thanks for chatting!');
-
-    await executeComprehensiveCleanup('timer-expired');
-
-    setTimeout(() => {
-      window.location.reload();
-    }, 1000);
+    
+    console.log('⏰ Timer expired - showing upgrade modal');
+    
+    // Show the upgrade modal with grace period instead of immediately reloading
+    // This gives users a chance to upgrade or say goodbye
+    sessionLimitState.limitReached = true;
+    showUpgradeModal();
+    
+    // Show rating modal too if there was another participant (will show after upgrade modal is closed)
+    if (otherParticipantId && !window.currentUserData?.isGuest) {
+      window.pendingTimerExpiredRating = {
+        otherUserId: otherParticipantId,
+        otherUserName: otherParticipantName
+      };
+    }
   }
 
   // Sticky timer scroll handler
@@ -8282,7 +8352,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     }, 1000);
   }
   
-  function endSessionFromUpgradeModal() {
+  async function endSessionFromUpgradeModal() {
     // Clear grace countdown
     if (graceCountdownInterval) {
       clearInterval(graceCountdownInterval);
@@ -8292,13 +8362,20 @@ function ensureSpectatorTracksForParticipant(participant) {
     const modal = document.getElementById('upgrade-modal');
     if (modal) modal.classList.add('hidden');
     
-    // Disconnect from room
-    if (livekitRoom) {
-      livekitRoom.disconnect();
-    }
+    // Execute cleanup
+    await executeComprehensiveCleanup('timer-expired');
     
     showToast('👋 Session ended. Upgrade anytime for more time!');
     console.log('👋 Session ended due to time limit');
+    
+    // Show rating modal if there was another participant
+    if (window.pendingTimerExpiredRating && !window.currentUserData?.isGuest) {
+      console.log('📊 Showing rating modal after timer expiration...');
+      window.pendingLeaveRating = window.pendingTimerExpiredRating;
+      window.pendingTimerExpiredRating = null;
+      showRatingModal(window.pendingLeaveRating.otherUserId, window.pendingLeaveRating.otherUserName);
+      return; // Rating modal close will handle redirect
+    }
     
     // Redirect to pricing after a moment
     setTimeout(() => {
@@ -8525,6 +8602,9 @@ function ensureSpectatorTracksForParticipant(participant) {
       tipBtn.style.display = 'none';
       console.log('👑 Tip button hidden (you are the host)');
     }
+    
+    // Update spectator management button visibility (hosts only)
+    updateSpectatorManagementButton();
     
     // Always show report/block buttons during calls (for both hosts and non-hosts)
     // But only if there's another participant and user is logged in
@@ -10088,7 +10168,15 @@ function ensureSpectatorTracksForParticipant(participant) {
       console.error('Error submitting rating:', error);
     }
     
+    // Check if we should redirect after rating
+    const shouldRedirect = !!window.pendingLeaveRating;
+    
     closeRatingModal();
+    
+    // If closeRatingModal didn't handle the redirect (in case of timing), handle it here
+    if (shouldRedirect && !window.pendingLeaveRating) {
+      // Already handled by closeRatingModal
+    }
   }
   
   // Skip rating
@@ -10113,6 +10201,20 @@ function ensureSpectatorTracksForParticipant(participant) {
   function closeRatingModal() {
     document.getElementById('rating-modal').classList.add('hidden');
     pendingRatingData = null;
+    
+    // If we were leaving when the rating modal was shown, now redirect
+    if (window.pendingLeaveRating) {
+      const wasTimerExpired = sessionLimitState.limitReached;
+      window.pendingLeaveRating = null;
+      console.log('📊 Rating modal closed, redirecting...');
+      setTimeout(() => {
+        if (wasTimerExpired) {
+          window.location.href = '/pricing.html?session_ended=true';
+        } else {
+          window.location.href = 'https://sphere.chatspheres.com/';
+        }
+      }, 300);
+    }
   }
   
   // Show report modal
@@ -10427,6 +10529,172 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   // ========================================
+  // SPECTATOR MANAGEMENT (Host Only)
+  // ========================================
+  
+  let currentSpectators = [];
+  
+  // Show spectator management modal
+  function showSpectatorManagementModal() {
+    if (!roomHostData.isHost) {
+      showToast('❌ Only the host can manage spectators');
+      return;
+    }
+    
+    document.getElementById('spectator-management-modal').classList.remove('hidden');
+    loadSpectatorList();
+  }
+  
+  // Close spectator management modal
+  function closeSpectatorManagementModal() {
+    document.getElementById('spectator-management-modal').classList.add('hidden');
+  }
+  
+  // Load spectators from Firebase presence
+  async function loadSpectatorList() {
+    const spectatorListEl = document.getElementById('spectator-list');
+    
+    if (!spectatorListEl) return;
+    
+    try {
+      // Get spectators from Firebase presence
+      const presenceRef = db.ref(`presence/${firebaseRoomId}`);
+      const snapshot = await presenceRef.once('value');
+      const users = snapshot.val() || {};
+      
+      const now = Date.now();
+      
+      // Filter to only spectators (not stale)
+      currentSpectators = Object.entries(users)
+        .filter(([key, user]) => {
+          const updatedAt = user.updatedAt || user.joinedAt || 0;
+          const isStale = (now - updatedAt) > PRESENCE_STALE_THRESHOLD_MS;
+          return !isStale && user.type === 'spectator';
+        })
+        .map(([key, user]) => ({
+          presenceKey: key,
+          sessionId: user.sessionId,
+          userId: user.userId,
+          userName: user.name || user.displayName || 'Guest',
+          joinedAt: user.joinedAt
+        }));
+      
+      console.log(`👥 Found ${currentSpectators.length} spectators`);
+      
+      if (currentSpectators.length === 0) {
+        spectatorListEl.innerHTML = `
+          <div class="text-center text-charcoal opacity-60 py-8">
+            <p class="text-4xl mb-2">👀</p>
+            <p>No spectators watching right now</p>
+          </div>
+        `;
+        return;
+      }
+      
+      // Render spectator list
+      spectatorListEl.innerHTML = currentSpectators.map(spectator => {
+        const isMuted = mutedChatUserIds.has(spectator.userId);
+        const joinedTime = spectator.joinedAt ? new Date(spectator.joinedAt).toLocaleTimeString() : 'Unknown';
+        
+        return `
+          <div class="flex items-center justify-between p-3 bg-white rounded-xl shadow-sm" data-spectator-id="${spectator.sessionId}">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-charcoal flex items-center justify-center text-white font-bold">
+                ${spectator.userName.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p class="font-bold text-charcoal">${escapeHtml(spectator.userName)}</p>
+                <p class="text-xs text-charcoal opacity-60">Joined ${joinedTime}</p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button 
+                onclick="toggleMuteSpectator('${spectator.userId}', '${escapeHtml(spectator.userName)}')"
+                class="px-3 py-2 ${isMuted ? 'bg-main-red text-white' : 'bg-rose text-charcoal'} rounded-full text-xs font-bold hover:opacity-80 transition-all"
+                title="${isMuted ? 'Unmute in chat' : 'Mute in chat'}">
+                ${isMuted ? '🔇 Muted' : '🔊 Mute'}
+              </button>
+              <button 
+                onclick="kickSpectator('${spectator.sessionId}', '${spectator.presenceKey}', '${escapeHtml(spectator.userName)}')"
+                class="px-3 py-2 bg-main-red text-white rounded-full text-xs font-bold hover:opacity-80 transition-all"
+                title="Kick from room">
+                👢 Kick
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+    } catch (error) {
+      console.error('❌ Error loading spectators:', error);
+      spectatorListEl.innerHTML = `
+        <div class="text-center text-main-red py-8">
+          <p>Failed to load spectators</p>
+        </div>
+      `;
+    }
+  }
+  
+  // Mute/unmute spectator in chat (uses existing mute system)
+  async function toggleMuteSpectator(userId, userName) {
+    await toggleMuteUser(userId, userName);
+    // Refresh the list to update button states
+    loadSpectatorList();
+  }
+  
+  // Kick spectator from room
+  async function kickSpectator(sessionId, presenceKey, userName) {
+    if (!roomHostData.isHost) {
+      showToast('❌ Only the host can kick spectators');
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to kick ${userName} from this room?`)) {
+      return;
+    }
+    
+    try {
+      console.log(`👢 Kicking spectator: ${userName} (session: ${sessionId})`);
+      
+      // Remove from Firebase presence (this will trigger their client to disconnect)
+      if (presenceKey) {
+        await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
+        console.log('✅ Removed from Firebase presence');
+      }
+      
+      // Try to remove participant from LiveKit using the SDK if available
+      if (livekitRoom) {
+        const participant = livekitRoom.remoteParticipants.get(sessionId);
+        if (participant) {
+          // LiveKit doesn't have a direct "kick" method, but removing presence will cause disconnect
+          console.log('ℹ️ Participant found in LiveKit, presence removal will trigger disconnect');
+        }
+      }
+      
+      showToast(`👢 ${userName} has been kicked from the room`);
+      
+      // Refresh the list
+      setTimeout(() => loadSpectatorList(), 500);
+      
+    } catch (error) {
+      console.error('❌ Error kicking spectator:', error);
+      showToast('❌ Failed to kick spectator');
+    }
+  }
+  
+  // Show/hide the manage spectators button based on host status
+  function updateSpectatorManagementButton() {
+    const btn = document.getElementById('floating-spectator-btn');
+    if (!btn) return;
+    
+    if (roomHostData.isHost && !isSpectator) {
+      btn.classList.remove('hidden');
+    } else {
+      btn.classList.add('hidden');
+    }
+  }
+  
+  // ========================================
   // END MODERATION SYSTEM
   // ========================================
 
@@ -10452,6 +10720,12 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.closeReportModal = closeReportModal;
   window.blockUser = blockUser;
   window.toggleMuteUser = toggleMuteUser;
+  
+  // Spectator management functions
+  window.showSpectatorManagementModal = showSpectatorManagementModal;
+  window.closeSpectatorManagementModal = closeSpectatorManagementModal;
+  window.toggleMuteSpectator = toggleMuteSpectator;
+  window.kickSpectator = kickSpectator;
 
   // Initialize
   console.log("ChatSpheres Video Chat Room Loading... 🌟");

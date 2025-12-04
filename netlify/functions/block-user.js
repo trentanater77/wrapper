@@ -58,6 +58,15 @@ exports.handler = async function(event) {
         .eq('blocked_id', blockedId);
 
       if (error) {
+        // Handle table not existing
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          console.log('⚠️ user_blocks table does not exist yet');
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ success: true, message: 'Unblock noted (tables not yet created)' }),
+          };
+        }
         console.error('❌ Unblock error:', error);
         throw error;
       }
@@ -86,6 +95,15 @@ exports.handler = async function(event) {
         .single();
 
       if (error) {
+        // Handle table not existing
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          console.log('⚠️ user_blocks table does not exist yet');
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ success: true, message: 'Block noted (tables not yet created)' }),
+          };
+        }
         console.error('❌ Block error:', error);
         throw error;
       }

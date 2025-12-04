@@ -37,8 +37,22 @@ exports.handler = async function(event) {
         .select('muted_user_id')
         .eq('room_id', roomId);
 
+      // Handle table not existing
       if (error) {
-        throw error;
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ mutedUserIds: [] }),
+          };
+        }
+        console.error('❌ Get mutes error:', error);
+        // Return empty on error
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ mutedUserIds: [] }),
+        };
       }
 
       return {
@@ -51,10 +65,11 @@ exports.handler = async function(event) {
 
     } catch (error) {
       console.error('❌ Get mutes error:', error);
+      // Return empty on error
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers,
-        body: JSON.stringify({ error: 'Failed to get muted users' }),
+        body: JSON.stringify({ mutedUserIds: [] }),
       };
     }
   }

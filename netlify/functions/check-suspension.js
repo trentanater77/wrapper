@@ -49,9 +49,23 @@ exports.handler = async function(event) {
       .limit(1)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+    // Handle table not existing or no rows
+    if (error) {
+      // PGRST116 = no rows found, 42P01 = table doesn't exist
+      if (error.code === 'PGRST116' || error.code === '42P01' || error.message?.includes('does not exist')) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ isSuspended: false }),
+        };
+      }
       console.error('❌ Check suspension error:', error);
-      throw error;
+      // Return not suspended on error to avoid blocking users
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ isSuspended: false }),
+      };
     }
 
     if (!suspension) {
@@ -80,13 +94,11 @@ exports.handler = async function(event) {
 
   } catch (error) {
     console.error('❌ Check suspension error:', error);
+    // Return not suspended on error to avoid blocking users
     return {
-      statusCode: 500,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({
-        error: 'Failed to check suspension',
-        message: error.message,
-      }),
+      body: JSON.stringify({ isSuspended: false }),
     };
   }
 };

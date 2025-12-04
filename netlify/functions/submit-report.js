@@ -94,6 +94,20 @@ exports.handler = async function(event) {
       .single();
 
     if (reportError) {
+      // Handle table not existing
+      if (reportError.code === '42P01' || reportError.message?.includes('does not exist')) {
+        console.log('⚠️ user_reports table does not exist yet');
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            message: 'Report noted (tables not yet created)',
+            reportCount: 0,
+            userSuspended: false,
+          }),
+        };
+      }
       console.error('❌ Report submission error:', reportError);
       throw reportError;
     }

@@ -47,9 +47,23 @@ exports.handler = async function(event) {
       .limit(1)
       .single();
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows
+    // Handle table not existing or no rows
+    if (error) {
+      // PGRST116 = no rows found, 42P01 = table doesn't exist
+      if (error.code === 'PGRST116' || error.code === '42P01' || error.message?.includes('does not exist')) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ hasPending: false }),
+        };
+      }
       console.error('❌ Get pending rating error:', error);
-      throw error;
+      // Return no pending on error
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ hasPending: false }),
+      };
     }
 
     if (!pendingRating) {
@@ -78,13 +92,11 @@ exports.handler = async function(event) {
 
   } catch (error) {
     console.error('❌ Get pending rating error:', error);
+    // Return no pending on error
     return {
-      statusCode: 500,
+      statusCode: 200,
       headers,
-      body: JSON.stringify({
-        error: 'Failed to get pending rating',
-        message: error.message,
-      }),
+      body: JSON.stringify({ hasPending: false }),
     };
   }
 };

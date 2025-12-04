@@ -3512,19 +3512,29 @@
         wsUrl: LIVEKIT_WS_URL
       });
       
-      // Safari-specific: Pre-warm getUserMedia if possible (helps Safari connect properly)
+      // Safari-specific: Pre-warm getUserMedia with timeout (helps Safari connect properly)
       if (isSafari && !isSpectator) {
         console.log('🍎 Safari detected: Pre-warming media devices...');
         try {
-          // Request permissions early - Safari needs this before WebRTC connection
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+          // Request permissions early with a timeout - Safari needs this before WebRTC connection
+          const mediaPromise = navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Media timeout')), 5000)
+          );
+          
+          const stream = await Promise.race([mediaPromise, timeoutPromise]);
           console.log('✅ Safari pre-warm successful - media stream obtained');
           // Stop tracks immediately, LiveKit will request them again
           stream.getTracks().forEach(track => track.stop());
         } catch (preWarmError) {
-          console.warn('⚠️ Safari pre-warm failed (may affect connection):', preWarmError.message);
-          // Don't throw - continue with connection attempt
+          console.warn('⚠️ Safari pre-warm failed (continuing anyway):', preWarmError.message);
+          // Don't throw - continue with connection attempt without media
         }
+      }
+      
+      // For Safari spectators, skip media entirely
+      if (isSafari && isSpectator) {
+        console.log('🍎 Safari spectator: skipping media pre-warm');
       }
       
       const token = await fetchLiveKitAccessToken({
@@ -3561,12 +3571,23 @@
       console.log('🔗 Connecting to LiveKit room with options:', connectOptions);
       
       try {
-        livekitRoom = await LiveKitSDK.connect(LIVEKIT_WS_URL, token, connectOptions);
+        // Add connection timeout for Safari (30 seconds)
+        const connectionTimeout = isSafari ? 30000 : 60000;
+        const connectPromise = LiveKitSDK.connect(LIVEKIT_WS_URL, token, connectOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Connection timeout - please refresh and try again')), connectionTimeout)
+        );
+        
+        livekitRoom = await Promise.race([connectPromise, timeoutPromise]);
         console.log('✅ LiveKit room connected successfully!', {
           roomName: livekitRoom.name,
           localParticipantSid: livekitRoom.localParticipant?.sid,
           state: livekitRoom.state
         });
+        
+        // CRITICAL: Force hide waiting overlay immediately after successful connection
+        hideWaitingOverlay();
+        
       } catch (connectError) {
         console.error('❌ LiveKit connection failed:', connectError);
         console.error('Connection error details:', {
@@ -3575,6 +3596,14 @@
           isSafari,
           userGestureReceived
         });
+        
+        // Force hide overlay on error too so user can see the error
+        hideWaitingOverlay();
+        
+        if (isSafari) {
+          showToast('🍎 Safari connection failed. Please check camera/mic permissions in Settings > Safari');
+        }
+        
         throw connectError;
       }
       
@@ -4362,6 +4391,19 @@ async function initializeApp() {
       roomUrl: roomUrl?.substring(0, 50) + '...'
     });
     
+    // Safari failsafe: Set up early timeout to show video interface
+    if (isSafari) {
+      console.log('🍎 Safari detected: Setting up early failsafe for overlay');
+      setTimeout(() => {
+        const waitingOverlay = document.getElementById('waiting-overlay');
+        if (waitingOverlay && waitingOverlay.style.display !== 'none') {
+          console.log('🍎 Safari failsafe: Force showing video interface after 5s');
+          hideWaitingOverlay();
+          showToast('🍎 Connection taking longer than expected. You can still use the controls.');
+        }
+      }, 5000);
+    }
+    
     await loadRoomInfo();
     console.log('✅ Room info loaded');
     
@@ -4405,11 +4447,16 @@ async function initializeApp() {
       console.log('🔌 Connecting to LiveKit room...');
       
       // Set up fallback timeout to hide overlay in case connection gets stuck
-      ensureWaitingOverlayHidden(15000);
+      // Use shorter timeout for Safari since it can get stuck more easily
+      const overlayTimeout = isSafari ? 8000 : 15000;
+      ensureWaitingOverlayHidden(overlayTimeout);
       
       // Safari-specific: Check if user has interacted (important for media)
       if (isSafari && !userGestureReceived) {
         console.warn('⚠️ Safari detected but no user gesture received yet - media may require user interaction');
+        // For Safari, mark gesture as received since they clicked to join
+        userGestureReceived = true;
+        console.log('👆 Marking user gesture as received for Safari');
       }
       
       await connectToLiveKitRoom();

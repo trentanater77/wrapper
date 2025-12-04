@@ -2838,14 +2838,29 @@
   }
 
   function hideWaitingOverlay() {
+    console.log('🎬 Hiding waiting overlay...');
     const waitingOverlay = document.getElementById('waiting-overlay');
     const videoInterface = document.getElementById('video-interface');
     if (waitingOverlay) {
       waitingOverlay.style.display = 'none';
+      waitingOverlay.classList.add('hidden');
     }
     if (videoInterface) {
       videoInterface.classList.remove('hidden');
+      videoInterface.style.display = 'block';
     }
+    console.log('✅ Waiting overlay hidden, video interface shown');
+  }
+  
+  // Fallback to ensure overlay is hidden after timeout
+  function ensureWaitingOverlayHidden(timeoutMs = 10000) {
+    setTimeout(() => {
+      const waitingOverlay = document.getElementById('waiting-overlay');
+      if (waitingOverlay && waitingOverlay.style.display !== 'none') {
+        console.warn('⚠️ Force-hiding stuck waiting overlay after timeout');
+        hideWaitingOverlay();
+      }
+    }, timeoutMs);
   }
 
     // LiveKit helpers --------------------------------------------------------
@@ -4389,6 +4404,9 @@ async function initializeApp() {
     try {
       console.log('🔌 Connecting to LiveKit room...');
       
+      // Set up fallback timeout to hide overlay in case connection gets stuck
+      ensureWaitingOverlayHidden(15000);
+      
       // Safari-specific: Check if user has interacted (important for media)
       if (isSafari && !userGestureReceived) {
         console.warn('⚠️ Safari detected but no user gesture received yet - media may require user interaction');
@@ -4396,6 +4414,9 @@ async function initializeApp() {
       
       await connectToLiveKitRoom();
       console.log('✅ LiveKit room connected!');
+      
+      // CRITICAL: Hide waiting overlay immediately after connection (especially for Safari)
+      hideWaitingOverlay();
       
       await handleJoinedMeeting({
         participant: normalizeLiveKitParticipant(livekitRoom?.localParticipant, { local: true })
@@ -4414,6 +4435,12 @@ async function initializeApp() {
       // Set up chat listeners
       setupChatListeners();
       console.log('✅ Chat listeners set up');
+      
+      // Set up kick listener (for spectators to receive kick notifications)
+      if (isSpectator) {
+        setupKickListener();
+        console.log('✅ Kick listener set up for spectator');
+      }
       
       console.log('🎉 ======= VIDEO CHAT INITIALIZED SUCCESSFULLY =======');
 
@@ -7735,9 +7762,35 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
 
     console.log('👋 Leave button clicked');
+    console.log('📊 Rating check:', {
+      otherParticipantId,
+      otherParticipantName,
+      isSpectator,
+      isGuest: window.currentUserData?.isGuest,
+      userId: window.currentUserData?.userId
+    });
+    
+    // Try to get other participant from LiveKit if not already set
+    if (!otherParticipantId && livekitRoom) {
+      const remoteParticipants = Array.from(livekitRoom.remoteParticipants.values());
+      const otherParticipant = remoteParticipants.find(p => getParticipantRole(p) !== 'spectator');
+      if (otherParticipant) {
+        const participantData = getParticipantUserData(otherParticipant);
+        otherParticipantId = participantData?.userId || getParticipantUserId(otherParticipant);
+        otherParticipantName = participantData?.displayName || otherParticipant.identity?.split('_').pop() || 'Partner';
+        console.log('📊 Found other participant from LiveKit:', otherParticipantId, otherParticipantName);
+      }
+    }
     
     // IMPORTANT: Show rating modal BEFORE cleanup if there was another participant
-    if (otherParticipantId && !isSpectator && !window.currentUserData?.isGuest) {
+    const shouldShowRating = otherParticipantId && 
+                             !isSpectator && 
+                             window.currentUserData?.userId &&
+                             !window.currentUserData?.isGuest;
+    
+    console.log('📊 Should show rating:', shouldShowRating);
+    
+    if (shouldShowRating) {
       console.log('📊 Showing rating modal before leaving...');
       
       // Store the rating data before cleanup
@@ -10346,8 +10399,15 @@ function ensureSpectatorTracksForParticipant(participant) {
   
   // Toggle mute user in chat (host only)
   async function toggleMuteUser(userId, userName) {
+    console.log('🔇 toggleMuteUser called:', { userId, userName, isHost: roomHostData.isHost });
+    
     if (!roomHostData.isHost) {
       showToast('❌ Only hosts can mute users');
+      return;
+    }
+    
+    if (!userId) {
+      showToast('❌ No user to mute');
       return;
     }
     
@@ -10355,18 +10415,24 @@ function ensureSpectatorTracksForParticipant(participant) {
     const action = isMuted ? 'unmute' : 'mute';
     
     try {
+      const hostId = roomHostData.hostId || window.currentUserData?.userId || userId;
+      const roomId = conversationRoomId || roomUrl || firebaseRoomId;
+      
+      console.log('🔇 Sending mute request:', { roomId, hostId, userId, action });
+      
       const response = await fetch('/.netlify/functions/mute-chat-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          roomId: conversationRoomId || roomUrl,
-          hostId: roomHostData.hostId,
+          roomId: roomId,
+          hostId: hostId,
           mutedUserId: userId,
           action: action,
         }),
       });
       
       const data = await response.json();
+      console.log('🔇 Mute response:', data);
       
       if (data.success) {
         if (isMuted) {
@@ -10380,6 +10446,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         // Re-render chat to show/hide muted messages
         refreshChatMessages();
       } else {
+        console.error('Mute failed:', data);
         showToast(`❌ ${data.error || 'Failed to ' + action + ' user'}`);
       }
     } catch (error) {
@@ -10654,32 +10721,74 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
     
     try {
-      console.log(`👢 Kicking spectator: ${userName} (session: ${sessionId})`);
+      console.log(`👢 Kicking spectator: ${userName} (session: ${sessionId}, presenceKey: ${presenceKey})`);
       
-      // Remove from Firebase presence (this will trigger their client to disconnect)
-      if (presenceKey) {
-        await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
-        console.log('✅ Removed from Firebase presence');
+      // 1. Remove from Firebase presence
+      if (presenceKey && firebaseRoomId) {
+        try {
+          await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
+          console.log('✅ Removed from Firebase presence');
+        } catch (presenceError) {
+          console.warn('⚠️ Could not remove from Firebase presence:', presenceError);
+        }
       }
       
-      // Try to remove participant from LiveKit using the SDK if available
-      if (livekitRoom) {
-        const participant = livekitRoom.remoteParticipants.get(sessionId);
-        if (participant) {
-          // LiveKit doesn't have a direct "kick" method, but removing presence will cause disconnect
-          console.log('ℹ️ Participant found in LiveKit, presence removal will trigger disconnect');
+      // 2. Send a kick message via Firebase that the spectator will receive
+      if (firebaseRoomId) {
+        try {
+          const kickRef = db.ref(`kicks/${firebaseRoomId}/${sessionId}`);
+          await kickRef.set({
+            kickedAt: firebase.database.ServerValue.TIMESTAMP,
+            kickedBy: roomHostData.hostId || userId,
+            reason: 'Kicked by host'
+          });
+          console.log('✅ Kick message sent via Firebase');
+          
+          // Clean up the kick message after 30 seconds
+          setTimeout(() => {
+            kickRef.remove().catch(() => {});
+          }, 30000);
+        } catch (kickMsgError) {
+          console.warn('⚠️ Could not send kick message:', kickMsgError);
         }
       }
       
       showToast(`👢 ${userName} has been kicked from the room`);
       
-      // Refresh the list
-      setTimeout(() => loadSpectatorList(), 500);
+      // Refresh the list after a moment
+      setTimeout(() => loadSpectatorList(), 1000);
       
     } catch (error) {
       console.error('❌ Error kicking spectator:', error);
       showToast('❌ Failed to kick spectator');
     }
+  }
+  
+  // Listen for kick messages (spectators need to listen for this)
+  function setupKickListener() {
+    if (!firebaseRoomId || !livekitRoom?.localParticipant?.sid) return;
+    
+    const mySessionId = livekitRoom.localParticipant.sid;
+    const kickRef = db.ref(`kicks/${firebaseRoomId}/${mySessionId}`);
+    
+    kickRef.on('value', async (snapshot) => {
+      const kickData = snapshot.val();
+      if (kickData && kickData.kickedAt) {
+        console.log('⚠️ YOU HAVE BEEN KICKED FROM THIS ROOM');
+        showToast('👢 You have been removed from this room by the host');
+        
+        // Disconnect and redirect
+        try {
+          await executeComprehensiveCleanup('kicked');
+        } catch (e) {
+          console.error('Cleanup error:', e);
+        }
+        
+        setTimeout(() => {
+          window.location.href = 'https://sphere.chatspheres.com/';
+        }, 2000);
+      }
+    });
   }
   
   // Show/hide the manage spectators button based on host status
@@ -10726,6 +10835,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.closeSpectatorManagementModal = closeSpectatorManagementModal;
   window.toggleMuteSpectator = toggleMuteSpectator;
   window.kickSpectator = kickSpectator;
+  window.setupKickListener = setupKickListener;
 
   // Initialize
   console.log("ChatSpheres Video Chat Room Loading... 🌟");

@@ -5125,13 +5125,27 @@ async function initializeApp() {
   }
 
   async function handleParticipantJoined(event) {
+    // Skip if this is our own participant (shouldn't happen, but safety check)
+    if (event.participant.local === true) {
+      console.log('ℹ️ Ignoring local participant join event');
+      return;
+    }
+    
+    // Additional check: compare session IDs
+    const localSid = livekitRoom?.localParticipant?.sid;
+    if (localSid && event.participant.session_id === localSid) {
+      console.log('ℹ️ Ignoring participant join event for local participant (sid match)');
+      return;
+    }
+    
     const participantName = event.participant.user_name || 'Guest';
     const participantData = getParticipantUserData(event.participant);
     const participantDisplayName = participantData?.displayName || participantName;
     const participantRole = getParticipantRole(event.participant);
     const isSpectatorParticipant = participantRole === 'spectator';
     
-    console.log('👋 Participant joined:', participantDisplayName, isSpectatorParticipant ? '(spectator)' : '(participant)');
+    console.log('👋 Participant joined:', participantDisplayName, isSpectatorParticipant ? '(spectator)' : '(participant)', 
+      'session_id:', event.participant.session_id?.substring(0, 12));
     
     if (!isSpectator) {
       if (!isSpectatorParticipant) {
@@ -5186,7 +5200,13 @@ async function initializeApp() {
   function handleParticipantUpdated(event) {
     // Only log when there are meaningful changes, not constant updates
     const participantId = event.participant.session_id;
-    const isLocalParticipant = event.participant.local;
+    
+    // Determine if this is truly a local participant - use multiple checks
+    const localSid = livekitRoom?.localParticipant?.sid;
+    const isLocalParticipant = 
+      event.participant?.local === true || 
+      (localSid && participantId === localSid);
+    
     const participantRole = getParticipantRole(event.participant);
     
     // Skip logging and processing for local participant updates
@@ -5239,6 +5259,13 @@ async function initializeApp() {
 
   function handleTrackStarted(event) {
     console.log('🎥 TRACK STARTED EVENT');
+    
+    // Determine if this is truly a local participant - use multiple checks
+    const localSid = livekitRoom?.localParticipant?.sid;
+    const isLocalParticipant = 
+      event.participant?.local === true || 
+      (localSid && event.participant?.session_id === localSid);
+    
     console.log('🎥 Track details:', {
       kind: event.track?.kind,
       label: event.track?.label,
@@ -5246,8 +5273,10 @@ async function initializeApp() {
       readyState: event.track?.readyState,
       enabled: event.track?.enabled,
       participantLocal: event.participant?.local,
+      isLocalParticipant: isLocalParticipant,
       participantId: event.participant?.session_id,
       participantName: event.participant?.user_name,
+      localSid: localSid,
       isSpectator: isSpectator,
       isSafari: isSafari
     });
@@ -5258,17 +5287,19 @@ async function initializeApp() {
       return;
     }
 
-    if (!event.participant.local && getParticipantRole(event.participant) === 'spectator') {
+    if (!isLocalParticipant && getParticipantRole(event.participant) === 'spectator') {
       console.log('🔒 Ignoring spectator track start to protect participant streams');
       return;
     }
     
-    if (event.participant.local && !isSpectator) {
+    if (isLocalParticipant && !isSpectator) {
       if (event.track.kind === 'video') {
         console.log('📹 Setting up LOCAL video track');
         setupLocalVideo(event.track);
+      } else if (event.track.kind === 'audio') {
+        console.log('🎤 Local audio track started (not setting up - already handled)');
       }
-    } else {
+    } else if (!isLocalParticipant) {
       // Handle remote participant tracks
       const participantId = event.participant.session_id;
       const participantName = event.participant.user_name || 'Guest';
@@ -5324,21 +5355,31 @@ async function initializeApp() {
 
   function handleTrackStopped(event) {
     console.log('🛑 Track stopped:', event);
+    
+    // Determine if this is truly a local participant - use multiple checks
+    const localSid = livekitRoom?.localParticipant?.sid;
+    const isLocalParticipant = 
+      event.participant?.local === true || 
+      (localSid && event.participant?.session_id === localSid);
+    
     console.log('🛑 Track details:', {
       kind: event.track.kind,
       label: event.track.label,
       participantLocal: event.participant.local,
+      isLocalParticipant: isLocalParticipant,
+      participantId: event.participant.session_id,
       participantName: event.participant.user_name,
+      localSid: localSid,
       isSpectator: isSpectator
     });
 
-    if (!event.participant.local && getParticipantRole(event.participant) === 'spectator') {
+    if (!isLocalParticipant && getParticipantRole(event.participant) === 'spectator') {
       console.log('🔒 Ignoring spectator track stop to protect participant streams');
       return;
     }
     
     // Handle LOCAL participant tracks (when they stop their own camera/screen)
-    if (event.participant.local && event.track.kind === 'video') {
+    if (isLocalParticipant && event.track.kind === 'video') {
       console.log('🔄 Local participant stopped their own video track');
       
       // Check if it's the local user's screen share stopping
@@ -5379,7 +5420,7 @@ async function initializeApp() {
     }
     
     // Handle REMOTE participant tracks only
-    if (!event.participant.local && event.track.kind === 'video') {
+    if (!isLocalParticipant && event.track.kind === 'video') {
       const participantId = event.participant.session_id;
       const participantName = event.participant.user_name || 'Participant';
       
@@ -9321,14 +9362,54 @@ function ensureSpectatorTracksForParticipant(participant) {
     console.log('🔄 Setting up existing participants for participant refresh');
     
     const participants = getParticipantsSnapshot();
-    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
     
-    console.log('👥 Found remote participants:', remoteParticipants.length);
+    // Get the local participant's session ID to properly exclude them
+    const localParticipant = participants.local;
+    const localSessionId = localParticipant?.session_id;
+    const localUserName = userName || window.currentUserData?.username;
+    
+    console.log('🔍 Local participant info:', {
+      localSessionId,
+      localUserName,
+      livekitLocalSid: livekitRoom?.localParticipant?.sid
+    });
+    
+    // Filter out the local participant more robustly
+    // Check: not the 'local' key, not matching local session_id, not matching local participant sid, and local property is false
+    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => {
+      // Skip the 'local' key
+      if (id === 'local') return false;
+      
+      // Skip if explicitly marked as local
+      if (participant.local === true) return false;
+      
+      // Skip if session_id matches local participant
+      if (localSessionId && participant.session_id === localSessionId) return false;
+      
+      // Skip if session_id matches LiveKit local participant sid
+      if (livekitRoom?.localParticipant?.sid && participant.session_id === livekitRoom.localParticipant.sid) return false;
+      
+      // Skip if username matches local user (additional safety check)
+      if (localUserName && participant.user_name === localUserName) {
+        console.log('⚠️ Skipping participant with matching username:', participant.user_name);
+        return false;
+      }
+      
+      return true;
+    });
+    
+    console.log('👥 Found remote participants:', remoteParticipants.length, 
+      remoteParticipants.map(([id, p]) => `${p.user_name}(${id.substring(0,8)})`));
+    
     if (remoteParticipants.length > 0) {
       hideWaitingOverlay();
     }
     
-    remoteParticipants.forEach(([participantId, participant]) => {
+    // Only set up ONE remote participant for participant view (1:1 call)
+    // Take the first actual remote participant
+    const [participantId, participant] = remoteParticipants[0] || [];
+    
+    if (participant) {
       console.log('🎭 Processing remote participant for participant view:', participantId, participant.user_name);
       
       // Set up video tracks if available
@@ -9338,6 +9419,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         updateRemoteInfo(participant.user_name || 'Guest');
         hideWaitingOverlay();
       } else {
+        console.log('📷 Remote participant has no video track, showing placeholder');
         updateRemotePlaceholderForCameraOff(participant);
       }
       
@@ -9352,7 +9434,9 @@ function ensureSpectatorTracksForParticipant(participant) {
         console.log('🔊 Setting up audio for existing participant:', participantId);
         setupRemoteAudio(participant.tracks.audio.persistentTrack);
       }
-    });
+    } else {
+      console.log('ℹ️ No remote participants found to set up');
+    }
     
     console.log('✅ Participant refresh setup complete');
   }
@@ -9364,7 +9448,24 @@ function ensureSpectatorTracksForParticipant(participant) {
     console.log(`🔄 Setting up existing participants for spectator (attempt ${retryCount + 1}/5)`);
     
     const participants = getParticipantsSnapshot();
-    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => !participant.local);
+    
+    // Get the local participant's session ID to properly exclude them
+    const localParticipant = participants.local;
+    const localSessionId = localParticipant?.session_id;
+    
+    // Filter out the local participant more robustly
+    const remoteParticipants = Object.entries(participants).filter(([id, participant]) => {
+      // Skip the 'local' key
+      if (id === 'local') return false;
+      // Skip if explicitly marked as local
+      if (participant.local === true) return false;
+      // Skip if session_id matches local participant
+      if (localSessionId && participant.session_id === localSessionId) return false;
+      // Skip if session_id matches LiveKit local participant sid
+      if (livekitRoom?.localParticipant?.sid && participant.session_id === livekitRoom.localParticipant.sid) return false;
+      return true;
+    });
+    
     const spectatorSlotsPopulated = !!(spectatorParticipant1 || spectatorParticipant2);
     
     console.log('👥 Found participants:', remoteParticipants.length);

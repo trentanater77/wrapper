@@ -2545,6 +2545,28 @@
     let LiveKitTrackSource = LiveKitSDK ? LiveKitSDK.TrackSource : null;
     let LiveKitDataPacketKind = LiveKitSDK ? LiveKitSDK.DataPacket_Kind : null;
 
+    // ===== BROWSER DETECTION FOR SAFARI COMPATIBILITY =====
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const isMobileSafari = isSafari && isIOS;
+    let userGestureReceived = false;
+    
+    console.log(`🌐 Browser Detection - Safari: ${isSafari}, iOS: ${isIOS}, Mobile Safari: ${isMobileSafari}`);
+    
+    // Track user gesture for Safari WebRTC compatibility
+    function markUserGestureReceived() {
+      if (!userGestureReceived) {
+        userGestureReceived = true;
+        console.log('👆 User gesture received - Safari media access now possible');
+      }
+    }
+    
+    // Add gesture listeners for Safari
+    document.addEventListener('click', markUserGestureReceived, { once: false, passive: true });
+    document.addEventListener('touchstart', markUserGestureReceived, { once: false, passive: true });
+    document.addEventListener('touchend', markUserGestureReceived, { once: false, passive: true });
+    document.addEventListener('keydown', markUserGestureReceived, { once: false, passive: true });
+
     // Global variables
     let livekitRoom = null;
     let livekitRoomName = null;
@@ -3397,7 +3419,18 @@
     }
 
     async function connectToLiveKitRoom() {
+      console.log('🔌 connectToLiveKitRoom() called');
+      console.log('🌐 Browser info:', {
+        isSafari,
+        isIOS,
+        isMobileSafari,
+        userGestureReceived,
+        userAgent: navigator.userAgent.substring(0, 100)
+      });
+      
       await ensureLiveKitConfigReady();
+      console.log('✅ LiveKit config ready');
+      
       const metadata = getLiveKitMetadataPayload();
       const baseIdentity = metadata?.userId || userId || userName || `guest_${Date.now()}`;
       const runtimeId = window.__CHATSPHERES_RUNTIME_INSTANCE_ID || runtimeInstanceId || Math.random().toString(36);
@@ -3415,12 +3448,38 @@
       const baseTail = sanitizedBase.slice(-availableLength) || Math.random().toString(36).slice(2, 2 + availableLength);
       livekitIdentity = sanitizeLiveKitIdentity(`${uniquePrefix}_${baseTail}`);
       livekitRoomName = conversationRoomId || extractRoomIdentifier(roomUrl) || metadata?.slug || 'chatspheres-room';
+      
+      console.log('🏠 Room connection details:', {
+        livekitRoomName,
+        livekitIdentity: livekitIdentity.substring(0, 20) + '...',
+        isSpectator,
+        wsUrl: LIVEKIT_WS_URL
+      });
+      
+      // Safari-specific: Pre-warm getUserMedia if possible (helps Safari connect properly)
+      if (isSafari && !isSpectator) {
+        console.log('🍎 Safari detected: Pre-warming media devices...');
+        try {
+          // Request permissions early - Safari needs this before WebRTC connection
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+          console.log('✅ Safari pre-warm successful - media stream obtained');
+          // Stop tracks immediately, LiveKit will request them again
+          stream.getTracks().forEach(track => track.stop());
+        } catch (preWarmError) {
+          console.warn('⚠️ Safari pre-warm failed (may affect connection):', preWarmError.message);
+          // Don't throw - continue with connection attempt
+        }
+      }
+      
       const token = await fetchLiveKitAccessToken({
         roomName: livekitRoomName,
         identity: livekitIdentity,
         metadata
       });
-      livekitRoom = await LiveKitSDK.connect(LIVEKIT_WS_URL, token, {
+      console.log('🎟️ LiveKit token obtained');
+      
+      // Build connection options with Safari-specific settings
+      const connectOptions = {
         audio: !isSpectator,
         video: !isSpectator,
         autoSubscribe: true,
@@ -3433,25 +3492,66 @@
             { width: 1280, height: 720, bitrate: 1_500_000 }
           ]
         }
-      });
+      };
+      
+      // Safari-specific options
+      if (isSafari) {
+        console.log('🍎 Applying Safari-specific connection options');
+        // Safari works better with these settings
+        connectOptions.adaptiveStream = false; // Safari has issues with adaptive stream
+        connectOptions.dynacast = false; // Disable for Safari stability
+      }
+      
+      console.log('🔗 Connecting to LiveKit room with options:', connectOptions);
+      
+      try {
+        livekitRoom = await LiveKitSDK.connect(LIVEKIT_WS_URL, token, connectOptions);
+        console.log('✅ LiveKit room connected successfully!', {
+          roomName: livekitRoom.name,
+          localParticipantSid: livekitRoom.localParticipant?.sid,
+          state: livekitRoom.state
+        });
+      } catch (connectError) {
+        console.error('❌ LiveKit connection failed:', connectError);
+        console.error('Connection error details:', {
+          message: connectError.message,
+          name: connectError.name,
+          isSafari,
+          userGestureReceived
+        });
+        throw connectError;
+      }
+      
       registerLiveKitEventHandlers();
+      console.log('✅ LiveKit event handlers registered');
+      
       if (isSpectator) {
+        console.log('👀 Spectator mode: hydrating tracks after delay');
         hydrateSpectatorTracksFromLiveKit(500);
       }
       if (!isSpectator && livekitRoom?.localParticipant) {
+        console.log('🎤📹 Participant mode: enabling local media...');
         try {
           await livekitRoom.localParticipant.setMicrophoneEnabled(true);
           isMicOn = true;
+          console.log('✅ Microphone enabled');
         } catch (error) {
-          console.warn('🎤 Unable to enable microphone automatically:', error);
+          console.warn('🎤 Unable to enable microphone automatically:', error.message);
           isMicOn = false;
+          if (isSafari) {
+            showToast('🎤 Tap the mic button to enable your microphone');
+          }
         }
         try {
           await livekitRoom.localParticipant.setCameraEnabled(true);
           isCameraOn = true;
+          console.log('✅ Camera enabled');
         } catch (error) {
-          console.warn('📹 Unable to enable camera automatically:', error);
+          console.warn('📹 Unable to enable camera automatically:', error.message);
           isCameraOn = false;
+          if (isSafari) {
+            showToast('📹 Tap the camera button to enable your camera');
+          }
         }
       } else {
         isMicOn = false;
@@ -4191,8 +4291,26 @@ async function initializeApp() {
   }
 
   async function initializeVideoChat() {
+    console.log('🚀 ======= INITIALIZING VIDEO CHAT =======');
+    console.log('🌐 Browser info:', {
+      isSafari,
+      isIOS,
+      isMobileSafari,
+      userGestureReceived,
+      userAgent: navigator.userAgent.substring(0, 80)
+    });
+    console.log('👤 User info:', {
+      isSpectator,
+      userName,
+      userId: userId?.substring(0, 8) + '...',
+      roomUrl: roomUrl?.substring(0, 50) + '...'
+    });
+    
     await loadRoomInfo();
+    console.log('✅ Room info loaded');
+    
     await ensureFirebaseAuth();
+    console.log('✅ Firebase auth ready');
     
     // Set up Firebase for chat and presence
     // Use sphereId for consistent presence path (works with any room URL format)
@@ -4206,11 +4324,14 @@ async function initializeApp() {
     // Set up user role display
     setupUserRoleDisplay();
     configureTimerUiForMode();
+    console.log('✅ UI configured');
     
     // Set up layout based on user type
     if (isSpectator) {
+      console.log('👀 Setting up SPECTATOR mode');
       setupSpectatorMode();
     } else {
+      console.log('🎤 Setting up PARTICIPANT mode');
       setupParticipantMode();
     }
 
@@ -4219,18 +4340,30 @@ async function initializeApp() {
         resetTimerDisplayForSpectator();
       }
       await initializeTimerSync();
+      console.log('✅ Timer sync initialized');
     } catch (error) {
       console.error('❌ Failed to initialize timer synchronization:', error);
     }
     
     try {
-        await connectToLiveKitRoom();
-        await handleJoinedMeeting({
-          participant: normalizeLiveKitParticipant(livekitRoom?.localParticipant, { local: true })
-        });
+      console.log('🔌 Connecting to LiveKit room...');
+      
+      // Safari-specific: Check if user has interacted (important for media)
+      if (isSafari && !userGestureReceived) {
+        console.warn('⚠️ Safari detected but no user gesture received yet - media may require user interaction');
+      }
+      
+      await connectToLiveKitRoom();
+      console.log('✅ LiveKit room connected!');
+      
+      await handleJoinedMeeting({
+        participant: normalizeLiveKitParticipant(livekitRoom?.localParticipant, { local: true })
+      });
+      console.log('✅ Joined meeting handled');
 
       // Set up Firebase presence
       await setupPresence(roomId);
+      console.log('✅ Firebase presence set up');
       
       // Initialize tipping (host tracking + notifications) - AFTER presence is set
       // This ensures our presence is written before we determine who is host
@@ -4239,14 +4372,30 @@ async function initializeApp() {
       
       // Set up chat listeners
       setupChatListeners();
+      console.log('✅ Chat listeners set up');
+      
+      console.log('🎉 ======= VIDEO CHAT INITIALIZED SUCCESSFULLY =======');
 
     } catch (error) {
+      console.error('❌ ======= VIDEO CHAT INITIALIZATION FAILED =======');
       console.error('Failed to join call:', error);
+      console.error('Error details:', {
+        name: error?.name,
+        message: error?.message,
+        stack: error?.stack?.substring(0, 200)
+      });
+      
       const friendlyMessage =
         typeof error?.message === 'string' && error.message.trim().length > 0
           ? error.message.trim()
           : 'Failed to join the video call. Please try refreshing the page.';
-      showToast(friendlyMessage);
+      
+      // Safari-specific error messages
+      if (isSafari && error?.message?.includes('permission')) {
+        showToast('🍎 Safari requires camera/mic permission. Check Settings > Safari > Camera');
+      } else {
+        showToast(friendlyMessage);
+      }
     }
   }
 
@@ -5089,14 +5238,25 @@ async function initializeApp() {
   }
 
   function handleTrackStarted(event) {
-    console.log('🎥 Track started:', event);
+    console.log('🎥 TRACK STARTED EVENT');
     console.log('🎥 Track details:', {
-      kind: event.track.kind,
-      label: event.track.label,
-      participantLocal: event.participant.local,
-      participantId: event.participant.session_id,
-      isSpectator: isSpectator
+      kind: event.track?.kind,
+      label: event.track?.label,
+      id: event.track?.id,
+      readyState: event.track?.readyState,
+      enabled: event.track?.enabled,
+      participantLocal: event.participant?.local,
+      participantId: event.participant?.session_id,
+      participantName: event.participant?.user_name,
+      isSpectator: isSpectator,
+      isSafari: isSafari
     });
+
+    // Validate track
+    if (!event.track) {
+      console.error('❌ handleTrackStarted called with no track!');
+      return;
+    }
 
     if (!event.participant.local && getParticipantRole(event.participant) === 'spectator') {
       console.log('🔒 Ignoring spectator track start to protect participant streams');
@@ -5105,41 +5265,58 @@ async function initializeApp() {
     
     if (event.participant.local && !isSpectator) {
       if (event.track.kind === 'video') {
+        console.log('📹 Setting up LOCAL video track');
         setupLocalVideo(event.track);
       }
     } else {
       // Handle remote participant tracks
       const participantId = event.participant.session_id;
+      const participantName = event.participant.user_name || 'Guest';
       
       if (event.track.kind === 'video') {
-        if (event.track.label && (event.track.label.includes('screen') || event.track.label.includes('Screen') || event.track.label.includes('display') || event.track.label.includes('Display') || event.track.label.includes('web-contents-media-stream'))) {
-          console.log('📺 Setting up screen share for participant:', participantId);
+        // Enhanced screen share detection - check multiple indicators
+        const trackLabel = (event.track.label || '').toLowerCase();
+        const isScreenShareTrack = 
+          trackLabel.includes('screen') || 
+          trackLabel.includes('display') || 
+          trackLabel.includes('window') ||
+          trackLabel.includes('monitor') ||
+          trackLabel.includes('web-contents-media-stream') ||
+          trackLabel.includes('entire screen') ||
+          trackLabel.includes('application');
+        
+        console.log(`🎥 Video track analysis: isScreenShare=${isScreenShareTrack}, label="${event.track.label}"`);
+        
+        if (isScreenShareTrack) {
+          console.log('📺 SCREEN SHARE DETECTED for participant:', participantName, participantId);
           if (isSpectator) {
             setupSpectatorScreenShare(event.track);
           } else {
             setupScreenShareVideo(event.track);
           }
         } else {
-          console.log('🎥 Setting up regular video for participant:', participantId);
+          console.log('🎥 CAMERA VIDEO DETECTED for participant:', participantName, participantId);
           if (isSpectator) {
             setupSpectatorVideo(event.track, participantId);
           } else {
-            // IMPROVED: Always set up remote video when camera turns back on
-            console.log('🔄 Setting up remote video (camera turned back on)');
+            // Set up remote video
+            console.log('🔄 Setting up remote video for:', participantName);
             setupRemoteVideo(event.track);
-            updateRemoteInfo(event.participant.user_name || 'Guest');
+            updateRemoteInfo(participantName);
             hideWaitingOverlay();
             
             // Hide the camera-off placeholder and show video
-            const remoteVideo = document.getElementById('remote-video');
+            const remoteVideoEl = document.getElementById('remote-video');
             const placeholder = document.getElementById('remote-placeholder');
-            if (remoteVideo && placeholder) {
-              remoteVideo.style.display = 'block';
+            if (remoteVideoEl && placeholder) {
+              remoteVideoEl.style.display = 'block';
               placeholder.style.display = 'none';
+              console.log('✅ Remote video element visible, placeholder hidden');
             }
           }
         }
       } else if (event.track.kind === 'audio') {
+        console.log('🔊 AUDIO TRACK for participant:', participantName);
         setupRemoteAudio(event.track);
       }
     }
@@ -5810,33 +5987,90 @@ async function initializeApp() {
   }
 
   function setupRemoteVideo(track) {
-    if (isSpectator) return; // Spectators use different video setup
+    console.log('📹 setupRemoteVideo called', {
+      hasTrack: !!track,
+      trackKind: track?.kind,
+      trackLabel: track?.label,
+      trackReadyState: track?.readyState,
+      isSpectator
+    });
+    
+    if (isSpectator) {
+      console.log('📹 Spectator mode - using spectator video setup instead');
+      return;
+    }
     
     remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
+    
+    if (!remoteVideo) {
+      console.error('❌ Remote video element not found!');
+      return;
+    }
+    
+    if (!track) {
+      console.error('❌ setupRemoteVideo called with no track!');
+      return;
+    }
+    
+    // Check current state of remote video
+    const currentState = {
+      hasExistingStream: !!remoteVideo.srcObject,
+      display: remoteVideo.style.display,
+      paused: remoteVideo.paused,
+      readyState: remoteVideo.readyState,
+      currentTrackId: remoteVideo.srcObject?.getVideoTracks()[0]?.id,
+      newTrackId: track.id
+    };
+    console.log('📹 Remote video current state:', currentState);
+    
+    // For Safari, be more lenient with the "stable connection" check
+    const isStableCheck = !isSafari ? (remoteVideo.readyState >= 2) : (remoteVideo.readyState >= 1);
     
     // CRITICAL: Check if we already have a stable video connection
     const hasStableConnection = remoteVideo.srcObject && 
                                remoteVideo.style.display === 'block' && 
                                !remoteVideo.paused && 
-                               remoteVideo.readyState >= 2;
+                               isStableCheck;
     
-    if (hasStableConnection) {
-      console.log('🔒 BLOCKING video setup - stable connection already exists');
+    if (hasStableConnection && currentState.currentTrackId === currentState.newTrackId) {
+      console.log('🔒 BLOCKING video setup - stable connection already exists with same track');
       return;
     }
     
-    // Prevent overwriting existing video connections unless track is different
-    if (remoteVideo.srcObject && remoteVideo.srcObject.getVideoTracks()[0] === track) {
+    // Allow track updates even if we have a connection (for track replacement scenarios)
+    if (currentState.currentTrackId === currentState.newTrackId) {
       console.log('🎥 Remote video already set up with this track, skipping duplicate');
       return;
     }
     
-    remoteVideo.srcObject = new MediaStream([track]);
-    remoteVideo.style.display = 'block';
-    placeholder.style.display = 'none';
+    console.log('📹 Setting up new remote video stream...');
     
-    console.log('✅ Remote video set up for participant');
+    try {
+      remoteVideo.srcObject = new MediaStream([track]);
+      remoteVideo.style.display = 'block';
+      placeholder.style.display = 'none';
+      
+      // Safari-specific: force play attempt
+      if (isSafari) {
+        console.log('🍎 Safari: Attempting to play remote video...');
+        remoteVideo.play().then(() => {
+          console.log('✅ Safari: Remote video playing successfully');
+        }).catch(err => {
+          console.warn('⚠️ Safari: Remote video play failed (user may need to interact):', err.message);
+          // Show a hint to the user
+          showToast('👆 Tap screen to start video');
+        });
+      }
+      
+      console.log('✅ Remote video set up successfully', {
+        srcObjectSet: !!remoteVideo.srcObject,
+        display: remoteVideo.style.display,
+        trackId: track.id
+      });
+    } catch (error) {
+      console.error('❌ Failed to set up remote video:', error);
+    }
   }
 
   // Track which participant slots are used (only 2 participants max)
@@ -5899,7 +6133,24 @@ async function initializeApp() {
   }
 
   function setupSpectatorVideo(track, participantId) {
-    console.log('🎬 Setting up spectator video for participant:', participantId);
+    console.log('🎬 setupSpectatorVideo called', {
+      hasTrack: !!track,
+      trackKind: track?.kind,
+      trackLabel: track?.label,
+      trackReadyState: track?.readyState,
+      participantId,
+      isSafari,
+      userHasInteracted,
+      currentSlots: {
+        slot1: spectatorParticipant1?.participantId,
+        slot2: spectatorParticipant2?.participantId
+      }
+    });
+    
+    if (!track) {
+      console.error('❌ setupSpectatorVideo called with no track!');
+      return;
+    }
     
     // Check if this participant already has a video set up to prevent duplicates
     if ((spectatorParticipant1 && spectatorParticipant1.participantId === participantId) ||
@@ -5910,34 +6161,48 @@ async function initializeApp() {
       
       // CRITICAL: Always update when camera turns back on (even if same track)
       console.log(`🔄 Camera turned back on for participant ${participantId} in slot ${existingSlot}`);
-      videoElement.srcObject = new MediaStream([track]);
       
-      // CRITICAL: Hide placeholder and show video when camera turns back on
-      placeholder.style.display = 'none';
-      placeholder.classList.add('hidden');
-      videoElement.classList.remove('hidden');
-      videoElement.style.display = 'block';
-      
-      // Force video visibility styles
-      videoElement.style.visibility = 'visible';
-      videoElement.style.opacity = '1';
-      hideWaitingOverlay();
-      
-      console.log(`✅ Spectator video restored for participant ${participantId} - camera back on`);
-      
-      // Try to play if user has interacted
-      if (userHasInteracted) {
-        videoElement.play().then(() => {
-          console.log(`✅ Participant ${participantId} video now playing after camera restoration`);
-        }).catch(err => {
-          console.log(`🎥 Video will play after user interaction for participant ${participantId}`);
-        });
+      try {
+        videoElement.srcObject = new MediaStream([track]);
+        
+        // CRITICAL: Hide placeholder and show video when camera turns back on
+        placeholder.style.display = 'none';
+        placeholder.classList.add('hidden');
+        videoElement.classList.remove('hidden');
+        videoElement.style.display = 'block';
+        
+        // Force video visibility styles
+        videoElement.style.visibility = 'visible';
+        videoElement.style.opacity = '1';
+        hideWaitingOverlay();
+        
+        console.log(`✅ Spectator video restored for participant ${participantId} - camera back on`);
+        
+        // Try to play - Safari and other browsers
+        const attemptPlay = () => {
+          videoElement.play().then(() => {
+            console.log(`✅ Participant ${participantId} video now playing after camera restoration`);
+          }).catch(err => {
+            console.log(`🎥 Video play failed for participant ${participantId}:`, err.message);
+            if (isSafari) {
+              console.log('🍎 Safari: Video will play after user interaction');
+            }
+          });
+        };
+        
+        if (userHasInteracted) {
+          attemptPlay();
+        } else if (isSafari) {
+          console.log('🍎 Safari: Waiting for user interaction to play video');
+        }
+        
+        // CRITICAL: Hide overlay when camera turns back on
+        setTimeout(() => {
+          checkAndHideClickOverlay();
+        }, 100);
+      } catch (error) {
+        console.error(`❌ Failed to update spectator video for slot ${existingSlot}:`, error);
       }
-      
-      // CRITICAL: Hide overlay when camera turns back on
-      setTimeout(() => {
-        checkAndHideClickOverlay();
-      }, 100);
       
       return;
     }
@@ -6345,20 +6610,67 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
 
   function setupScreenShareVideo(track) {
+    console.log('📺 setupScreenShareVideo called', {
+      hasTrack: !!track,
+      trackLabel: track?.label,
+      trackReadyState: track?.readyState,
+      isSpectator
+    });
+    
     if (isSpectator) {
       setupSpectatorScreenShare(track);
       return;
     }
     
     screenShareVideo = document.getElementById('screen-share-video');
-    const remoteVideo = document.getElementById('remote-video');
+    const remoteVideoEl = document.getElementById('remote-video');
     
-    screenShareVideo.srcObject = new MediaStream([track]);
-    screenShareVideo.style.display = 'block';
-    remoteVideo.style.display = 'none';
+    if (!screenShareVideo) {
+      console.error('❌ Screen share video element not found!');
+      return;
+    }
+    
+    if (!track) {
+      console.error('❌ setupScreenShareVideo called with no track!');
+      return;
+    }
+    
+    try {
+      console.log('📺 Setting up screen share stream...');
+      screenShareVideo.srcObject = new MediaStream([track]);
+      screenShareVideo.style.display = 'block';
+      screenShareVideo.classList.remove('hidden');
+      
+      // Hide remote camera video when screen share is active
+      if (remoteVideoEl) {
+        remoteVideoEl.style.display = 'none';
+        console.log('📹 Remote camera hidden for screen share');
+      }
+      
+      // Safari-specific: force play attempt
+      if (isSafari) {
+        console.log('🍎 Safari: Attempting to play screen share...');
+        screenShareVideo.play().then(() => {
+          console.log('✅ Safari: Screen share playing successfully');
+        }).catch(err => {
+          console.warn('⚠️ Safari: Screen share play failed:', err.message);
+          showToast('👆 Tap screen to view screen share');
+        });
+      }
+      
+      console.log('✅ Screen share video set up successfully');
+      showToast('📺 Screen share started');
+    } catch (error) {
+      console.error('❌ Failed to set up screen share:', error);
+    }
   }
 
   function setupSpectatorScreenShare(track) {
+    console.log('📺 setupSpectatorScreenShare called', {
+      hasTrack: !!track,
+      trackLabel: track?.label
+    });
+    
     const spectatorScreenShare = document.getElementById('spectator-screen-share');
     const participantsContainer = document.getElementById('spectator-participants-container');
     
@@ -6367,20 +6679,51 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    console.log('📺 Setting up spectator screen share');
-    spectatorScreenShare.srcObject = new MediaStream([track]);
-    spectatorScreenShare.classList.remove('hidden');
-    participantsContainer.style.display = 'none';
-    hideWaitingOverlay();
+    if (!track) {
+      console.error('❌ setupSpectatorScreenShare called with no track!');
+      return;
+    }
     
-    // Update expand buttons availability
-    updateSpectatorExpandButtons();
-    
-    console.log('✅ Spectator screen share started');
+    try {
+      console.log('📺 Setting up spectator screen share');
+      spectatorScreenShare.srcObject = new MediaStream([track]);
+      spectatorScreenShare.classList.remove('hidden');
+      spectatorScreenShare.style.display = 'block';
+      participantsContainer.style.display = 'none';
+      hideWaitingOverlay();
+      
+      // Safari-specific: force play attempt
+      if (isSafari) {
+        console.log('🍎 Safari: Attempting to play spectator screen share...');
+        spectatorScreenShare.play().then(() => {
+          console.log('✅ Safari: Spectator screen share playing');
+        }).catch(err => {
+          console.warn('⚠️ Safari: Spectator screen share play failed:', err.message);
+        });
+      }
+      
+      // Update expand buttons availability
+      updateSpectatorExpandButtons();
+      
+      console.log('✅ Spectator screen share started');
+    } catch (error) {
+      console.error('❌ Failed to set up spectator screen share:', error);
+    }
   }
 
   function setupRemoteAudio(track) {
-    console.log("🔊 Setting up remote audio track:", track);
+    console.log("🔊 setupRemoteAudio called", {
+      hasTrack: !!track,
+      trackKind: track?.kind,
+      trackLabel: track?.label,
+      trackReadyState: track?.readyState,
+      isSafari
+    });
+    
+    if (!track) {
+      console.error('❌ setupRemoteAudio called with no track!');
+      return;
+    }
     
     let remoteAudio = document.getElementById('remote-audio');
     if (!remoteAudio) {
@@ -6388,19 +6731,45 @@ function ensureSpectatorTracksForParticipant(participant) {
       remoteAudio.id = 'remote-audio';
       remoteAudio.autoplay = true;
       remoteAudio.playsInline = true;
+      // Safari-specific: muted initially if no user gesture
+      if (isSafari && !userGestureReceived) {
+        console.log('🍎 Safari: Creating audio element muted initially');
+        remoteAudio.muted = false; // Still try unmuted, Safari will block if needed
+      }
       document.body.appendChild(remoteAudio);
       console.log("🔊 Created remote audio element");
     }
     
-    remoteAudio.srcObject = new MediaStream([track]);
-    console.log("🔊 Remote audio track attached");
-    
-    remoteAudio.play().then(() => {
-      console.log("✅ Remote audio started playing");
-    }).catch(err => {
-      console.error("❌ Remote audio play failed:", err);
-      showToast('🔊 Click anywhere to enable audio');
-    });
+    try {
+      remoteAudio.srcObject = new MediaStream([track]);
+      console.log("🔊 Remote audio track attached");
+      
+      remoteAudio.play().then(() => {
+        console.log("✅ Remote audio started playing");
+      }).catch(err => {
+        console.warn("⚠️ Remote audio play failed:", err.message);
+        if (isSafari) {
+          showToast('🔊 Tap screen to enable audio (Safari restriction)');
+        } else {
+          showToast('🔊 Click anywhere to enable audio');
+        }
+        
+        // Set up one-time click handler to retry audio
+        const retryAudio = () => {
+          if (remoteAudio && remoteAudio.srcObject) {
+            remoteAudio.play().then(() => {
+              console.log('✅ Audio started after user interaction');
+            }).catch(e => console.log('Audio retry failed:', e.message));
+          }
+          document.removeEventListener('click', retryAudio);
+          document.removeEventListener('touchstart', retryAudio);
+        };
+        document.addEventListener('click', retryAudio, { once: true });
+        document.addEventListener('touchstart', retryAudio, { once: true });
+      });
+    } catch (error) {
+      console.error('❌ Failed to set up remote audio:', error);
+    }
   }
 
   function hideRemoteVideo() {
@@ -6424,19 +6793,47 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
 
   function hideScreenShareVideo() {
+    console.log('📺 hideScreenShareVideo called', { isSpectator });
+    
     if (isSpectator) {
       hideSpectatorScreenShare();
       return;
     }
     
-    const screenShareVideo = document.getElementById('screen-share-video');
-    const remoteVideo = document.getElementById('remote-video');
+    const screenShareVideoEl = document.getElementById('screen-share-video');
+    const remoteVideoEl = document.getElementById('remote-video');
     
-    screenShareVideo.style.display = 'none';
-    remoteVideo.style.display = 'block';
+    if (screenShareVideoEl) {
+      console.log('📺 Hiding screen share video element');
+      screenShareVideoEl.style.display = 'none';
+      screenShareVideoEl.classList.add('hidden');
+      // Clear the stream to free resources
+      if (screenShareVideoEl.srcObject) {
+        screenShareVideoEl.srcObject = null;
+      }
+    }
+    
+    // Restore remote camera video
+    if (remoteVideoEl) {
+      console.log('📹 Restoring remote camera video');
+      remoteVideoEl.style.display = 'block';
+      remoteVideoEl.classList.remove('hidden');
+      
+      // If we have a stream, try to play it (Safari may need this)
+      if (remoteVideoEl.srcObject && isSafari) {
+        remoteVideoEl.play().catch(err => {
+          console.log('📹 Remote video play after screen share end:', err.message);
+        });
+      }
+    }
+    
+    showToast('📺 Screen share ended');
+    console.log('✅ Screen share hidden, camera video restored');
   }
 
   function hideSpectatorScreenShare() {
+    console.log('📺 hideSpectatorScreenShare called');
+    
     const spectatorScreenShare = document.getElementById('spectator-screen-share');
     const participantsContainer = document.getElementById('spectator-participants-container');
     
@@ -6447,6 +6844,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     console.log('📺 Hiding spectator screen share');
     spectatorScreenShare.classList.add('hidden');
+    spectatorScreenShare.style.display = 'none';
     spectatorScreenShare.srcObject = null;
     participantsContainer.style.display = 'grid';
     
@@ -6458,15 +6856,24 @@ function ensureSpectatorTracksForParticipant(participant) {
 
   function restoreSpectatorParticipantVideos() {
     console.log('🔄 Restoring spectator participant videos after screen share');
+    console.log('🔄 Current spectator slots:', {
+      slot1: spectatorParticipant1?.participantId,
+      slot2: spectatorParticipant2?.participantId
+    });
     
     // Restore participant 1 video if it exists
     const video1 = document.getElementById('spectator-participant-1');
     const placeholder1 = document.getElementById('spectator-placeholder-1');
     if (video1 && video1.srcObject) {
       video1.classList.remove('hidden');
-      placeholder1.style.display = 'none';
-      video1.play().catch(err => console.log('Video 1 play after restore:', err));
+      video1.style.display = 'block';
+      if (placeholder1) placeholder1.style.display = 'none';
+      video1.play().then(() => {
+        console.log('✅ Participant 1 video now playing');
+      }).catch(err => console.log('Video 1 play after restore:', err.message));
       console.log('✅ Restored participant 1 video');
+    } else {
+      console.log('ℹ️ No video stream for participant 1 slot');
     }
     
     // Restore participant 2 video if it exists
@@ -6474,9 +6881,14 @@ function ensureSpectatorTracksForParticipant(participant) {
     const placeholder2 = document.getElementById('spectator-placeholder-2');
     if (video2 && video2.srcObject) {
       video2.classList.remove('hidden');
-      placeholder2.style.display = 'none';
-      video2.play().catch(err => console.log('Video 2 play after restore:', err));
+      video2.style.display = 'block';
+      if (placeholder2) placeholder2.style.display = 'none';
+      video2.play().then(() => {
+        console.log('✅ Participant 2 video now playing');
+      }).catch(err => console.log('Video 2 play after restore:', err.message));
       console.log('✅ Restored participant 2 video');
+    } else {
+      console.log('ℹ️ No video stream for participant 2 slot');
     }
     
     // Update overlay based on camera status
@@ -9006,13 +9418,20 @@ function ensureSpectatorTracksForParticipant(participant) {
 
   // Enable spectator video on user interaction
   function enableSpectatorVideo() {
-    console.log("🎬 User clicked to enable spectator video");
+    console.log("🎬 enableSpectatorVideo() - User clicked to enable spectator video");
+    console.log("🌐 Browser info for spectator enable:", {
+      isSafari,
+      isIOS,
+      isMobileSafari,
+      userHasInteracted: userHasInteracted
+    });
     
-    // Mark that user has interacted
+    // Mark that user has interacted - critical for Safari
     userHasInteracted = true;
+    markUserGestureReceived();
     hydrateSpectatorTracksFromLiveKit();
     
-    // Enable audio context
+    // Enable audio context - especially important for Safari
     enableAudioContext();
     
     const clickOverlay = document.getElementById('spectator-click-overlay');
@@ -9035,10 +9454,15 @@ function ensureSpectatorTracksForParticipant(participant) {
           console.log("✅ Participant 1 video now playing");
           return true;
         }).catch(err => {
-          console.error("❌ Participant 1 video play failed:", err);
+          console.error("❌ Participant 1 video play failed:", err.message);
+          if (isSafari) {
+            console.log("🍎 Safari: Will retry video play on next interaction");
+          }
           return false;
         })
       );
+    } else {
+      console.log("ℹ️ Participant 1 video not available (no srcObject)");
     }
     
     // Play participant 2 video if available
@@ -9055,10 +9479,15 @@ function ensureSpectatorTracksForParticipant(participant) {
           console.log("✅ Participant 2 video now playing");
           return true;
         }).catch(err => {
-          console.error("❌ Participant 2 video play failed:", err);
+          console.error("❌ Participant 2 video play failed:", err.message);
+          if (isSafari) {
+            console.log("🍎 Safari: Will retry video play on next interaction");
+          }
           return false;
         })
       );
+    } else {
+      console.log("ℹ️ Participant 2 video not available (no srcObject)");
     }
     
     // Show appropriate feedback based on what's available

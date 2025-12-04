@@ -612,6 +612,13 @@
   <span class="text-xl">🚫</span>
 </button>
 
+<!-- Floating Bug Report Button (always visible for everyone) -->
+<button id="floating-bug-btn" onclick="showBugReportModal()" 
+  class="hidden fixed bottom-6 right-6 z-50 bg-charcoal hover:bg-gold text-white hover:text-charcoal p-3 rounded-full shadow-lg transition-all transform hover:scale-110 opacity-70 hover:opacity-100"
+  title="Report a bug">
+  <span class="text-xl">🐛</span>
+</button>
+
 <!-- Session Limit / Upgrade Modal -->
 <div id="upgrade-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
   <div class="bg-light-rose rounded-3xl p-8 max-w-md w-full shadow-2xl border-4 border-gold relative overflow-hidden">
@@ -1013,6 +1020,10 @@
               </div>
               <p class="font-bold text-lg text-white">Waiting for your chat partner...</p>
               <p class="text-sm text-gold mt-1">🐱 They might be as curious as a cat about this topic!</p>
+              <!-- Reload hint for participants only -->
+              <p id="video-reload-hint" class="hidden text-xs text-rose mt-3 opacity-80">
+                📺 Video not loading? Try <button onclick="location.reload()" class="underline hover:text-white">refreshing the page</button>
+              </p>
             </div>
           </div>
 
@@ -1616,6 +1627,74 @@
     <!-- Cancel Link -->
     <p class="text-center mt-3">
       <button onclick="closeReportModal()" class="text-charcoal opacity-60 hover:opacity-100 text-sm underline">Cancel</button>
+    </p>
+  </div>
+</div>
+
+<!-- ========== BUG REPORT MODAL ========== -->
+<div id="bug-report-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-light-rose rounded-3xl p-6 max-w-sm w-full shadow-2xl border-4 border-gold relative">
+    <!-- Close button -->
+    <button onclick="closeBugReportModal()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+    
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 mx-auto mb-4 bg-gold rounded-full flex items-center justify-center">
+        <span class="text-3xl">🐛</span>
+      </div>
+      <h2 class="text-xl font-bold text-charcoal mb-2">Report a Bug</h2>
+      <p class="text-charcoal opacity-70 text-sm">Help us improve ChatSpheres!</p>
+    </div>
+    
+    <!-- Bug Category -->
+    <div class="mb-4">
+      <label class="block text-charcoal text-sm font-semibold mb-2">Category</label>
+      <select 
+        id="bug-category" 
+        class="w-full px-4 py-3 rounded-xl border-2 border-rose focus:border-gold focus:outline-none bg-bg-main text-charcoal"
+      >
+        <option value="">Select a category...</option>
+        <option value="video">🎥 Video Issues</option>
+        <option value="audio">🔊 Audio Issues</option>
+        <option value="connection">🔌 Connection Problems</option>
+        <option value="chat">💬 Chat Issues</option>
+        <option value="ui">🖥️ UI/Display Problems</option>
+        <option value="performance">⚡ Performance/Slow</option>
+        <option value="other">❓ Other</option>
+      </select>
+    </div>
+    
+    <!-- Bug Description -->
+    <div class="mb-4">
+      <label class="block text-charcoal text-sm font-semibold mb-2">Description <span class="text-main-red">*</span></label>
+      <textarea 
+        id="bug-description" 
+        placeholder="Please describe what happened and what you expected to happen..."
+        maxlength="1000"
+        rows="4"
+        class="w-full px-4 py-3 rounded-xl border-2 border-rose focus:border-gold focus:outline-none bg-bg-main text-charcoal placeholder-gray-400 resize-none"
+        required
+      ></textarea>
+      <p class="text-xs text-charcoal opacity-50 mt-1">Max 1000 characters</p>
+    </div>
+    
+    <!-- Browser/Device Info (auto-filled) -->
+    <div class="mb-4 text-xs text-charcoal opacity-60 bg-rose rounded-lg p-2">
+      <p>📱 <span id="bug-device-info">Collecting device info...</span></p>
+    </div>
+    
+    <!-- Submit Button -->
+    <button id="submit-bug-btn" onclick="submitBugReport()" class="w-full bg-gold hover:bg-yellow-500 text-charcoal font-bold py-3 px-6 rounded-xl transition-all">
+      Submit Bug Report
+    </button>
+    
+    <!-- Cancel Link -->
+    <p class="text-center mt-3">
+      <button onclick="closeBugReportModal()" class="text-charcoal opacity-60 hover:opacity-100 text-sm underline">Cancel</button>
     </p>
   </div>
 </div>
@@ -4443,6 +4522,27 @@ async function initializeApp() {
       // Set up mute listener for real-time mute sync
       setupMuteListener();
       
+      // Show bug report button for everyone
+      const bugBtn = document.getElementById('floating-bug-btn');
+      if (bugBtn) {
+        bugBtn.classList.remove('hidden');
+        bugBtn.style.display = 'flex';
+      }
+      
+      // Show video reload hint for participants only (not spectators)
+      if (!isSpectator) {
+        const reloadHint = document.getElementById('video-reload-hint');
+        if (reloadHint) {
+          // Show the hint after a delay if video hasn't loaded
+          setTimeout(() => {
+            const remoteVideo = document.getElementById('remote-video');
+            // Show hint if remote video doesn't have a stream yet
+            if (!remoteVideo || !remoteVideo.srcObject) {
+              reloadHint.classList.remove('hidden');
+            }
+          }, 10000); // Show after 10 seconds if no video
+        }
+      }
       
       console.log('🎉 ======= VIDEO CHAT INITIALIZED SUCCESSFULLY =======');
 
@@ -6327,6 +6427,12 @@ async function initializeApp() {
         display: remoteVideo.style.display,
         trackId: track.id
       });
+      
+      // Hide the reload hint since video is working
+      const reloadHint = document.getElementById('video-reload-hint');
+      if (reloadHint) {
+        reloadHint.classList.add('hidden');
+      }
     } catch (error) {
       console.error('❌ Failed to set up remote video:', error);
     }
@@ -10417,6 +10523,108 @@ function ensureSpectatorTracksForParticipant(participant) {
     reportTargetUserId = null;
   }
   
+  // ========== BUG REPORT FUNCTIONS ==========
+  
+  // Show bug report modal
+  function showBugReportModal() {
+    const modal = document.getElementById('bug-report-modal');
+    const deviceInfoEl = document.getElementById('bug-device-info');
+    
+    // Collect device/browser info
+    const deviceInfo = {
+      browser: navigator.userAgent,
+      platform: navigator.platform,
+      screen: `${window.screen.width}x${window.screen.height}`,
+      viewport: `${window.innerWidth}x${window.innerHeight}`,
+      isSafari: isSafari,
+      isIOS: isIOS,
+      connection: navigator.connection ? navigator.connection.effectiveType : 'unknown'
+    };
+    
+    if (deviceInfoEl) {
+      deviceInfoEl.textContent = `${navigator.platform} | ${window.innerWidth}x${window.innerHeight} | ${isSafari ? 'Safari' : isIOS ? 'iOS' : 'Other'}`;
+    }
+    
+    // Store device info for submission
+    window.bugReportDeviceInfo = deviceInfo;
+    
+    // Clear previous inputs
+    const categoryEl = document.getElementById('bug-category');
+    const descriptionEl = document.getElementById('bug-description');
+    if (categoryEl) categoryEl.value = '';
+    if (descriptionEl) descriptionEl.value = '';
+    
+    modal.classList.remove('hidden');
+  }
+  
+  // Close bug report modal
+  function closeBugReportModal() {
+    document.getElementById('bug-report-modal').classList.add('hidden');
+    window.bugReportDeviceInfo = null;
+  }
+  
+  // Submit bug report
+  async function submitBugReport() {
+    const categoryEl = document.getElementById('bug-category');
+    const descriptionEl = document.getElementById('bug-description');
+    const submitBtn = document.getElementById('submit-bug-btn');
+    
+    const category = categoryEl?.value || 'other';
+    const description = descriptionEl?.value?.trim();
+    
+    if (!description) {
+      showToast('❌ Please describe the bug');
+      return;
+    }
+    
+    if (description.length < 10) {
+      showToast('❌ Please provide more details');
+      return;
+    }
+    
+    // Disable button during submission
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting...';
+    }
+    
+    try {
+      const response = await fetch('/.netlify/functions/submit-bug-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: window.currentUserData?.userId || 'guest',
+          userName: window.currentUserData?.userName || 'Guest',
+          userEmail: window.currentUserData?.email || null,
+          roomId: firebaseRoomId || conversationRoomId?.split('-')[0] || null,
+          category: category,
+          description: description,
+          deviceInfo: window.bugReportDeviceInfo || {},
+          url: window.location.href,
+          isSpectator: isSpectator,
+          timestamp: new Date().toISOString()
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showToast('✅ Bug report submitted! Thank you for helping us improve.');
+        closeBugReportModal();
+      } else {
+        showToast(`❌ ${data.error || 'Failed to submit bug report'}`);
+      }
+    } catch (error) {
+      console.error('Error submitting bug report:', error);
+      showToast('❌ Failed to submit bug report. Please try again.');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Bug Report';
+      }
+    }
+  }
+  
   // Block user
   async function blockUser(blockedId, blockedName) {
     if (!window.currentUserData?.userId || !blockedId) {
@@ -10450,7 +10658,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   // Toggle mute user in chat (host only)
-  // Uses Firebase for real-time sync across all clients
+  // Uses Supabase via Netlify function for persistence
   async function toggleMuteUser(userId, userName) {
     console.log('🔇 toggleMuteUser called:', { userId, userName, isHost: roomHostData.isHost });
     
@@ -10473,45 +10681,66 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
     
     try {
-      // Use Firebase for real-time mute sync across all clients
-      const muteRef = db.ref(`mutes/${roomId}/${userId}`);
+      // Use Supabase via Netlify function for mute
+      const response = await fetch('/.netlify/functions/mute-chat-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: roomId,
+          mutedUserId: userId,
+          hostId: roomHostData.hostId || window.currentUserData?.userId,
+          action: isMuted ? 'unmute' : 'mute'
+        })
+      });
       
-      if (isMuted) {
-        // Unmute - remove from Firebase
-        await muteRef.remove();
-        console.log('🔊 User unmuted in Firebase:', userId);
-        showToast(`🔊 ${userName || 'User'} unmuted`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update local state immediately
+        if (isMuted) {
+          mutedChatUserIds.delete(userId);
+          console.log('🔊 User unmuted:', userId);
+          showToast(`🔊 ${userName || 'User'} unmuted`);
+        } else {
+          mutedChatUserIds.add(userId);
+          console.log('🔇 User muted:', userId);
+          showToast(`🔇 ${userName || 'User'} muted`);
+        }
+        
+        // Refresh chat messages to reflect mute state
+        refreshChatMessages();
       } else {
-        // Mute - add to Firebase
-        await muteRef.set({
-          mutedAt: firebase.database.ServerValue.TIMESTAMP,
-          mutedBy: roomHostData.hostId || window.currentUserData?.userId,
-          userName: userName || 'User'
-        });
-        console.log('🔇 User muted in Firebase:', userId);
-        showToast(`🔇 ${userName || 'User'} muted`);
+        throw new Error(data.error || 'Failed to update mute status');
       }
-      
-      // Local update happens via Firebase listener
     } catch (error) {
       console.error('Error toggling mute:', error);
       showToast('❌ Failed to update mute status. Please try again.');
     }
   }
   
-  // Set up real-time mute listener for all clients
-  function setupMuteListener() {
+  // Load muted users from Supabase on initialization
+  async function setupMuteListener() {
     const roomId = firebaseRoomId || conversationRoomId?.split('-')[0];
     if (!roomId) return;
     
-    const mutesRef = db.ref(`mutes/${roomId}`);
-    
-    mutesRef.on('value', (snapshot) => {
-      const mutes = snapshot.val() || {};
-      mutedChatUserIds = new Set(Object.keys(mutes));
-      console.log('🔇 Mute list updated:', mutedChatUserIds.size, 'users muted');
-      refreshChatMessages();
-    });
+    try {
+      // Load initial muted users from Supabase
+      const response = await fetch(`/.netlify/functions/mute-chat-user?roomId=${roomId}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.mutedUserIds && Array.isArray(data.mutedUserIds)) {
+          mutedChatUserIds = new Set(data.mutedUserIds);
+          console.log('🔇 Loaded muted users:', mutedChatUserIds.size);
+          refreshChatMessages();
+        }
+      }
+    } catch (error) {
+      console.log('ℹ️ Could not load muted users:', error.message);
+    }
     
     console.log('✅ Mute listener set up for room:', roomId);
   }
@@ -10826,6 +11055,11 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.closeReportModal = closeReportModal;
   window.blockUser = blockUser;
   window.toggleMuteUser = toggleMuteUser;
+  
+  // Bug report functions
+  window.showBugReportModal = showBugReportModal;
+  window.closeBugReportModal = closeBugReportModal;
+  window.submitBugReport = submitBugReport;
   
   // Spectator management functions
   window.showSpectatorManagementModal = showSpectatorManagementModal;

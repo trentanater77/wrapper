@@ -994,8 +994,8 @@
       <div class="lg:col-span-3 space-y-4">
         <!-- Remote Video -->
         <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
-          <video id="remote-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
-          <video id="screen-share-video" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+          <video id="remote-video" class="w-full h-full object-cover hidden" autoplay playsinline webkit-playsinline></video>
+          <video id="screen-share-video" class="w-full h-full object-cover hidden" autoplay playsinline webkit-playsinline></video>
           
           <!-- Fullscreen Button -->
           <button class="fullscreen-btn" onclick="toggleFullscreen('remote-video')" title="Expand video">
@@ -3669,6 +3669,80 @@
       registerLiveKitEventHandlers();
       console.log('✅ LiveKit event handlers registered');
       
+      // CRITICAL: Process existing remote participants immediately after connection
+      // This catches participants who joined before us and already have published tracks
+      if (!isSpectator && livekitRoom) {
+        console.log('🔍 Checking for existing remote participants immediately...');
+        const existingRemoteCount = livekitRoom.remoteParticipants.size;
+        console.log(`👥 Found ${existingRemoteCount} existing remote participants`);
+        
+        if (existingRemoteCount > 0) {
+          // Process each existing participant
+          for (const [sid, participant] of livekitRoom.remoteParticipants) {
+            console.log(`👤 Processing existing participant: ${participant.identity} (${sid.substring(0, 12)})`);
+            
+            // Check for video tracks
+            for (const pub of participant.videoTrackPublications.values()) {
+              // Skip screen share tracks
+              if (pub.source?.includes('screen')) continue;
+              
+              console.log(`📹 Video publication for ${participant.identity}:`, {
+                source: pub.source,
+                hasTrack: !!pub.track,
+                isSubscribed: pub.isSubscribed,
+                subscriptionStatus: pub.subscriptionStatus
+              });
+              
+              // If track exists and is subscribed
+              if (pub.track) {
+                console.log(`🎥 Found existing video track for ${participant.identity}`);
+                const track = pub.track.mediaStreamTrack || pub.track;
+                if (track?.readyState === 'live') {
+                  setupRemoteVideo(track);
+                  updateRemoteInfo(participant.identity || 'Guest');
+                  hideWaitingOverlay();
+                  
+                  // Track this as the other participant
+                  const participantData = normalizeLiveKitParticipant(participant, { local: false });
+                  const remoteUserId = getParticipantUserId(participantData);
+                  if (remoteUserId) {
+                    updateOtherParticipant(remoteUserId, participant.identity);
+                  }
+                  break;
+                }
+              } else if (pub.isSubscribed === false && typeof pub.setSubscribed === 'function') {
+                // Track exists but not subscribed - subscribe to it
+                console.log(`📡 Subscribing to video track for ${participant.identity}`);
+                try {
+                  pub.setSubscribed(true);
+                } catch (e) {
+                  console.log('⚠️ Could not subscribe:', e.message);
+                }
+              }
+            }
+            
+            // Check for audio tracks
+            for (const pub of participant.audioTrackPublications.values()) {
+              if (pub.track) {
+                console.log(`🔊 Found existing audio track for ${participant.identity}`);
+                const track = pub.track.mediaStreamTrack || pub.track;
+                if (track) {
+                  setupRemoteAudio(track);
+                }
+                break;
+              } else if (pub.isSubscribed === false && typeof pub.setSubscribed === 'function') {
+                console.log(`📡 Subscribing to audio track for ${participant.identity}`);
+                try {
+                  pub.setSubscribed(true);
+                } catch (e) {
+                  console.log('⚠️ Could not subscribe to audio:', e.message);
+                }
+              }
+            }
+          }
+        }
+      }
+      
       if (isSpectator) {
         console.log('👀 Spectator mode: hydrating tracks after delay');
         hydrateSpectatorTracksFromLiveKit(500);
@@ -4026,6 +4100,9 @@
       cleanupExecuted = true;
       console.log(`🧹 Executing comprehensive cleanup - Reason: ${reason}`);
       console.log(`⏱️ Minutes used this session: ${latestSessionMinutesUsed}`);
+      
+      // Stop the video recovery watcher
+      stopVideoRecoveryWatcher();
       
       // End conversation session (most important!)
       await endConversationSession(reason);
@@ -5255,7 +5332,16 @@ async function initializeApp() {
           console.error('❌ Failed to ensure Supabase session on join:', error);
         }
         
-        setTimeout(setupExistingParticipantsForParticipant, 1000);
+        // Set up existing participants with multiple attempts for reliability
+        setupExistingParticipantsForParticipant(0);
+        
+        // Retry multiple times with increasing delays to catch late tracks
+        setTimeout(() => setupExistingParticipantsForParticipant(1), 1000);
+        setTimeout(() => setupExistingParticipantsForParticipant(2), 3000);
+        setTimeout(() => setupExistingParticipantsForParticipant(3), 6000);
+        
+        // Start the video recovery watcher
+        startVideoRecoveryWatcher();
       } else {
         setTimeout(() => {
           setupExistingParticipants();
@@ -5347,18 +5433,40 @@ async function initializeApp() {
         updateRemoteInfo(participantDisplayName);
         
         // Check if participant has video track and set it up
+        // Try multiple methods to find the track
+        let videoTrack = null;
+        
         if (event.participant.tracks) {
-          const videoTrack = event.participant.tracks.video?.persistentTrack || 
-                            event.participant.tracks.camera?.persistentTrack;
-          if (videoTrack) {
-            console.log('🎥 Found video track on join, setting up...');
-            setupRemoteVideo(videoTrack);
-          } else {
-            console.log('📷 No video track found on join, showing placeholder');
-            updateRemotePlaceholderForCameraOff(event.participant);
+          videoTrack = event.participant.tracks.video?.persistentTrack || 
+                       event.participant.tracks.camera?.persistentTrack;
+        }
+        
+        // Also try getting from LiveKit directly (more reliable)
+        if (!videoTrack && livekitRoom) {
+          const lkParticipant = livekitRoom.remoteParticipants.get(event.participant.session_id);
+          if (lkParticipant) {
+            const cameraPub = lkParticipant.getTrackPublication('camera');
+            const videoPub = cameraPub || Array.from(lkParticipant.videoTrackPublications.values())[0];
+            if (videoPub?.track?.mediaStreamTrack) {
+              videoTrack = videoPub.track.mediaStreamTrack;
+            } else if (videoPub?.track) {
+              videoTrack = videoPub.track;
+            }
           }
-        } else if (!participantHasActiveCamera(event.participant)) {
+        }
+        
+        if (videoTrack && videoTrack.readyState === 'live') {
+          console.log('🎥 Found video track on join, setting up...');
+          setupRemoteVideo(videoTrack);
+        } else {
+          console.log('📷 No video track found on join, showing placeholder and scheduling retries');
           updateRemotePlaceholderForCameraOff(event.participant);
+          
+          // Schedule retries to catch tracks that arrive late
+          const participantId = event.participant.session_id;
+          setTimeout(() => retrySetupRemoteVideoForParticipant(participantId, 1), 500);
+          setTimeout(() => retrySetupRemoteVideoForParticipant(participantId, 2), 1500);
+          setTimeout(() => retrySetupRemoteVideoForParticipant(participantId, 3), 3000);
         }
         
         showToast(`👋 ${participantDisplayName} joined the call!`);
@@ -6435,6 +6543,90 @@ async function initializeApp() {
       }
     } catch (error) {
       console.error('❌ Failed to set up remote video:', error);
+    }
+  }
+
+  // Retry setting up remote video for a specific participant
+  function retrySetupRemoteVideoForParticipant(participantId, attemptNum) {
+    // Check if video is already working
+    const remoteVideoEl = document.getElementById('remote-video');
+    if (remoteVideoEl && remoteVideoEl.srcObject && remoteVideoEl.style.display === 'block') {
+      console.log(`✅ Remote video already working, skipping retry ${attemptNum}`);
+      return;
+    }
+    
+    console.log(`🔄 Retry ${attemptNum}: looking for video track for participant ${participantId?.substring(0, 12)}`);
+    
+    if (!livekitRoom) {
+      console.log('⚠️ LiveKit room not available for retry');
+      return;
+    }
+    
+    const lkParticipant = livekitRoom.remoteParticipants.get(participantId);
+    if (!lkParticipant) {
+      console.log('⚠️ Participant not found in LiveKit room');
+      return;
+    }
+    
+    // Try to find video track
+    let videoTrack = null;
+    
+    // Method 1: Get camera publication
+    const cameraPub = lkParticipant.getTrackPublication('camera');
+    if (cameraPub) {
+      // Try to subscribe if not subscribed
+      if (cameraPub.isSubscribed === false && typeof cameraPub.setSubscribed === 'function') {
+        console.log(`📡 Retry ${attemptNum}: subscribing to camera track`);
+        try {
+          cameraPub.setSubscribed(true);
+        } catch (e) {
+          console.log('⚠️ Could not subscribe:', e.message);
+        }
+      }
+      
+      if (cameraPub.track?.mediaStreamTrack?.readyState === 'live') {
+        videoTrack = cameraPub.track.mediaStreamTrack;
+        console.log('🎥 Retry: found track via camera publication');
+      } else if (cameraPub.track?.readyState === 'live') {
+        videoTrack = cameraPub.track;
+        console.log('🎥 Retry: found track via camera publication (direct)');
+      }
+    }
+    
+    // Method 2: Search all video publications
+    if (!videoTrack) {
+      for (const pub of lkParticipant.videoTrackPublications.values()) {
+        if (pub.source === 'camera' || !pub.source?.includes('screen')) {
+          // Try to subscribe if not subscribed
+          if (pub.isSubscribed === false && typeof pub.setSubscribed === 'function') {
+            console.log(`📡 Retry ${attemptNum}: subscribing to video track`);
+            try {
+              pub.setSubscribed(true);
+            } catch (e) {
+              console.log('⚠️ Could not subscribe:', e.message);
+            }
+          }
+          
+          if (pub.track?.mediaStreamTrack?.readyState === 'live') {
+            videoTrack = pub.track.mediaStreamTrack;
+            console.log('🎥 Retry: found track via video publications');
+            break;
+          } else if (pub.track?.readyState === 'live') {
+            videoTrack = pub.track;
+            console.log('🎥 Retry: found track via video publications (direct)');
+            break;
+          }
+        }
+      }
+    }
+    
+    if (videoTrack) {
+      console.log(`✅ Retry ${attemptNum}: found video track, setting up...`);
+      setupRemoteVideo(videoTrack);
+      updateRemoteInfo(lkParticipant.identity || 'Guest');
+      hideWaitingOverlay();
+    } else {
+      console.log(`⚠️ Retry ${attemptNum}: no video track found yet`);
     }
   }
 
@@ -9745,10 +9937,22 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
 
   // Set up existing participants for participants who join late or refresh
-  function setupExistingParticipantsForParticipant() {
+  function setupExistingParticipantsForParticipant(attemptNum = 0) {
     if (isSpectator) return;
     
-    console.log('🔄 Setting up existing participants for participant refresh');
+    // Check if remote video is already working
+    const remoteVideoEl = document.getElementById('remote-video');
+    const hasWorkingVideo = remoteVideoEl && 
+                           remoteVideoEl.srcObject && 
+                           remoteVideoEl.style.display === 'block' &&
+                           !remoteVideoEl.paused;
+    
+    if (hasWorkingVideo && attemptNum > 0) {
+      console.log('✅ Remote video already working, skipping setup attempt', attemptNum);
+      return;
+    }
+    
+    console.log(`🔄 Setting up existing participants (attempt ${attemptNum + 1})...`);
     
     const participants = getParticipantsSnapshot();
     
@@ -9874,6 +10078,127 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
     
     console.log('✅ Participant refresh setup complete');
+  }
+
+  // Video recovery watcher - periodically checks and fixes video connection issues
+  let videoRecoveryInterval = null;
+  
+  function startVideoRecoveryWatcher() {
+    if (isSpectator) return;
+    if (videoRecoveryInterval) {
+      clearInterval(videoRecoveryInterval);
+    }
+    
+    let checkCount = 0;
+    const maxChecks = 30; // Check for up to 5 minutes (every 10 seconds)
+    
+    videoRecoveryInterval = setInterval(() => {
+      checkCount++;
+      
+      // Stop checking after max attempts
+      if (checkCount > maxChecks) {
+        console.log('⏹️ Video recovery watcher stopped (max checks reached)');
+        clearInterval(videoRecoveryInterval);
+        videoRecoveryInterval = null;
+        return;
+      }
+      
+      const remoteVideoEl = document.getElementById('remote-video');
+      const placeholder = document.getElementById('remote-placeholder');
+      
+      // Check if video is playing correctly
+      const hasVideoStream = remoteVideoEl && remoteVideoEl.srcObject;
+      const isVideoVisible = remoteVideoEl && remoteVideoEl.style.display === 'block';
+      const isVideoPlaying = remoteVideoEl && !remoteVideoEl.paused && remoteVideoEl.readyState >= 2;
+      
+      // Check if there are remote participants we should be seeing
+      const participants = getParticipantsSnapshot();
+      const localUserName = userName || window.currentUserData?.username;
+      const localSid = livekitRoom?.localParticipant?.sid;
+      
+      const remoteParticipants = Object.entries(participants).filter(([id, p]) => {
+        if (id === 'local' || p.local === true) return false;
+        if (p.session_id === localSid) return false;
+        if (localUserName && p.user_name === localUserName) return false;
+        if (getParticipantRole(p) === 'spectator') return false;
+        return true;
+      });
+      
+      if (remoteParticipants.length === 0) {
+        // No remote participants, nothing to recover
+        return;
+      }
+      
+      // If we have remote participants but no video showing, attempt recovery
+      if (!hasVideoStream || !isVideoVisible) {
+        console.log('🔧 Video recovery: attempting to fix missing remote video...');
+        
+        // Try to find and attach the video track
+        for (const [pid, participant] of remoteParticipants) {
+          let videoTrack = null;
+          
+          // Try multiple methods to find the track
+          if (participant.tracks?.video?.persistentTrack?.readyState === 'live') {
+            videoTrack = participant.tracks.video.persistentTrack;
+          } else if (participant.tracks?.camera?.persistentTrack?.readyState === 'live') {
+            videoTrack = participant.tracks.camera.persistentTrack;
+          } else if (livekitRoom) {
+            // Try LiveKit directly
+            const lkParticipant = livekitRoom.remoteParticipants.get(pid);
+            if (lkParticipant) {
+              const cameraPub = lkParticipant.getTrackPublication('camera');
+              const videoPub = Array.from(lkParticipant.videoTrackPublications.values())
+                .find(pub => pub.track && !pub.source?.includes('screen'));
+              
+              const pub = cameraPub || videoPub;
+              if (pub?.track?.mediaStreamTrack?.readyState === 'live') {
+                videoTrack = pub.track.mediaStreamTrack;
+              } else if (pub?.track?.readyState === 'live') {
+                videoTrack = pub.track;
+              }
+            }
+          }
+          
+          if (videoTrack) {
+            console.log('🔧 Video recovery: found track, setting up remote video');
+            setupRemoteVideo(videoTrack);
+            updateRemoteInfo(participant.user_name || 'Guest');
+            hideWaitingOverlay();
+            
+            // Force visibility
+            if (remoteVideoEl) {
+              remoteVideoEl.classList.remove('hidden');
+              remoteVideoEl.style.display = 'block';
+              remoteVideoEl.style.visibility = 'visible';
+              if (placeholder) {
+                placeholder.style.display = 'none';
+              }
+            }
+            
+            console.log('✅ Video recovery: remote video restored');
+            break;
+          }
+        }
+      } else if (hasVideoStream && isVideoVisible && !isVideoPlaying) {
+        // Video stream exists but not playing - try to play it
+        console.log('🔧 Video recovery: video exists but not playing, attempting play...');
+        remoteVideoEl.play().then(() => {
+          console.log('✅ Video recovery: video now playing');
+        }).catch(e => {
+          console.log('⚠️ Video recovery: play failed:', e.message);
+        });
+      }
+    }, 10000); // Check every 10 seconds
+    
+    console.log('🔄 Video recovery watcher started');
+  }
+  
+  function stopVideoRecoveryWatcher() {
+    if (videoRecoveryInterval) {
+      clearInterval(videoRecoveryInterval);
+      videoRecoveryInterval = null;
+      console.log('⏹️ Video recovery watcher stopped');
+    }
   }
 
   // Set up existing participants for spectators who join late or refresh

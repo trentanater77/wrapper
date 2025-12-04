@@ -3945,8 +3945,31 @@
 
 // Main initialization function
 async function initializeApp() {
+  // Check for referral code FIRST (before any redirects)
+  const urlParamsInit = new URLSearchParams(window.location.search);
+  const refCode = urlParamsInit.get('ref');
+  if (refCode) {
+    // Store referral code in sessionStorage so it persists across page navigations
+    try {
+      sessionStorage.setItem('chatspheres_referral_code', refCode);
+      console.log('📎 Referral code saved:', refCode);
+      
+      // Also try to track the click
+      fetch('/.netlify/functions/track-referral', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'click', referralCode: refCode })
+      }).catch(err => console.log('Referral click tracking:', err.message));
+    } catch (e) {
+      console.log('Could not save referral code:', e);
+    }
+  }
+
   // Check if valid room URL
   if (!roomUrl) {
+    // Build matchmaking link - preserve referral code if present
+    const matchmakingUrl = refCode ? `/matchmaking.html?ref=${encodeURIComponent(refCode)}` : '/matchmaking.html';
+    
     document.body.innerHTML = `
       <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:linear-gradient(135deg,#F8F9FA 0%,#FCE2E5 100%);padding:2rem;font-family:'Nunito',sans-serif;">
         <div style="background:white;padding:2rem;border-radius:24px;box-shadow:0 8px 32px rgba(230,57,70,0.15);border:3px solid #FFB6B9;text-align:center;max-width:400px;">
@@ -3958,13 +3981,20 @@ async function initializeApp() {
               <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
             </svg>
           </div>
+          ${refCode ? `
+          <div style="font-size:2rem;margin:1rem 0;">🎁</div>
+          <h1 style="color:#e63946;font-weight:700;margin-bottom:0.5rem;font-size:1.3rem;">Welcome to ChatSpheres!</h1>
+          <p style="color:#22223B;margin-bottom:0.5rem;">You were invited by a friend!</p>
+          <p style="color:#22223B;opacity:0.7;font-size:0.9rem;margin-bottom:1.5rem;">Sign up and both of you get <strong>💎 500 Gems</strong></p>
+          ` : `
           <div style="font-size:2rem;margin:1rem 0;">😿</div>
-          <h1 style="color:#e63946;font-weight:700;margin-bottom:0.5rem;font-size:1.3rem;">no sphere url provided</h1>
-          <p style="color:#22223B;margin-bottom:1.5rem;">please create a sphere first to start chatting</p>
+          <h1 style="color:#e63946;font-weight:700;margin-bottom:0.5rem;font-size:1.3rem;">No Sphere URL Provided</h1>
+          <p style="color:#22223B;margin-bottom:1.5rem;">Please create a sphere first to start chatting</p>
+          `}
           
           <div style="border-top:2px solid #FFB6B9;padding-top:1.5rem;margin-top:1rem;">
-            <p style="color:#22223B;font-weight:600;margin-bottom:1rem;">Or find a random match!</p>
-            <a href="/matchmaking.html" style="display:inline-block;background:#FFD166;color:#22223B;padding:0.75rem 2rem;border-radius:999px;font-weight:700;text-decoration:none;transition:all 0.2s;box-shadow:0 4px 15px rgba(255,209,102,0.4);" onmouseover="this.style.background='#e63946';this.style.color='white';" onmouseout="this.style.background='#FFD166';this.style.color='#22223B';">
+            <p style="color:#22223B;font-weight:600;margin-bottom:1rem;">${refCode ? 'Start chatting now!' : 'Or find a random match!'}</p>
+            <a href="${matchmakingUrl}" style="display:inline-block;background:#FFD166;color:#22223B;padding:0.75rem 2rem;border-radius:999px;font-weight:700;text-decoration:none;transition:all 0.2s;box-shadow:0 4px 15px rgba(255,209,102,0.4);" onmouseover="this.style.background='#e63946';this.style.color='white';" onmouseout="this.style.background='#FFD166';this.style.color='#22223B';">
               🔍 Find My Match
             </a>
           </div>

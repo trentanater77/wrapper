@@ -10787,11 +10787,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Refresh the list to update button states
     loadSpectatorList();
   }
-      
-      // 1. Remove from Firebase presence
-      if (presenceKey && firebaseRoomId) {
-        try {
-          await db.ref(`presence/${firebaseRoomId}/${presenceKey}`).remove();
+  
   // Show/hide the manage spectators button based on host status
   function updateSpectatorManagementButton() {
     const btn = document.getElementById('floating-spectator-btn');

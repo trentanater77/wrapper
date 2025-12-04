@@ -5398,13 +5398,32 @@ async function initializeApp() {
             updateRemoteInfo(participantName);
             hideWaitingOverlay();
             
-            // Hide the camera-off placeholder and show video
+            // CRITICAL: Force the video element to be visible
             const remoteVideoEl = document.getElementById('remote-video');
             const placeholder = document.getElementById('remote-placeholder');
             if (remoteVideoEl && placeholder) {
+              // Remove hidden class and force display
+              remoteVideoEl.classList.remove('hidden');
               remoteVideoEl.style.display = 'block';
+              remoteVideoEl.style.visibility = 'visible';
+              remoteVideoEl.style.opacity = '1';
+              
               placeholder.style.display = 'none';
-              console.log('✅ Remote video element visible, placeholder hidden');
+              placeholder.classList.add('hidden');
+              
+              console.log('✅ Remote video element forced visible:', {
+                hidden: remoteVideoEl.classList.contains('hidden'),
+                display: remoteVideoEl.style.display,
+                hasSrcObject: !!remoteVideoEl.srcObject,
+                paused: remoteVideoEl.paused
+              });
+              
+              // Try to play immediately
+              if (remoteVideoEl.srcObject && remoteVideoEl.paused) {
+                remoteVideoEl.play().then(() => {
+                  console.log('✅ Remote video playing from handleTrackStarted');
+                }).catch(e => console.log('Play in handleTrackStarted:', e.message));
+              }
             }
           }
         }
@@ -6166,19 +6185,49 @@ async function initializeApp() {
     try {
       remoteVideo.srcObject = new MediaStream([track]);
       remoteVideo.style.display = 'block';
+      remoteVideo.classList.remove('hidden');
       placeholder.style.display = 'none';
+      placeholder.classList.add('hidden');
       
-      // Safari-specific: force play attempt
-      if (isSafari) {
-        console.log('🍎 Safari: Attempting to play remote video...');
-        remoteVideo.play().then(() => {
-          console.log('✅ Safari: Remote video playing successfully');
-        }).catch(err => {
-          console.warn('⚠️ Safari: Remote video play failed (user may need to interact):', err.message);
-          // Show a hint to the user
-          showToast('👆 Tap screen to start video');
-        });
-      }
+      // CRITICAL: Always attempt to play the video - all browsers need this
+      console.log('▶️ Attempting to play remote video...');
+      remoteVideo.play().then(() => {
+        console.log('✅ Remote video now playing!');
+      }).catch(err => {
+        console.warn('⚠️ Remote video autoplay blocked:', err.message);
+        // Set up click handler to play on user interaction
+        const playOnInteraction = () => {
+          if (remoteVideo && remoteVideo.srcObject) {
+            remoteVideo.play().then(() => {
+              console.log('✅ Remote video playing after user interaction');
+            }).catch(e => console.log('Play retry failed:', e.message));
+          }
+          document.removeEventListener('click', playOnInteraction);
+          document.removeEventListener('touchstart', playOnInteraction);
+        };
+        document.addEventListener('click', playOnInteraction, { once: true });
+        document.addEventListener('touchstart', playOnInteraction, { once: true });
+        showToast('👆 Click/tap to start video');
+      });
+      
+      // Double-check visibility after a short delay
+      setTimeout(() => {
+        if (remoteVideo && remoteVideo.srcObject) {
+          console.log('📹 Video status check:', {
+            paused: remoteVideo.paused,
+            readyState: remoteVideo.readyState,
+            videoWidth: remoteVideo.videoWidth,
+            videoHeight: remoteVideo.videoHeight,
+            currentTime: remoteVideo.currentTime
+          });
+          
+          // If video has dimensions but is paused, try playing again
+          if (remoteVideo.paused && remoteVideo.readyState >= 2) {
+            console.log('📹 Video ready but paused, attempting play...');
+            remoteVideo.play().catch(e => console.log('Delayed play attempt:', e.message));
+          }
+        }
+      }, 1000);
       
       console.log('✅ Remote video set up successfully', {
         srcObjectSet: !!remoteVideo.srcObject,
@@ -9494,6 +9543,25 @@ function ensureSpectatorTracksForParticipant(participant) {
         setupRemoteVideo(participant.tracks.video.persistentTrack);
         updateRemoteInfo(participant.user_name || 'Guest');
         hideWaitingOverlay();
+        
+        // CRITICAL: Force video visibility after setup
+        const remoteVideoEl = document.getElementById('remote-video');
+        const placeholder = document.getElementById('remote-placeholder');
+        if (remoteVideoEl) {
+          remoteVideoEl.classList.remove('hidden');
+          remoteVideoEl.style.display = 'block';
+          remoteVideoEl.style.visibility = 'visible';
+          if (placeholder) {
+            placeholder.style.display = 'none';
+            placeholder.classList.add('hidden');
+          }
+          // Force play
+          if (remoteVideoEl.srcObject && remoteVideoEl.paused) {
+            remoteVideoEl.play().then(() => {
+              console.log('✅ Existing participant video now playing');
+            }).catch(e => console.log('Play existing:', e.message));
+          }
+        }
       } else {
         console.log('📷 Remote participant has no video track, showing placeholder');
         updateRemotePlaceholderForCameraOff(participant);

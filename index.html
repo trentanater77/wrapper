@@ -2548,6 +2548,49 @@
 
     // Referral code tracking is now handled by /assets/js/referral.js
     // which uses cross-domain cookies for better tracking across subdomains
+    
+    // Track referral activation when user completes first 2-minute conversation
+    async function activateReferralIfEligible(minutesUsed) {
+      const userId = window.currentUserData?.userId;
+      if (!userId || isSpectator || minutesUsed < 2) {
+        console.log('📎 Referral activation skipped:', { userId, isSpectator, minutesUsed });
+        return;
+      }
+      
+      // Check if this user has already had referral activated (stored in localStorage)
+      const activatedKey = `referral_activated_${userId}`;
+      if (localStorage.getItem(activatedKey)) {
+        console.log('📎 Referral already activated for this user');
+        return;
+      }
+      
+      try {
+        console.log('📎 Attempting to activate referral for user:', userId);
+        const response = await fetch('/.netlify/functions/track-referral', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'activate',
+            referredUserId: userId
+          })
+        });
+        
+        const result = await response.json();
+        console.log('📎 Referral activation result:', result);
+        
+        if (result.success) {
+          // Mark as activated so we don't try again
+          localStorage.setItem(activatedKey, 'true');
+          
+          // Show a toast notification about the bonus!
+          if (result.referredGems) {
+            showToast(`🎉 Referral bonus! You earned ${result.referredGems} gems!`);
+          }
+        }
+      } catch (error) {
+        console.log('📎 Referral activation error (may not have referral):', error.message);
+      }
+    }
 
     // LiveKit runtime configuration
     const livekitRuntimeConfig = runtimeConfig;
@@ -4098,6 +4141,11 @@
       console.log(`🧹 Executing comprehensive cleanup - Reason: ${reason}`);
       console.log(`⏱️ Minutes used this session: ${latestSessionMinutesUsed}`);
       
+      // Activate referral bonus if user chatted for 2+ minutes (check before resetting!)
+      if (latestSessionMinutesUsed >= 2) {
+        activateReferralIfEligible(latestSessionMinutesUsed);
+      }
+      
       // Stop the video recovery watcher
       stopVideoRecoveryWatcher();
       
@@ -4194,6 +4242,11 @@
             p_minutes_used: actualMinutesUsed
           });
           console.log(`🚪 Ending session with ${actualMinutesUsed} minutes used`);
+          
+          // Activate referral bonus if user chatted for 2+ minutes
+          if (actualMinutesUsed >= 2) {
+            activateReferralIfEligible(actualMinutesUsed);
+          }
 
           try {
             const sent = navigator.sendBeacon(

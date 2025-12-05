@@ -42,12 +42,20 @@ body.ads-hidden .ad-container {
 
 /* Sidebar Ad */
 .chatspheres-ad-sidebar {
-  padding: var(--space-sm);
+  padding: var(--space-sm, 0.5rem);
   min-height: 250px;
-  max-width: 300px;
-  background: var(--light-rose);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--rose);
+  max-width: 100%;
+  background: var(--light-rose, #FCE2E5);
+  border-radius: var(--radius-lg, 1rem);
+  border: 1px solid var(--rose, #F8B4C0);
+}
+
+/* Video chat page sidebar ads */
+#sidebar-ad,
+#spectator-sidebar-ad {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
 }
 
 /* Inline Ad - Between content */

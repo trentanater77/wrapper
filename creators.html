@@ -446,24 +446,61 @@
   </style>
 </head>
 <body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
   <!-- Header -->
   <header class="site-header" style="background: rgba(34, 34, 59, 0.95); border-bottom: 2px solid rgba(255, 182, 185, 0.3);">
     <div class="header-container">
       <a href="/explore.html" class="site-logo">
-        <svg viewBox="0 0 64 64" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
           <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         </svg>
         <span class="site-logo-text" style="color: #FCE2E5;">ChatSpheres</span>
       </a>
       
-      <div style="display: flex; gap: 1rem; align-items: center;">
-        <a href="/explore.html" style="color: #FFB6B9; text-decoration: none; font-weight: 600;">Home</a>
-        <a href="/pricing.html" style="color: #FFB6B9; text-decoration: none; font-weight: 600;">Pricing</a>
-        <a href="/pricing.html" class="btn btn-primary">Get Host Pro</a>
+      <div class="header-actions">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
       </div>
     </div>
   </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <ul class="nav-links">
+      <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/features.html" class="nav-link"><span class="nav-link-icon">✨</span> Features</a></li>
+      <li><a href="/creators.html" class="nav-link active"><span class="nav-link-icon">🎙️</span> For Creators</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="https://www.chatspheres.com" class="nav-link" target="_blank"><span class="nav-link-icon">🌐</span> Explore</a></li>
+      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <div class="nav-user-section">
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign Up Free</a>
+    </div>
+  </nav>
   
   <!-- Hero -->
   <section class="creator-hero">
@@ -629,8 +666,9 @@
   <footer class="site-footer">
     <div class="footer-links">
       <a href="/explore.html">Home</a>
-      <a href="/features.html">Features</a>
+      <a href="/about.html">About</a>
       <a href="/pricing.html">Pricing</a>
+      <a href="https://www.chatspheres.com" target="_blank">Explore</a>
       <a href="/affiliate.html">Affiliate</a>
       <a href="/creator-agreement.html">Creator Agreement</a>
       <a href="/contact.html">Contact</a>
@@ -639,6 +677,7 @@
   </footer>
   
   <!-- Scripts -->
+  <script src="/assets/js/navigation.js"></script>
   <script src="/assets/js/referral.js"></script>
   <script src="/assets/js/ads.js"></script>
 </body>

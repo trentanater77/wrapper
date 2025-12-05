@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About ChatSpheres | Meaningful Video Conversations</title>
+  <meta name="description" content="Learn about ChatSpheres - the platform for meaningful 1-on-1 video conversations on topics you care about.">
+  
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  <link rel="stylesheet" href="/assets/css/ads.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .about-hero {
+      padding: 6rem 2rem 4rem;
+      text-align: center;
+      background: linear-gradient(135deg, #FCE2E5 0%, #FFB6B9 100%);
+    }
+    
+    .about-hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+      color: #22223B;
+    }
+    
+    .about-hero p {
+      font-size: 1.25rem;
+      max-width: 600px;
+      margin: 0 auto;
+      opacity: 0.8;
+    }
+    
+    .about-section {
+      padding: 4rem 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .about-section h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      color: #22223B;
+    }
+    
+    .about-section p {
+      font-size: 1.1rem;
+      line-height: 1.8;
+      margin-bottom: 1.5rem;
+      color: #22223B;
+    }
+    
+    .mission-box {
+      background: #FCE2E5;
+      border: 3px solid #FFB6B9;
+      border-radius: 24px;
+      padding: 2rem;
+      margin: 2rem 0;
+      text-align: center;
+    }
+    
+    .mission-box h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: #e63946;
+    }
+    
+    .mission-box p {
+      font-size: 1.1rem;
+      margin: 0;
+      font-style: italic;
+    }
+    
+    .values-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin: 2rem 0;
+    }
+    
+    .value-card {
+      background: #FCE2E5;
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 2px solid #FFB6B9;
+    }
+    
+    .value-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .value-card h4 {
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    
+    .value-card p {
+      font-size: 0.95rem;
+      margin: 0;
+      opacity: 0.8;
+    }
+    
+    .how-different {
+      background: #22223B;
+      color: #FCE2E5;
+      padding: 4rem 2rem;
+      margin: 2rem 0;
+    }
+    
+    .how-different .section-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .how-different h2 {
+      color: #FCE2E5;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .difference-list {
+      list-style: none;
+    }
+    
+    .difference-list li {
+      padding: 1rem 0;
+      border-bottom: 1px solid rgba(255, 182, 185, 0.2);
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    
+    .difference-list li:last-child {
+      border-bottom: none;
+    }
+    
+    .difference-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+    
+    .difference-text h4 {
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+      color: #FFD166;
+    }
+    
+    .difference-text p {
+      margin: 0;
+      opacity: 0.8;
+      font-size: 0.95rem;
+    }
+    
+    .cta-section {
+      text-align: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(135deg, #e63946 0%, #FFB6B9 100%);
+      color: white;
+    }
+    
+    .cta-section h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    
+    .cta-section p {
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+      opacity: 0.9;
+    }
+    
+    .cta-btn {
+      display: inline-block;
+      background: white;
+      color: #e63946;
+      padding: 1rem 2.5rem;
+      border-radius: 999px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    
+    .cta-btn:hover {
+      background: #22223B;
+      color: white;
+      transform: translateY(-2px);
+    }
+    
+    .site-footer {
+      background: #22223B;
+      color: #FCE2E5;
+      padding: 3rem 2rem 2rem;
+      text-align: center;
+    }
+    
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    
+    .footer-links a {
+      color: #FFB6B9;
+      text-decoration: none;
+    }
+    
+    .footer-links a:hover {
+      color: #FFD166;
+    }
+    
+    @media (max-width: 768px) {
+      .about-hero h1 {
+        font-size: 1.75rem;
+      }
+      
+      .about-section h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <ul class="nav-links">
+      <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/features.html" class="nav-link"><span class="nav-link-icon">✨</span> Features</a></li>
+      <li><a href="/creators.html" class="nav-link"><span class="nav-link-icon">🎙️</span> For Creators</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link active"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="https://www.chatspheres.com" class="nav-link" target="_blank"><span class="nav-link-icon">🌐</span> Explore</a></li>
+      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <div class="nav-user-section">
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign Up Free</a>
+    </div>
+  </nav>
+  
+  <!-- Hero -->
+  <section class="about-hero">
+    <h1>About ChatSpheres</h1>
+    <p>We're building a place where meaningful conversations happen naturally, on topics that matter to you.</p>
+  </section>
+  
+  <!-- Mission -->
+  <section class="about-section">
+    <h2>Why We Built This</h2>
+    <p>
+      The internet is full of noise. Social media feeds endless content, but real connection? That's rare. 
+      We wanted something different—a place where you could actually talk to someone about the things on your mind.
+    </p>
+    <p>
+      ChatSpheres matches you with real people who want to discuss the same topics you do. 
+      No swiping. No algorithms optimizing for engagement. Just two people, one topic, and a real conversation.
+    </p>
+    
+    <div class="mission-box">
+      <h3>Our Mission</h3>
+      <p>"Make meaningful conversations accessible to everyone, everywhere."</p>
+    </div>
+  </section>
+  
+  <!-- How We're Different -->
+  <section class="how-different">
+    <div class="section-container">
+      <h2>How We're Different</h2>
+      <ul class="difference-list">
+        <li>
+          <span class="difference-icon">🎯</span>
+          <div class="difference-text">
+            <h4>Topic-First Matching</h4>
+            <p>Tell us what you want to talk about. We find someone interested in the same thing. No random connections.</p>
+          </div>
+        </li>
+        <li>
+          <span class="difference-icon">💡</span>
+          <div class="difference-text">
+            <h4>Conversation Sparks</h4>
+            <p>AI-generated prompts keep the conversation flowing. Great for introverts or when you need inspiration.</p>
+          </div>
+        </li>
+        <li>
+          <span class="difference-icon">👀</span>
+          <div class="difference-text">
+            <h4>Watch Before You Talk</h4>
+            <p>Join as a spectator first. See how conversations flow. Jump in when you're ready.</p>
+          </div>
+        </li>
+        <li>
+          <span class="difference-icon">💎</span>
+          <div class="difference-text">
+            <h4>Creators Can Earn</h4>
+            <p>Host rooms, receive tips, charge for access. Your expertise deserves compensation.</p>
+          </div>
+        </li>
+        <li>
+          <span class="difference-icon">🛡️</span>
+          <div class="difference-text">
+            <h4>Community-First Safety</h4>
+            <p>Rating systems, reporting tools, and moderation keep conversations respectful and positive.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+  
+  <!-- Values -->
+  <section class="about-section">
+    <h2>What We Believe</h2>
+    
+    <div class="values-grid">
+      <div class="value-card">
+        <div class="value-icon">🤝</div>
+        <h4>Connection Over Content</h4>
+        <p>Real conversations with real people beat endless scrolling.</p>
+      </div>
+      
+      <div class="value-card">
+        <div class="value-icon">🎯</div>
+        <h4>Intention Matters</h4>
+        <p>When both people want to discuss the same thing, magic happens.</p>
+      </div>
+      
+      <div class="value-card">
+        <div class="value-icon">🌱</div>
+        <h4>Respect & Growth</h4>
+        <p>Every conversation is a chance to learn something new.</p>
+      </div>
+      
+      <div class="value-card">
+        <div class="value-icon">✨</div>
+        <h4>Simplicity First</h4>
+        <p>Technology should fade into the background. The conversation is what matters.</p>
+      </div>
+    </div>
+  </section>
+  
+  <!-- CTA -->
+  <section class="cta-section">
+    <h2>Ready to Have Better Conversations?</h2>
+    <p>Join our community and find someone to talk to about what's on your mind.</p>
+    <a href="/matchmaking.html" class="cta-btn">🎯 Find Your First Match</a>
+  </section>
+  
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-links">
+      <a href="/explore.html">Home</a>
+      <a href="/features.html">Features</a>
+      <a href="/creators.html">For Creators</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="https://www.chatspheres.com" target="_blank">Explore</a>
+      <a href="/contact.html">Contact</a>
+      <a href="/privacy.html">Privacy</a>
+      <a href="/terms.html">Terms</a>
+    </div>
+    <p>© 2025 ChatSpheres. All rights reserved.</p>
+  </footer>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
+  <script src="/assets/js/referral.js"></script>
+</body>
+</html>

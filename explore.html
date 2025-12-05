@@ -111,35 +111,6 @@
       align-items: center;
     }
     
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      text-decoration: none;
-    }
-    
-    .logo-text {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #22223B;
-    }
-    
-    .header-nav {
-      display: flex;
-      gap: 2rem;
-      align-items: center;
-    }
-    
-    .nav-link {
-      color: #22223B;
-      text-decoration: none;
-      font-weight: 600;
-      transition: color 0.2s;
-    }
-    
-    .nav-link:hover {
-      color: #e63946;
-    }
     
     .cta-btn {
       background: #FFD166;
@@ -614,10 +585,6 @@
         font-size: 2.25rem;
       }
       
-      .header-nav {
-        display: none;
-      }
-      
       .section-title {
         font-size: 1.75rem;
       }
@@ -636,6 +603,9 @@
   </style>
 </head>
 <body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
   <!-- Animated Background -->
   <div class="bg-circles">
     <div class="bg-circle"></div>
@@ -646,25 +616,55 @@
   <!-- Header -->
   <header class="site-header">
     <div class="header-container">
-      <a href="/" class="logo">
-        <svg viewBox="0 0 64 64" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
           <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
           <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         </svg>
-        <span class="logo-text">ChatSpheres</span>
+        <span class="site-logo-text">ChatSpheres</span>
       </a>
       
-      <nav class="header-nav">
-        <a href="/matchmaking.html" class="nav-link">Find Match</a>
-        <a href="/recordings.html" class="nav-link">Recordings</a>
-        <a href="/pricing.html" class="nav-link">Pricing</a>
-        <a href="https://www.chatspheres.com" class="nav-link" target="_blank">Learn More</a>
-        <a href="/matchmaking.html" class="cta-btn">Start Chatting</a>
-      </nav>
+      <div class="header-actions">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
     </div>
   </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <ul class="nav-links">
+      <li><a href="/explore.html" class="nav-link active"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/features.html" class="nav-link"><span class="nav-link-icon">✨</span> Features</a></li>
+      <li><a href="/creators.html" class="nav-link"><span class="nav-link-icon">🎙️</span> For Creators</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="https://www.chatspheres.com" class="nav-link" target="_blank"><span class="nav-link-icon">🌐</span> Explore</a></li>
+      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <div class="nav-user-section">
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign Up Free</a>
+    </div>
+  </nav>
   
   <!-- Hero Section -->
   <section class="hero">
@@ -685,7 +685,7 @@
       
       <div class="hero-ctas">
         <a href="/matchmaking.html" class="cta-btn large">🎯 Find Your Match</a>
-        <a href="https://www.chatspheres.com" class="cta-btn secondary large" target="_blank">Learn More →</a>
+        <a href="/about.html" class="cta-btn secondary large">Learn More →</a>
       </div>
       
       <div class="hero-stats">
@@ -936,7 +936,8 @@
         <div>
           <div class="footer-title">Company</div>
           <ul class="footer-links">
-            <li><a href="https://www.chatspheres.com" target="_blank">About</a></li>
+            <li><a href="/about.html">About</a></li>
+            <li><a href="https://www.chatspheres.com" target="_blank">Explore</a></li>
             <li><a href="/contact.html">Contact</a></li>
             <li><a href="/community-guidelines.html">Guidelines</a></li>
           </ul>
@@ -958,7 +959,8 @@
     </div>
   </footer>
   
-  <!-- Referral Tracking -->
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
   <script src="/assets/js/referral.js"></script>
 </body>
 </html>

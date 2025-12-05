@@ -9,6 +9,13 @@
   <!-- Google AdSense -->
   <meta name="google-adsense-account" content="ca-pub-8986841930339200">
   
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -253,6 +260,11 @@
       </a>
       
       <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
         <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
           <span class="menu-bar"></span>
           <span class="menu-bar"></span>
@@ -287,8 +299,22 @@
     
     <div class="nav-divider"></div>
     
-    <div class="nav-user-section">
-      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign Up Free</a>
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none; margin-bottom: var(--space-sm);">Sign Up</a>
+      <a href="/matchmaking.html" class="btn btn-ghost btn-full" style="text-decoration: none;">Sign In</a>
+    </div>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
     </div>
   </nav>
   
@@ -416,5 +442,77 @@
   <!-- Navigation Script -->
   <script src="/assets/js/navigation.js"></script>
   <script src="/assets/js/referral.js"></script>
+  
+  <!-- Auth Script -->
+  <script>
+    let supabaseClient = null;
+    
+    async function initAuth() {
+      const config = window.__CHATSPHERES_CONFIG__;
+      if (!config?.supabaseUrl || !config?.supabaseAnonKey) return;
+      
+      supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+      
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.user) updateHeaderForUser(session.user);
+      } catch (e) { console.error('Auth check error:', e); }
+      
+      supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (session?.user) updateHeaderForUser(session.user);
+        else updateHeaderForGuest();
+      });
+    }
+    
+    function updateHeaderForUser(user) {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const userName = document.getElementById('nav-user-name');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'none';
+      if (userSection) userSection.style.display = 'block';
+      if (headerGemBadge) headerGemBadge.style.display = 'flex';
+      
+      if (userName) {
+        const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+        userName.textContent = name;
+      }
+      fetchAndDisplayGemBalance(user.id);
+    }
+    
+    function updateHeaderForGuest() {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'block';
+      if (userSection) userSection.style.display = 'none';
+      if (headerGemBadge) headerGemBadge.style.display = 'none';
+    }
+    
+    async function fetchAndDisplayGemBalance(userId) {
+      try {
+        const response = await fetch(`/.netlify/functions/get-gem-balance?userId=${userId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const totalGems = (data.spendable_gems || 0) + (data.cashable_gems || 0) + (data.promo_gems || 0);
+          const navGems = document.getElementById('nav-user-gems');
+          const headerGemCount = document.querySelector('.gem-count');
+          if (navGems) navGems.textContent = totalGems.toLocaleString();
+          if (headerGemCount) headerGemCount.textContent = totalGems.toLocaleString();
+        }
+      } catch (e) { console.error('Error fetching gem balance:', e); }
+    }
+    
+    async function handleLogout() {
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+        window.location.href = '/explore.html';
+      }
+    }
+    
+    document.addEventListener('DOMContentLoaded', initAuth);
+  </script>
 </body>
 </html>

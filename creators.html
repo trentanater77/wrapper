@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>For Creators - ChatSpheres | Monetize Your Conversations</title>
+  <meta name="description" content="Turn your expertise into income. Host paid rooms, receive tips, and build your audience on ChatSpheres.">
+  
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  <link rel="stylesheet" href="/assets/css/ads.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .creator-hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 8rem 2rem 4rem;
+      background: linear-gradient(135deg, #22223B 0%, #e63946 100%);
+      color: #FCE2E5;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .creator-hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(255, 209, 102, 0.2) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+    
+    .hero-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .hero-content h1 {
+      font-size: 3.5rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+    }
+    
+    .hero-content h1 .gold {
+      color: #FFD166;
+    }
+    
+    .hero-content p {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+      line-height: 1.7;
+    }
+    
+    .hero-ctas {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    .btn-gold {
+      display: inline-block;
+      background: #FFD166;
+      color: #22223B;
+      padding: 1rem 2.5rem;
+      border-radius: 999px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    
+    .btn-gold:hover {
+      background: white;
+      transform: translateY(-2px);
+    }
+    
+    .btn-outline {
+      display: inline-block;
+      background: transparent;
+      color: #FCE2E5;
+      padding: 1rem 2.5rem;
+      border-radius: 999px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 2px solid #FFB6B9;
+      transition: all 0.2s;
+    }
+    
+    .btn-outline:hover {
+      background: #FFB6B9;
+      color: #22223B;
+    }
+    
+    .hero-visual {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .earning-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .earning-card h3 {
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.8;
+      margin-bottom: 0.5rem;
+    }
+    
+    .earning-card .amount {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #FFD166;
+    }
+    
+    .earning-card .details {
+      font-size: 0.875rem;
+      opacity: 0.7;
+      margin-top: 0.5rem;
+    }
+    
+    /* Revenue Section */
+    .revenue-section {
+      padding: 6rem 2rem;
+      background: #FFE7DD;
+    }
+    
+    .section-container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+    
+    .section-header h2 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+    
+    .section-header p {
+      font-size: 1.1rem;
+      opacity: 0.8;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .revenue-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+    }
+    
+    .revenue-card {
+      background: #FCE2E5;
+      border-radius: 24px;
+      padding: 2.5rem;
+      border: 3px solid #FFB6B9;
+      text-align: center;
+      transition: all 0.3s;
+    }
+    
+    .revenue-card:hover {
+      transform: translateY(-8px);
+      border-color: #FFD166;
+      box-shadow: 0 12px 40px rgba(255, 209, 102, 0.3);
+    }
+    
+    .revenue-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    
+    .revenue-card h3 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 0.75rem;
+    }
+    
+    .revenue-card p {
+      opacity: 0.8;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+    
+    .revenue-example {
+      background: #FFD166;
+      padding: 0.75rem 1rem;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+    
+    /* How It Works */
+    .how-section {
+      padding: 6rem 2rem;
+      background: #FCE2E5;
+    }
+    
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+    
+    .step-card {
+      text-align: center;
+      position: relative;
+    }
+    
+    .step-card::after {
+      content: '→';
+      position: absolute;
+      right: -1rem;
+      top: 40px;
+      font-size: 2rem;
+      color: #e63946;
+    }
+    
+    .step-card:last-child::after {
+      display: none;
+    }
+    
+    .step-number {
+      width: 80px;
+      height: 80px;
+      background: #e63946;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 800;
+      margin: 0 auto 1.5rem;
+    }
+    
+    .step-card h3 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    
+    .step-card p {
+      opacity: 0.8;
+      font-size: 0.9rem;
+    }
+    
+    /* Pro Benefits */
+    .pro-section {
+      padding: 6rem 2rem;
+      background: #22223B;
+      color: #FCE2E5;
+    }
+    
+    .pro-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4rem;
+      align-items: center;
+      margin-top: 3rem;
+    }
+    
+    .pro-features {
+      list-style: none;
+    }
+    
+    .pro-features li {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid rgba(255, 182, 185, 0.2);
+    }
+    
+    .pro-features li:last-child {
+      border-bottom: none;
+    }
+    
+    .pro-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+    
+    .pro-feature-content h4 {
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    
+    .pro-feature-content p {
+      font-size: 0.9rem;
+      opacity: 0.7;
+    }
+    
+    .pro-pricing {
+      background: rgba(252, 226, 229, 0.1);
+      border-radius: 24px;
+      padding: 3rem;
+      text-align: center;
+      border: 2px solid rgba(255, 209, 102, 0.3);
+    }
+    
+    .pro-pricing h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .pro-price {
+      font-size: 4rem;
+      font-weight: 800;
+      color: #FFD166;
+    }
+    
+    .pro-price span {
+      font-size: 1.25rem;
+      opacity: 0.7;
+    }
+    
+    .pro-pricing p {
+      margin: 1.5rem 0;
+      opacity: 0.8;
+    }
+    
+    /* Testimonials */
+    .testimonial-section {
+      padding: 6rem 2rem;
+      background: #FFE7DD;
+    }
+    
+    .testimonial-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+    
+    .testimonial-card {
+      background: #FCE2E5;
+      border-radius: 24px;
+      padding: 2rem;
+      border: 3px solid #FFB6B9;
+    }
+    
+    .testimonial-card blockquote {
+      font-size: 1.1rem;
+      line-height: 1.7;
+      font-style: italic;
+      margin-bottom: 1.5rem;
+    }
+    
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    
+    .testimonial-avatar {
+      width: 56px;
+      height: 56px;
+      background: #FFD166;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+    
+    .testimonial-name {
+      font-weight: 700;
+    }
+    
+    .testimonial-role {
+      font-size: 0.875rem;
+      opacity: 0.7;
+    }
+    
+    .testimonial-earning {
+      font-size: 0.875rem;
+      color: #e63946;
+      font-weight: 700;
+    }
+    
+    /* CTA */
+    .final-cta {
+      padding: 8rem 2rem;
+      text-align: center;
+      background: linear-gradient(135deg, #e63946 0%, #FFB6B9 100%);
+      color: white;
+    }
+    
+    .final-cta h2 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+    
+    .final-cta p {
+      font-size: 1.25rem;
+      opacity: 0.9;
+      margin-bottom: 2rem;
+    }
+    
+    .final-cta .btn-gold {
+      background: white;
+      color: #e63946;
+    }
+    
+    .final-cta .btn-gold:hover {
+      background: #22223B;
+      color: white;
+    }
+    
+    /* Footer */
+    .site-footer {
+      background: #22223B;
+      color: #FCE2E5;
+      padding: 3rem 2rem 2rem;
+      text-align: center;
+    }
+    
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    
+    .footer-links a {
+      color: #FFB6B9;
+      text-decoration: none;
+    }
+    
+    .footer-links a:hover {
+      color: #FFD166;
+    }
+    
+    @media (max-width: 992px) {
+      .hero-container,
+      .pro-grid {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+      }
+      
+      .revenue-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .steps-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      .step-card::after {
+        display: none;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .hero-content h1 {
+        font-size: 2.25rem;
+      }
+      
+      .section-header h2 {
+        font-size: 1.75rem;
+      }
+      
+      .steps-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .testimonial-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="site-header" style="background: rgba(34, 34, 59, 0.95); border-bottom: 2px solid rgba(255, 182, 185, 0.3);">
+    <div class="header-container">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text" style="color: #FCE2E5;">ChatSpheres</span>
+      </a>
+      
+      <div style="display: flex; gap: 1rem; align-items: center;">
+        <a href="/explore.html" style="color: #FFB6B9; text-decoration: none; font-weight: 600;">Home</a>
+        <a href="/pricing.html" style="color: #FFB6B9; text-decoration: none; font-weight: 600;">Pricing</a>
+        <a href="/pricing.html" class="btn btn-primary">Get Host Pro</a>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Hero -->
+  <section class="creator-hero">
+    <div class="hero-container">
+      <div class="hero-content">
+        <h1>Turn Conversations Into <span class="gold">Income</span></h1>
+        <p>You have knowledge people want. ChatSpheres gives you the tools to share it and get paid. Host rooms, receive tips, and build a community around your expertise.</p>
+        <div class="hero-ctas">
+          <a href="/pricing.html" class="btn-gold">🚀 Become a Host Pro</a>
+          <a href="/creator-agreement.html" class="btn-outline">Learn More</a>
+        </div>
+      </div>
+      
+      <div class="hero-visual">
+        <div class="earning-card">
+          <h3>This Week's Earnings</h3>
+          <div class="amount">$247.50</div>
+          <div class="details">From 12 sessions • 156 gems tipped</div>
+        </div>
+        <div class="earning-card">
+          <h3>Lifetime Earnings</h3>
+          <div class="amount">$3,482</div>
+          <div class="details">142 sessions hosted • 4.9 avg rating</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Revenue Streams -->
+  <section class="revenue-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>Three Ways to Earn</h2>
+        <p>Multiple revenue streams mean more opportunities to get paid for doing what you love.</p>
+      </div>
+      
+      <div class="revenue-grid">
+        <div class="revenue-card">
+          <div class="revenue-icon">💎</div>
+          <h3>Tips</h3>
+          <p>Guests can tip you gems during or after conversations. Great conversations get rewarded.</p>
+          <div class="revenue-example">Avg: 50-100 gems per session</div>
+        </div>
+        
+        <div class="revenue-card">
+          <div class="revenue-icon">🎟️</div>
+          <h3>Paid Entry</h3>
+          <p>Set a gem price for your rooms. Guests pay to join your exclusive conversations.</p>
+          <div class="revenue-example">Set your own price: 100+ gems</div>
+        </div>
+        
+        <div class="revenue-card">
+          <div class="revenue-icon">👥</div>
+          <h3>Referrals</h3>
+          <p>Invite others to ChatSpheres. Earn 500 gems for every friend who joins and chats.</p>
+          <div class="revenue-example">Unlimited referral bonuses</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- How It Works -->
+  <section class="how-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>Start Earning in 4 Steps</h2>
+        <p>It takes less than 5 minutes to set up and start hosting.</p>
+      </div>
+      
+      <div class="steps-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <h3>Sign Up</h3>
+          <p>Create your free account</p>
+        </div>
+        
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <h3>Upgrade</h3>
+          <p>Get Host Pro for $19.99/mo</p>
+        </div>
+        
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <h3>Host Rooms</h3>
+          <p>Create rooms on your topics</p>
+        </div>
+        
+        <div class="step-card">
+          <div class="step-number">4</div>
+          <h3>Get Paid</h3>
+          <p>Cash out your gems</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Host Pro Benefits -->
+  <section class="pro-section">
+    <div class="section-container">
+      <div class="section-header" style="text-align: center;">
+        <h2>Host Pro Gives You Everything</h2>
+        <p style="color: #FFB6B9;">All the tools you need to host, earn, and grow.</p>
+      </div>
+      
+      <div class="pro-grid">
+        <ul class="pro-features">
+          <li>
+            <span class="pro-icon">⏱️</span>
+            <div class="pro-feature-content">
+              <h4>3 Hour Sessions</h4>
+              <p>Extended room time for deeper conversations</p>
+            </div>
+          </li>
+          <li>
+            <span class="pro-icon">📹</span>
+            <div class="pro-feature-content">
+              <h4>Recording</h4>
+              <p>Record sessions to replay or share later</p>
+            </div>
+          </li>
+          <li>
+            <span class="pro-icon">🎨</span>
+            <div class="pro-feature-content">
+              <h4>Custom Branding</h4>
+              <p>Add your logo and colors to rooms</p>
+            </div>
+          </li>
+          <li>
+            <span class="pro-icon">🎟️</span>
+            <div class="pro-feature-content">
+              <h4>Green Room (Paid Entry)</h4>
+              <p>Charge gems for access to your rooms</p>
+            </div>
+          </li>
+          <li>
+            <span class="pro-icon">💰</span>
+            <div class="pro-feature-content">
+              <h4>Cash Out</h4>
+              <p>Withdraw earnings to your bank account</p>
+            </div>
+          </li>
+        </ul>
+        
+        <div class="pro-pricing">
+          <h3>Host Pro</h3>
+          <div class="pro-price">$19.99 <span>/month</span></div>
+          <p>Everything you need to monetize your conversations. Cancel anytime.</p>
+          <a href="/pricing.html" class="btn-gold" style="width: 100%; display: block; text-align: center;">Get Started Today</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Testimonials -->
+  <section class="testimonial-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2>Creators Are Earning</h2>
+        <p>Real stories from our host community.</p>
+      </div>
+      
+      <div class="testimonial-grid">
+        <div class="testimonial-card">
+          <blockquote>
+            "I started hosting career coaching sessions on ChatSpheres as a side thing. Three months later, it's become my main income. The platform makes it so easy to connect with people who actually want to learn."
+          </blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">👨‍💼</div>
+            <div>
+              <div class="testimonial-name">Marcus T.</div>
+              <div class="testimonial-role">Career Coach</div>
+              <div class="testimonial-earning">💎 $2,400/month</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="testimonial-card">
+          <blockquote>
+            "As a therapist, I was looking for a way to offer more accessible conversations. ChatSpheres lets me host affordable group sessions and still get fairly compensated. The tipping feature is surprisingly generous."
+          </blockquote>
+          <div class="testimonial-author">
+            <div class="testimonial-avatar">👩‍⚕️</div>
+            <div>
+              <div class="testimonial-name">Dr. Sarah K.</div>
+              <div class="testimonial-role">Mental Health Professional</div>
+              <div class="testimonial-earning">💎 $1,800/month</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Final CTA -->
+  <section class="final-cta">
+    <h2>Your Expertise Deserves Compensation</h2>
+    <p>Join our growing community of creators earning from conversations.</p>
+    <a href="/pricing.html" class="btn-gold">🚀 Start Earning Today</a>
+  </section>
+  
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-links">
+      <a href="/explore.html">Home</a>
+      <a href="/features.html">Features</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/affiliate.html">Affiliate</a>
+      <a href="/creator-agreement.html">Creator Agreement</a>
+      <a href="/contact.html">Contact</a>
+    </div>
+    <p>© 2025 ChatSpheres. All rights reserved.</p>
+  </footer>
+  
+  <!-- Scripts -->
+  <script src="/assets/js/referral.js"></script>
+  <script src="/assets/js/ads.js"></script>
+</body>
+</html>

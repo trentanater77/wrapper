@@ -4243,9 +4243,21 @@
           });
           console.log(`🚪 Ending session with ${actualMinutesUsed} minutes used`);
           
-          // Activate referral bonus if user chatted for 2+ minutes
-          if (actualMinutesUsed >= 2) {
-            activateReferralIfEligible(actualMinutesUsed);
+          // Activate referral bonus if user chatted for 2+ minutes (use sendBeacon for tab close!)
+          if (actualMinutesUsed >= 2 && window.currentUserData?.userId) {
+            const referralActivateUrl = '/.netlify/functions/track-referral';
+            const referralPayload = JSON.stringify({
+              action: 'activate',
+              referredUserId: window.currentUserData.userId
+            });
+            
+            // Use sendBeacon so it works even when tab is closing
+            try {
+              navigator.sendBeacon(referralActivateUrl, new Blob([referralPayload], { type: 'application/json' }));
+              console.log('📎 Referral activation sent via sendBeacon');
+            } catch (e) {
+              console.log('📎 sendBeacon failed, trying fetch:', e);
+            }
           }
 
           try {

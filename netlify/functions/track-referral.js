@@ -242,7 +242,7 @@ async function activateReferral(referredUserId) {
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.SIGNUP_COMPLETE.referrer, 
-    'referral_bonus',
+    'promo',
     `Referral bonus - friend completed first chat`
   );
 
@@ -250,7 +250,7 @@ async function activateReferral(referredUserId) {
   await awardGems(
     referredUserId, 
     REWARDS.SIGNUP_COMPLETE.referred, 
-    'referral_welcome',
+    'promo',
     `Welcome bonus - signed up with referral link`
   );
 
@@ -304,14 +304,14 @@ async function trackPurchase(referredUserId) {
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.FIRST_PURCHASE.referrer, 
-    'referral_purchase_bonus',
+    'promo',
     `Referral bonus - friend made first purchase`
   );
 
   await awardGems(
     referredUserId, 
     REWARDS.FIRST_PURCHASE.referred, 
-    'purchase_bonus',
+    'promo',
     `Bonus gems for first purchase`
   );
 
@@ -351,14 +351,14 @@ async function trackSubscription(referredUserId) {
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.SUBSCRIPTION.referrer, 
-    'referral_subscription_bonus',
+    'promo',
     `Referral bonus - friend subscribed`
   );
 
   await awardGems(
     referredUserId, 
     REWARDS.SUBSCRIPTION.referred, 
-    'subscription_bonus',
+    'promo',
     `Bonus gems for subscribing`
   );
 

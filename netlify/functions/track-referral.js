@@ -378,41 +378,67 @@ async function trackSubscription(referredUserId) {
 
 // Helper function to award gems to a user
 async function awardGems(userId, amount, transactionType, description) {
+  console.log(`💎 Awarding ${amount} gems to user ${userId}...`);
+  
   // Update or create gem balance
-  const { data: existingBalance } = await supabase
+  const { data: existingBalance, error: fetchError } = await supabase
     .from('gem_balances')
     .select('*')
     .eq('user_id', userId)
     .single();
 
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('Error fetching gem balance:', fetchError);
+  }
+
   if (existingBalance) {
-    await supabase
+    // Update existing balance - add to spendable_gems
+    const { error: updateError } = await supabase
       .from('gem_balances')
       .update({
-        earned_gems: (existingBalance.earned_gems || 0) + amount,
+        spendable_gems: (existingBalance.spendable_gems || 0) + amount,
+        promo_gems: (existingBalance.promo_gems || 0) + amount, // Track as promo gems too
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', userId);
+    
+    if (updateError) {
+      console.error('Error updating gem balance:', updateError);
+      throw updateError;
+    }
+    console.log(`✅ Updated existing balance: +${amount} gems`);
   } else {
-    await supabase
+    // Create new balance record
+    const { error: insertError } = await supabase
       .from('gem_balances')
       .insert({
         user_id: userId,
-        earned_gems: amount,
-        spendable_gems: 0,
+        spendable_gems: amount,
+        cashable_gems: 0,
+        promo_gems: amount, // Referral gems are promo gems
       });
+    
+    if (insertError) {
+      console.error('Error creating gem balance:', insertError);
+      throw insertError;
+    }
+    console.log(`✅ Created new balance with ${amount} gems`);
   }
 
   // Record transaction
-  await supabase
+  const { error: txError } = await supabase
     .from('gem_transactions')
     .insert({
       user_id: userId,
       transaction_type: transactionType,
       amount: amount,
-      wallet_type: 'earned',
+      wallet_type: 'spendable',
       description: description,
     });
+
+  if (txError) {
+    console.error('Error recording transaction:', txError);
+  }
 
   console.log(`✅ Awarded ${amount} gems to user ${userId}`);
 }

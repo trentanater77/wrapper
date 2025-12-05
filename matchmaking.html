@@ -1145,20 +1145,9 @@
             
             // Track referral signup if this is a new user
             if (event === 'SIGNED_IN') {
-              const storedRefCode = sessionStorage.getItem('chatspheres_referral_code');
-              if (storedRefCode) {
-                console.log('🔗 Tracking referral signup for code:', storedRefCode);
-                fetch('/.netlify/functions/track-referral', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    action: 'signup',
-                    referralCode: storedRefCode,
-                    referredUserId: session.user.id
-                  })
-                }).then(() => {
-                  sessionStorage.removeItem('chatspheres_referral_code');
-                }).catch(err => console.log('Referral signup tracking failed:', err));
+              // Use cross-domain referral tracking
+              if (window.ChatSpheresReferral) {
+                window.ChatSpheresReferral.trackReferralSignup(session.user.id);
               }
             }
           } else {
@@ -1166,18 +1155,8 @@
           }
         });
         
-        // Check for referral code in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const refCode = urlParams.get('ref');
-        if (refCode) {
-          sessionStorage.setItem('chatspheres_referral_code', refCode);
-          console.log('📎 Referral code detected:', refCode);
-          fetch('/.netlify/functions/track-referral', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'click', referralCode: refCode })
-          }).catch(err => console.log('Referral tracking not available'));
-        }
+        // Referral code tracking is now handled by /assets/js/referral.js
+        // which uses cross-domain cookies for better tracking across subdomains
       }
       
       function updateHeaderForUser(user) {
@@ -1355,5 +1334,8 @@
   
   <!-- Ad Management Script -->
   <script src="/assets/js/ads.js"></script>
+  
+  <!-- Cross-Domain Referral Tracking -->
+  <script src="/assets/js/referral.js"></script>
 </body>
 </html>

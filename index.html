@@ -2073,21 +2073,9 @@
           
           // Track referral signup if this is a new user
           if (event === 'SIGNED_IN') {
-            const storedRefCode = sessionStorage.getItem('chatspheres_referral_code');
-            if (storedRefCode) {
-              console.log('🔗 Tracking referral signup for code:', storedRefCode);
-              fetch('/.netlify/functions/track-referral', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  action: 'signup',
-                  referralCode: storedRefCode,
-                  referredUserId: session.user.id
-                })
-              }).then(() => {
-                // Clear the stored code after tracking
-                sessionStorage.removeItem('chatspheres_referral_code');
-              }).catch(err => console.log('Referral signup tracking failed:', err));
+            // Use cross-domain referral tracking
+            if (window.ChatSpheresReferral) {
+              window.ChatSpheresReferral.trackReferralSignup(session.user.id);
             }
           }
         } else {
@@ -2558,23 +2546,8 @@
     // Set up auth listener on load
     setupAuthListener();
 
-    // Check for referral code in URL and store it
-    (function trackReferralCode() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const refCode = urlParams.get('ref');
-      if (refCode) {
-        // Store referral code in session storage for later use during signup
-        sessionStorage.setItem('chatspheres_referral_code', refCode);
-        console.log('📎 Referral code detected:', refCode);
-        
-        // Track the click
-        fetch('/.netlify/functions/track-referral', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'click', referralCode: refCode })
-        }).catch(err => console.log('Referral tracking not available yet'));
-      }
-    })();
+    // Referral code tracking is now handled by /assets/js/referral.js
+    // which uses cross-domain cookies for better tracking across subdomains
 
     // LiveKit runtime configuration
     const livekitRuntimeConfig = runtimeConfig;
@@ -4309,24 +4282,9 @@
 // Main initialization function
 async function initializeApp() {
   // Check for referral code FIRST (before any redirects)
+  // Note: Cross-domain referral tracking is handled by /assets/js/referral.js
   const urlParamsInit = new URLSearchParams(window.location.search);
-  const refCode = urlParamsInit.get('ref');
-  if (refCode) {
-    // Store referral code in sessionStorage so it persists across page navigations
-    try {
-      sessionStorage.setItem('chatspheres_referral_code', refCode);
-      console.log('📎 Referral code saved:', refCode);
-      
-      // Also try to track the click
-      fetch('/.netlify/functions/track-referral', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'click', referralCode: refCode })
-      }).catch(err => console.log('Referral click tracking:', err.message));
-    } catch (e) {
-      console.log('Could not save referral code:', e);
-    }
-  }
+  const refCode = urlParamsInit.get('ref') || (window.ChatSpheresReferral ? window.ChatSpheresReferral.getReferralCode() : null);
 
   // Check if valid room URL
   if (!roomUrl) {
@@ -11608,6 +11566,9 @@ function ensureSpectatorTracksForParticipant(participant) {
 
 <!-- Ad Management Script -->
 <script src="/assets/js/ads.js"></script>
+
+<!-- Cross-Domain Referral Tracking -->
+<script src="/assets/js/referral.js"></script>
 
 </body>
 </html>

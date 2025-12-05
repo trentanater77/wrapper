@@ -1129,9 +1129,25 @@
         }
       }
       
+      // Handle auth callback hash (OAuth redirect)
+      function handleAuthCallback() {
+        if (window.location.hash.includes('auth-callback') || window.location.hash.includes('access_token')) {
+          console.log('🔐 Handling auth callback on matchmaking page...');
+          // Clear the hash after processing
+          setTimeout(() => {
+            if (window.location.hash) {
+              history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+          }, 100);
+        }
+      }
+      
       // Check auth state on load
       async function checkAuthState() {
         if (!supabaseClient) return;
+        
+        // Handle auth callback if present
+        handleAuthCallback();
         
         try {
           const { data: { session } } = await supabaseClient.auth.getSession();

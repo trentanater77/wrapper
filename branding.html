@@ -464,11 +464,14 @@
         return;
       }
       
-      const AUTH_COOKIE_DOMAIN = config.auth?.cookieDomain || 'localhost';
+      const AUTH_COOKIE_DOMAIN = config.auth?.cookieDomain || '.chatspheres.com';
       
       supabaseClient = supabase.createClient(config.supabase.url, config.supabase.anonKey, {
         auth: {
           persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce',
           storage: {
             getItem: (key) => {
               const cookies = document.cookie.split(';');
@@ -487,7 +490,9 @@
               try { localStorage.setItem(key, value); } catch(e) {}
             },
             removeItem: (key) => {
-              document.cookie = `${key}=; path=/; max-age=0`;
+              let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+              if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+              document.cookie = cookieStr;
               try { localStorage.removeItem(key); } catch(e) {}
             }
           }

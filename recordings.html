@@ -1075,7 +1075,9 @@
                 try { localStorage.setItem(key, value); } catch(e) {}
               },
               removeItem: (key) => {
-                document.cookie = `${key}=; path=/; max-age=0`;
+                let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                if (cookieDomain !== 'localhost') cookieStr += `; domain=${cookieDomain}`;
+                document.cookie = cookieStr;
                 try { localStorage.removeItem(key); } catch(e) {}
               }
             }

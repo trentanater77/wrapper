@@ -991,88 +991,149 @@
   
   <!-- Auth Script -->
   <script>
-    let supabaseClient = null;
-    
-    async function initAuth() {
-      const config = window.__CHATSPHERES_CONFIG__;
-      if (!config?.supabaseUrl || !config?.supabaseAnonKey) {
-        console.warn('Supabase config not available');
-        return;
-      }
+    (function() {
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      const authConfig = runtimeConfig.auth || {};
       
-      supabaseClient = supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+      const SUPABASE_URL = supabaseConfig.url || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
       
-      try {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session?.user) {
-          updateHeaderForUser(session.user);
+      let supabaseClient = null;
+      
+      // Initialize Supabase with cross-domain cookie storage
+      if (window.supabase && window.supabase.createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true,
+              flowType: 'pkce',
+              storage: {
+                getItem: (key) => {
+                  const cookies = document.cookie.split(';');
+                  for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === key) return decodeURIComponent(value);
+                  }
+                  try { return localStorage.getItem(key); } catch(e) { return null; }
+                },
+                setItem: (key, value) => {
+                  const maxAge = 60 * 60 * 24 * 365;
+                  let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                  if (window.location.protocol === 'https:') cookieStr += '; Secure';
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.setItem(key, value); } catch(e) {}
+                },
+                removeItem: (key) => {
+                  let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.removeItem(key); } catch(e) {}
+                }
+              }
+            }
+          });
+          console.log('✅ Supabase auth initialized');
+        } catch (e) {
+          console.error('❌ Supabase init error:', e);
         }
-      } catch (e) {
-        console.error('Auth check error:', e);
+      } else {
+        console.warn('⚠️ Supabase config not available yet, retrying...');
+        // Retry after a short delay in case config hasn't loaded yet
+        setTimeout(() => {
+          const retryConfig = window.__CHATSPHERES_CONFIG__ || {};
+          const retrySupabase = retryConfig.supabase || {};
+          if (retrySupabase.url && retrySupabase.anonKey) {
+            window.location.reload();
+          }
+        }, 1000);
       }
       
-      supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        if (session?.user) {
-          updateHeaderForUser(session.user);
-        } else {
+      // Check auth state on load
+      async function checkAuthState() {
+        if (!supabaseClient) return;
+        
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          }
+        } catch (e) {
+          console.error('Auth check error:', e);
+        }
+        
+        // Listen for auth changes
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          } else {
+            updateHeaderForGuest();
+          }
+        });
+      }
+      
+      function updateHeaderForUser(user) {
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const userName = document.getElementById('nav-user-name');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (guestLinks) guestLinks.style.display = 'none';
+        if (userSection) userSection.style.display = 'block';
+        if (headerGemBadge) headerGemBadge.style.display = 'flex';
+        
+        if (userName) {
+          const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          userName.textContent = name;
+        }
+        
+        fetchAndDisplayGemBalance(user.id);
+      }
+      
+      function updateHeaderForGuest() {
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (guestLinks) guestLinks.style.display = 'block';
+        if (userSection) userSection.style.display = 'none';
+        if (headerGemBadge) headerGemBadge.style.display = 'none';
+      }
+      
+      async function fetchAndDisplayGemBalance(userId) {
+        try {
+          const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const totalGems = data.totalGems || 0;
+            const navGems = document.getElementById('nav-user-gems');
+            const headerGemCount = document.querySelector('.gem-count');
+            if (navGems) navGems.textContent = totalGems.toLocaleString();
+            if (headerGemCount) headerGemCount.textContent = totalGems.toLocaleString();
+          }
+        } catch (e) {
+          console.error('Error fetching gem balance:', e);
+        }
+      }
+      
+      window.handleLogout = async function() {
+        if (supabaseClient) {
+          await supabaseClient.auth.signOut();
           updateHeaderForGuest();
         }
-      });
-    }
-    
-    function updateHeaderForUser(user) {
-      const guestLinks = document.getElementById('nav-guest-links');
-      const userSection = document.getElementById('nav-user-section');
-      const userName = document.getElementById('nav-user-name');
-      const headerGemBadge = document.getElementById('header-gem-badge');
+      };
       
-      if (guestLinks) guestLinks.style.display = 'none';
-      if (userSection) userSection.style.display = 'block';
-      if (headerGemBadge) headerGemBadge.style.display = 'flex';
-      
-      if (userName) {
-        const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-        userName.textContent = name;
+      // Init on load
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkAuthState);
+      } else {
+        checkAuthState();
       }
-      
-      fetchAndDisplayGemBalance(user.id);
-    }
-    
-    function updateHeaderForGuest() {
-      const guestLinks = document.getElementById('nav-guest-links');
-      const userSection = document.getElementById('nav-user-section');
-      const headerGemBadge = document.getElementById('header-gem-badge');
-      
-      if (guestLinks) guestLinks.style.display = 'block';
-      if (userSection) userSection.style.display = 'none';
-      if (headerGemBadge) headerGemBadge.style.display = 'none';
-    }
-    
-    async function fetchAndDisplayGemBalance(userId) {
-      try {
-        const response = await fetch(`/.netlify/functions/get-gem-balance?userId=${userId}`);
-        if (response.ok) {
-          const data = await response.json();
-          const totalGems = (data.spendable_gems || 0) + (data.cashable_gems || 0) + (data.promo_gems || 0);
-          const navGems = document.getElementById('nav-user-gems');
-          const headerGemCount = document.querySelector('.gem-count');
-          if (navGems) navGems.textContent = totalGems.toLocaleString();
-          if (headerGemCount) headerGemCount.textContent = totalGems.toLocaleString();
-        }
-      } catch (e) {
-        console.error('Error fetching gem balance:', e);
-      }
-    }
-    
-    async function handleLogout() {
-      if (supabaseClient) {
-        await supabaseClient.auth.signOut();
-        window.location.href = '/explore.html';
-      }
-    }
-    
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', initAuth);
+    })();
   </script>
 </body>
 </html>

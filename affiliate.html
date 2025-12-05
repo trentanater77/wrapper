@@ -746,8 +746,10 @@
       
       const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
       const supabaseConfig = runtimeConfig.supabase || {};
+      const authConfig = runtimeConfig.auth || {};
       const SUPABASE_URL = supabaseConfig.url || '';
       const SUPABASE_ANON_KEY = supabaseConfig.anonKey || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
       
       if (window.supabase && window.supabase.createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
         try {
@@ -757,6 +759,30 @@
               autoRefreshToken: true,
               detectSessionInUrl: true,
               flowType: 'pkce',
+              storage: {
+                getItem: (key) => {
+                  const cookies = document.cookie.split(';');
+                  for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === key) return decodeURIComponent(value);
+                  }
+                  try { return localStorage.getItem(key); } catch(e) { return null; }
+                },
+                setItem: (key, value) => {
+                  const maxAge = 60 * 60 * 24 * 365;
+                  let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                  if (window.location.protocol === 'https:') cookieStr += '; Secure';
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.setItem(key, value); } catch(e) {}
+                },
+                removeItem: (key) => {
+                  let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.removeItem(key); } catch(e) {}
+                }
+              }
             }
           });
           console.log('✅ Supabase client initialized');

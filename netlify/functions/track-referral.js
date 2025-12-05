@@ -196,6 +196,12 @@ async function trackSignup(referralCode, referredUserId) {
     return { success: false, message: 'No pending referral found' };
   }
 
+  // FRAUD PREVENTION: Block self-referrals
+  if (referral.referrer_user_id === referredUserId) {
+    console.log('🚫 FRAUD BLOCKED: User tried to refer themselves:', referredUserId);
+    return { success: false, message: 'Self-referral not allowed' };
+  }
+
   // Update the referral with the referred user
   const { data, error } = await supabase
     .from('referrals')
@@ -236,6 +242,17 @@ async function activateReferral(referredUserId) {
   if (findError || !referral) {
     console.log('No pending referral found for user:', referredUserId);
     return { success: false, message: 'No pending referral found' };
+  }
+
+  // FRAUD PREVENTION: Double-check not a self-referral
+  if (referral.referrer_user_id === referredUserId) {
+    console.log('🚫 FRAUD BLOCKED: Self-referral activation attempt:', referredUserId);
+    // Mark as fraudulent so it doesn't keep trying
+    await supabase
+      .from('referrals')
+      .update({ status: 'fraudulent', updated_at: new Date().toISOString() })
+      .eq('id', referral.id);
+    return { success: false, message: 'Self-referral not allowed' };
   }
 
   // Award gems to the referrer

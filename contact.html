@@ -307,9 +307,9 @@
           <div class="contact-card">
             <h2>📧 Email Us</h2>
             <p>For the fastest response, email us directly. We typically respond within 24-48 hours.</p>
-            <a href="mailto:chatspheres.worldwide@gmail.com" class="email-link">
+            <a href="mailto:chatspheres.worldwide@mail.com" class="email-link">
               <span>✉️</span>
-              chatspheres.worldwide@gmail.com
+              chatspheres.worldwide@mail.com
             </a>
           </div>
           
@@ -473,7 +473,7 @@
         const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\nTopic: ${topic}\n\nMessage:\n${message}`);
         
         // Open email client
-        window.location.href = `mailto:chatspheres.worldwide@gmail.com?subject=${subject}&body=${body}`;
+        window.location.href = `mailto:chatspheres.worldwide@mail.com?subject=${subject}&body=${body}`;
         
         // Show success message
         messageEl.textContent = '✅ Opening your email client... If it didn\'t open, please email us directly.';
@@ -484,7 +484,7 @@
         
       } catch (error) {
         console.error('Form error:', error);
-        messageEl.textContent = '❌ Something went wrong. Please email us directly at chatspheres.worldwide@gmail.com';
+        messageEl.textContent = '❌ Something went wrong. Please email us directly at chatspheres.worldwide@mail.com';
         messageEl.className = 'form-message error';
       }
       

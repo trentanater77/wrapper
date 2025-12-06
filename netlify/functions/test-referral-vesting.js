@@ -51,6 +51,12 @@ exports.handler = async function(event) {
         result = await simulateVest(userId);
         break;
       
+      case 'test-time-vest':
+        // Test time-based vesting by temporarily ignoring the 30-day requirement
+        if (!userId) throw new Error('userId required');
+        result = await testTimeBasedVest(userId);
+        break;
+      
       case 'check-referrals':
         if (!userId) throw new Error('userId required');
         result = await checkUserReferrals(userId);
@@ -262,6 +268,66 @@ async function checkUserReferrals(userId) {
     asReferred: {
       referral: asReferred?.[0] || null,
     },
+  };
+}
+
+/**
+ * Test time-based vesting logic (ignores 30-day requirement for testing)
+ */
+async function testTimeBasedVest(userId) {
+  console.log(`🧪 Testing time-based vest for user ${userId}...`);
+  
+  // Find this user's unvested referrals (ignore the date requirement for testing)
+  const { data: referrals, error } = await supabase
+    .from('referrals')
+    .select('*')
+    .eq('referrer_user_id', userId)
+    .eq('status', 'rewarded')
+    .eq('vested', false);
+
+  if (error || !referrals || referrals.length === 0) {
+    return { 
+      message: 'No unvested referrals found for this user',
+      userId,
+      note: 'Time-based vesting requires: 30+ days AND referred user has 5+ conversations',
+    };
+  }
+
+  const results = [];
+
+  for (const referral of referrals) {
+    // Check activity of referred user
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('conversation_count')
+      .eq('user_id', referral.referred_user_id)
+      .single();
+
+    const conversationCount = profile?.conversation_count || 0;
+    const daysSinceReferral = Math.floor(
+      (Date.now() - new Date(referral.updated_at).getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    results.push({
+      referralId: referral.id,
+      referredUserId: referral.referred_user_id,
+      gemsAwarded: referral.gems_awarded_referrer,
+      daysSinceActivation: daysSinceReferral,
+      daysRequired: 30,
+      conversationCount: conversationCount,
+      conversationsRequired: 5,
+      wouldVest: daysSinceReferral >= 30 && conversationCount >= 5,
+      status: daysSinceReferral >= 30 && conversationCount >= 5 
+        ? '✅ WOULD VEST' 
+        : `⏳ WAITING (need ${Math.max(0, 30 - daysSinceReferral)} more days AND ${Math.max(0, 5 - conversationCount)} more chats)`,
+    });
+  }
+
+  return {
+    message: 'Time-based vesting simulation (30 days + 5 conversations)',
+    userId,
+    referrals: results,
+    note: 'Use ?action=simulate-vest to force vest all pending gems (for testing only)',
   };
 }
 

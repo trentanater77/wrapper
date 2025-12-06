@@ -485,6 +485,18 @@
     }
     
     /* Responsive */
+    /* Search bar styles */
+    #search-input:focus {
+      outline: none;
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(255, 209, 102, 0.3);
+    }
+    
+    #search-input::placeholder {
+      color: var(--charcoal);
+      opacity: 0.5;
+    }
+    
     @media (max-width: 768px) {
       .recordings-title {
         font-size: 1.75rem;
@@ -641,6 +653,32 @@
           <p class="recordings-subtitle">Two seats. One topic. Infinite insight.</p>
         </div>
 
+        <!-- Search Bar -->
+        <div class="search-container" style="max-width: 600px; margin: 0 auto var(--space-xl);">
+          <div style="position: relative;">
+            <input 
+              type="text" 
+              id="search-input" 
+              placeholder="🔍 Search recordings by topic, date, or participant..."
+              style="
+                width: 100%;
+                padding: 1rem 1.5rem;
+                padding-left: 3rem;
+                font-size: 1rem;
+                font-family: var(--font-family);
+                border: 3px solid var(--rose);
+                border-radius: var(--radius-full);
+                background: var(--light-rose);
+                color: var(--charcoal);
+                font-weight: var(--font-weight-semibold);
+                transition: all var(--transition-fast);
+              "
+              oninput="filterRecordings(this.value)"
+            >
+            <span style="position: absolute; left: 1.25rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem;">🔍</span>
+          </div>
+        </div>
+
         <!-- Stats Bar -->
         <div class="stats-bar" id="stats-bar" style="display: none;">
           <div class="stat-item">
@@ -651,6 +689,11 @@
             <span>🌐</span>
             <span class="stat-number" id="public-count">0</span>
             <span>Public</span>
+          </div>
+          <div class="stat-item" id="showing-stat" style="display: none;">
+            <span>👁️</span>
+            <span class="stat-number" id="showing-count">0</span>
+            <span>Showing</span>
           </div>
         </div>
 
@@ -789,13 +832,51 @@
 
     async function checkUrlValidity(url) {
       try {
+        // Check if it's a signed URL with expiration
+        if (url.includes('Expires=') || url.includes('X-Goog-Expires=')) {
+          // Extract expiration timestamp
+          const expiresMatch = url.match(/[?&]Expires=(\d+)/);
+          const googExpiresMatch = url.match(/[?&]X-Goog-Expires=(\d+)/);
+          
+          if (expiresMatch) {
+            const expiresTimestamp = parseInt(expiresMatch[1]) * 1000; // Convert to milliseconds
+            if (Date.now() > expiresTimestamp) {
+              console.log('⏰ Signed URL expired:', url.substring(0, 80) + '...');
+              return false;
+            }
+          }
+          if (googExpiresMatch) {
+            // X-Goog-Expires is relative seconds from X-Goog-Date
+            const dateMatch = url.match(/X-Goog-Date=(\d{8}T\d{6}Z)/);
+            if (dateMatch) {
+              const signDate = new Date(dateMatch[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
+              const expiresMs = signDate.getTime() + (parseInt(googExpiresMatch[1]) * 1000);
+              if (Date.now() > expiresMs) {
+                console.log('⏰ Signed URL expired:', url.substring(0, 80) + '...');
+                return false;
+              }
+            }
+          }
+        }
+        
+        // For permanent public URLs (no query params), assume valid
+        if (url.includes('storage.googleapis.com') && !url.includes('?')) {
+          return true;
+        }
+        
+        // Try HEAD request for other URLs
         const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
         if (response.ok) return true;
         if (response.status === 403 || response.status === 401) return false;
         return false;
       } catch (error) {
-        if (error.name === 'TypeError' && error.message.includes('CORS')) return true;
-        if (url.includes('storage.googleapis.com') || url.includes('s3.')) return true;
+        // CORS errors often mean the URL is valid but protected
+        if (error.name === 'TypeError' && error.message.includes('CORS')) {
+          // For storage URLs, check if it's a permanent URL format
+          if (url.includes('storage.googleapis.com') && !url.includes('?')) {
+            return true;
+          }
+        }
         return false;
       }
     }
@@ -927,6 +1008,48 @@
       publicCount.textContent = publicRecs;
       
       statsBar.style.display = 'flex';
+    }
+    
+    // Search/filter functionality
+    let currentSearchTerm = '';
+    
+    function filterRecordings(searchTerm) {
+      currentSearchTerm = searchTerm.toLowerCase().trim();
+      
+      const cards = document.querySelectorAll('.recording-card');
+      let visibleCount = 0;
+      
+      cards.forEach((card, index) => {
+        const recording = allRecordings[index];
+        if (!recording) return;
+        
+        const topic = (recording.topic || '').toLowerCase();
+        const participants = (recording.participants || []).join(' ').toLowerCase();
+        const date = recording.createdAt ? formatDate(recording.createdAt).toLowerCase() : '';
+        
+        const matches = !currentSearchTerm || 
+          topic.includes(currentSearchTerm) || 
+          participants.includes(currentSearchTerm) ||
+          date.includes(currentSearchTerm);
+        
+        if (matches) {
+          card.style.display = 'block';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      
+      // Update showing count
+      const showingStat = document.getElementById('showing-stat');
+      const showingCount = document.getElementById('showing-count');
+      
+      if (currentSearchTerm) {
+        showingStat.style.display = 'flex';
+        showingCount.textContent = visibleCount;
+      } else {
+        showingStat.style.display = 'none';
+      }
     }
 
     function showEmpty() {

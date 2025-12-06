@@ -3741,14 +3741,33 @@
     }
 
     function publishLiveKitDataMessage(payload) {
-      if (!livekitRoom || !livekitRoom.localParticipant || !LiveKitDataPacketKind) {
-        return;
+      if (!livekitRoom || !livekitRoom.localParticipant) {
+        console.warn('⚠️ Cannot send LiveKit data: room or participant not ready');
+        return false;
       }
       try {
         const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-        livekitRoom.localParticipant.publishData(message, LiveKitDataPacketKind.RELIABLE);
+        const encoder = new TextEncoder();
+        const data = encoder.encode(message);
+        
+        // Try different methods based on SDK version
+        if (typeof livekitRoom.localParticipant.publishData === 'function') {
+          // Newer SDK versions
+          if (LiveKitDataPacketKind) {
+            livekitRoom.localParticipant.publishData(data, LiveKitDataPacketKind.RELIABLE);
+          } else {
+            // Try without kind parameter
+            livekitRoom.localParticipant.publishData(data, { reliable: true });
+          }
+          console.log('📡 LiveKit data published:', payload);
+          return true;
+        } else {
+          console.warn('⚠️ publishData not available on localParticipant');
+          return false;
+        }
       } catch (error) {
         console.error('❌ Failed to send LiveKit data message:', error);
+        return false;
       }
     }
 
@@ -5385,6 +5404,29 @@ async function initializeApp() {
 
     chatQuery.on('value', activeChatListener, (error) => {
       console.error('❌ Failed to listen for chat messages:', error);
+    });
+    
+    // Also listen for new tip messages via child_added (for real-time tip animations)
+    const tipProcessedKeys = new Set();
+    chatRef.orderByChild('timestamp').startAt(Date.now()).on('child_added', (snapshot) => {
+      const msg = snapshot.val();
+      const msgKey = snapshot.key;
+      
+      // Only process tip messages we haven't seen
+      if (!msg || !msg.isTip || !msg.tipData || tipProcessedKeys.has(msgKey)) return;
+      tipProcessedKeys.add(msgKey);
+      
+      const tipData = msg.tipData;
+      const myName = window.currentUserData?.username || window.currentUserData?.displayName || userName;
+      
+      // Don't play our own tips (sender already played locally)
+      if (tipData.senderName === myName) {
+        console.log('🔔 Skipping own tip from chat:', msgKey);
+        return;
+      }
+      
+      console.log('🎉 Tip received via chat fallback:', tipData);
+      playTipCelebration(tipData);
     });
 
     // Set up chat input for spectators
@@ -9928,7 +9970,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   function notifyRoomOfTip(senderName, recipientName, amount, animation, message, useTTS) {
-    console.log('📤 Sending tip notification via LiveKit...', { senderName, recipientName, amount, animation });
+    console.log('📤 Sending tip notification...', { senderName, recipientName, amount, animation });
     
     // Create tip data
     const tipData = {
@@ -9941,20 +9983,38 @@ function ensureSpectatorTracksForParticipant(participant) {
       timestamp: Date.now()
     };
     
-    // Send via LiveKit data message (works for all participants, no Firebase permissions needed!)
+    let sent = false;
+    
+    // Method 1: Try LiveKit data message
     if (livekitRoom && livekitRoom.localParticipant) {
-      try {
-        const tipMessage = {
-          type: 'tip-celebration',
-          tipData: tipData
-        };
-        publishLiveKitDataMessage(tipMessage);
+      const tipMessage = {
+        type: 'tip-celebration',
+        tipData: tipData
+      };
+      sent = publishLiveKitDataMessage(tipMessage);
+      if (sent) {
         console.log('✅ Tip notification sent via LiveKit!');
-      } catch (err) {
-        console.warn('⚠️ Could not send tip via LiveKit:', err.message);
       }
-    } else {
-      console.warn('⚠️ LiveKit room not available for tip notification');
+    }
+    
+    // Method 2: Fallback to Firebase if LiveKit fails
+    if (!sent && chatRef) {
+      console.log('📤 Trying Firebase fallback for tip notification...');
+      const tipChatMessage = {
+        text: `💎 TIP: ${senderName} → ${recipientName}: ${amount} gems`,
+        sender: 'system',
+        senderName: 'TipBot',
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        isTip: true,
+        tipData: tipData
+      };
+      chatRef.push(tipChatMessage).catch(err => {
+        console.warn('⚠️ Firebase fallback also failed:', err.message);
+      });
+    }
+    
+    if (!sent && !chatRef) {
+      console.warn('⚠️ No method available to broadcast tip notification');
     }
     
     // Always play locally for the sender immediately

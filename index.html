@@ -9462,11 +9462,37 @@ function ensureSpectatorTracksForParticipant(participant) {
     random: { emoji: [], type: 'random', sound: 'random' }
   };
 
-  // GIF APIs (all FREE!)
+  // GIF APIs (all FREE! But we add caching + rate limiting for scalability)
   const GIF_APIS = {
-    cat: 'https://api.thecatapi.com/v1/images/search?mime_types=gif',
-    dog: 'https://api.thedogapi.com/v1/images/search?mime_types=gif',
+    cat: 'https://api.thecatapi.com/v1/images/search?mime_types=gif&limit=10',
+    dog: 'https://api.thedogapi.com/v1/images/search?mime_types=gif&limit=10',
     meme: 'https://meme-api.com/gimme'
+  };
+  
+  // GIF Cache for scalability (reduces API calls)
+  const GIF_CACHE = {
+    cat: [],
+    dog: [],
+    meme: [],
+    lastFetch: { cat: 0, dog: 0, meme: 0 },
+    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes cache
+    MIN_FETCH_INTERVAL: 10 * 1000, // Min 10 seconds between API calls per type
+  };
+  
+  // Fallback GIFs (static, always available - no API needed)
+  const FALLBACK_GIFS = {
+    cat: [
+      'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif',
+      'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif'
+    ],
+    dog: [
+      'https://media.giphy.com/media/4Zo41lhzKt6iZ8xff9/giphy.gif',
+      'https://media.giphy.com/media/Y4pAQv58ETJgRwoLxj/giphy.gif'
+    ],
+    meme: [
+      'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+      'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif'
+    ]
   };
 
   async function openTipModal() {
@@ -9750,7 +9776,46 @@ function ensureSpectatorTracksForParticipant(participant) {
   // TIP CELEBRATION ANIMATION ENGINE
   // ============================================
   
+  // Rate limit tip celebrations to prevent spam/abuse
+  let lastTipCelebration = 0;
+  const TIP_CELEBRATION_COOLDOWN = 2000; // 2 seconds between celebrations
+  let tipCelebrationQueue = [];
+  let isProcessingTipQueue = false;
+  
   async function playTipCelebration(tip) {
+    const now = Date.now();
+    
+    // Queue the celebration if one is already playing
+    if (now - lastTipCelebration < TIP_CELEBRATION_COOLDOWN) {
+      tipCelebrationQueue.push(tip);
+      if (!isProcessingTipQueue) {
+        processNextTipInQueue();
+      }
+      return;
+    }
+    
+    lastTipCelebration = now;
+    await _playTipCelebrationInternal(tip);
+  }
+  
+  function processNextTipInQueue() {
+    if (tipCelebrationQueue.length === 0) {
+      isProcessingTipQueue = false;
+      return;
+    }
+    
+    isProcessingTipQueue = true;
+    setTimeout(async () => {
+      const nextTip = tipCelebrationQueue.shift();
+      if (nextTip) {
+        lastTipCelebration = Date.now();
+        await _playTipCelebrationInternal(nextTip);
+      }
+      processNextTipInQueue();
+    }, TIP_CELEBRATION_COOLDOWN);
+  }
+  
+  async function _playTipCelebrationInternal(tip) {
     const { senderName, amount, animation, message, useTTS } = tip;
     
     // Get animation config (or random if selected)
@@ -9866,34 +9931,69 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
+  // Get a GIF URL with caching, rate limiting, and fallback
+  async function getGifUrl(type) {
+    const cache = GIF_CACHE;
+    const now = Date.now();
+    
+    // Check if we have cached GIFs that are still fresh
+    if (cache[type].length > 0 && (now - cache.lastFetch[type]) < cache.CACHE_DURATION) {
+      // Return a random cached GIF and remove it from cache
+      const randomIndex = Math.floor(Math.random() * cache[type].length);
+      return cache[type].splice(randomIndex, 1)[0];
+    }
+    
+    // Rate limit: don't fetch too frequently
+    if ((now - cache.lastFetch[type]) < cache.MIN_FETCH_INTERVAL) {
+      // Use fallback instead
+      const fallbacks = FALLBACK_GIFS[type] || [];
+      if (fallbacks.length > 0) {
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+      }
+      return '';
+    }
+    
+    // Fetch new GIFs
+    try {
+      cache.lastFetch[type] = now;
+      
+      if (type === 'cat' || type === 'dog') {
+        const res = await fetch(GIF_APIS[type]);
+        if (res.ok) {
+          const data = await res.json();
+          // Cache multiple GIFs for later use
+          const urls = data.map(item => item.url).filter(Boolean);
+          if (urls.length > 0) {
+            cache[type] = urls.slice(1); // Cache all but the first
+            return urls[0]; // Return the first one
+          }
+        }
+      } else if (type === 'meme') {
+        const res = await fetch(GIF_APIS.meme);
+        if (res.ok) {
+          const data = await res.json();
+          return data?.url || data?.preview?.[data.preview.length - 1] || '';
+        }
+      }
+    } catch (err) {
+      console.warn(`GIF API error for ${type}:`, err.message);
+    }
+    
+    // Fallback if API failed
+    const fallbacks = FALLBACK_GIFS[type] || [];
+    if (fallbacks.length > 0) {
+      return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
+    return '';
+  }
+  
   async function showTipGif(type) {
     const gifDisplay = document.getElementById('tip-gif-display');
     const gifImage = document.getElementById('tip-gif-image');
     if (!gifDisplay || !gifImage) return;
     
     try {
-      let gifUrl = '';
-      
-      if (type === 'cat') {
-        const res = await fetch(GIF_APIS.cat);
-        if (res.ok) {
-          const data = await res.json();
-          gifUrl = data[0]?.url || '';
-        }
-      } else if (type === 'dog') {
-        const res = await fetch(GIF_APIS.dog);
-        if (res.ok) {
-          const data = await res.json();
-          gifUrl = data[0]?.url || '';
-        }
-      } else if (type === 'meme') {
-        const res = await fetch(GIF_APIS.meme);
-        if (res.ok) {
-          const data = await res.json();
-          // meme-api returns { url: "..." } directly
-          gifUrl = data?.url || data?.preview?.[data.preview.length - 1] || '';
-        }
-      }
+      const gifUrl = await getGifUrl(type);
       
       if (gifUrl) {
         // Set up load handler before setting src
@@ -9902,8 +10002,14 @@ function ensureSpectatorTracksForParticipant(participant) {
           gifDisplay.classList.add('visible');
         };
         gifImage.onerror = () => {
-          console.warn('GIF failed to load:', gifUrl);
-          gifDisplay.style.display = 'none';
+          console.warn('GIF failed to load, using fallback');
+          // Try fallback on error
+          const fallbacks = FALLBACK_GIFS[type] || [];
+          if (fallbacks.length > 0) {
+            gifImage.src = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+          } else {
+            gifDisplay.style.display = 'none';
+          }
         };
         gifImage.src = gifUrl;
         

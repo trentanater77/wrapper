@@ -7001,22 +7001,36 @@ function ensureSpectatorTracksForParticipant(participant) {
     console.log('🎬 showRecordingConsentModal called');
     const modal = document.getElementById('recording-consent-modal');
     if (modal) {
+      // Remove hidden class AND force display with inline style
       modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+      modal.style.visibility = 'visible';
+      modal.style.opacity = '1';
       console.log('🎬 Recording consent modal shown');
+      console.log('🎬 Modal display:', modal.style.display);
+      console.log('🎬 Modal computed display:', window.getComputedStyle(modal).display);
     } else {
       console.error('❌ Recording consent modal not found!');
     }
   }
 
   function cancelRecording() {
-    document.getElementById('recording-consent-modal').classList.add('hidden');
+    const modal = document.getElementById('recording-consent-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
   }
 
     async function confirmRecording() {
     const privacy = document.getElementById('recording-privacy').value;
     const autoDelete = document.getElementById('recording-auto-delete').value;
     
-    document.getElementById('recording-consent-modal').classList.add('hidden');
+    const modal = document.getElementById('recording-consent-modal');
+    if (modal) {
+      modal.classList.add('hidden');
+      modal.style.display = 'none';
+    }
     
     try {
         const response = await startServerSideRecording({ privacy, autoDelete });

@@ -110,6 +110,7 @@ exports.handler = async function(event) {
         spendable_gems: 0,
         cashable_gems: 0,
         promo_gems: 0,
+        pending_referral_gems: 0,
       },
       // Main Profile (from profiles table)
       mainProfile: {

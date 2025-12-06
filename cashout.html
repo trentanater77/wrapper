@@ -471,8 +471,18 @@
             <h3 style="margin-bottom: 0.5rem; font-weight: 700;">💎 Your Spendable Gems</h3>
             <p style="font-size: 1.5rem; font-weight: 700;"><span id="spendable-gems">0</span> gems</p>
             <p style="font-size: 0.875rem; opacity: 0.7; margin-top: 0.5rem;">
-              Spendable gems are for tipping hosts. Only cashable gems (earned from tips) can be cashed out.
+              Spendable gems are for tipping hosts and making purchases.
             </p>
+          </div>
+          
+          <!-- Pending Referral Gems Info -->
+          <div id="pending-referral-card" class="cashout-card info-card hidden">
+            <h3 style="margin-bottom: 0.5rem; font-weight: 700;">⏳ Pending Referral Gems</h3>
+            <p style="font-size: 1.5rem; font-weight: 700;"><span id="pending-referral-gems">0</span> gems</p>
+            <p style="font-size: 0.875rem; opacity: 0.7; margin-top: 0.5rem;">
+              These gems are from referrals. They become <strong>cashable</strong> when your referral makes a purchase or stays active 30+ days. You can spend them on tips in the meantime!
+            </p>
+            <a href="/affiliate.html" style="display: inline-block; margin-top: var(--space-sm); color: var(--main-red); font-weight: 600; font-size: 0.875rem;">Learn more about referral gems →</a>
           </div>
           
           <!-- Payout History -->
@@ -641,6 +651,13 @@
         
         // Update spendable gems
         document.getElementById('spendable-gems').textContent = (gemsData.spendable_gems || 0).toLocaleString();
+        
+        // Update pending referral gems if any
+        const pendingReferralGems = gemsData.pending_referral_gems || 0;
+        if (pendingReferralGems > 0) {
+          document.getElementById('pending-referral-card').classList.remove('hidden');
+          document.getElementById('pending-referral-gems').textContent = pendingReferralGems.toLocaleString();
+        }
         
         // Update cashable gems
         document.getElementById('cashable-gems').textContent = (payoutData.cashableGems || 0).toLocaleString();

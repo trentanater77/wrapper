@@ -15,6 +15,11 @@ const headers = {
 };
 
 // Gem rewards configuration
+// NOTE: Referral gems are SPENDABLE immediately but NOT CASHABLE until vested
+// Gems vest (become cashable) when:
+// 1. The referred user makes ANY purchase, OR
+// 2. 30 days pass AND the referred user completes 5+ conversations
+// This is "Jeff Bezos Approved" anti-fraud protection
 const REWARDS = {
   SIGNUP_COMPLETE: {
     referrer: 500,
@@ -28,6 +33,13 @@ const REWARDS = {
     referrer: 1000,
     referred: 500,
   },
+};
+
+// Vesting requirements
+const VESTING_REQUIREMENTS = {
+  DAYS_REQUIRED: 30,        // Days before time-based vesting
+  CHATS_REQUIRED: 5,        // Minimum chats for time-based vesting
+  PURCHASE_VESTS: true,     // Any purchase immediately vests all pending gems
 };
 
 exports.handler = async function(event) {
@@ -255,20 +267,22 @@ async function activateReferral(referredUserId) {
     return { success: false, message: 'Self-referral not allowed' };
   }
 
-  // Award gems to the referrer
+  // Award gems to the referrer (pending vesting - becomes cashable when referred user proves value)
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.SIGNUP_COMPLETE.referrer, 
-    'promo',
-    `Referral bonus - friend completed first chat`
+    'referral_bonus',
+    `Referral bonus - friend completed first chat`,
+    true // isReferralGem = true - these are pending vesting
   );
 
-  // Award gems to the referred user
+  // Award gems to the referred user (spendable immediately as welcome bonus)
   await awardGems(
     referredUserId, 
     REWARDS.SIGNUP_COMPLETE.referred, 
-    'promo',
-    `Welcome bonus - signed up with referral link`
+    'welcome_bonus',
+    `Welcome bonus - signed up with referral link`,
+    false // Not a referral gem - immediately spendable as welcome gift
   );
 
   // Update the referral status
@@ -298,7 +312,8 @@ async function activateReferral(referredUserId) {
   };
 }
 
-// Track first purchase (bonus gems)
+// Track first purchase (bonus gems + VEST ALL PENDING REFERRAL GEMS)
+// A purchase is the strongest anti-fraud signal - proves user is real and valuable
 async function trackPurchase(referredUserId) {
   if (!referredUserId) {
     throw new Error('referredUserId is required');
@@ -317,19 +332,31 @@ async function trackPurchase(referredUserId) {
     return { success: false, message: 'No eligible referral found' };
   }
 
-  // Award bonus gems
+  // 🎉 VEST ALL PENDING REFERRAL GEMS - Purchase proves the user is real!
+  if (VESTING_REQUIREMENTS.PURCHASE_VESTS && !referral.vested) {
+    console.log('🎉 Purchase detected! Vesting all pending referral gems...');
+    await vestReferralGems(
+      referral.referrer_user_id, 
+      referredUserId, 
+      'Referred user made first purchase'
+    );
+  }
+
+  // Award bonus gems (these go directly to cashable since purchase already vested)
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.FIRST_PURCHASE.referrer, 
-    'promo',
-    `Referral bonus - friend made first purchase`
+    'referral_purchase_bonus',
+    `Referral bonus - friend made first purchase`,
+    false // Not pending - goes straight to spendable (could go to cashable since vested)
   );
 
   await awardGems(
     referredUserId, 
     REWARDS.FIRST_PURCHASE.referred, 
-    'promo',
-    `Bonus gems for first purchase`
+    'purchase_bonus',
+    `Bonus gems for first purchase`,
+    false
   );
 
   // Mark as rewarded
@@ -343,10 +370,11 @@ async function trackPurchase(referredUserId) {
     })
     .eq('id', referral.id);
 
-  return { success: true };
+  return { success: true, gemsVested: true };
 }
 
-// Track subscription (bonus gems)
+// Track subscription (bonus gems + VEST ALL PENDING REFERRAL GEMS)
+// A subscription is even stronger than a purchase - premium anti-fraud signal
 async function trackSubscription(referredUserId) {
   if (!referredUserId) {
     throw new Error('referredUserId is required');
@@ -364,19 +392,31 @@ async function trackSubscription(referredUserId) {
     return { success: false, message: 'No eligible referral found' };
   }
 
+  // 🎉 VEST ALL PENDING REFERRAL GEMS - Subscription proves the user is committed!
+  if (VESTING_REQUIREMENTS.PURCHASE_VESTS && !referral.vested) {
+    console.log('🎉 Subscription detected! Vesting all pending referral gems...');
+    await vestReferralGems(
+      referral.referrer_user_id, 
+      referredUserId, 
+      'Referred user subscribed'
+    );
+  }
+
   // Award bonus gems
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.SUBSCRIPTION.referrer, 
-    'promo',
-    `Referral bonus - friend subscribed`
+    'referral_subscription_bonus',
+    `Referral bonus - friend subscribed`,
+    false // Not pending since subscription already vested
   );
 
   await awardGems(
     referredUserId, 
     REWARDS.SUBSCRIPTION.referred, 
-    'promo',
-    `Bonus gems for subscribing`
+    'subscription_bonus',
+    `Bonus gems for subscribing`,
+    false
   );
 
   // Mark as rewarded
@@ -390,12 +430,13 @@ async function trackSubscription(referredUserId) {
     })
     .eq('id', referral.id);
 
-  return { success: true };
+  return { success: true, gemsVested: true };
 }
 
 // Helper function to award gems to a user
-async function awardGems(userId, amount, transactionType, description) {
-  console.log(`💎 Awarding ${amount} gems to user ${userId}...`);
+// For referrals: gems are SPENDABLE immediately but NOT CASHABLE until vested
+async function awardGems(userId, amount, transactionType, description, isReferralGem = false) {
+  console.log(`💎 Awarding ${amount} gems to user ${userId}... (referral: ${isReferralGem})`);
   
   // Update or create gem balance
   const { data: existingBalance, error: fetchError } = await supabase
@@ -409,37 +450,47 @@ async function awardGems(userId, amount, transactionType, description) {
   }
 
   if (existingBalance) {
-    // Update existing balance - add to spendable_gems
+    // Update existing balance
+    const updateData = {
+      spendable_gems: (existingBalance.spendable_gems || 0) + amount,
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (isReferralGem) {
+      // Track as pending referral gems (not cashable yet)
+      updateData.pending_referral_gems = (existingBalance.pending_referral_gems || 0) + amount;
+      updateData.promo_gems = (existingBalance.promo_gems || 0) + amount;
+    }
+    
     const { error: updateError } = await supabase
       .from('gem_balances')
-      .update({
-        spendable_gems: (existingBalance.spendable_gems || 0) + amount,
-        promo_gems: (existingBalance.promo_gems || 0) + amount, // Track as promo gems too
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateData)
       .eq('user_id', userId);
     
     if (updateError) {
       console.error('Error updating gem balance:', updateError);
       throw updateError;
     }
-    console.log(`✅ Updated existing balance: +${amount} gems`);
+    console.log(`✅ Updated existing balance: +${amount} gems${isReferralGem ? ' (pending vesting)' : ''}`);
   } else {
     // Create new balance record
+    const insertData = {
+      user_id: userId,
+      spendable_gems: amount,
+      cashable_gems: 0,
+      promo_gems: isReferralGem ? amount : 0,
+      pending_referral_gems: isReferralGem ? amount : 0,
+    };
+    
     const { error: insertError } = await supabase
       .from('gem_balances')
-      .insert({
-        user_id: userId,
-        spendable_gems: amount,
-        cashable_gems: 0,
-        promo_gems: amount, // Referral gems are promo gems
-      });
+      .insert(insertData);
     
     if (insertError) {
       console.error('Error creating gem balance:', insertError);
       throw insertError;
     }
-    console.log(`✅ Created new balance with ${amount} gems`);
+    console.log(`✅ Created new balance with ${amount} gems${isReferralGem ? ' (pending vesting)' : ''}`);
   }
 
   // Record transaction
@@ -449,8 +500,8 @@ async function awardGems(userId, amount, transactionType, description) {
       user_id: userId,
       transaction_type: transactionType,
       amount: amount,
-      wallet_type: 'spendable',
-      description: description,
+      wallet_type: isReferralGem ? 'pending_referral' : 'spendable',
+      description: description + (isReferralGem ? ' (vests when referral makes purchase or stays active 30+ days)' : ''),
     });
 
   if (txError) {
@@ -459,3 +510,86 @@ async function awardGems(userId, amount, transactionType, description) {
 
   console.log(`✅ Awarded ${amount} gems to user ${userId}`);
 }
+
+// Vest pending referral gems (move from pending to cashable)
+// Called when a referred user makes a purchase or meets activity requirements
+async function vestReferralGems(referrerUserId, referredUserId, reason) {
+  console.log(`🔓 Vesting referral gems for referrer ${referrerUserId} (reason: ${reason})`);
+  
+  // Get the referrer's current balance
+  const { data: balance, error: fetchError } = await supabase
+    .from('gem_balances')
+    .select('*')
+    .eq('user_id', referrerUserId)
+    .single();
+  
+  if (fetchError || !balance) {
+    console.log('No balance found for referrer');
+    return { success: false, message: 'No balance found' };
+  }
+  
+  // Find the referral record to get the gem amounts
+  const { data: referral } = await supabase
+    .from('referrals')
+    .select('gems_awarded_referrer, vested')
+    .eq('referrer_user_id', referrerUserId)
+    .eq('referred_user_id', referredUserId)
+    .single();
+  
+  if (!referral || referral.vested) {
+    console.log('Referral not found or already vested');
+    return { success: false, message: 'Already vested or not found' };
+  }
+  
+  const gemsToVest = referral.gems_awarded_referrer || 0;
+  
+  if (gemsToVest <= 0) {
+    return { success: false, message: 'No gems to vest' };
+  }
+  
+  // Move gems from pending to cashable
+  const newPending = Math.max(0, (balance.pending_referral_gems || 0) - gemsToVest);
+  const newCashable = (balance.cashable_gems || 0) + gemsToVest;
+  
+  const { error: updateError } = await supabase
+    .from('gem_balances')
+    .update({
+      pending_referral_gems: newPending,
+      cashable_gems: newCashable,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', referrerUserId);
+  
+  if (updateError) {
+    console.error('Error vesting gems:', updateError);
+    return { success: false, message: 'Failed to vest gems' };
+  }
+  
+  // Mark the referral as vested
+  await supabase
+    .from('referrals')
+    .update({
+      vested: true,
+      vested_at: new Date().toISOString(),
+      vested_reason: reason,
+    })
+    .eq('referrer_user_id', referrerUserId)
+    .eq('referred_user_id', referredUserId);
+  
+  // Log the vesting transaction
+  await supabase
+    .from('gem_transactions')
+    .insert({
+      user_id: referrerUserId,
+      transaction_type: 'vest',
+      amount: gemsToVest,
+      wallet_type: 'cashable',
+      description: `Referral gems vested: ${reason}`,
+    });
+  
+  console.log(`✅ Vested ${gemsToVest} gems for user ${referrerUserId}`);
+  return { success: true, gemsVested: gemsToVest };
+}
+
+// Export for use by other functions (e.g., stripe-webhook)
+module.exports.vestReferralGems = vestReferralGems;

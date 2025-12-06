@@ -9589,13 +9589,19 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
-  // Add event listener for message input
-  document.addEventListener('DOMContentLoaded', () => {
+  // Add event listener for message input (handle both cases: DOM ready or already loaded)
+  function setupTipMessageListener() {
     const msgInput = document.getElementById('tip-message-input');
     if (msgInput) {
       msgInput.addEventListener('input', updateTipMessageCount);
     }
-  });
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupTipMessageListener);
+  } else {
+    setupTipMessageListener();
+  }
   
   function updateTipDisplay() {
     const selectedEl = document.getElementById('tip-selected-amount');
@@ -9870,21 +9876,36 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       if (type === 'cat') {
         const res = await fetch(GIF_APIS.cat);
-        const data = await res.json();
-        gifUrl = data[0]?.url || '';
+        if (res.ok) {
+          const data = await res.json();
+          gifUrl = data[0]?.url || '';
+        }
       } else if (type === 'dog') {
         const res = await fetch(GIF_APIS.dog);
-        const data = await res.json();
-        gifUrl = data[0]?.url || '';
+        if (res.ok) {
+          const data = await res.json();
+          gifUrl = data[0]?.url || '';
+        }
       } else if (type === 'meme') {
         const res = await fetch(GIF_APIS.meme);
-        const data = await res.json();
-        gifUrl = data?.url || '';
+        if (res.ok) {
+          const data = await res.json();
+          // meme-api returns { url: "..." } directly
+          gifUrl = data?.url || data?.preview?.[data.preview.length - 1] || '';
+        }
       }
       
       if (gifUrl) {
+        // Set up load handler before setting src
+        gifImage.onload = () => {
+          gifDisplay.style.display = 'block';
+          gifDisplay.classList.add('visible');
+        };
+        gifImage.onerror = () => {
+          console.warn('GIF failed to load:', gifUrl);
+          gifDisplay.style.display = 'none';
+        };
         gifImage.src = gifUrl;
-        gifDisplay.classList.add('visible');
         
         // Hide after 4 seconds
         setTimeout(() => {
@@ -10012,11 +10033,13 @@ function ensureSpectatorTracksForParticipant(participant) {
     const container = document.getElementById('tip-particles-container');
     if (!container) return;
     
-    // Main rocket
+    // Main rocket - set initial position
     const rocket = document.createElement('div');
     rocket.className = 'tip-particle';
     rocket.textContent = '🚀';
     rocket.style.fontSize = '4rem';
+    rocket.style.left = '0';
+    rocket.style.top = '50%';
     rocket.style.animation = 'tipRocket 2s ease-in-out forwards';
     container.appendChild(rocket);
     
@@ -10029,7 +10052,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         trail.style.left = Math.random() * 100 + 'vw';
         trail.style.top = 40 + Math.random() * 20 + 'vh';
         trail.style.opacity = '0.7';
-        trail.style.animation = `tipFloat 1s ease-out forwards`;
+        trail.style.animation = 'tipFloat 1s ease-out forwards';
         container.appendChild(trail);
         setTimeout(() => trail.remove(), 2000);
       }, i * 100);

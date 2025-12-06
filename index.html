@@ -3741,14 +3741,28 @@
     }
 
     function publishLiveKitDataMessage(payload) {
-      if (!livekitRoom || !livekitRoom.localParticipant || !LiveKitDataPacketKind) {
-        return;
+      if (!livekitRoom || !livekitRoom.localParticipant) {
+        console.warn('⚠️ LiveKit room or local participant not ready');
+        return false;
       }
       try {
         const message = typeof payload === 'string' ? payload : JSON.stringify(payload);
-        livekitRoom.localParticipant.publishData(message, LiveKitDataPacketKind.RELIABLE);
+        const encoder = new TextEncoder();
+        const data = encoder.encode(message);
+        
+        // Try different approaches for different LiveKit SDK versions
+        if (LiveKitDataPacketKind && LiveKitDataPacketKind.RELIABLE !== undefined) {
+          // Older SDK style: publishData(data, kind)
+          livekitRoom.localParticipant.publishData(data, LiveKitDataPacketKind.RELIABLE);
+        } else {
+          // Newer SDK style: publishData(data, options) or publishData(data, { reliable: true })
+          livekitRoom.localParticipant.publishData(data, { reliable: true });
+        }
+        console.log('📡 LiveKit data message published successfully');
+        return true;
       } catch (error) {
         console.error('❌ Failed to send LiveKit data message:', error);
+        return false;
       }
     }
 

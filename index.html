@@ -9373,11 +9373,24 @@ function ensureSpectatorTracksForParticipant(participant) {
     const ALLOW_SELF_TIP = false; // Disabled for production
     
     console.log('💎 Is host?', roomHostData.isHost);
+    console.log('💎 Host ID:', roomHostData.hostId);
+    console.log('💎 Host is signed in?', roomHostData.hostId && isValidUuid(roomHostData.hostId));
     
-    if (!roomHostData.isHost || ALLOW_SELF_TIP) {
+    // Check if host is signed in (can receive tips)
+    const hostCanReceiveTips = roomHostData.hostId && isValidUuid(roomHostData.hostId);
+    
+    if ((!roomHostData.isHost || ALLOW_SELF_TIP) && hostCanReceiveTips) {
       tipBtn.classList.remove('hidden');
       tipBtn.style.display = 'block'; // Force visibility
+      tipBtn.title = `Send a tip to ${roomHostData.hostName || 'the host'}`;
       console.log('💎 Tip button NOW VISIBLE');
+    } else if (!roomHostData.isHost && !hostCanReceiveTips) {
+      // Host is a guest - show button but with different styling/message
+      tipBtn.classList.remove('hidden');
+      tipBtn.style.display = 'block';
+      tipBtn.title = 'Host is a guest (cannot receive tips)';
+      tipBtn.style.opacity = '0.5';
+      console.log('💎 Tip button visible but host is guest (cannot receive tips)');
     } else {
       tipBtn.classList.add('hidden');
       tipBtn.style.display = 'none';
@@ -9498,6 +9511,20 @@ function ensureSpectatorTracksForParticipant(participant) {
   async function openTipModal() {
     const modal = document.getElementById('tip-modal');
     if (!modal) return;
+    
+    // Check if current user is signed in
+    const currentUserId = window.currentUserData?.userId || userId;
+    if (!currentUserId || !isValidUuid(currentUserId)) {
+      showToast('❌ Please sign in to send tips!');
+      showAuthModal && showAuthModal();
+      return;
+    }
+    
+    // Check if host is signed in (required to receive tips)
+    if (!roomHostData.hostId || !isValidUuid(roomHostData.hostId)) {
+      showToast('⚠️ The host is a guest and cannot receive tips yet');
+      return;
+    }
     
     // Update host name
     const hostNameEl = document.getElementById('tip-host-name');
@@ -9672,6 +9699,20 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
+    // Check if user is signed in (required to send tips)
+    const currentUserId = window.currentUserData?.userId || userId;
+    if (!currentUserId || !isValidUuid(currentUserId)) {
+      showToast('❌ Please sign in to send tips');
+      return;
+    }
+    
+    // Check if host is signed in (required to receive tips)
+    if (!roomHostData.hostId || !isValidUuid(roomHostData.hostId)) {
+      showToast('❌ The host is a guest and cannot receive tips. They need to sign in!');
+      console.warn('⚠️ Cannot tip: Host is not signed in. hostId:', roomHostData.hostId);
+      return;
+    }
+    
     // Save values before modal closes
     const tipAmountToSend = selectedTipAmount;
     const tipAnimation = selectedTipAnimation;
@@ -9684,9 +9725,10 @@ function ensureSpectatorTracksForParticipant(participant) {
       sendBtn.disabled = true;
     }
     
-    const currentUserId = window.currentUserData?.userId || userId;
     const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
     const sphereId = extractSphereId(roomUrl);
+    
+    console.log('💎 Sending tip:', { senderId: currentUserId, hostId: roomHostData.hostId, amount: tipAmountToSend });
     
     try {
       const response = await fetch('/.netlify/functions/send-tip', {

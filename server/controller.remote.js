@@ -437,12 +437,24 @@ async function finalizeRecordingUpload(egressId, egressInfo) {
       metadata: { contentType: 'video/mp4' },
     });
 
-    const [signedUrl] = await storageBucket.file(destination).getSignedUrl({
-      action: 'read',
-      expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
-    });
-    downloadUrl = signedUrl;
-    console.log(`✅ Uploaded recording ${egressId} to Firebase Storage`);
+    // Make the file publicly readable so URLs never expire
+    const file = storageBucket.file(destination);
+    try {
+      await file.makePublic();
+      // Use permanent public URL (never expires)
+      const bucketName = storageBucket.name;
+      downloadUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
+      console.log(`✅ Uploaded recording ${egressId} to Firebase Storage (public URL)`);
+    } catch (publicError) {
+      // If makePublic fails (e.g., uniform bucket access), fall back to signed URL
+      console.warn(`⚠️ Could not make file public, using signed URL: ${publicError.message}`);
+      const [signedUrl] = await file.getSignedUrl({
+        action: 'read',
+        expires: Date.now() + 1000 * 60 * 60 * 24 * 365, // 1 year fallback
+      });
+      downloadUrl = signedUrl;
+      console.log(`✅ Uploaded recording ${egressId} to Firebase Storage (signed URL)`);
+    }
     linkStatus = 'ready';
   } else {
     console.warn(`⚠️ Skipped Firebase upload for ${egressId} (storage not configured or file missing)`);

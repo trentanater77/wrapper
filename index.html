@@ -4032,12 +4032,12 @@ async function initializeApp() {
       isAuthenticated: true
     };
   } else {
-    // No authentication found - show auth modal and wait for user action
-    console.log('🔐 No authentication found, showing auth modal...');
+    // No authentication found - allow guest access
+    console.log('👤 No authentication found, joining as guest...');
     
-    // Pre-set guest values in case user skips auth
-    userName = isSpectator ? `Viewer_${Math.random().toString(36).slice(2, 8)}` : `User_${Math.random().toString(36).slice(2, 8)}`;
-    userId = `${isSpectator ? 'spectator' : 'participant'}_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+    // Set guest values - allow joining without sign-in
+    userName = isSpectator ? `Viewer_${Math.random().toString(36).slice(2, 8)}` : `Guest_${Math.random().toString(36).slice(2, 8)}`;
+    userId = `guest_${Math.random().toString(36).slice(2)}_${Date.now()}`;
     
     window.currentUserData = {
       username: userName,
@@ -4048,9 +4048,8 @@ async function initializeApp() {
       isGuest: true
     };
     
-    // Show auth modal and return - video chat will be initialized after auth
-    showAuthModal();
-    return;
+    // Continue to video chat as guest (no auth modal blocking)
+    console.log('✅ Guest access granted - joining video chat');
   }
     
   console.log(`🎭 User Mode: ${isSpectator ? 'Spectator' : 'Participant'}`);
@@ -5785,6 +5784,11 @@ async function initializeApp() {
     remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
     
+    if (!remoteVideo || !track) {
+      console.warn('⚠️ Remote video element or track not available');
+      return;
+    }
+    
     // CRITICAL: Check if we already have a stable video connection
     const hasStableConnection = remoteVideo.srcObject && 
                                remoteVideo.style.display === 'block' && 
@@ -5802,11 +5806,31 @@ async function initializeApp() {
       return;
     }
     
-    remoteVideo.srcObject = new MediaStream([track]);
-    remoteVideo.style.display = 'block';
-    placeholder.style.display = 'none';
-    
-    console.log('✅ Remote video set up for participant');
+    try {
+      // Set up the video stream
+      remoteVideo.srcObject = new MediaStream([track]);
+      
+      // Remove hidden class and show video (important for mobile)
+      remoteVideo.classList.remove('hidden');
+      remoteVideo.style.display = 'block';
+      placeholder.style.display = 'none';
+      
+      // Explicitly play video (required for mobile browsers)
+      const playPromise = remoteVideo.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          console.log('✅ Remote video playing successfully');
+        }).catch((playError) => {
+          console.warn('⚠️ Remote video autoplay blocked, will play on interaction:', playError.message);
+          // Video will start when user interacts with page
+          // Still show the video element so it's ready
+        });
+      }
+      
+      console.log('✅ Remote video set up for participant');
+    } catch (error) {
+      console.error('❌ Error setting up remote video:', error);
+    }
   }
 
   // Track which participant slots are used (only 2 participants max)

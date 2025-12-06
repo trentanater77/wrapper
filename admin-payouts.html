@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Payouts | ChatSpheres</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <style>
+    body { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+    h1 { color: var(--charcoal); margin-bottom: 2rem; }
+    
+    .admin-section {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 3px solid var(--rose);
+    }
+    
+    .admin-section h2 {
+      margin-top: 0;
+      color: var(--charcoal);
+    }
+    
+    .login-form {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .login-form input {
+      padding: 0.75rem 1rem;
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-size: 1rem;
+      width: 300px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    
+    th, td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--rose);
+    }
+    
+    th {
+      background: var(--gold);
+      font-weight: 700;
+    }
+    
+    .status-pending { color: #f59e0b; font-weight: 700; }
+    .status-processing { color: #3b82f6; font-weight: 700; }
+    .status-completed { color: #10b981; font-weight: 700; }
+    .status-rejected { color: #ef4444; font-weight: 700; }
+    
+    .action-btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    
+    .btn-approve { background: #3b82f6; color: white; }
+    .btn-complete { background: #10b981; color: white; }
+    .btn-reject { background: #ef4444; color: white; }
+    
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .summary-card {
+      background: white;
+      padding: 1rem;
+      border-radius: var(--radius-lg);
+      text-align: center;
+    }
+    
+    .summary-card .value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--main-red);
+    }
+    
+    .summary-card .label {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .instructions {
+      background: var(--gold);
+      padding: 1.5rem;
+      border-radius: var(--radius-lg);
+      margin-bottom: 1.5rem;
+    }
+    
+    .instructions h3 { margin-top: 0; }
+    .instructions ol { margin: 0; padding-left: 1.5rem; }
+    .instructions li { margin-bottom: 0.5rem; }
+    
+    #loading { text-align: center; padding: 2rem; font-size: 1.5rem; }
+    #error { color: var(--main-red); padding: 1rem; background: #fee; border-radius: var(--radius-lg); }
+  </style>
+</head>
+<body>
+  <h1>💰 Admin - Payout Management</h1>
+  
+  <!-- Login -->
+  <div class="admin-section" id="login-section">
+    <h2>🔐 Admin Login</h2>
+    <div class="login-form">
+      <input type="password" id="admin-secret" placeholder="Enter admin secret...">
+      <button class="btn btn-primary" onclick="loadPayouts()">Load Payouts</button>
+    </div>
+    <p style="margin-top: 1rem; font-size: 0.875rem; opacity: 0.7;">
+      Default secret: <code>chatspheres-admin-2024</code> (change this in Netlify env vars!)
+    </p>
+  </div>
+  
+  <!-- Instructions -->
+  <div class="instructions">
+    <h3>📋 How to Process Payouts</h3>
+    <ol>
+      <li><strong>Review</strong> the payout request (amount, email, method)</li>
+      <li><strong>Approve</strong> → Changes status to "Processing"</li>
+      <li><strong>Pay manually</strong> via PayPal/Venmo to the user's email</li>
+      <li><strong>Complete</strong> → Marks as done (after you've paid)</li>
+      <li>If there's an issue, <strong>Reject</strong> → Refunds gems to user</li>
+    </ol>
+  </div>
+  
+  <!-- Content (hidden until logged in) -->
+  <div id="content" style="display: none;">
+    <!-- Summary -->
+    <div class="admin-section">
+      <h2>📊 Summary</h2>
+      <div class="summary-cards" id="summary"></div>
+    </div>
+    
+    <!-- Payout Requests -->
+    <div class="admin-section">
+      <h2>📝 Payout Requests</h2>
+      <div id="loading">Loading...</div>
+      <div id="error" style="display: none;"></div>
+      <table id="payouts-table" style="display: none;">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>User</th>
+            <th>Amount</th>
+            <th>Method</th>
+            <th>Pay To</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="payouts-body"></tbody>
+      </table>
+    </div>
+  </div>
+  
+  <script>
+    let adminSecret = '';
+    
+    async function loadPayouts() {
+      adminSecret = document.getElementById('admin-secret').value;
+      if (!adminSecret) {
+        alert('Please enter admin secret');
+        return;
+      }
+      
+      document.getElementById('content').style.display = 'block';
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('payouts-table').style.display = 'none';
+      document.getElementById('error').style.display = 'none';
+      
+      try {
+        const response = await fetch('/.netlify/functions/process-payout', {
+          headers: { 'X-Admin-Secret': adminSecret }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Invalid admin secret or server error');
+        }
+        
+        const data = await response.json();
+        renderSummary(data.summary);
+        renderPayouts(data.requests || []);
+        
+      } catch (error) {
+        document.getElementById('error').textContent = error.message;
+        document.getElementById('error').style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+    
+    function renderSummary(summary) {
+      document.getElementById('summary').innerHTML = `
+        <div class="summary-card">
+          <div class="value">${summary.pending}</div>
+          <div class="label">Pending</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">${summary.processing}</div>
+          <div class="label">Processing</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">${summary.completed}</div>
+          <div class="label">Completed</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">$${summary.totalPendingUsd.toFixed(2)}</div>
+          <div class="label">Pending USD</div>
+        </div>
+      `;
+    }
+    
+    function renderPayouts(requests) {
+      document.getElementById('loading').style.display = 'none';
+      
+      if (requests.length === 0) {
+        document.getElementById('payouts-body').innerHTML = `
+          <tr><td colspan="7" style="text-align: center; padding: 2rem;">
+            No payout requests yet! 🎉
+          </td></tr>
+        `;
+        document.getElementById('payouts-table').style.display = 'table';
+        return;
+      }
+      
+      const tbody = document.getElementById('payouts-body');
+      tbody.innerHTML = requests.map(r => `
+        <tr>
+          <td>${new Date(r.requested_at).toLocaleDateString()}</td>
+          <td>${r.payout_email || r.user_id.slice(0, 8)}</td>
+          <td>
+            <strong>$${parseFloat(r.usd_amount).toFixed(2)}</strong><br>
+            <small>${r.gems_amount} gems</small>
+          </td>
+          <td>${r.payout_method || 'PayPal'}</td>
+          <td style="max-width: 200px; word-break: break-all;">${r.payout_email || 'N/A'}</td>
+          <td class="status-${r.status}">${r.status.toUpperCase()}</td>
+          <td>
+            ${r.status === 'pending' ? `
+              <button class="action-btn btn-approve" onclick="updatePayout('${r.id}', 'approve')">Approve</button>
+              <button class="action-btn btn-reject" onclick="updatePayout('${r.id}', 'reject')">Reject</button>
+            ` : ''}
+            ${r.status === 'processing' ? `
+              <button class="action-btn btn-complete" onclick="updatePayout('${r.id}', 'complete')">Complete</button>
+              <button class="action-btn btn-reject" onclick="updatePayout('${r.id}', 'reject')">Reject</button>
+            ` : ''}
+            ${r.status === 'completed' ? '✅ Done' : ''}
+            ${r.status === 'rejected' ? '❌ Rejected' : ''}
+          </td>
+        </tr>
+      `).join('');
+      
+      document.getElementById('payouts-table').style.display = 'table';
+    }
+    
+    async function updatePayout(requestId, action) {
+      const confirmMsg = action === 'complete' 
+        ? 'Have you already sent the payment via PayPal/Venmo?' 
+        : `Are you sure you want to ${action} this payout?`;
+      
+      if (!confirm(confirmMsg)) return;
+      
+      let adminNotes = '';
+      if (action === 'reject') {
+        adminNotes = prompt('Reason for rejection (optional):');
+      }
+      
+      try {
+        const response = await fetch('/.netlify/functions/process-payout', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Admin-Secret': adminSecret 
+          },
+          body: JSON.stringify({ requestId, action, adminNotes })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert(`Payout ${action}d successfully!`);
+          loadPayouts(); // Refresh
+        } else {
+          alert('Error: ' + (data.error || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

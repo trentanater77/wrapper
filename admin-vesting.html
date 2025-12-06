@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Referral Vesting | ChatSpheres</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <style>
+    body { padding: 2rem; max-width: 1000px; margin: 0 auto; }
+    h1 { color: var(--charcoal); margin-bottom: 0.5rem; }
+    .subtitle { color: var(--charcoal); opacity: 0.7; margin-bottom: 2rem; }
+    
+    .admin-section {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 3px solid var(--rose);
+    }
+    
+    .admin-section h2 { margin-top: 0; color: var(--charcoal); }
+    
+    .info-box {
+      background: var(--gold);
+      padding: 1rem;
+      border-radius: var(--radius-lg);
+      margin-bottom: 1rem;
+    }
+    
+    .referral-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border: 2px solid var(--rose);
+    }
+    
+    .referral-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .referral-gems {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--main-red);
+    }
+    
+    .referral-details {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+    }
+    
+    .progress-bar {
+      background: var(--rose);
+      border-radius: 999px;
+      height: 8px;
+      margin: 0.5rem 0;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      background: var(--main-red);
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.3s;
+    }
+    
+    .status-ready { color: #10b981; font-weight: 700; }
+    .status-waiting { color: #f59e0b; font-weight: 700; }
+    
+    .vest-btn {
+      background: var(--main-red);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-weight: 600;
+    }
+    
+    .vest-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    
+    #results { margin-top: 1rem; }
+    pre { background: #1a1a2e; color: #eee; padding: 1rem; border-radius: var(--radius-lg); overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>⏳ Admin - Referral Vesting</h1>
+  <p class="subtitle">Monitor and manage the 30-day vesting process</p>
+  
+  <!-- How It Works -->
+  <div class="info-box">
+    <strong>🔐 Vesting Rules:</strong><br>
+    Referral gems become <strong>cashable</strong> when:
+    <ul style="margin: 0.5rem 0 0 1rem; padding: 0;">
+      <li>⭐ Referred user makes ANY purchase (instant), OR</li>
+      <li>⏰ 30+ days pass AND referred user has 5+ conversations</li>
+    </ul>
+  </div>
+  
+  <!-- Check All Pending -->
+  <div class="admin-section">
+    <h2>🔍 Check Pending Referrals</h2>
+    <button class="btn btn-primary" onclick="checkPending()">Load Pending Referrals</button>
+    <button class="btn btn-ghost" onclick="runVesting()" style="margin-left: 1rem;">Run Auto-Vest (30-day check)</button>
+    <div id="pending-list"></div>
+  </div>
+  
+  <!-- Results -->
+  <div class="admin-section">
+    <h2>📊 Results</h2>
+    <div id="results">
+      <p style="opacity: 0.7;">Click a button above to see results...</p>
+    </div>
+  </div>
+  
+  <script>
+    const API_BASE = '/.netlify/functions';
+    
+    async function checkPending() {
+      document.getElementById('results').innerHTML = '<p>Loading...</p>';
+      
+      try {
+        const response = await fetch(`${API_BASE}/test-referral-vesting?action=test`);
+        const data = await response.json();
+        
+        // Show test results
+        document.getElementById('results').innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        
+        // Show pending referrals
+        const pendingTest = data.tests?.find(t => t.name === 'Pending Referrals Check');
+        if (pendingTest?.data) {
+          renderPendingReferrals(pendingTest.data);
+        } else {
+          document.getElementById('pending-list').innerHTML = '<p>No pending referrals found.</p>';
+        }
+        
+      } catch (error) {
+        document.getElementById('results').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    }
+    
+    function renderPendingReferrals(referrals) {
+      if (!referrals || referrals.length === 0) {
+        document.getElementById('pending-list').innerHTML = '<p>No pending referrals!</p>';
+        return;
+      }
+      
+      const html = referrals.map(r => {
+        const daysSince = Math.floor((Date.now() - new Date(r.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+        const daysProgress = Math.min(100, (daysSince / 30) * 100);
+        const isReady = daysSince >= 30;
+        
+        return `
+          <div class="referral-card">
+            <div class="referral-header">
+              <span class="referral-gems">💎 ${r.gems_awarded_referrer || 0}</span>
+              <span class="${isReady ? 'status-ready' : 'status-waiting'}">
+                ${isReady ? '✅ Ready to vest' : `⏳ ${30 - daysSince} days left`}
+              </span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${daysProgress}%"></div>
+            </div>
+            <div class="referral-details">
+              <strong>Referrer:</strong> ${r.referrer_user_id.slice(0, 8)}...<br>
+              <strong>Referred:</strong> ${r.referred_user_id?.slice(0, 8) || 'N/A'}...<br>
+              <strong>Activated:</strong> ${new Date(r.updated_at).toLocaleDateString()}<br>
+              <strong>Days:</strong> ${daysSince}/30
+            </div>
+            <button class="vest-btn" onclick="manualVest('${r.referrer_user_id}', '${r.referred_user_id}')" ${!isReady ? 'disabled' : ''}>
+              ${isReady ? 'Vest Now' : 'Not ready yet'}
+            </button>
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('pending-list').innerHTML = html;
+    }
+    
+    async function runVesting() {
+      document.getElementById('results').innerHTML = '<p>Running auto-vest check...</p>';
+      
+      try {
+        const response = await fetch(`${API_BASE}/vest-referral-gems?checkAll=true`);
+        const data = await response.json();
+        
+        document.getElementById('results').innerHTML = `
+          <h3>Auto-Vest Results</h3>
+          <p><strong>Vested:</strong> ${data.vestedCount || 0} referrals</p>
+          <pre>${JSON.stringify(data, null, 2)}</pre>
+        `;
+        
+      } catch (error) {
+        document.getElementById('results').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+      }
+    }
+    
+    async function manualVest(referrerId, referredId) {
+      if (!confirm('Manually vest these gems? This will make them cashable.')) return;
+      
+      try {
+        const response = await fetch(`${API_BASE}/admin-vest-gems?referrerId=${referrerId}&referredId=${referredId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          alert(`✅ Vested ${data.before?.pending_referral - data.after?.pending_referral || 0} gems!`);
+          checkPending(); // Refresh
+        } else {
+          alert('Error: ' + (data.error || data.message || 'Unknown error'));
+        }
+        
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -163,10 +163,9 @@
         <thead>
           <tr>
             <th>Date</th>
-            <th>User</th>
             <th>Amount</th>
             <th>Method</th>
-            <th>Pay To</th>
+            <th>Send Payment To</th>
             <th>Status</th>
             <th>Actions</th>
           </tr>
@@ -246,31 +245,49 @@
       }
       
       const tbody = document.getElementById('payouts-body');
-      tbody.innerHTML = requests.map(r => `
+      tbody.innerHTML = requests.map(r => {
+        const method = (r.payout_method || 'paypal').toLowerCase();
+        const methodIcon = method === 'venmo' ? '💜 Venmo' : '💙 PayPal';
+        const methodColor = method === 'venmo' ? '#008CFF' : '#003087';
+        
+        return `
         <tr>
           <td>${new Date(r.requested_at).toLocaleDateString()}</td>
-          <td>${r.payout_email || r.user_id.slice(0, 8)}</td>
           <td>
             <strong>$${parseFloat(r.usd_amount).toFixed(2)}</strong><br>
-            <small>${r.gems_amount} gems</small>
+            <small style="opacity: 0.7;">${r.gems_amount.toLocaleString()} gems</small>
           </td>
-          <td>${r.payout_method || 'PayPal'}</td>
-          <td style="max-width: 200px; word-break: break-all;">${r.payout_email || 'N/A'}</td>
+          <td>
+            <div style="background: ${methodColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 700; display: inline-block;">
+              ${methodIcon}
+            </div>
+          </td>
+          <td style="max-width: 250px;">
+            <div style="background: #f0f0f0; padding: 0.5rem; border-radius: 8px; font-family: monospace; word-break: break-all;">
+              📧 <strong>${r.payout_email || 'NOT PROVIDED'}</strong>
+            </div>
+            <small style="opacity: 0.7;">Copy this ${method === 'venmo' ? 'Venmo username' : 'PayPal email'} to send payment</small>
+          </td>
           <td class="status-${r.status}">${r.status.toUpperCase()}</td>
           <td>
             ${r.status === 'pending' ? `
-              <button class="action-btn btn-approve" onclick="updatePayout('${r.id}', 'approve')">Approve</button>
-              <button class="action-btn btn-reject" onclick="updatePayout('${r.id}', 'reject')">Reject</button>
+              <button class="action-btn btn-approve" onclick="updatePayout('${r.id}', 'approve')">✓ Approve</button>
+              <button class="action-btn btn-reject" onclick="updatePayout('${r.id}', 'reject')">✗ Reject</button>
             ` : ''}
             ${r.status === 'processing' ? `
-              <button class="action-btn btn-complete" onclick="updatePayout('${r.id}', 'complete')">Complete</button>
-              <button class="action-btn btn-reject" onclick="updatePayout('${r.id}', 'reject')">Reject</button>
+              <div style="margin-bottom: 0.5rem; font-size: 0.8rem; color: #666;">
+                Send $${parseFloat(r.usd_amount).toFixed(2)} to:<br>
+                <strong>${r.payout_email}</strong><br>
+                via <strong>${methodIcon}</strong>
+              </div>
+              <button class="action-btn btn-complete" onclick="updatePayout('${r.id}', 'complete')">✓ I Paid - Complete</button>
+              <button class="action-btn btn-reject" onclick="updatePayout('${r.id}', 'reject')">✗ Issue - Reject</button>
             ` : ''}
-            ${r.status === 'completed' ? '✅ Done' : ''}
+            ${r.status === 'completed' ? '✅ Paid' : ''}
             ${r.status === 'rejected' ? '❌ Rejected' : ''}
           </td>
         </tr>
-      `).join('');
+      `}).join('');
       
       document.getElementById('payouts-table').style.display = 'table';
     }

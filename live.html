@@ -361,6 +361,345 @@
         flex-wrap: wrap;
       }
     }
+    
+    /* ==========================================
+       MODAL STYLES (replacing Tailwind classes)
+       ========================================== */
+    
+    /* Hidden utility */
+    .hidden {
+      display: none !important;
+    }
+    
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-md);
+      background: rgba(34, 34, 59, 0.95);
+      backdrop-filter: blur(8px);
+    }
+    
+    /* Modal container */
+    .modal-container {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+      max-width: 420px;
+      width: 100%;
+      box-shadow: var(--shadow-xl);
+      border: 4px solid var(--gold);
+      position: relative;
+      animation: modalScaleIn 0.3s ease-out;
+    }
+    
+    @keyframes modalScaleIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    /* Modal close button */
+    .modal-close {
+      position: absolute;
+      top: var(--space-md);
+      right: var(--space-md);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--charcoal);
+      padding: var(--space-xs);
+      border-radius: var(--radius-md);
+      transition: all var(--transition-fast);
+    }
+    
+    .modal-close:hover {
+      color: var(--main-red);
+      background: var(--rose);
+    }
+    
+    /* Modal header */
+    .modal-header {
+      text-align: center;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .modal-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto var(--space-md);
+      font-size: 2rem;
+    }
+    
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .modal-subtitle {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    /* Room type selector */
+    .room-type-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+    
+    .room-type-btn {
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      border: 2px solid var(--rose);
+      background: white;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .room-type-btn:hover {
+      box-shadow: var(--shadow-md);
+    }
+    
+    .room-type-btn.selected {
+      border-width: 3px;
+    }
+    
+    .room-type-btn.selected.red {
+      border-color: var(--main-red);
+    }
+    
+    .room-type-btn.selected.green {
+      border-color: #10b981;
+    }
+    
+    .room-type-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .room-type-icon {
+      font-size: 1.5rem;
+      margin-bottom: var(--space-xs);
+    }
+    
+    .room-type-name {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      font-size: 0.9rem;
+    }
+    
+    .room-type-desc {
+      font-size: 0.75rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    /* Form inputs */
+    .form-group {
+      margin-bottom: var(--space-md);
+    }
+    
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: var(--space-sm) var(--space-md);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      transition: border-color var(--transition-fast);
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--main-red);
+    }
+    
+    .form-textarea {
+      resize: none;
+    }
+    
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--rose);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-md);
+    }
+    
+    .toggle-label {
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+    }
+    
+    .toggle-desc {
+      font-size: 0.75rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .toggle-switch {
+      width: 44px;
+      height: 24px;
+      background: #ccc;
+      border-radius: 24px;
+      position: relative;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    
+    .toggle-switch.active {
+      background: var(--main-red);
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform var(--transition-fast);
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(20px);
+    }
+    
+    /* Plan warning boxes */
+    .plan-warning {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-md);
+    }
+    
+    .plan-warning.gold {
+      background: var(--gold);
+      border: 2px solid var(--charcoal);
+    }
+    
+    .plan-warning.red {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .plan-warning-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .plan-warning-title {
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .plan-warning ul {
+      font-size: 0.75rem;
+      padding-left: 0;
+      list-style: none;
+      margin: 0;
+    }
+    
+    .plan-warning li {
+      margin-bottom: 2px;
+    }
+    
+    .plan-warning a {
+      display: inline-block;
+      margin-top: var(--space-xs);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-bold);
+      text-decoration: underline;
+    }
+    
+    .plan-warning.gold a {
+      color: var(--main-red);
+    }
+    
+    .plan-warning.red a {
+      color: var(--gold);
+    }
+    
+    /* Modal buttons */
+    .modal-btn {
+      width: 100%;
+      padding: var(--space-md);
+      border: none;
+      border-radius: var(--radius-full);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .modal-btn-primary {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .modal-btn-primary:hover:not(:disabled) {
+      background: #c92a35;
+      transform: scale(1.02);
+    }
+    
+    .modal-btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* Sign in prompt */
+    .signin-prompt {
+      text-align: center;
+      padding: var(--space-md);
+      background: var(--rose);
+      border-radius: var(--radius-lg);
+      margin-top: var(--space-md);
+    }
+    
+    .signin-prompt p {
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .signin-prompt a {
+      color: var(--main-red);
+      font-weight: var(--font-weight-bold);
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -497,123 +836,108 @@
   </div>
   
   <!-- Create Room Modal -->
-  <div id="create-room-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
-    <div class="bg-light-rose rounded-3xl p-6 max-w-md w-full shadow-2xl border-4 border-gold relative" style="animation: scaleIn 0.3s ease-out;">
+  <div id="create-room-modal" class="modal-overlay hidden">
+    <div class="modal-container">
       <!-- Close button -->
-      <button onclick="window.closeCreateRoomModal()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <button onclick="window.closeCreateRoomModal()" class="modal-close">
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
         </svg>
       </button>
       
       <!-- Header -->
-      <div class="text-center mb-6">
-        <div class="w-16 h-16 mx-auto mb-4 bg-gold rounded-full flex items-center justify-center">
-          <span class="text-3xl">🎙️</span>
-        </div>
-        <h2 class="text-xl font-bold text-charcoal mb-2">Create Your Room</h2>
-        <p class="text-charcoal opacity-70 text-sm">Host a debate or help session</p>
+      <div class="modal-header">
+        <div class="modal-icon">🎙️</div>
+        <h2 class="modal-title">Create Your Room</h2>
+        <p class="modal-subtitle">Host a debate or help session</p>
       </div>
       
       <!-- Room Type Selection -->
-      <div class="mb-4">
-        <label class="block text-sm font-bold text-charcoal mb-2">Room Type</label>
-        <div class="grid grid-cols-2 gap-3">
-          <button id="type-red" onclick="window.selectRoomType('red')" class="p-4 rounded-xl border-3 border-main-red bg-white text-center transition-all hover:shadow-lg" style="border-width: 3px;">
-            <div class="text-2xl mb-1">🔴</div>
-            <div class="font-bold text-charcoal">Red Room</div>
-            <div class="text-xs text-charcoal opacity-70">Debate • Winner takes pot</div>
+      <div class="form-group">
+        <label class="form-label">Room Type</label>
+        <div class="room-type-selector">
+          <button id="type-red" onclick="window.selectRoomType('red')" class="room-type-btn selected red">
+            <div class="room-type-icon">🔴</div>
+            <div class="room-type-name">Red Room</div>
+            <div class="room-type-desc">Debate • Winner takes pot</div>
           </button>
-          <button id="type-green" onclick="window.selectRoomType('green')" class="p-4 rounded-xl border-2 border-rose bg-white text-center transition-all hover:shadow-lg opacity-70">
-            <div class="text-2xl mb-1">🟢</div>
-            <div class="font-bold text-charcoal">Green Room</div>
-            <div class="text-xs text-charcoal opacity-70">Help • Tips for advice</div>
+          <button id="type-green" onclick="window.selectRoomType('green')" class="room-type-btn">
+            <div class="room-type-icon">🟢</div>
+            <div class="room-type-name">Green Room</div>
+            <div class="room-type-desc">Help • Tips for advice</div>
           </button>
         </div>
       </div>
       
       <!-- Topic Input -->
-      <div class="mb-4">
-        <label class="block text-sm font-bold text-charcoal mb-2">Topic</label>
+      <div class="form-group">
+        <label class="form-label">Topic</label>
         <input 
           type="text" 
           id="create-room-topic" 
           placeholder="What do you want to discuss?"
           maxlength="100"
-          class="w-full px-4 py-3 rounded-xl border-2 border-rose focus:border-main-red outline-none font-semibold"
+          class="form-input"
         >
       </div>
       
       <!-- Description (optional) -->
-      <div class="mb-6">
-        <label class="block text-sm font-bold text-charcoal mb-2">Description (optional)</label>
+      <div class="form-group">
+        <label class="form-label">Description (optional)</label>
         <textarea 
           id="create-room-description" 
           placeholder="Add more details about your room..."
           maxlength="200"
           rows="2"
-          class="w-full px-4 py-3 rounded-xl border-2 border-rose focus:border-main-red outline-none resize-none"
+          class="form-input form-textarea"
         ></textarea>
       </div>
       
       <!-- Public/Private Toggle -->
-      <div class="mb-4 flex items-center justify-between p-3 bg-rose rounded-xl">
+      <div class="toggle-row">
         <div>
-          <div class="font-bold text-charcoal text-sm">Public Room</div>
-          <div class="text-xs text-charcoal opacity-70">Visible on Live Rooms page</div>
+          <div class="toggle-label">Public Room</div>
+          <div class="toggle-desc">Visible on Live Rooms page</div>
         </div>
-        <label class="relative inline-flex items-center cursor-pointer">
-          <input type="checkbox" id="create-room-public" checked class="sr-only peer">
-          <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-main-red"></div>
-        </label>
+        <div id="public-toggle" class="toggle-switch active" onclick="window.togglePublic()"></div>
+        <input type="hidden" id="create-room-public" value="true">
       </div>
       
       <!-- Plan Warning for Free Users -->
-      <div id="create-room-plan-warning" class="hidden mb-4 p-3 bg-gold rounded-xl border-2 border-charcoal">
-        <div class="flex items-center gap-2 mb-2">
-          <span class="text-lg">⏱️</span>
-          <span class="font-bold text-charcoal text-sm">Free Plan Limits</span>
+      <div id="create-room-plan-warning" class="plan-warning gold hidden">
+        <div class="plan-warning-header">
+          <span>⏱️</span>
+          <span class="plan-warning-title">Free Plan Limits</span>
         </div>
-        <ul class="text-xs text-charcoal space-y-1">
+        <ul>
           <li>• Room duration: <strong>60 minutes max</strong></li>
           <li>• Red Rooms only (Green Rooms require Pro)</li>
         </ul>
-        <a href="/pricing.html" class="inline-block mt-2 text-xs text-main-red font-bold underline">Upgrade to Host Pro for 3 hours →</a>
+        <a href="/pricing.html">Upgrade to Host Pro for 3 hours →</a>
       </div>
       
       <!-- Green Room Pro Warning -->
-      <div id="green-room-pro-warning" class="hidden mb-4 p-3 bg-main-red text-white rounded-xl">
-        <div class="flex items-center gap-2">
-          <span class="text-lg">🔒</span>
-          <span class="font-bold text-sm">Green Rooms require Host Pro</span>
+      <div id="green-room-pro-warning" class="plan-warning red hidden">
+        <div class="plan-warning-header">
+          <span>🔒</span>
+          <span class="plan-warning-title">Green Rooms require Host Pro</span>
         </div>
-        <p class="text-xs mt-1 opacity-90">Upgrade to create paid advice rooms.</p>
-        <a href="/pricing.html" class="inline-block mt-2 text-xs text-gold font-bold underline">Upgrade Now →</a>
+        <p style="font-size: 0.75rem; margin-top: 4px; opacity: 0.9;">Upgrade to create paid advice rooms.</p>
+        <a href="/pricing.html">Upgrade Now →</a>
       </div>
       
       <!-- Create Button -->
-      <button 
-        id="create-room-btn"
-        onclick="window.createRoom()"
-        class="w-full py-4 bg-main-red text-white font-bold rounded-full hover:bg-red-700 transition-all text-lg"
-      >
+      <button id="create-room-btn" onclick="window.createRoom()" class="modal-btn modal-btn-primary">
         🚀 Create Room
       </button>
       
       <!-- Sign in prompt (shown if not logged in) -->
-      <div id="create-room-signin" class="hidden mt-4 text-center p-4 bg-rose rounded-xl">
-        <p class="text-charcoal font-semibold mb-2">Sign in to create a room</p>
-        <a href="/matchmaking.html" class="text-main-red underline font-bold">Sign In</a>
+      <div id="create-room-signin" class="signin-prompt hidden">
+        <p>Sign in to create a room</p>
+        <a href="/matchmaking.html">Sign In</a>
       </div>
     </div>
   </div>
-  
-  <style>
-    @keyframes scaleIn {
-      from { opacity: 0; transform: scale(0.9); }
-      to { opacity: 1; transform: scale(1); }
-    }
-  </style>
 
   <!-- Navigation Script -->
   <script src="/assets/js/navigation.js"></script>
@@ -675,6 +999,24 @@
       if (modal) modal.classList.add('hidden');
     };
     
+    // Toggle public/private switch
+    let isPublic = true;
+    window.togglePublic = function() {
+      isPublic = !isPublic;
+      const toggle = document.getElementById('public-toggle');
+      const input = document.getElementById('create-room-public');
+      if (toggle) {
+        if (isPublic) {
+          toggle.classList.add('active');
+        } else {
+          toggle.classList.remove('active');
+        }
+      }
+      if (input) {
+        input.value = isPublic ? 'true' : 'false';
+      }
+    };
+    
     window.selectRoomType = function(type) {
       selectedRoomType = type;
       
@@ -684,33 +1026,25 @@
       const createBtn = document.getElementById('create-room-btn');
       
       if (type === 'red') {
+        // Update button styles
         if (redBtn) {
-          redBtn.style.borderWidth = '3px';
-          redBtn.style.borderColor = '#e63946';
-          redBtn.classList.remove('opacity-70');
+          redBtn.classList.add('selected', 'red');
         }
         if (greenBtn) {
-          greenBtn.style.borderWidth = '2px';
-          greenBtn.style.borderColor = '#FFB6B9';
-          greenBtn.classList.add('opacity-70');
+          greenBtn.classList.remove('selected', 'green');
         }
         // Hide green room warning
         if (greenProWarning) greenProWarning.classList.add('hidden');
         if (createBtn && currentUserId) {
           createBtn.disabled = false;
-          createBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         }
       } else {
         // Green room selected
         if (greenBtn) {
-          greenBtn.style.borderWidth = '3px';
-          greenBtn.style.borderColor = '#10b981';
-          greenBtn.classList.remove('opacity-70');
+          greenBtn.classList.add('selected', 'green');
         }
         if (redBtn) {
-          redBtn.style.borderWidth = '2px';
-          redBtn.style.borderColor = '#FFB6B9';
-          redBtn.classList.add('opacity-70');
+          redBtn.classList.remove('selected', 'red');
         }
         
         // Check if user has pro plan for green rooms
@@ -718,13 +1052,11 @@
           if (greenProWarning) greenProWarning.classList.remove('hidden');
           if (createBtn) {
             createBtn.disabled = true;
-            createBtn.classList.add('opacity-50', 'cursor-not-allowed');
           }
         } else {
           if (greenProWarning) greenProWarning.classList.add('hidden');
           if (createBtn && currentUserId) {
             createBtn.disabled = false;
-            createBtn.classList.remove('opacity-50', 'cursor-not-allowed');
           }
         }
       }
@@ -753,7 +1085,7 @@
     window.createRoom = async function() {
       const topic = document.getElementById('create-room-topic').value.trim();
       const description = document.getElementById('create-room-description').value.trim();
-      const isPublic = document.getElementById('create-room-public').checked;
+      // Use the global isPublic variable set by togglePublic()
       
       if (!topic) {
         alert('Please enter a topic for your room');

@@ -7702,6 +7702,29 @@ function ensureSpectatorTracksForParticipant(participant) {
     return video1Active || video2Active;
   }
 
+  // Helper to check if a string looks like a UUID
+  function isUuid(str) {
+    if (!str) return false;
+    // UUID format: 8-4-4-4-12 hex characters (with or without dashes)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidNoDashRegex = /^[0-9a-f]{32}$/i;
+    return uuidRegex.test(str) || uuidNoDashRegex.test(str);
+  }
+  
+  // Helper to check if a string is a valid display name
+  function isValidDisplayName(name) {
+    if (!name) return false;
+    // Filter out checkout session IDs
+    if (name.startsWith('cs_')) return false;
+    // Filter out PA_ (participant IDs)
+    if (name.startsWith('PA_')) return false;
+    // Filter out UUIDs
+    if (isUuid(name)) return false;
+    // Filter out just numbers
+    if (/^\d+$/.test(name)) return false;
+    return true;
+  }
+
   function getParticipantName(participantId) {
     // First try to get from LiveKit room directly (most reliable)
     if (livekitRoom) {
@@ -7709,42 +7732,53 @@ function ensureSpectatorTracksForParticipant(participant) {
       if (livekitRoom.localParticipant?.sid === participantId || 
           livekitRoom.localParticipant?.identity === participantId) {
         const name = livekitRoom.localParticipant?.name;
-        if (name && !name.startsWith('cs_')) return name;
+        if (isValidDisplayName(name)) return name;
+        
+        // Try metadata
+        try {
+          const metadata = JSON.parse(livekitRoom.localParticipant?.metadata || '{}');
+          if (isValidDisplayName(metadata.displayName)) return metadata.displayName;
+          if (isValidDisplayName(metadata.name)) return metadata.name;
+        } catch (e) {}
       }
       
       // Check remote participants
       for (const p of livekitRoom.remoteParticipants?.values() || []) {
         if (p.sid === participantId || p.identity === participantId) {
           // Prefer name over identity (identity might be checkout session ID)
-          const name = p.name || p.identity;
-          // Filter out checkout session IDs
-          if (name && !name.startsWith('cs_')) return name;
-          // If name starts with cs_, try to extract from the end
-          if (name && name.startsWith('cs_')) {
-            // Try to parse metadata for actual name
-            try {
-              const metadata = JSON.parse(p.metadata || '{}');
-              if (metadata.displayName) return metadata.displayName;
-              if (metadata.name) return metadata.name;
-            } catch (e) {}
-          }
+          const name = p.name;
+          if (isValidDisplayName(name)) return name;
+          
+          // Try to parse metadata for actual name
+          try {
+            const metadata = JSON.parse(p.metadata || '{}');
+            if (isValidDisplayName(metadata.displayName)) return metadata.displayName;
+            if (isValidDisplayName(metadata.name)) return metadata.name;
+          } catch (e) {}
+          
+          // Last resort - identity if valid
+          if (isValidDisplayName(p.identity)) return p.identity;
         }
       }
     }
     
-    // Fallback to participants snapshot
+    // Fallback to participants snapshot (Firebase presence)
     const participants = getParticipantsSnapshot();
     for (const [id, participant] of Object.entries(participants)) {
-      if (id === participantId) {
-        const name = participant.user_name;
-        // Filter out checkout session IDs
-        if (name && !name.startsWith('cs_')) return name;
+      if (id === participantId || participant.user_id === participantId) {
+        const name = participant.user_name || participant.displayName;
+        if (isValidDisplayName(name)) return name;
       }
     }
     
-    // If participantId itself looks like a name (not cs_xxx), use it
-    if (participantId && !participantId.startsWith('cs_') && !participantId.startsWith('PA_')) {
-      return participantId;
+    // Also check by matching other criteria in presence
+    for (const [id, participant] of Object.entries(participants)) {
+      // Sometimes participantId is the Firebase key, not user_id
+      const name = participant.user_name || participant.displayName;
+      if (isValidDisplayName(name)) {
+        // If this is the only participant with a valid name and we haven't found one yet
+        // This is a fallback
+      }
     }
     
     return 'Debater';
@@ -10731,10 +10765,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       // SPECTATORS: Get participants from LiveKit room or spectator slots
       // Helper function to clean participant name
       const cleanName = (name) => {
-        if (!name) return null;
-        // Filter out checkout session IDs
-        if (name.startsWith('cs_')) return null;
-        if (name.startsWith('PA_')) return null;
+        if (!isValidDisplayName(name)) return null;
         return name;
       };
       
@@ -10768,16 +10799,16 @@ function ensureSpectatorTracksForParticipant(participant) {
           
           // Get clean name, preferring name over identity
           let pName = p.name;
-          // If name is a checkout session ID, try to get from metadata
-          if (!pName || pName.startsWith('cs_')) {
+          // If name is invalid, try to get from metadata
+          if (!isValidDisplayName(pName)) {
             try {
               const metadata = JSON.parse(p.metadata || '{}');
               pName = metadata.displayName || metadata.name;
             } catch (e) {}
           }
-          // Still bad? Use identity if it's not a checkout session
-          if (!pName || pName.startsWith('cs_')) {
-            pName = p.identity?.startsWith('cs_') ? 'Debater' : (p.identity || 'Debater');
+          // Still bad? Use identity if valid
+          if (!isValidDisplayName(pName)) {
+            pName = isValidDisplayName(p.identity) ? p.identity : 'Debater';
           }
           
           const pId = p.sid || p.identity;
@@ -10799,11 +10830,11 @@ function ensureSpectatorTracksForParticipant(participant) {
         });
       }
       
-      // Add remote participant - filter out checkout session IDs
+      // Add remote participant - filter out invalid names
       if (otherParticipantId && otherParticipantId !== localUserId) {
         let oppName = otherParticipantName;
-        // Filter out checkout session IDs from opponent name
-        if (!oppName || oppName.startsWith('cs_')) {
+        // Filter out invalid names (checkout session IDs, UUIDs, etc.)
+        if (!isValidDisplayName(oppName)) {
           oppName = getParticipantName(otherParticipantId) || 'Opponent';
         }
         participants.push({

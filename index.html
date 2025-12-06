@@ -6947,10 +6947,20 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
 
     async function toggleRecording() {
-    if (isSpectator) return; // Only participants can record
+    console.log('🎬 toggleRecording called');
+    console.log('🎬 isSpectator:', isSpectator);
+    console.log('🎬 isRecording:', isRecording);
+    
+    if (isSpectator) {
+      console.log('🎬 Blocked: user is spectator');
+      return;
+    }
     
     // Check if user has recording permission
     const recordBtn = document.getElementById('record-btn');
+    console.log('🎬 Record button found:', !!recordBtn);
+    console.log('🎬 Record button hidden:', recordBtn?.classList.contains('hidden'));
+    
     if (recordBtn && recordBtn.classList.contains('hidden')) {
       // Button is hidden = no permission, but user somehow clicked it
       showToast('⬆️ Upgrade to Host Pro or Pro Bundle to record!');
@@ -6960,9 +6970,12 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Double-check permission via API (in case state is stale)
     try {
       const currentUserId = window.currentUserData?.userId || userId;
+      console.log('🎬 Checking recording permission for user:', currentUserId);
       if (currentUserId && isValidUuid(currentUserId)) {
         const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
         const data = await response.json();
+        console.log('🎬 Subscription data:', data);
+        console.log('🎬 Can record:', data.limits?.canRecord);
         if (!data.limits?.canRecord) {
           showToast('⬆️ Upgrade to Host Pro or Pro Bundle to record!');
           hideRecordButton();
@@ -6973,15 +6986,26 @@ function ensureSpectatorTracksForParticipant(participant) {
       console.warn('⚠️ Could not verify recording permission:', e);
     }
     
+    console.log('🎬 Permission check passed, isRecording:', isRecording);
+    
     if (!isRecording) {
+      console.log('🎬 Showing recording consent modal');
       showRecordingConsentModal();
     } else {
+      console.log('🎬 Stopping recording');
       stopRecording();
     }
   }
 
   function showRecordingConsentModal() {
-    document.getElementById('recording-consent-modal').classList.remove('hidden');
+    console.log('🎬 showRecordingConsentModal called');
+    const modal = document.getElementById('recording-consent-modal');
+    if (modal) {
+      modal.classList.remove('hidden');
+      console.log('🎬 Recording consent modal shown');
+    } else {
+      console.error('❌ Recording consent modal not found!');
+    }
   }
 
   function cancelRecording() {
@@ -7127,10 +7151,19 @@ function ensureSpectatorTracksForParticipant(participant) {
 
   // Event listeners for controls (only set up for participants)
   if (!isSpectator) {
+    console.log('🎛️ Setting up participant control buttons...');
     document.getElementById('mic-btn').addEventListener('click', toggleMic);
     document.getElementById('camera-btn').addEventListener('click', toggleCamera);
     document.getElementById('screen-share-btn').addEventListener('click', toggleScreenShare);
-    document.getElementById('record-btn').addEventListener('click', toggleRecording);
+    
+    const recordBtn = document.getElementById('record-btn');
+    if (recordBtn) {
+      recordBtn.addEventListener('click', toggleRecording);
+      console.log('🎬 Record button event listener attached');
+    } else {
+      console.error('❌ Record button not found in DOM!');
+    }
+    
     document.getElementById('settings-btn').addEventListener('click', toggleSettings);
     document.getElementById('share-btn').addEventListener('click', openShareModal);
     document.getElementById('leave-btn').addEventListener('click', leaveCall);
@@ -7139,6 +7172,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (copyRecordingLinkBtn) {
       copyRecordingLinkBtn.addEventListener('click', copyRecordingDownloadLink);
     }
+    console.log('🎛️ Participant control buttons set up complete');
   } else {
     // Hide participant-only controls for spectators
     const participantContainer = document.getElementById('local-video-container');

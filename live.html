@@ -1087,7 +1087,7 @@
       host_pro: { durationMinutes: 180, greenRoomEnabled: true },
       ad_free_premium: { durationMinutes: 60, greenRoomEnabled: false },
       ad_free_plus: { durationMinutes: 60, greenRoomEnabled: false },
-      bundle: { durationMinutes: 180, greenRoomEnabled: true }
+      pro_bundle: { durationMinutes: 180, greenRoomEnabled: true }
     };
     
     window.createRoom = async function() {
@@ -1178,17 +1178,13 @@
                            session.user.email?.split('@')[0] || 'Host';
           console.log('✅ User authenticated for room creation:', currentUserName);
           
-          // Fetch user's subscription plan
+          // Fetch user's subscription plan via Netlify function (same as ads.js)
           try {
-            const { data: subData } = await client
-              .from('user_subscriptions')
-              .select('plan_id, status')
-              .eq('user_id', session.user.id)
-              .eq('status', 'active')
-              .single();
+            const response = await fetch(`/.netlify/functions/get-subscription?userId=${session.user.id}`);
+            const data = await response.json();
             
-            if (subData && subData.plan_id) {
-              userPlan = subData.plan_id;
+            if (data.plan) {
+              userPlan = data.plan;
               console.log('✅ User plan:', userPlan);
             } else {
               userPlan = 'free';
@@ -1197,7 +1193,7 @@
           } catch (subError) {
             // No subscription found, stay on free plan
             userPlan = 'free';
-            console.log('ℹ️ Subscription check:', subError.message || 'No subscription found');
+            console.log('ℹ️ Subscription check failed:', subError.message);
           }
         }
       } catch (e) {

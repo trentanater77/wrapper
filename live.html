@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatSpheres - Live Rooms</title>
+  <meta name="description" content="Watch live debates and help sessions. Join active conversations on ChatSpheres.">
+  
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Load config from Netlify function -->
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    /* Page-specific styles */
+    .live-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .live-title {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .live-subtitle {
+      font-size: 1.1rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-lg);
+    }
+    
+    /* Room Type Tabs */
+    .room-tabs {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .room-tab {
+      padding: var(--space-sm) var(--space-lg);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      background: var(--light-rose);
+      color: var(--charcoal);
+    }
+    
+    .room-tab:hover {
+      background: var(--gold);
+    }
+    
+    .room-tab.active {
+      background: var(--main-red);
+      color: white;
+      border-color: var(--main-red);
+    }
+    
+    .room-tab.active.green {
+      background: #10b981;
+      border-color: #10b981;
+    }
+    
+    /* Room Grid */
+    .rooms-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--space-lg);
+    }
+    
+    /* Room Card */
+    .room-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      transition: all var(--transition-fast);
+      border: 3px solid var(--rose);
+    }
+    
+    .room-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .room-card.red {
+      border-color: var(--main-red);
+    }
+    
+    .room-card.green {
+      border-color: #10b981;
+    }
+    
+    .room-card-header {
+      padding: var(--space-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .room-card.red .room-card-header {
+      background: linear-gradient(135deg, var(--main-red) 0%, #c92a35 100%);
+    }
+    
+    .room-card.green .room-card-header {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .room-type-badge {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      background: rgba(255,255,255,0.2);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-bold);
+      color: white;
+    }
+    
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.25);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-full);
+      font-size: 0.7rem;
+      font-weight: var(--font-weight-bold);
+      color: white;
+    }
+    
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .room-card-body {
+      padding: var(--space-lg);
+    }
+    
+    .room-topic {
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      line-height: 1.3;
+    }
+    
+    .room-host {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+    
+    .room-host-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--rose);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+    
+    .room-host-name {
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      font-size: 0.9rem;
+    }
+    
+    .room-stats {
+      display: flex;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+    }
+    
+    .room-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .room-pot {
+      background: var(--gold);
+      color: var(--charcoal);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-lg);
+      font-weight: var(--font-weight-bold);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .room-actions {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .room-btn {
+      flex: 1;
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      font-size: 0.9rem;
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .room-btn-primary {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .room-btn-primary:hover {
+      background: #c92a35;
+      transform: scale(1.02);
+    }
+    
+    .room-btn-secondary {
+      background: var(--light-rose);
+      color: var(--charcoal);
+    }
+    
+    .room-btn-secondary:hover {
+      background: var(--rose);
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: var(--space-2xl);
+      color: var(--charcoal);
+    }
+    
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: var(--space-md);
+    }
+    
+    .empty-state-title {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .empty-state-text {
+      opacity: 0.7;
+      margin-bottom: var(--space-lg);
+    }
+    
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: var(--space-2xl);
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--rose);
+      border-top-color: var(--main-red);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto var(--space-md);
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Create Room CTA */
+    .create-room-cta {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--main-red) 100%);
+      padding: var(--space-xl);
+      border-radius: var(--radius-xl);
+      text-align: center;
+      margin-top: var(--space-2xl);
+    }
+    
+    .create-room-cta h3 {
+      color: white;
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-extrabold);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .create-room-cta p {
+      color: rgba(255,255,255,0.9);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .create-room-btn {
+      display: inline-block;
+      background: white;
+      color: var(--main-red);
+      padding: var(--space-md) var(--space-xl);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      text-decoration: none;
+      transition: all var(--transition-fast);
+    }
+    
+    .create-room-btn:hover {
+      transform: scale(1.05);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .live-title {
+        font-size: 1.75rem;
+      }
+      
+      .rooms-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .room-tabs {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <ul class="nav-links">
+      <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/live.html" class="nav-link active"><span class="nav-link-icon">🔴</span> Live Rooms</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+    </ul>
+    
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none; margin-bottom: var(--space-sm);">Sign Up</a>
+      <a href="/matchmaking.html" class="btn btn-ghost btn-full" style="text-decoration: none;">Sign In</a>
+    </div>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
+  <!-- Main Content -->
+  <div class="page-wrapper">
+    <main class="main-content">
+      <!-- Hero -->
+      <section class="live-hero">
+        <h1 class="live-title">🔴 Live Rooms</h1>
+        <p class="live-subtitle">Watch debates and join conversations happening right now</p>
+        
+        <!-- Room Type Tabs -->
+        <div class="room-tabs">
+          <button class="room-tab active" data-type="all" onclick="filterRooms('all')">
+            All Rooms
+          </button>
+          <button class="room-tab" data-type="red" onclick="filterRooms('red')">
+            🔴 Red Rooms (Debates)
+          </button>
+          <button class="room-tab green" data-type="green" onclick="filterRooms('green')">
+            🟢 Green Rooms (Help)
+          </button>
+        </div>
+      </section>
+      
+      <!-- Loading State -->
+      <div id="loading-state" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading live rooms...</p>
+      </div>
+      
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-state-icon">🔇</div>
+        <h2 class="empty-state-title">No Live Rooms Right Now</h2>
+        <p class="empty-state-text">Be the first to start a conversation!</p>
+        <a href="/matchmaking.html" class="btn btn-primary">🎯 Start a Room</a>
+      </div>
+      
+      <!-- Rooms Grid -->
+      <div id="rooms-grid" class="rooms-grid hidden">
+        <!-- Room cards will be populated here -->
+      </div>
+      
+      <!-- Create Room CTA -->
+      <div class="create-room-cta">
+        <h3>Ready to Host?</h3>
+        <p>Start your own debate or help session and earn gems from tips!</p>
+        <a href="/matchmaking.html" class="create-room-btn">🚀 Create a Room</a>
+      </div>
+      
+      <!-- Footer -->
+      <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl);">
+        <p>
+          <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
+          <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
+          <a href="/community-guidelines.html" style="color: var(--main-red);">Guidelines</a> · 
+          <a href="/contact.html" style="color: var(--main-red);">Contact</a>
+        </p>
+        <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+      </footer>
+    </main>
+  </div>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
+  
+  <!-- Live Rooms Script -->
+  <script>
+    let allRooms = [];
+    let currentFilter = 'all';
+    
+    // Load rooms on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadRooms();
+      // Refresh every 30 seconds
+      setInterval(loadRooms, 30000);
+    });
+    
+    async function loadRooms() {
+      try {
+        const response = await fetch('/.netlify/functions/manage-room');
+        if (!response.ok) throw new Error('Failed to load rooms');
+        
+        const data = await response.json();
+        allRooms = data.rooms || [];
+        
+        renderRooms();
+      } catch (error) {
+        console.error('Error loading rooms:', error);
+        showEmptyState();
+      }
+    }
+    
+    function filterRooms(type) {
+      currentFilter = type;
+      
+      // Update tab styles
+      document.querySelectorAll('.room-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.type === type) {
+          tab.classList.add('active');
+        }
+      });
+      
+      renderRooms();
+    }
+    window.filterRooms = filterRooms;
+    
+    function renderRooms() {
+      const loadingEl = document.getElementById('loading-state');
+      const emptyEl = document.getElementById('empty-state');
+      const gridEl = document.getElementById('rooms-grid');
+      
+      // Hide loading
+      loadingEl.classList.add('hidden');
+      
+      // Filter rooms
+      let filteredRooms = allRooms;
+      if (currentFilter !== 'all') {
+        filteredRooms = allRooms.filter(room => room.room_type === currentFilter);
+      }
+      
+      if (filteredRooms.length === 0) {
+        showEmptyState();
+        return;
+      }
+      
+      // Show grid, hide empty
+      emptyEl.classList.add('hidden');
+      gridEl.classList.remove('hidden');
+      
+      // Render room cards
+      gridEl.innerHTML = filteredRooms.map(room => renderRoomCard(room)).join('');
+    }
+    
+    function renderRoomCard(room) {
+      const isRed = room.room_type === 'red';
+      const typeLabel = isRed ? '🔴 Debate' : '🟢 Help';
+      const typeClass = isRed ? 'red' : 'green';
+      
+      const viewerCount = (room.participant_count || 0) + (room.spectator_count || 0);
+      const potHtml = isRed && room.pot_amount > 0 ? `
+        <div class="room-pot">
+          💎 Pot: ${room.pot_amount.toLocaleString()} gems
+        </div>
+      ` : '';
+      
+      // Calculate time elapsed
+      const startTime = new Date(room.started_at);
+      const elapsed = Math.floor((Date.now() - startTime.getTime()) / 60000);
+      const timeDisplay = elapsed < 60 ? `${elapsed}m` : `${Math.floor(elapsed/60)}h ${elapsed%60}m`;
+      
+      return `
+        <div class="room-card ${typeClass}">
+          <div class="room-card-header">
+            <div class="room-type-badge">
+              ${typeLabel}
+            </div>
+            <div class="live-badge">
+              <div class="live-dot"></div>
+              LIVE • ${timeDisplay}
+            </div>
+          </div>
+          
+          <div class="room-card-body">
+            <h3 class="room-topic">${escapeHtml(room.topic || 'Untitled Room')}</h3>
+            
+            <div class="room-host">
+              <div class="room-host-avatar">
+                ${room.host_avatar ? `<img src="${room.host_avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : '👤'}
+              </div>
+              <span class="room-host-name">Hosted by ${escapeHtml(room.host_name || 'Host')}</span>
+            </div>
+            
+            <div class="room-stats">
+              <div class="room-stat">
+                <span>👥</span>
+                <span>${room.participant_count || 0} participants</span>
+              </div>
+              <div class="room-stat">
+                <span>👁️</span>
+                <span>${room.spectator_count || 0} watching</span>
+              </div>
+            </div>
+            
+            ${potHtml}
+            
+            <div class="room-actions">
+              <a href="/index.html?room=${room.room_id}&mode=spectator" class="room-btn room-btn-secondary">
+                👁️ Watch
+              </a>
+              <a href="/index.html?room=${room.room_id}&mode=participant" class="room-btn room-btn-primary">
+                🚀 Join
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function showEmptyState() {
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('rooms-grid').classList.add('hidden');
+      document.getElementById('empty-state').classList.remove('hidden');
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  
+  <!-- Auth Script -->
+  <script>
+    (function() {
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      const authConfig = runtimeConfig.auth || {};
+      
+      const SUPABASE_URL = supabaseConfig.url || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      
+      let supabaseClient = null;
+      
+      if (window.supabase && window.supabase.createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true,
+              flowType: 'pkce',
+              storage: {
+                getItem: (key) => {
+                  const cookies = document.cookie.split(';');
+                  for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === key) return decodeURIComponent(value);
+                  }
+                  try { return localStorage.getItem(key); } catch(e) { return null; }
+                },
+                setItem: (key, value) => {
+                  const maxAge = 60 * 60 * 24 * 365;
+                  let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                  if (window.location.protocol === 'https:') cookieStr += '; Secure';
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.setItem(key, value); } catch(e) {}
+                },
+                removeItem: (key) => {
+                  let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.removeItem(key); } catch(e) {}
+                }
+              }
+            }
+          });
+        } catch (e) {
+          console.error('Supabase init error:', e);
+        }
+      }
+      
+      async function checkAuthState() {
+        if (!supabaseClient) return;
+        
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          }
+        } catch (e) {
+          console.error('Auth check error:', e);
+        }
+        
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          } else {
+            updateHeaderForGuest();
+          }
+        });
+      }
+      
+      function updateHeaderForUser(user) {
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const userName = document.getElementById('nav-user-name');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (guestLinks) guestLinks.style.display = 'none';
+        if (userSection) userSection.style.display = 'block';
+        if (headerGemBadge) headerGemBadge.style.display = 'flex';
+        
+        if (userName) {
+          const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          userName.textContent = name;
+        }
+        
+        fetchAndDisplayGemBalance(user.id);
+      }
+      
+      function updateHeaderForGuest() {
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (guestLinks) guestLinks.style.display = 'block';
+        if (userSection) userSection.style.display = 'none';
+        if (headerGemBadge) headerGemBadge.style.display = 'none';
+      }
+      
+      async function fetchAndDisplayGemBalance(userId) {
+        try {
+          const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const totalGems = data.totalGems || 0;
+            const navGems = document.getElementById('nav-user-gems');
+            const headerGemCount = document.querySelector('.gem-count');
+            if (navGems) navGems.textContent = totalGems.toLocaleString();
+            if (headerGemCount) headerGemCount.textContent = totalGems.toLocaleString();
+          }
+        } catch (e) {
+          console.error('Error fetching gem balance:', e);
+        }
+      }
+      
+      window.handleLogout = async function() {
+        if (supabaseClient) {
+          await supabaseClient.auth.signOut();
+          updateHeaderForGuest();
+        }
+      };
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkAuthState);
+      } else {
+        checkAuthState();
+      }
+    })();
+  </script>
+</body>
+</html>

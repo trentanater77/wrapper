@@ -6558,6 +6558,20 @@ async function initializeApp() {
       currentSparkIndex = 0;
       updateSparkDisplay();
       showToast(`✨ Partner generated new sparks for "${event.data.topic}"!`);
+    } else if (event.data.type === 'tip-celebration') {
+      // Received a tip celebration from another participant!
+      console.log('🎉 Tip celebration received via LiveKit:', event.data.tipData);
+      const tipData = event.data.tipData;
+      if (tipData) {
+        // Check if this is from someone else (not ourselves)
+        const myName = window.currentUserData?.username || window.currentUserData?.displayName || userName;
+        if (tipData.senderName !== myName) {
+          console.log('🎉 Playing tip celebration from:', tipData.senderName);
+          playTipCelebration(tipData);
+        } else {
+          console.log('🔔 Skipping our own tip celebration (already played locally)');
+        }
+      }
     }
   }
 
@@ -10351,30 +10365,37 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   function notifyRoomOfTip(senderName, recipientName, amount, animation, message, useTTS) {
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) {
-      console.warn('⚠️ No sphereId for tip notification');
-      return;
+    console.log('📤 Sending tip notification via LiveKit...', { senderName, recipientName, amount, animation });
+    
+    // Create tip data
+    const tipData = {
+      senderName,
+      recipientName: recipientName || 'someone',
+      amount,
+      animation: animation || 'gems',
+      message: message || '',
+      useTTS: useTTS !== false,
+      timestamp: Date.now()
+    };
+    
+    // Send via LiveKit data message (works for all participants, no Firebase permissions needed!)
+    if (livekitRoom && livekitRoom.localParticipant) {
+      try {
+        const tipMessage = {
+          type: 'tip-celebration',
+          tipData: tipData
+        };
+        publishLiveKitDataMessage(tipMessage);
+        console.log('✅ Tip notification sent via LiveKit!');
+      } catch (err) {
+        console.warn('⚠️ Could not send tip via LiveKit:', err.message);
+      }
+    } else {
+      console.warn('⚠️ LiveKit room not available for tip notification');
     }
     
-    console.log('📤 Sending tip notification to Firebase...', { sphereId, senderName, recipientName, amount, animation });
-    
-    try {
-      const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-      tipNotifRef.push({
-        senderName,
-        recipientName: recipientName || 'someone',
-        amount,
-        animation: animation || 'gems',
-        message: message || '',
-        useTTS: useTTS !== false,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-      }).catch(err => {
-        console.warn('⚠️ Could not send tip notification (permissions):', err.message);
-      });
-    } catch (err) {
-      console.warn('⚠️ Tip notification error:', err.message);
-    }
+    // Always play locally for the sender immediately
+    playTipCelebration(tipData);
   }
   
   // Keep old function name for backwards compatibility
@@ -10383,26 +10404,11 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
 
   function listenForTipNotifications() {
-    console.log('🔔 Setting up tip notification listener...');
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) {
-      console.warn('⚠️ No sphereId for tip notifications');
-      return;
-    }
-    
-    const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-    console.log('🔔 Listening for tips at:', `chats/${sphereId}/tips`);
-    
-    // Only listen to new tips (after now)
-    tipNotifRef.orderByChild('timestamp').startAt(Date.now()).on('child_added', (snapshot) => {
-      const tip = snapshot.val();
-      if (!tip) return;
-      
-      console.log('🎉 Tip received:', tip);
-      
-      // PLAY THE CELEBRATION ANIMATION FOR EVERYONE!
-      playTipCelebration(tip);
-    });
+    // Tip notifications are now handled via LiveKit data messages!
+    // See handleAppMessage() for the 'tip-celebration' type handler.
+    // This function is kept for compatibility but LiveKit is the primary mechanism.
+    console.log('🔔 Tip notifications enabled via LiveKit data messages');
+    console.log('✅ Tip notification system ready');
   }
   
   // ============================================

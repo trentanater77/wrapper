@@ -742,7 +742,21 @@
       
       <!-- Title -->
       <h2 class="text-xl font-bold text-charcoal mb-1">Send a Tip</h2>
-      <p class="text-sm text-charcoal opacity-70 mb-3">Support <span id="tip-host-name" class="font-bold">the host</span></p>
+      <p class="text-sm text-charcoal opacity-70 mb-2">Choose who to support!</p>
+      
+      <!-- Recipient Picker (NEW!) -->
+      <div class="mb-3">
+        <label class="block text-left text-xs font-bold text-charcoal mb-1">👤 Tip to:</label>
+        <select id="tip-recipient-select" class="w-full p-2 border-2 border-charcoal rounded-xl font-bold focus:border-main-red outline-none bg-white text-charcoal" onchange="onTipRecipientChange()">
+          <option value="">-- Select a participant --</option>
+        </select>
+        <p id="tip-recipient-info" class="text-left text-xs text-charcoal/60 mt-1 hidden">
+          <span id="tip-recipient-badge"></span>
+        </p>
+        <p id="tip-no-recipients" class="text-left text-xs text-main-red mt-1 hidden">
+          ⚠️ No signed-in participants to tip. Guests cannot receive tips.
+        </p>
+      </div>
       
       <!-- Your balance -->
       <div class="mb-3 p-2 bg-rose rounded-xl">
@@ -9237,6 +9251,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     isHost: false
   };
   let selectedTipAmount = 0;
+  let selectedTipRecipient = null; // { id, name, badge }
+  let tippableParticipants = []; // List of signed-in participants who can receive tips
   let userGemBalance = 0;
   
   // Initialize host tracking when joining room
@@ -9368,33 +9384,26 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Show tip button only if user is NOT the host
-    // Hosts cannot tip themselves in production
-    const ALLOW_SELF_TIP = false; // Disabled for production
+    // Check if current user is signed in (required to send tips)
+    const currentUserId = window.currentUserData?.userId || userId;
+    const userCanTip = currentUserId && isValidUuid(currentUserId);
     
-    console.log('💎 Is host?', roomHostData.isHost);
-    console.log('💎 Host ID:', roomHostData.hostId);
-    console.log('💎 Host is signed in?', roomHostData.hostId && isValidUuid(roomHostData.hostId));
+    console.log('💎 User can tip?', userCanTip);
     
-    // Check if host is signed in (can receive tips)
-    const hostCanReceiveTips = roomHostData.hostId && isValidUuid(roomHostData.hostId);
-    
-    if ((!roomHostData.isHost || ALLOW_SELF_TIP) && hostCanReceiveTips) {
-      tipBtn.classList.remove('hidden');
-      tipBtn.style.display = 'block'; // Force visibility
-      tipBtn.title = `Send a tip to ${roomHostData.hostName || 'the host'}`;
-      console.log('💎 Tip button NOW VISIBLE');
-    } else if (!roomHostData.isHost && !hostCanReceiveTips) {
-      // Host is a guest - show button but with different styling/message
+    if (userCanTip) {
+      // User is signed in - show tip button
       tipBtn.classList.remove('hidden');
       tipBtn.style.display = 'block';
-      tipBtn.title = 'Host is a guest (cannot receive tips)';
-      tipBtn.style.opacity = '0.5';
-      console.log('💎 Tip button visible but host is guest (cannot receive tips)');
+      tipBtn.style.opacity = '1';
+      tipBtn.title = 'Send a tip to participants';
+      console.log('💎 Tip button NOW VISIBLE (user can tip)');
     } else {
-      tipBtn.classList.add('hidden');
-      tipBtn.style.display = 'none';
-      console.log('👑 Tip button hidden (you are the host)');
+      // User is a guest - hide tip button or show with message
+      tipBtn.classList.remove('hidden');
+      tipBtn.style.display = 'block';
+      tipBtn.style.opacity = '0.5';
+      tipBtn.title = 'Sign in to send tips';
+      console.log('💎 Tip button dimmed (user is guest)');
     }
     
     // Update spectator management button visibility (hosts only)
@@ -9520,17 +9529,17 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Check if host is signed in (required to receive tips)
-    if (!roomHostData.hostId || !isValidUuid(roomHostData.hostId)) {
-      showToast('⚠️ The host is a guest and cannot receive tips yet');
+    // Load tippable participants (signed-in users only, excluding self)
+    await loadTippableParticipants();
+    
+    // Check if there's anyone to tip
+    if (tippableParticipants.length === 0) {
+      showToast('⚠️ No signed-in participants to tip. Guests cannot receive tips.');
       return;
     }
     
-    // Update host name
-    const hostNameEl = document.getElementById('tip-host-name');
-    if (hostNameEl) {
-      hostNameEl.textContent = roomHostData.hostName || 'the host';
-    }
+    // Populate recipient dropdown
+    populateTipRecipientDropdown();
     
     // Load user's gem balance
     await loadUserGemBalanceForTip();
@@ -9538,6 +9547,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Reset selection
     selectedTipAmount = 0;
     selectedTipAnimation = 'gems';
+    selectedTipRecipient = null;
     updateTipDisplay();
     
     // Reset message input
@@ -9554,6 +9564,121 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Show modal
     modal.classList.remove('hidden');
   }
+  
+  // Get list of participants who can receive tips (signed-in only, excluding self)
+  async function loadTippableParticipants() {
+    tippableParticipants = [];
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    if (!sphereId) {
+      console.warn('⚠️ No sphereId for loading tippable participants');
+      return;
+    }
+    
+    try {
+      const presenceRef = db.ref(`presence/${sphereId}`);
+      const snapshot = await presenceRef.once('value');
+      const presenceData = snapshot.val();
+      
+      if (!presenceData) {
+        console.log('👥 No presence data found');
+        return;
+      }
+      
+      // Filter to signed-in users only (valid UUID), excluding self
+      Object.entries(presenceData).forEach(([key, participant]) => {
+        if (!participant) return;
+        
+        const participantUserId = participant.userId;
+        const isSignedIn = participantUserId && isValidUuid(participantUserId);
+        const isSelf = participantUserId === currentUserId;
+        const isOnline = participant.status === 'online';
+        
+        if (isSignedIn && !isSelf && isOnline) {
+          tippableParticipants.push({
+            id: participantUserId,
+            name: participant.displayName || participant.name || 'User',
+            type: participant.type || 'participant',
+            isHost: roomHostData.hostId === participantUserId
+          });
+        }
+      });
+      
+      // Sort: host first, then by name
+      tippableParticipants.sort((a, b) => {
+        if (a.isHost && !b.isHost) return -1;
+        if (!a.isHost && b.isHost) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      
+      console.log('👥 Tippable participants:', tippableParticipants);
+    } catch (error) {
+      console.error('❌ Error loading tippable participants:', error);
+    }
+  }
+  
+  // Populate the recipient dropdown with tippable participants
+  function populateTipRecipientDropdown() {
+    const select = document.getElementById('tip-recipient-select');
+    const noRecipientsMsg = document.getElementById('tip-no-recipients');
+    
+    if (!select) return;
+    
+    // Clear existing options
+    select.innerHTML = '<option value="">-- Select a participant --</option>';
+    
+    if (tippableParticipants.length === 0) {
+      if (noRecipientsMsg) noRecipientsMsg.classList.remove('hidden');
+      return;
+    }
+    
+    if (noRecipientsMsg) noRecipientsMsg.classList.add('hidden');
+    
+    // Add participants as options
+    tippableParticipants.forEach((p, index) => {
+      const option = document.createElement('option');
+      option.value = p.id;
+      const badge = p.isHost ? '👑 ' : (p.type === 'spectator' ? '👀 ' : '');
+      const hostLabel = p.isHost ? ' (Host)' : '';
+      option.textContent = `${badge}${p.name}${hostLabel}`;
+      select.appendChild(option);
+      
+      // Auto-select if only one option, or select host by default
+      if (tippableParticipants.length === 1 || (p.isHost && !selectedTipRecipient)) {
+        select.value = p.id;
+        selectedTipRecipient = p;
+        onTipRecipientChange();
+      }
+    });
+  }
+  
+  // Handle recipient selection change
+  function onTipRecipientChange() {
+    const select = document.getElementById('tip-recipient-select');
+    const infoEl = document.getElementById('tip-recipient-info');
+    const badgeEl = document.getElementById('tip-recipient-badge');
+    
+    if (!select) return;
+    
+    const selectedId = select.value;
+    selectedTipRecipient = tippableParticipants.find(p => p.id === selectedId) || null;
+    
+    if (infoEl && badgeEl && selectedTipRecipient) {
+      const typeLabel = selectedTipRecipient.isHost ? '👑 Host' : 
+                       (selectedTipRecipient.type === 'spectator' ? '👀 Spectator' : '🎤 Participant');
+      badgeEl.textContent = `Tipping: ${selectedTipRecipient.name} (${typeLabel})`;
+      infoEl.classList.remove('hidden');
+    } else if (infoEl) {
+      infoEl.classList.add('hidden');
+    }
+    
+    // Update tip display (enable/disable button)
+    updateTipDisplay();
+  }
+  
+  // Make function globally available
+  window.onTipRecipientChange = onTipRecipientChange;
   
   function closeTipModal() {
     const modal = document.getElementById('tip-modal');
@@ -9667,14 +9792,25 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
     
     if (hostReceivesEl) {
-      const hostShare = Math.floor(selectedTipAmount * 0.5);
-      hostReceivesEl.textContent = `💎 ${hostShare.toLocaleString()}`;
+      const recipientShare = Math.floor(selectedTipAmount * 0.5);
+      const recipientName = selectedTipRecipient?.name || 'recipient';
+      hostReceivesEl.textContent = `💎 ${recipientShare.toLocaleString()} to ${recipientName}`;
     }
     
-    // Enable/disable send button
+    // Enable/disable send button - must have amount AND recipient selected
     if (sendBtn) {
-      const canSend = selectedTipAmount >= 10 && selectedTipAmount <= userGemBalance;
+      const hasRecipient = selectedTipRecipient && selectedTipRecipient.id;
+      const canSend = selectedTipAmount >= 10 && selectedTipAmount <= userGemBalance && hasRecipient;
       sendBtn.disabled = !canSend;
+      
+      // Update button text based on state
+      if (!hasRecipient) {
+        sendBtn.textContent = '👤 Select recipient';
+      } else if (selectedTipAmount < 10) {
+        sendBtn.textContent = '💎 Enter amount';
+      } else {
+        sendBtn.textContent = `🎉 Tip ${selectedTipRecipient.name}`;
+      }
     }
     
     // Show error if insufficient balance
@@ -9706,10 +9842,15 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Check if host is signed in (required to receive tips)
-    if (!roomHostData.hostId || !isValidUuid(roomHostData.hostId)) {
-      showToast('❌ The host is a guest and cannot receive tips. They need to sign in!');
-      console.warn('⚠️ Cannot tip: Host is not signed in. hostId:', roomHostData.hostId);
+    // Check if recipient is selected
+    if (!selectedTipRecipient || !selectedTipRecipient.id) {
+      showToast('❌ Please select who you want to tip');
+      return;
+    }
+    
+    // Validate recipient has valid ID
+    if (!isValidUuid(selectedTipRecipient.id)) {
+      showToast('❌ Selected user cannot receive tips (not signed in)');
       return;
     }
     
@@ -9718,6 +9859,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     const tipAnimation = selectedTipAnimation;
     const tipMessage = document.getElementById('tip-message-input')?.value?.trim() || '';
     const useTTS = document.getElementById('tip-tts-toggle')?.checked ?? true;
+    const recipientId = selectedTipRecipient.id;
+    const recipientName = selectedTipRecipient.name;
     
     const sendBtn = document.getElementById('send-tip-btn');
     if (sendBtn) {
@@ -9728,7 +9871,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
     const sphereId = extractSphereId(roomUrl);
     
-    console.log('💎 Sending tip:', { senderId: currentUserId, hostId: roomHostData.hostId, amount: tipAmountToSend });
+    console.log('💎 Sending tip:', { senderId: currentUserId, recipientId, recipientName, amount: tipAmountToSend });
     
     try {
       const response = await fetch('/.netlify/functions/send-tip', {
@@ -9736,7 +9879,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           senderId: currentUserId,
-          hostId: roomHostData.hostId,
+          hostId: recipientId, // Using recipient ID (backend still calls it hostId)
           amount: tipAmountToSend,
           roomId: sphereId,
           senderName: currentUserName
@@ -9748,14 +9891,14 @@ function ensureSpectatorTracksForParticipant(participant) {
       if (data.success) {
         closeTipModal();
         
-        // Notify everyone via Firebase (includes animation + message)
-        notifyHostOfTip(currentUserName, tipAmountToSend, tipAnimation, tipMessage, useTTS);
+        // Notify everyone via Firebase (includes animation + message + recipient)
+        notifyRoomOfTip(currentUserName, recipientName, tipAmountToSend, tipAnimation, tipMessage, useTTS);
         
         // Update gem display in header
         fetchAndDisplayGemBalance();
         
-        console.log(`💸 Tip sent: ${tipAmountToSend} gems with ${tipAnimation} animation`);
-        console.log(`💰 Host received: ${data.hostReceived} gems | Platform fee: ${data.platformFee} gems`);
+        console.log(`💸 Tip sent: ${tipAmountToSend} gems to ${recipientName} with ${tipAnimation} animation`);
+        console.log(`💰 ${recipientName} received: ${data.hostReceived} gems | Platform fee: ${data.platformFee} gems`);
       } else {
         throw new Error(data.error || 'Failed to send tip');
       }
@@ -9770,14 +9913,14 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
-  function notifyHostOfTip(senderName, amount, animation, message, useTTS) {
+  function notifyRoomOfTip(senderName, recipientName, amount, animation, message, useTTS) {
     const sphereId = extractSphereId(roomUrl);
     if (!sphereId) {
       console.warn('⚠️ No sphereId for tip notification');
       return;
     }
     
-    console.log('📤 Sending tip notification to Firebase...', { sphereId, senderName, amount, animation });
+    console.log('📤 Sending tip notification to Firebase...', { sphereId, senderName, recipientName, amount, animation });
     
     try {
       const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
@@ -9785,6 +9928,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       const tipData = {
         senderName,
+        recipientName: recipientName || 'someone',
         amount,
         animation: animation || 'gems',
         message: message || '',
@@ -9815,6 +9959,11 @@ function ensureSpectatorTracksForParticipant(participant) {
     } catch (err) {
       console.warn('⚠️ Tip notification error:', err.message);
     }
+  }
+  
+  // Keep old function name for backwards compatibility
+  function notifyHostOfTip(senderName, amount, animation, message, useTTS) {
+    notifyRoomOfTip(senderName, roomHostData.hostName || 'the host', amount, animation, message, useTTS);
   }
   
   // Track tips we've already processed to avoid duplicates
@@ -9941,7 +10090,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   async function _playTipCelebrationInternal(tip) {
-    const { senderName, amount, animation, message, useTTS } = tip;
+    const { senderName, recipientName, amount, animation, message, useTTS } = tip;
     
     // Get animation config (or random if selected)
     let animConfig;
@@ -9963,8 +10112,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     const intensity = amount >= 500 ? 'mega' : amount >= 100 ? 'high' : amount >= 50 ? 'medium' : 'low';
     const particleCount = intensity === 'mega' ? 150 : intensity === 'high' ? 100 : intensity === 'medium' ? 60 : 30;
     
-    // Show announcement
-    showTipAnnouncement(senderName, amount, message);
+    // Show announcement (sender → recipient)
+    showTipAnnouncement(senderName, recipientName, amount, message);
     
     // Shake screen for big tips
     if (intensity === 'mega' || intensity === 'high') {
@@ -10017,9 +10166,9 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     // Play Text-to-Speech if enabled
     if (useTTS && message) {
-      speakTipMessage(senderName, amount, message);
+      speakTipMessage(senderName, recipientName, amount, message);
     } else if (useTTS) {
-      speakTipMessage(senderName, amount, '');
+      speakTipMessage(senderName, recipientName, amount, '');
     }
     
     // Clean up after animation
@@ -10028,14 +10177,21 @@ function ensureSpectatorTracksForParticipant(participant) {
     }, 6000);
   }
   
-  function showTipAnnouncement(senderName, amount, message) {
+  function showTipAnnouncement(senderName, recipientName, amount, message) {
     const announcement = document.getElementById('tip-announcement');
     const amountEl = document.getElementById('tip-announcement-amount');
     const senderEl = document.getElementById('tip-announcement-sender');
     const messageEl = document.getElementById('tip-announcement-message');
     
     if (amountEl) amountEl.textContent = `💎 ${amount}`;
-    if (senderEl) senderEl.textContent = `${senderName} tipped!`;
+    if (senderEl) {
+      // Show who tipped who
+      if (recipientName) {
+        senderEl.textContent = `${senderName} → ${recipientName}`;
+      } else {
+        senderEl.textContent = `${senderName} tipped!`;
+      }
+    }
     
     if (messageEl) {
       if (message) {
@@ -10338,7 +10494,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   // TEXT-TO-SPEECH (FREE!)
   // ============================================
   
-  function speakTipMessage(senderName, amount, message) {
+  function speakTipMessage(senderName, recipientName, amount, message) {
     if (!('speechSynthesis' in window)) {
       console.warn('TTS not supported');
       return;
@@ -10347,8 +10503,13 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Cancel any ongoing speech
     speechSynthesis.cancel();
     
-    // Build the message
-    let text = `${senderName} donated ${amount} gems!`;
+    // Build the message with recipient
+    let text;
+    if (recipientName) {
+      text = `${senderName} tipped ${recipientName} ${amount} gems!`;
+    } else {
+      text = `${senderName} donated ${amount} gems!`;
+    }
     if (message) {
       text += ` They say: ${message}`;
     }

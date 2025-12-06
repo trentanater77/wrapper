@@ -275,6 +275,181 @@
       50% { opacity: 0.5; }
     }
 
+    /* ========== TIP ANIMATION STYLES ========== */
+    
+    /* Animation picker selected state */
+    .tip-anim-btn.selected {
+      background: linear-gradient(135deg, #FFD166 0%, #e63946 100%) !important;
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(230, 57, 70, 0.4);
+    }
+    
+    /* Particle base styles */
+    .tip-particle {
+      position: absolute;
+      pointer-events: none;
+      font-size: 2rem;
+      z-index: 10001;
+      will-change: transform, opacity;
+    }
+    
+    /* Falling animation (for rain effects) */
+    @keyframes tipFall {
+      0% {
+        transform: translateY(-100px) rotate(0deg) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg) scale(0.5);
+        opacity: 0;
+      }
+    }
+    
+    /* Rising animation (for fire, etc) */
+    @keyframes tipRise {
+      0% {
+        transform: translateY(100vh) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100px) scale(0.3);
+        opacity: 0;
+      }
+    }
+    
+    /* Explosion from center */
+    @keyframes tipExplode {
+      0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 1;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--tx), var(--ty)) scale(1);
+        opacity: 0;
+      }
+    }
+    
+    /* Float up gently */
+    @keyframes tipFloat {
+      0% {
+        transform: translateY(0) translateX(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-200px) translateX(var(--drift)) rotate(var(--rot));
+        opacity: 0;
+      }
+    }
+    
+    /* Rocket animation */
+    @keyframes tipRocket {
+      0% {
+        transform: translateX(-100%) translateY(50vh) rotate(45deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(100vw) translateY(-100px) rotate(45deg);
+        opacity: 1;
+      }
+    }
+    
+    /* Bounce in for announcement */
+    @keyframes tipBounceIn {
+      0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.2);
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+      }
+    }
+    
+    /* Shake effect for big tips */
+    @keyframes tipShake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    
+    /* Glow pulse for amount */
+    @keyframes tipGlow {
+      0%, 100% {
+        text-shadow: 0 0 20px rgba(255,209,102,0.8), 0 0 40px rgba(255,209,102,0.5);
+      }
+      50% {
+        text-shadow: 0 0 40px rgba(255,209,102,1), 0 0 80px rgba(255,209,102,0.8), 0 0 120px rgba(230,57,70,0.5);
+      }
+    }
+    
+    /* Rainbow shimmer */
+    @keyframes tipRainbow {
+      0% { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(360deg); }
+    }
+    
+    /* Disco strobe */
+    @keyframes tipDisco {
+      0% { background: rgba(255,0,0,0.3); }
+      16% { background: rgba(255,165,0,0.3); }
+      33% { background: rgba(255,255,0,0.3); }
+      50% { background: rgba(0,255,0,0.3); }
+      66% { background: rgba(0,0,255,0.3); }
+      83% { background: rgba(128,0,128,0.3); }
+      100% { background: rgba(255,0,0,0.3); }
+    }
+    
+    /* Spin animation for disco ball */
+    @keyframes tipSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Snow drift */
+    @keyframes tipSnow {
+      0% {
+        transform: translateY(-50px) translateX(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) translateX(var(--drift)) rotate(360deg);
+        opacity: 0.5;
+      }
+    }
+    
+    /* Announcement visible state */
+    #tip-announcement.visible {
+      opacity: 1;
+      animation: tipBounceIn 0.5s ease-out forwards;
+    }
+    
+    #tip-announcement-amount {
+      animation: tipGlow 1s ease-in-out infinite;
+    }
+    
+    /* Disco overlay */
+    .tip-disco-overlay {
+      position: fixed;
+      inset: 0;
+      animation: tipDisco 0.5s linear infinite;
+      pointer-events: none;
+      z-index: 10000;
+    }
+    
+    /* GIF display animation */
+    #tip-gif-display.visible {
+      display: block !important;
+      animation: tipBounceIn 0.5s ease-out forwards;
+    }
+    
+    /* ========== END TIP ANIMATION STYLES ========== */
+
     .recording-upload-status {
       font-size: 0.7rem;
       font-weight: 600;
@@ -530,11 +705,29 @@
   </div>
 </div>
 
-<!-- Tip Modal -->
+<!-- Tip Animation Overlay -->
+<div id="tip-animation-overlay" class="fixed inset-0 z-[10000] pointer-events-none overflow-hidden" style="display: none;">
+  <!-- Particle container -->
+  <div id="tip-particles-container" class="absolute inset-0"></div>
+  
+  <!-- Center announcement -->
+  <div id="tip-announcement" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center opacity-0 transition-all duration-500">
+    <div id="tip-announcement-amount" class="text-6xl font-black text-white drop-shadow-lg mb-2" style="text-shadow: 0 0 20px rgba(255,209,102,0.8), 0 0 40px rgba(255,209,102,0.5);"></div>
+    <div id="tip-announcement-sender" class="text-2xl font-bold text-gold mb-4"></div>
+    <div id="tip-announcement-message" class="max-w-md mx-auto text-xl text-white bg-charcoal/80 rounded-2xl px-6 py-4 backdrop-blur-sm" style="display: none;"></div>
+  </div>
+  
+  <!-- GIF display area (for cat/meme modes) -->
+  <div id="tip-gif-display" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" style="display: none;">
+    <img id="tip-gif-image" class="max-w-sm max-h-64 rounded-2xl shadow-2xl border-4 border-gold" src="" alt="">
+  </div>
+</div>
+
+<!-- Tip Modal (Enhanced with message + animation picker) -->
 <div id="tip-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
-  <div class="bg-light-rose rounded-3xl p-6 max-w-sm w-full shadow-2xl border-4 border-gold relative">
+  <div class="bg-light-rose rounded-3xl p-5 max-w-md w-full shadow-2xl border-4 border-gold relative max-h-[90vh] overflow-y-auto">
     <!-- Close button -->
-    <button onclick="closeTipModal()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
+    <button onclick="closeTipModal()" class="absolute top-3 right-3 text-charcoal hover:text-main-red transition-colors z-10">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
       </svg>
@@ -543,52 +736,197 @@
     <!-- Content -->
     <div class="text-center">
       <!-- Icon -->
-      <div class="w-16 h-16 mx-auto mb-3 bg-gold rounded-full flex items-center justify-center">
-        <span class="text-3xl">💎</span>
+      <div class="w-14 h-14 mx-auto mb-2 bg-gold rounded-full flex items-center justify-center">
+        <span class="text-2xl">💎</span>
       </div>
       
       <!-- Title -->
       <h2 class="text-xl font-bold text-charcoal mb-1">Send a Tip</h2>
-      <p class="text-sm text-charcoal opacity-70 mb-4">Support <span id="tip-host-name" class="font-bold">the host</span></p>
+      <p class="text-sm text-charcoal opacity-70 mb-2">Choose who to support!</p>
+      
+      <!-- Recipient Picker -->
+      <div class="mb-3">
+        <label class="block text-left text-xs font-bold text-charcoal mb-1">👤 Tip to:</label>
+        <select id="tip-recipient-select" class="w-full p-2 border-2 border-charcoal rounded-xl font-bold focus:border-main-red outline-none bg-white text-charcoal" onchange="onTipRecipientChange()">
+          <option value="">-- Select a participant --</option>
+        </select>
+        <p id="tip-recipient-info" class="text-left text-xs text-charcoal/60 mt-1 hidden">
+          <span id="tip-recipient-badge"></span>
+        </p>
+        <p id="tip-no-recipients" class="text-left text-xs text-main-red mt-1 hidden">
+          ⚠️ No signed-in participants to tip. Guests cannot receive tips.
+        </p>
+      </div>
       
       <!-- Your balance -->
-      <div class="mb-4 p-2 bg-rose rounded-xl">
+      <div class="mb-3 p-2 bg-rose rounded-xl">
         <p class="text-xs text-charcoal">Your balance: <span id="tip-your-balance" class="font-bold">💎 0</span></p>
       </div>
       
       <!-- Quick amounts -->
-      <div class="grid grid-cols-4 gap-2 mb-4">
-        <button onclick="selectTipAmount(10)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+      <div class="grid grid-cols-4 gap-2 mb-3">
+        <button onclick="selectTipAmount(10)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all text-sm">
           💎 10
         </button>
-        <button onclick="selectTipAmount(50)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+        <button onclick="selectTipAmount(50)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all text-sm">
           💎 50
         </button>
-        <button onclick="selectTipAmount(100)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+        <button onclick="selectTipAmount(100)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all text-sm">
           💎 100
         </button>
-        <button onclick="selectTipAmount(500)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+        <button onclick="selectTipAmount(500)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all text-sm">
           💎 500
         </button>
       </div>
       
       <!-- Custom amount -->
-      <div class="mb-4">
-        <input type="number" id="tip-custom-amount" placeholder="Custom amount" min="10" 
-          class="w-full p-3 border-2 border-charcoal rounded-xl text-center font-bold text-lg focus:border-main-red outline-none"
+      <div class="mb-3">
+        <input type="number" id="tip-custom-amount" placeholder="Custom amount (min 10)" min="10" 
+          class="w-full p-2 border-2 border-charcoal rounded-xl text-center font-bold focus:border-main-red outline-none"
           onchange="selectTipAmount(this.value)">
       </div>
       
+      <!-- Custom Message Input -->
+      <div class="mb-3">
+        <label class="block text-left text-xs font-bold text-charcoal mb-1">💬 Add a message (optional)</label>
+        <input type="text" id="tip-message-input" placeholder="Say something nice..." maxlength="100"
+          class="w-full p-2 border-2 border-charcoal rounded-xl text-sm focus:border-main-red outline-none">
+        <p class="text-right text-xs text-charcoal/60 mt-1"><span id="tip-message-count">0</span>/100</p>
+      </div>
+      
+      <!-- Animation Picker -->
+      <div class="mb-3">
+        <label class="block text-left text-xs font-bold text-charcoal mb-2">🎬 Choose your celebration style</label>
+        <div class="grid grid-cols-5 gap-1.5 max-h-32 overflow-y-auto p-1 bg-white/50 rounded-xl" id="animation-picker">
+          <!-- Row 1: Classic -->
+          <button type="button" onclick="selectTipAnimation('gems')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center selected" data-anim="gems">
+            <span class="text-xl">💎</span>
+            <span class="text-[10px] font-bold">Gems</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('confetti')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="confetti">
+            <span class="text-xl">🎉</span>
+            <span class="text-[10px] font-bold">Confetti</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('money')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="money">
+            <span class="text-xl">💰</span>
+            <span class="text-[10px] font-bold">Money</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('fire')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="fire">
+            <span class="text-xl">🔥</span>
+            <span class="text-[10px] font-bold">Fire</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('stars')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="stars">
+            <span class="text-xl">⭐</span>
+            <span class="text-[10px] font-bold">Stars</span>
+          </button>
+          <!-- Row 2: Animals -->
+          <button type="button" onclick="selectTipAnimation('cats')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="cats">
+            <span class="text-xl">🐱</span>
+            <span class="text-[10px] font-bold">Cats</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('dogs')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="dogs">
+            <span class="text-xl">🐕</span>
+            <span class="text-[10px] font-bold">Dogs</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('frogs')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="frogs">
+            <span class="text-xl">🐸</span>
+            <span class="text-[10px] font-bold">Frogs</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('butterflies')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="butterflies">
+            <span class="text-xl">🦋</span>
+            <span class="text-[10px] font-bold">Butterfly</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('unicorn')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="unicorn">
+            <span class="text-xl">🦄</span>
+            <span class="text-[10px] font-bold">Unicorn</span>
+          </button>
+          <!-- Row 3: Food & Fun -->
+          <button type="button" onclick="selectTipAnimation('pizza')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="pizza">
+            <span class="text-xl">🍕</span>
+            <span class="text-[10px] font-bold">Pizza</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('tacos')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="tacos">
+            <span class="text-xl">🌮</span>
+            <span class="text-[10px] font-bold">Tacos</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('hearts')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="hearts">
+            <span class="text-xl">💖</span>
+            <span class="text-[10px] font-bold">Hearts</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('rocket')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="rocket">
+            <span class="text-xl">🚀</span>
+            <span class="text-[10px] font-bold">Rocket</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('rainbow')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="rainbow">
+            <span class="text-xl">🌈</span>
+            <span class="text-[10px] font-bold">Rainbow</span>
+          </button>
+          <!-- Row 4: Vibes -->
+          <button type="button" onclick="selectTipAnimation('gaming')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="gaming">
+            <span class="text-xl">🎮</span>
+            <span class="text-[10px] font-bold">Gaming</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('music')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="music">
+            <span class="text-xl">🎵</span>
+            <span class="text-[10px] font-bold">Music</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('disco')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="disco">
+            <span class="text-xl">🪩</span>
+            <span class="text-[10px] font-bold">Disco</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('skull')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="skull">
+            <span class="text-xl">💀</span>
+            <span class="text-[10px] font-bold">Spooky</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('sparkles')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="sparkles">
+            <span class="text-xl">✨</span>
+            <span class="text-[10px] font-bold">Sparkle</span>
+          </button>
+          <!-- Row 5: Nature & Weather -->
+          <button type="button" onclick="selectTipAnimation('snow')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="snow">
+            <span class="text-xl">❄️</span>
+            <span class="text-[10px] font-bold">Snow</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('cherry')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="cherry">
+            <span class="text-xl">🌸</span>
+            <span class="text-[10px] font-bold">Sakura</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('leaves')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="leaves">
+            <span class="text-xl">🍂</span>
+            <span class="text-[10px] font-bold">Autumn</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('meme')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="meme">
+            <span class="text-xl">😂</span>
+            <span class="text-[10px] font-bold">Meme</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('random')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="random">
+            <span class="text-xl">🎲</span>
+            <span class="text-[10px] font-bold">Random</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- TTS Toggle -->
+      <div class="mb-3 flex items-center justify-between bg-white/50 rounded-xl p-2">
+        <label class="text-xs font-bold text-charcoal flex items-center gap-1">
+          🔊 Read message aloud (TTS)
+        </label>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="tip-tts-toggle" class="sr-only peer" checked>
+          <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-main-red"></div>
+        </label>
+      </div>
+      
       <!-- Selected amount display -->
-      <div class="mb-4 p-3 bg-charcoal rounded-xl">
+      <div class="mb-3 p-3 bg-charcoal rounded-xl">
         <p class="text-white text-sm">Sending: <span id="tip-selected-amount" class="text-xl font-bold text-gold">💎 0</span></p>
-        <p class="text-xs text-gray-300 mt-1">Host receives 50% • <span id="tip-host-receives">💎 0</span></p>
+        <p class="text-xs text-gray-300 mt-1">Recipient receives 50% • <span id="tip-host-receives">💎 0</span></p>
       </div>
       
       <!-- Send button -->
       <button id="send-tip-btn" onclick="sendTip()" disabled
-        class="w-full py-3 px-6 bg-gold text-charcoal font-bold rounded-full hover:bg-main-red hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-        Send Tip
+        class="w-full py-3 px-6 bg-gold text-charcoal font-bold rounded-full hover:bg-main-red hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed text-lg">
+        🎉 Send Tip
       </button>
       
       <!-- Error message -->
@@ -5996,6 +6334,20 @@ async function initializeApp() {
       currentSparkIndex = 0;
       updateSparkDisplay();
       showToast(`✨ Partner generated new sparks for "${event.data.topic}"!`);
+    } else if (event.data.type === 'tip-celebration') {
+      // Received a tip celebration from another participant!
+      console.log('🎉 Tip celebration received via LiveKit:', event.data.tipData);
+      const tipData = event.data.tipData;
+      if (tipData) {
+        // Check if this is from someone else (not ourselves)
+        const myName = window.currentUserData?.username || window.currentUserData?.displayName || userName;
+        if (tipData.senderName !== myName) {
+          console.log('🎉 Playing tip celebration from:', tipData.senderName);
+          playTipCelebration(tipData);
+        } else {
+          console.log('🔔 Skipping our own tip celebration (already played locally)');
+        }
+      }
     }
   }
 
@@ -9098,25 +9450,228 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
+  // Animation configuration - all the fun stuff!
+  let selectedTipAnimation = 'gems';
+  let selectedTipRecipient = null; // { id, name, badge }
+  let tippableParticipants = []; // List of signed-in participants who can receive tips
+  
+  const TIP_ANIMATIONS = {
+    // Classic
+    gems: { emoji: ['💎', '💠', '🔷', '🔹'], type: 'rain', sound: 'coin' },
+    confetti: { emoji: ['🎉', '🎊', '✨', '🎈', '🎁'], type: 'explode', sound: 'party' },
+    money: { emoji: ['💵', '💰', '💸', '🤑', '💲'], type: 'rain', sound: 'coin' },
+    fire: { emoji: ['🔥', '🔥', '🔥', '💥', '⚡'], type: 'rise', sound: 'whoosh' },
+    stars: { emoji: ['⭐', '🌟', '✨', '💫', '🌠'], type: 'float', sound: 'magic' },
+    // Animals
+    cats: { emoji: ['🐱', '😺', '😸', '😻', '🐈'], type: 'rain', sound: 'meow', useGif: 'cat' },
+    dogs: { emoji: ['🐕', '🐶', '🦮', '🐕‍🦺', '🐩'], type: 'rain', sound: 'woof', useGif: 'dog' },
+    frogs: { emoji: ['🐸', '🐸', '🐸', '🐸', '🐸'], type: 'rain', sound: 'ribbit' },
+    butterflies: { emoji: ['🦋', '🦋', '🦋', '🌸', '🌺'], type: 'float', sound: 'magic' },
+    unicorn: { emoji: ['🦄', '🌈', '✨', '💖', '⭐'], type: 'float', sound: 'magic' },
+    // Food
+    pizza: { emoji: ['🍕', '🍕', '🍕', '🧀', '🍅'], type: 'rain', sound: 'chomp' },
+    tacos: { emoji: ['🌮', '🌯', '🫔', '🌶️', '🥑'], type: 'rain', sound: 'chomp' },
+    // Vibes
+    hearts: { emoji: ['💖', '💕', '💗', '💓', '❤️'], type: 'float', sound: 'love' },
+    rocket: { emoji: ['🚀'], type: 'rocket', sound: 'whoosh' },
+    rainbow: { emoji: ['🌈', '🌈', '🌈', '✨', '🦄'], type: 'wave', sound: 'magic' },
+    gaming: { emoji: ['🎮', '👾', '🕹️', '🎯', '🏆'], type: 'rain', sound: 'game' },
+    music: { emoji: ['🎵', '🎶', '🎸', '🎤', '🎧'], type: 'float', sound: 'music' },
+    disco: { emoji: ['🪩', '🕺', '💃', '✨', '🎵'], type: 'disco', sound: 'music' },
+    skull: { emoji: ['💀', '👻', '🎃', '🦇', '🕷️'], type: 'rain', sound: 'spooky' },
+    sparkles: { emoji: ['✨', '✨', '✨', '💫', '⭐'], type: 'explode', sound: 'magic' },
+    // Nature
+    snow: { emoji: ['❄️', '❄️', '❄️', '🌨️', '⛄'], type: 'snow', sound: 'wind' },
+    cherry: { emoji: ['🌸', '🌸', '🌸', '💮', '🏵️'], type: 'snow', sound: 'wind' },
+    leaves: { emoji: ['🍂', '🍁', '🍃', '🌾', '🍂'], type: 'snow', sound: 'wind' },
+    // Special
+    meme: { emoji: ['😂', '🤣', '💀', '😭', '🔥'], type: 'explode', sound: 'laugh', useGif: 'meme' },
+    random: { emoji: [], type: 'random', sound: 'random' }
+  };
+
+  // GIF APIs (all FREE! But we add caching + rate limiting for scalability)
+  const GIF_APIS = {
+    cat: 'https://api.thecatapi.com/v1/images/search?mime_types=gif&limit=10',
+    dog: 'https://api.thedogapi.com/v1/images/search?mime_types=gif&limit=10',
+    meme: 'https://meme-api.com/gimme'
+  };
+  
+  // GIF Cache for scalability (reduces API calls)
+  const GIF_CACHE = {
+    cat: [],
+    dog: [],
+    meme: [],
+    lastFetch: { cat: 0, dog: 0, meme: 0 },
+    CACHE_DURATION: 5 * 60 * 1000, // 5 minutes cache
+    MIN_FETCH_INTERVAL: 10 * 1000, // Min 10 seconds between API calls per type
+  };
+  
+  // Fallback GIFs (static, always available - no API needed)
+  const FALLBACK_GIFS = {
+    cat: [
+      'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif',
+      'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif'
+    ],
+    dog: [
+      'https://media.giphy.com/media/4Zo41lhzKt6iZ8xff9/giphy.gif',
+      'https://media.giphy.com/media/Y4pAQv58ETJgRwoLxj/giphy.gif'
+    ],
+    meme: [
+      'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+      'https://media.giphy.com/media/xT0xeJpnrWC4XWblEk/giphy.gif'
+    ]
+  };
+
   async function openTipModal() {
     const modal = document.getElementById('tip-modal');
     if (!modal) return;
     
-    // Update host name
-    const hostNameEl = document.getElementById('tip-host-name');
-    if (hostNameEl) {
-      hostNameEl.textContent = roomHostData.hostName || 'the host';
+    // Check if current user is signed in
+    const currentUserId = window.currentUserData?.userId || userId;
+    if (!currentUserId || !isValidUuid(currentUserId)) {
+      showToast('❌ Please sign in to send tips!');
+      showAuthModal && showAuthModal();
+      return;
     }
+    
+    // Load tippable participants (signed-in users only, excluding self)
+    await loadTippableParticipants();
+    
+    // Check if there's anyone to tip
+    if (tippableParticipants.length === 0) {
+      showToast('⚠️ No signed-in participants to tip. Guests cannot receive tips.');
+      return;
+    }
+    
+    // Reset selection BEFORE populating dropdown
+    selectedTipAmount = 0;
+    selectedTipAnimation = 'gems';
+    selectedTipRecipient = null;
+    
+    // Populate recipient dropdown (this will auto-select if there's a host or single recipient)
+    populateTipRecipientDropdown();
     
     // Load user's gem balance
     await loadUserGemBalanceForTip();
     
-    // Reset selection
-    selectedTipAmount = 0;
+    // Update display after everything is set
     updateTipDisplay();
+    
+    // Reset message input
+    const msgInput = document.getElementById('tip-message-input');
+    if (msgInput) msgInput.value = '';
+    updateTipMessageCount();
+    
+    // Reset animation picker UI
+    document.querySelectorAll('.tip-anim-btn').forEach(btn => {
+      btn.classList.remove('selected');
+      if (btn.dataset.anim === 'gems') btn.classList.add('selected');
+    });
     
     // Show modal
     modal.classList.remove('hidden');
+  }
+  
+  // Get list of participants who can receive tips (signed-in only, excluding self)
+  async function loadTippableParticipants() {
+    tippableParticipants = [];
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    if (!sphereId) {
+      console.warn('⚠️ No sphereId for loading tippable participants');
+      return;
+    }
+    
+    try {
+      const presenceRef = db.ref(`presence/${sphereId}`);
+      const snapshot = await presenceRef.once('value');
+      const users = snapshot.val() || {};
+      
+      Object.entries(users).forEach(([key, participant]) => {
+        if (!participant || participant.status === 'offline') return;
+        
+        const participantUserId = participant.userId;
+        const isSignedIn = participantUserId && isValidUuid(participantUserId);
+        const isSelf = participantUserId === currentUserId;
+        const isOnline = participant.status !== 'offline';
+        
+        if (isSignedIn && !isSelf && isOnline) {
+          tippableParticipants.push({
+            id: participantUserId,
+            name: participant.displayName || participant.name || 'User',
+            type: participant.type || 'participant',
+            isHost: roomHostData.hostId === participantUserId
+          });
+        }
+      });
+      
+      // Sort: host first, then by name
+      tippableParticipants.sort((a, b) => {
+        if (a.isHost && !b.isHost) return -1;
+        if (!a.isHost && b.isHost) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      
+      console.log('👥 Tippable participants:', tippableParticipants);
+    } catch (error) {
+      console.error('❌ Error loading tippable participants:', error);
+    }
+  }
+  
+  function populateTipRecipientDropdown() {
+    const select = document.getElementById('tip-recipient-select');
+    const noRecipientsMsg = document.getElementById('tip-no-recipients');
+    
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">-- Select a participant --</option>';
+    
+    if (tippableParticipants.length === 0) {
+      if (noRecipientsMsg) noRecipientsMsg.classList.remove('hidden');
+      return;
+    }
+    
+    if (noRecipientsMsg) noRecipientsMsg.classList.add('hidden');
+    
+    // Add participants as options
+    tippableParticipants.forEach((p, index) => {
+      const option = document.createElement('option');
+      option.value = p.id;
+      const badge = p.isHost ? '👑 ' : (p.type === 'spectator' ? '👀 ' : '');
+      const hostLabel = p.isHost ? ' (Host)' : '';
+      option.textContent = `${badge}${p.name}${hostLabel}`;
+      select.appendChild(option);
+      
+      // Auto-select if only one option, or select host by default
+      if (tippableParticipants.length === 1 || (p.isHost && !selectedTipRecipient)) {
+        select.value = p.id;
+        selectedTipRecipient = p;
+        onTipRecipientChange();
+      }
+    });
+  }
+  
+  function onTipRecipientChange() {
+    const select = document.getElementById('tip-recipient-select');
+    const infoEl = document.getElementById('tip-recipient-info');
+    const badgeEl = document.getElementById('tip-recipient-badge');
+    
+    if (!select) return;
+    
+    const selectedId = select.value;
+    selectedTipRecipient = tippableParticipants.find(p => p.id === selectedId) || null;
+    
+    if (infoEl && badgeEl && selectedTipRecipient) {
+      const typeLabel = selectedTipRecipient.isHost ? '👑 Host' : 
+                       (selectedTipRecipient.type === 'spectator' ? '👀 Spectator' : '🎤 Participant');
+      badgeEl.textContent = `Tipping: ${selectedTipRecipient.name} (${typeLabel})`;
+      infoEl.classList.remove('hidden');
+    } else if (infoEl) {
+      infoEl.classList.add('hidden');
+    }
+    
+    updateTipDisplay();
   }
   
   function closeTipModal() {
@@ -9125,8 +9680,13 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     // Reset
     selectedTipAmount = 0;
+    selectedTipAnimation = 'gems';
+    
     const customInput = document.getElementById('tip-custom-amount');
     if (customInput) customInput.value = '';
+    
+    const msgInput = document.getElementById('tip-message-input');
+    if (msgInput) msgInput.value = '';
     
     const errorEl = document.getElementById('tip-error');
     if (errorEl) errorEl.classList.add('hidden');
@@ -9172,6 +9732,42 @@ function ensureSpectatorTracksForParticipant(participant) {
     updateTipDisplay();
   }
   
+  function selectTipAnimation(animType) {
+    selectedTipAnimation = animType;
+    
+    // Update UI
+    document.querySelectorAll('.tip-anim-btn').forEach(btn => {
+      btn.classList.remove('selected');
+      if (btn.dataset.anim === animType) {
+        btn.classList.add('selected');
+      }
+    });
+    
+    console.log('🎬 Selected animation:', animType);
+  }
+  
+  function updateTipMessageCount() {
+    const input = document.getElementById('tip-message-input');
+    const counter = document.getElementById('tip-message-count');
+    if (input && counter) {
+      counter.textContent = input.value.length;
+    }
+  }
+  
+  // Add event listener for message input (handle both cases: DOM ready or already loaded)
+  function setupTipMessageListener() {
+    const msgInput = document.getElementById('tip-message-input');
+    if (msgInput) {
+      msgInput.addEventListener('input', updateTipMessageCount);
+    }
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupTipMessageListener);
+  } else {
+    setupTipMessageListener();
+  }
+  
   function updateTipDisplay() {
     const selectedEl = document.getElementById('tip-selected-amount');
     const hostReceivesEl = document.getElementById('tip-host-receives');
@@ -9183,14 +9779,25 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
     
     if (hostReceivesEl) {
-      const hostShare = Math.floor(selectedTipAmount * 0.5);
-      hostReceivesEl.textContent = `💎 ${hostShare.toLocaleString()}`;
+      const recipientShare = Math.floor(selectedTipAmount * 0.5);
+      const recipientName = selectedTipRecipient?.name || 'recipient';
+      hostReceivesEl.textContent = `💎 ${recipientShare.toLocaleString()} to ${recipientName}`;
     }
     
-    // Enable/disable send button
+    // Enable/disable send button - must have amount AND recipient selected
     if (sendBtn) {
-      const canSend = selectedTipAmount >= 10 && selectedTipAmount <= userGemBalance;
+      const hasRecipient = selectedTipRecipient && selectedTipRecipient.id;
+      const canSend = selectedTipAmount >= 10 && selectedTipAmount <= userGemBalance && hasRecipient;
       sendBtn.disabled = !canSend;
+      
+      // Update button text based on state
+      if (!hasRecipient) {
+        sendBtn.textContent = '👤 Select recipient';
+      } else if (selectedTipAmount < 10) {
+        sendBtn.textContent = '💎 Enter amount';
+      } else {
+        sendBtn.textContent = `🎉 Tip ${selectedTipRecipient.name}`;
+      }
     }
     
     // Show error if insufficient balance
@@ -9215,18 +9822,43 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Save the amount before modal closes and resets it
+    // Check if user is signed in (required to send tips)
+    const currentUserId = window.currentUserData?.userId || userId;
+    if (!currentUserId || !isValidUuid(currentUserId)) {
+      showToast('❌ Please sign in to send tips');
+      return;
+    }
+    
+    // Check if recipient is selected
+    if (!selectedTipRecipient || !selectedTipRecipient.id) {
+      showToast('❌ Please select who you want to tip');
+      return;
+    }
+    
+    // Validate recipient has valid ID
+    if (!isValidUuid(selectedTipRecipient.id)) {
+      showToast('❌ Selected user cannot receive tips (not signed in)');
+      return;
+    }
+    
+    // Save values before modal closes
     const tipAmountToSend = selectedTipAmount;
+    const tipAnimation = selectedTipAnimation;
+    const tipMessage = document.getElementById('tip-message-input')?.value?.trim() || '';
+    const useTTS = document.getElementById('tip-tts-toggle')?.checked ?? true;
+    const recipientId = selectedTipRecipient.id;
+    const recipientName = selectedTipRecipient.name;
     
     const sendBtn = document.getElementById('send-tip-btn');
     if (sendBtn) {
-      sendBtn.textContent = 'Sending...';
+      sendBtn.textContent = '🚀 Sending...';
       sendBtn.disabled = true;
     }
     
-    const currentUserId = window.currentUserData?.userId || userId;
     const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
     const sphereId = extractSphereId(roomUrl);
+    
+    console.log('💎 Sending tip:', { senderId: currentUserId, recipientId, recipientName, amount: tipAmountToSend });
     
     try {
       const response = await fetch('/.netlify/functions/send-tip', {
@@ -9234,7 +9866,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           senderId: currentUserId,
-          hostId: roomHostData.hostId,
+          hostId: recipientId, // Using recipient ID (backend still calls it hostId)
           amount: tipAmountToSend,
           roomId: sphereId,
           senderName: currentUserName
@@ -9245,16 +9877,15 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       if (data.success) {
         closeTipModal();
-        showToast(`💎 You tipped ${tipAmountToSend} gems! (${data.hostReceived} to host)`);
         
-        // Try to notify host via Firebase (may fail if no write permission)
-        notifyHostOfTip(currentUserName, tipAmountToSend);
+        // Notify everyone via LiveKit (includes animation + message + recipient)
+        notifyRoomOfTip(currentUserName, recipientName, tipAmountToSend, tipAnimation, tipMessage, useTTS);
         
         // Update gem display in header
         fetchAndDisplayGemBalance();
         
-        console.log(`💸 Tip sent: ${tipAmountToSend} gems to ${roomHostData.hostName}`);
-        console.log(`💰 Host received: ${data.hostReceived} gems | Platform fee: ${data.platformFee} gems`);
+        console.log(`💸 Tip sent: ${tipAmountToSend} gems to ${recipientName} with ${tipAnimation} animation`);
+        console.log(`💰 ${recipientName} received: ${data.hostReceived} gems | Platform fee: ${data.platformFee} gems`);
       } else {
         throw new Error(data.error || 'Failed to send tip');
       }
@@ -9263,61 +9894,577 @@ function ensureSpectatorTracksForParticipant(participant) {
       showToast(`❌ ${error.message}`);
       
       if (sendBtn) {
-        sendBtn.textContent = 'Send Tip';
+        sendBtn.textContent = '🎉 Send Tip';
         sendBtn.disabled = false;
       }
     }
   }
   
-  function notifyHostOfTip(senderName, amount) {
-    // Send notification via Firebase to show toast to host
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) return;
+  function notifyRoomOfTip(senderName, recipientName, amount, animation, message, useTTS) {
+    console.log('📤 Sending tip notification via LiveKit...', { senderName, recipientName, amount, animation });
     
-    // Try to push tip notification - may fail due to permissions
-    try {
-      const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-      tipNotifRef.push({
-        senderName,
-        amount,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-      }).catch(err => {
-        // Notification failed, but tip was already processed - just log it
-        console.warn('⚠️ Could not send tip notification (permissions):', err.message);
-      });
-    } catch (err) {
-      console.warn('⚠️ Tip notification error:', err.message);
+    // Create tip data
+    const tipData = {
+      senderName,
+      recipientName: recipientName || 'someone',
+      amount,
+      animation: animation || 'gems',
+      message: message || '',
+      useTTS: useTTS !== false,
+      timestamp: Date.now()
+    };
+    
+    let sent = false;
+    
+    // Method 1: Try LiveKit data message (works for all participants, no Firebase permissions needed!)
+    if (livekitRoom && livekitRoom.localParticipant) {
+      try {
+        const tipMessage = {
+          type: 'tip-celebration',
+          tipData: tipData
+        };
+        sent = publishLiveKitDataMessage(tipMessage);
+        if (sent) {
+          console.log('✅ Tip notification sent via LiveKit!');
+        }
+      } catch (err) {
+        console.warn('⚠️ Could not send tip via LiveKit:', err.message);
+      }
     }
+    
+    // Method 2: Fallback to Firebase chat if LiveKit fails
+    if (!sent && chatRef) {
+      console.log('📤 Trying Firebase fallback for tip notification...');
+      const tipChatMessage = {
+        text: `💎 TIP: ${senderName} → ${recipientName}: ${amount} gems`,
+        sender: 'system',
+        senderName: 'TipBot',
+        timestamp: firebase.database.ServerValue.TIMESTAMP,
+        isTip: true,
+        tipData: tipData
+      };
+      chatRef.push(tipChatMessage).catch(err => {
+        console.warn('⚠️ Firebase fallback also failed:', err.message);
+      });
+    }
+    
+    if (!sent && !chatRef) {
+      console.warn('⚠️ No method available to broadcast tip notification');
+    }
+    
+    // Always play locally for the sender immediately
+    playTipCelebration(tipData);
+  }
+  
+  // Keep old function name for backwards compatibility
+  function notifyHostOfTip(senderName, amount, animation, message, useTTS) {
+    notifyRoomOfTip(senderName, roomHostData.hostName || 'the host', amount, animation, message, useTTS);
   }
   
   function listenForTipNotifications() {
-    console.log('🔔 Setting up tip notification listener...');
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) {
-      console.warn('⚠️ No sphereId for tip notifications');
+    // Tip notifications are now handled via LiveKit data messages!
+    // See handleAppMessage() for the 'tip-celebration' type handler.
+    // This function is kept for compatibility but LiveKit is the primary mechanism.
+    console.log('🔔 Tip notifications enabled via LiveKit data messages');
+    console.log('✅ Tip notification system ready');
+  }
+  
+  // ============================================
+  // TIP CELEBRATION ANIMATION ENGINE
+  // ============================================
+  
+  // Rate limit tip celebrations to prevent spam/abuse
+  let lastTipCelebration = 0;
+  const TIP_CELEBRATION_COOLDOWN = 2000; // 2 seconds between celebrations
+  let tipCelebrationQueue = [];
+  let isProcessingTipQueue = false;
+  
+  async function playTipCelebration(tip) {
+    const now = Date.now();
+    
+    // Queue the celebration if one is already playing
+    if (now - lastTipCelebration < TIP_CELEBRATION_COOLDOWN) {
+      tipCelebrationQueue.push(tip);
+      if (!isProcessingTipQueue) {
+        processNextTipInQueue();
+      }
       return;
     }
     
-    // Use existing 'chats' path which has permissions
-    const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-    console.log('🔔 Listening for tips at:', `chats/${sphereId}/tips`);
+    lastTipCelebration = now;
+    await _playTipCelebrationInternal(tip);
+  }
+  
+  function processNextTipInQueue() {
+    if (tipCelebrationQueue.length === 0) {
+      isProcessingTipQueue = false;
+      return;
+    }
     
-    // Only listen to new tips (after now)
-    tipNotifRef.orderByChild('timestamp').startAt(Date.now()).on('child_added', (snapshot) => {
-      const tip = snapshot.val();
-      if (!tip) return;
+    isProcessingTipQueue = true;
+    setTimeout(async () => {
+      const nextTip = tipCelebrationQueue.shift();
+      if (nextTip) {
+        lastTipCelebration = Date.now();
+        await _playTipCelebrationInternal(nextTip);
+      }
+      processNextTipInQueue();
+    }, TIP_CELEBRATION_COOLDOWN);
+  }
+  
+  async function _playTipCelebrationInternal(tip) {
+    const { senderName, recipientName, amount, animation, message, useTTS } = tip;
+    
+    // Get animation config (or random if selected)
+    let animConfig;
+    if (animation === 'random') {
+      const keys = Object.keys(TIP_ANIMATIONS).filter(k => k !== 'random');
+      const randomKey = keys[Math.floor(Math.random() * keys.length)];
+      animConfig = TIP_ANIMATIONS[randomKey];
+    } else {
+      animConfig = TIP_ANIMATIONS[animation] || TIP_ANIMATIONS.gems;
+    }
+    
+    // Show the overlay
+    const overlay = document.getElementById('tip-animation-overlay');
+    if (overlay) {
+      overlay.style.display = 'block';
+    }
+    
+    // Calculate intensity based on amount
+    const intensity = amount >= 500 ? 'mega' : amount >= 100 ? 'high' : amount >= 50 ? 'medium' : 'low';
+    const particleCount = intensity === 'mega' ? 150 : intensity === 'high' ? 100 : intensity === 'medium' ? 60 : 30;
+    
+    // Show announcement (sender → recipient)
+    showTipAnnouncement(senderName, recipientName, amount, message);
+    
+    // Shake screen for big tips
+    if (intensity === 'mega' || intensity === 'high') {
+      document.body.style.animation = 'tipShake 0.5s ease-in-out';
+      setTimeout(() => { document.body.style.animation = ''; }, 500);
+    }
+    
+    // Disco mode overlay
+    if (animConfig.type === 'disco') {
+      const discoOverlay = document.createElement('div');
+      discoOverlay.className = 'tip-disco-overlay';
+      document.body.appendChild(discoOverlay);
+      setTimeout(() => discoOverlay.remove(), 5000);
+    }
+    
+    // Fetch and show GIF if needed
+    if (animConfig.useGif) {
+      await showTipGif(animConfig.useGif);
+    }
+    
+    // Spawn particles based on animation type
+    switch (animConfig.type) {
+      case 'rain':
+        spawnRainParticles(animConfig.emoji, particleCount);
+        break;
+      case 'rise':
+        spawnRiseParticles(animConfig.emoji, particleCount);
+        break;
+      case 'explode':
+        spawnExplodeParticles(animConfig.emoji, particleCount);
+        break;
+      case 'float':
+        spawnFloatParticles(animConfig.emoji, particleCount);
+        break;
+      case 'snow':
+        spawnSnowParticles(animConfig.emoji, particleCount);
+        break;
+      case 'rocket':
+        spawnRocketAnimation();
+        break;
+      case 'wave':
+        spawnRainbowWave();
+        break;
+      case 'disco':
+        spawnFloatParticles(animConfig.emoji, particleCount);
+        break;
+      default:
+        spawnRainParticles(animConfig.emoji, particleCount);
+    }
+    
+    // Play Text-to-Speech if enabled
+    if (useTTS && message) {
+      speakTipMessage(senderName, recipientName, amount, message);
+    } else if (useTTS) {
+      speakTipMessage(senderName, recipientName, amount, '');
+    }
+    
+    // Clean up after animation
+    setTimeout(() => {
+      hideTipOverlay();
+    }, 6000);
+  }
+  
+  function showTipAnnouncement(senderName, recipientName, amount, message) {
+    const announcement = document.getElementById('tip-announcement');
+    const amountEl = document.getElementById('tip-announcement-amount');
+    const senderEl = document.getElementById('tip-announcement-sender');
+    const messageEl = document.getElementById('tip-announcement-message');
+    
+    if (amountEl) amountEl.textContent = `💎 ${amount}`;
+    if (senderEl) {
+      // Show who tipped who
+      if (recipientName) {
+        senderEl.textContent = `${senderName} → ${recipientName}`;
+      } else {
+        senderEl.textContent = `${senderName} tipped!`;
+      }
+    }
+    
+    if (messageEl) {
+      if (message) {
+        messageEl.textContent = `"${message}"`;
+        messageEl.style.display = 'block';
+      } else {
+        messageEl.style.display = 'none';
+      }
+    }
+    
+    if (announcement) {
+      announcement.classList.add('visible');
       
-      console.log('🎉 Tip received:', tip);
-      // Show toast to everyone in room
-      showToast(`🎉 ${tip.senderName} tipped 💎 ${tip.amount}!`);
-    });
+      // Hide after 4 seconds
+      setTimeout(() => {
+        announcement.classList.remove('visible');
+      }, 4000);
+    }
+  }
+  
+  // Get a GIF URL with caching, rate limiting, and fallback
+  async function getGifUrl(type) {
+    const cache = GIF_CACHE;
+    const now = Date.now();
+    
+    // Check if we have cached GIFs that are still fresh
+    if (cache[type].length > 0 && (now - cache.lastFetch[type]) < cache.CACHE_DURATION) {
+      // Return a random cached GIF and remove it from cache
+      const randomIndex = Math.floor(Math.random() * cache[type].length);
+      return cache[type].splice(randomIndex, 1)[0];
+    }
+    
+    // Rate limit: don't fetch too frequently
+    if ((now - cache.lastFetch[type]) < cache.MIN_FETCH_INTERVAL) {
+      // Use fallback instead
+      const fallbacks = FALLBACK_GIFS[type] || [];
+      if (fallbacks.length > 0) {
+        return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+      }
+      return '';
+    }
+    
+    // Fetch new GIFs
+    try {
+      cache.lastFetch[type] = now;
+      
+      if (type === 'cat' || type === 'dog') {
+        const res = await fetch(GIF_APIS[type]);
+        if (res.ok) {
+          const data = await res.json();
+          // Cache multiple GIFs for later use
+          const urls = data.map(item => item.url).filter(Boolean);
+          if (urls.length > 0) {
+            cache[type] = urls.slice(1); // Cache all but the first
+            return urls[0]; // Return the first one
+          }
+        }
+      } else if (type === 'meme') {
+        const res = await fetch(GIF_APIS.meme);
+        if (res.ok) {
+          const data = await res.json();
+          return data?.url || data?.preview?.[data.preview.length - 1] || '';
+        }
+      }
+    } catch (err) {
+      console.warn(`GIF API error for ${type}:`, err.message);
+    }
+    
+    // Fallback if API failed
+    const fallbacks = FALLBACK_GIFS[type] || [];
+    if (fallbacks.length > 0) {
+      return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    }
+    return '';
+  }
+  
+  async function showTipGif(type) {
+    const gifDisplay = document.getElementById('tip-gif-display');
+    const gifImage = document.getElementById('tip-gif-image');
+    if (!gifDisplay || !gifImage) return;
+    
+    try {
+      const gifUrl = await getGifUrl(type);
+      
+      if (gifUrl) {
+        // Set up load handler before setting src
+        gifImage.onload = () => {
+          gifDisplay.style.display = 'block';
+          gifDisplay.classList.add('visible');
+        };
+        gifImage.onerror = () => {
+          console.warn('GIF failed to load, using fallback');
+          // Try fallback on error
+          const fallbacks = FALLBACK_GIFS[type] || [];
+          if (fallbacks.length > 0) {
+            gifImage.src = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+          } else {
+            gifDisplay.style.display = 'none';
+          }
+        };
+        gifImage.src = gifUrl;
+        
+        // Hide after 4 seconds
+        setTimeout(() => {
+          gifDisplay.classList.remove('visible');
+          gifDisplay.style.display = 'none';
+        }, 4000);
+      }
+    } catch (err) {
+      console.warn('Could not load GIF:', err);
+    }
+  }
+  
+  function spawnRainParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'tip-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.left = Math.random() * 100 + 'vw';
+        particle.style.top = '-50px';
+        particle.style.fontSize = (1.5 + Math.random() * 2) + 'rem';
+        particle.style.animation = `tipFall ${2 + Math.random() * 2}s linear forwards`;
+        particle.style.animationDelay = Math.random() * 0.5 + 's';
+        container.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 5000);
+      }, i * 30);
+    }
+  }
+  
+  function spawnRiseParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'tip-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.left = 20 + Math.random() * 60 + 'vw';
+        particle.style.bottom = '-50px';
+        particle.style.fontSize = (1.5 + Math.random() * 2) + 'rem';
+        particle.style.animation = `tipRise ${2 + Math.random() * 2}s linear forwards`;
+        container.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 5000);
+      }, i * 50);
+    }
+  }
+  
+  function spawnExplodeParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'tip-particle';
+      particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      particle.style.left = '50%';
+      particle.style.top = '50%';
+      particle.style.fontSize = (1 + Math.random() * 2) + 'rem';
+      
+      // Random direction
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 100 + Math.random() * 300;
+      const tx = Math.cos(angle) * distance + 'px';
+      const ty = Math.sin(angle) * distance + 'px';
+      
+      particle.style.setProperty('--tx', tx);
+      particle.style.setProperty('--ty', ty);
+      particle.style.animation = `tipExplode ${1 + Math.random()}s ease-out forwards`;
+      container.appendChild(particle);
+      
+      setTimeout(() => particle.remove(), 3000);
+    }
+  }
+  
+  function spawnFloatParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'tip-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.left = Math.random() * 100 + 'vw';
+        particle.style.bottom = '0';
+        particle.style.fontSize = (1.5 + Math.random() * 2) + 'rem';
+        particle.style.setProperty('--drift', (Math.random() - 0.5) * 100 + 'px');
+        particle.style.setProperty('--rot', Math.random() * 360 + 'deg');
+        particle.style.animation = `tipFloat ${3 + Math.random() * 2}s ease-out forwards`;
+        container.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 6000);
+      }, i * 40);
+    }
+  }
+  
+  function spawnSnowParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'tip-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.left = Math.random() * 100 + 'vw';
+        particle.style.top = '-50px';
+        particle.style.fontSize = (1 + Math.random() * 1.5) + 'rem';
+        particle.style.setProperty('--drift', (Math.random() - 0.5) * 200 + 'px');
+        particle.style.animation = `tipSnow ${4 + Math.random() * 3}s linear forwards`;
+        container.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 8000);
+      }, i * 100);
+    }
+  }
+  
+  function spawnRocketAnimation() {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    // Main rocket - set initial position
+    const rocket = document.createElement('div');
+    rocket.className = 'tip-particle';
+    rocket.textContent = '🚀';
+    rocket.style.fontSize = '4rem';
+    rocket.style.left = '0';
+    rocket.style.top = '50%';
+    rocket.style.animation = 'tipRocket 2s ease-in-out forwards';
+    container.appendChild(rocket);
+    
+    // Trail particles
+    for (let i = 0; i < 20; i++) {
+      setTimeout(() => {
+        const trail = document.createElement('div');
+        trail.className = 'tip-particle';
+        trail.textContent = ['✨', '💫', '⭐'][Math.floor(Math.random() * 3)];
+        trail.style.left = Math.random() * 100 + 'vw';
+        trail.style.top = 40 + Math.random() * 20 + 'vh';
+        trail.style.opacity = '0.7';
+        trail.style.animation = 'tipFloat 1s ease-out forwards';
+        container.appendChild(trail);
+        setTimeout(() => trail.remove(), 2000);
+      }, i * 100);
+    }
+    
+    setTimeout(() => rocket.remove(), 3000);
+  }
+  
+  function spawnRainbowWave() {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    const colors = ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣'];
+    
+    for (let row = 0; row < 6; row++) {
+      for (let col = 0; col < 15; col++) {
+        setTimeout(() => {
+          const particle = document.createElement('div');
+          particle.className = 'tip-particle';
+          particle.textContent = colors[row];
+          particle.style.left = col * 7 + 'vw';
+          particle.style.top = 30 + row * 8 + 'vh';
+          particle.style.fontSize = '2rem';
+          particle.style.opacity = '0';
+          particle.style.transition = 'opacity 0.3s ease-in-out';
+          container.appendChild(particle);
+          
+          setTimeout(() => { particle.style.opacity = '1'; }, 50);
+          setTimeout(() => { particle.style.opacity = '0'; }, 2000);
+          setTimeout(() => particle.remove(), 2500);
+        }, row * 100 + col * 50);
+      }
+    }
+  }
+  
+  function hideTipOverlay() {
+    const overlay = document.getElementById('tip-animation-overlay');
+    const container = document.getElementById('tip-particles-container');
+    const gifDisplay = document.getElementById('tip-gif-display');
+    const announcement = document.getElementById('tip-announcement');
+    
+    if (container) container.innerHTML = '';
+    if (gifDisplay) {
+      gifDisplay.classList.remove('visible');
+      gifDisplay.style.display = 'none';
+    }
+    if (announcement) announcement.classList.remove('visible');
+    if (overlay) overlay.style.display = 'none';
+  }
+  
+  // ============================================
+  // TEXT-TO-SPEECH (FREE!)
+  // ============================================
+  
+  function speakTipMessage(senderName, recipientName, amount, message) {
+    if (!('speechSynthesis' in window)) {
+      console.warn('TTS not supported');
+      return;
+    }
+    
+    // Cancel any ongoing speech
+    speechSynthesis.cancel();
+    
+    // Build the message with recipient
+    let text;
+    if (recipientName) {
+      text = `${senderName} tipped ${recipientName} ${amount} gems!`;
+    } else {
+      text = `${senderName} donated ${amount} gems!`;
+    }
+    if (message) {
+      text += ` They say: ${message}`;
+    }
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 0.8;
+    
+    // Try to use a nice voice
+    const voices = speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Natural')) || voices[0];
+    if (preferredVoice) utterance.voice = preferredVoice;
+    
+    speechSynthesis.speak(utterance);
+    console.log('🔊 TTS:', text);
+  }
+  
+  // Pre-load voices
+  if ('speechSynthesis' in window) {
+    speechSynthesis.getVoices();
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
   }
   
   // Make functions globally available
   window.openTipModal = openTipModal;
   window.closeTipModal = closeTipModal;
   window.selectTipAmount = selectTipAmount;
+  window.selectTipAnimation = selectTipAnimation;
+  window.onTipRecipientChange = onTipRecipientChange;
   window.sendTip = sendTip;
+  window.playTipCelebration = playTipCelebration;
 
   // ============================================
   // BRANDING MODAL FUNCTIONS

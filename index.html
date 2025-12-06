@@ -7379,13 +7379,51 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
 
   function getParticipantName(participantId) {
+    // First try to get from LiveKit room directly (most reliable)
+    if (livekitRoom) {
+      // Check local participant
+      if (livekitRoom.localParticipant?.sid === participantId || 
+          livekitRoom.localParticipant?.identity === participantId) {
+        const name = livekitRoom.localParticipant?.name;
+        if (name && !name.startsWith('cs_')) return name;
+      }
+      
+      // Check remote participants
+      for (const p of livekitRoom.remoteParticipants?.values() || []) {
+        if (p.sid === participantId || p.identity === participantId) {
+          // Prefer name over identity (identity might be checkout session ID)
+          const name = p.name || p.identity;
+          // Filter out checkout session IDs
+          if (name && !name.startsWith('cs_')) return name;
+          // If name starts with cs_, try to extract from the end
+          if (name && name.startsWith('cs_')) {
+            // Try to parse metadata for actual name
+            try {
+              const metadata = JSON.parse(p.metadata || '{}');
+              if (metadata.displayName) return metadata.displayName;
+              if (metadata.name) return metadata.name;
+            } catch (e) {}
+          }
+        }
+      }
+    }
+    
+    // Fallback to participants snapshot
     const participants = getParticipantsSnapshot();
     for (const [id, participant] of Object.entries(participants)) {
       if (id === participantId) {
-        return participant.user_name || 'Participant';
+        const name = participant.user_name;
+        // Filter out checkout session IDs
+        if (name && !name.startsWith('cs_')) return name;
       }
     }
-    return 'Participant';
+    
+    // If participantId itself looks like a name (not cs_xxx), use it
+    if (participantId && !participantId.startsWith('cs_') && !participantId.startsWith('PA_')) {
+      return participantId;
+    }
+    
+    return 'Debater';
   }
 
   function removeSpectatorParticipant(participantId) {
@@ -9883,16 +9921,33 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     if (isSpectator) {
       // SPECTATORS: Get participants from LiveKit room or spectator slots
+      // Helper function to clean participant name
+      const cleanName = (name) => {
+        if (!name) return null;
+        // Filter out checkout session IDs
+        if (name.startsWith('cs_')) return null;
+        if (name.startsWith('PA_')) return null;
+        return name;
+      };
+      
       if (spectatorParticipant1) {
+        const name = cleanName(spectatorParticipant1.participantName) || 
+                     cleanName(spectatorParticipant1.displayName) ||
+                     getParticipantName(spectatorParticipant1.participantId) ||
+                     'Debater 1';
         participants.push({
-          id: spectatorParticipant1.odorId || spectatorParticipant1.participantId || 'participant1',
-          name: spectatorParticipant1.displayName || spectatorParticipant1.identity || 'Debater 1'
+          id: spectatorParticipant1.participantId || 'participant1',
+          name: name
         });
       }
       if (spectatorParticipant2) {
+        const name = cleanName(spectatorParticipant2.participantName) || 
+                     cleanName(spectatorParticipant2.displayName) ||
+                     getParticipantName(spectatorParticipant2.participantId) ||
+                     'Debater 2';
         participants.push({
-          id: spectatorParticipant2.odorId || spectatorParticipant2.participantId || 'participant2',
-          name: spectatorParticipant2.displayName || spectatorParticipant2.identity || 'Debater 2'
+          id: spectatorParticipant2.participantId || 'participant2',
+          name: name
         });
       }
       
@@ -9903,8 +9958,21 @@ function ensureSpectatorTracksForParticipant(participant) {
           // Skip spectators
           if (p.metadata?.includes('spectator')) continue;
           
-          const pName = p.name || p.identity || 'Debater';
-          const pId = p.identity || p.sid;
+          // Get clean name, preferring name over identity
+          let pName = p.name;
+          // If name is a checkout session ID, try to get from metadata
+          if (!pName || pName.startsWith('cs_')) {
+            try {
+              const metadata = JSON.parse(p.metadata || '{}');
+              pName = metadata.displayName || metadata.name;
+            } catch (e) {}
+          }
+          // Still bad? Use identity if it's not a checkout session
+          if (!pName || pName.startsWith('cs_')) {
+            pName = p.identity?.startsWith('cs_') ? 'Debater' : (p.identity || 'Debater');
+          }
+          
+          const pId = p.sid || p.identity;
           
           // Don't add duplicates
           if (!participants.find(existing => existing.id === pId || existing.name === pName)) {
@@ -9923,14 +9991,21 @@ function ensureSpectatorTracksForParticipant(participant) {
         });
       }
       
-      // Add remote participant
+      // Add remote participant - filter out checkout session IDs
       if (otherParticipantId && otherParticipantId !== localUserId) {
+        let oppName = otherParticipantName;
+        // Filter out checkout session IDs from opponent name
+        if (!oppName || oppName.startsWith('cs_')) {
+          oppName = getParticipantName(otherParticipantId) || 'Opponent';
+        }
         participants.push({
           id: otherParticipantId,
-          name: otherParticipantName || 'Opponent'
+          name: oppName
         });
       }
     }
+    
+    console.log('🎯 Pot targets updated:', participants);
     
     roomTypeState.participants = participants;
     

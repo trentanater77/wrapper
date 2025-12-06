@@ -9611,22 +9611,31 @@ function ensureSpectatorTracksForParticipant(participant) {
   function initializeRoomType() {
     const urlParams = new URLSearchParams(window.location.search);
     const roomType = urlParams.get('roomType') || 'red';
+    const isHost = urlParams.get('host') === 'true';
     roomTypeState.type = roomType;
+    roomTypeState.isHost = isHost;
     
     // Show/hide Red Room pot panel based on room type
     const potPanel = document.getElementById('red-room-pot-panel');
     if (potPanel) {
       if (roomType === 'red') {
         potPanel.classList.remove('hidden');
+        // Initialize pot targets with just the local user for now
+        setTimeout(() => {
+          updatePotTargets();
+          listenForPotUpdates();
+        }, 1000);
       } else {
         potPanel.classList.add('hidden');
       }
     }
     
-    // Register room with server
-    registerActiveRoom();
+    // Register room with server (only if host or first participant)
+    if (isHost || !isSpectator) {
+      registerActiveRoom();
+    }
     
-    console.log(`🏠 Room type: ${roomType}`);
+    console.log(`🏠 Room type: ${roomType}, isHost: ${isHost}`);
   }
   
   // Register this room as active
@@ -9634,13 +9643,16 @@ function ensureSpectatorTracksForParticipant(participant) {
     const currentUserId = window.currentUserData?.userId || userId;
     const sphereId = extractSphereId(roomUrl);
     
-    if (!currentUserId || !sphereId) return;
+    if (!currentUserId || !sphereId) {
+      console.log('⚠️ Cannot register room: missing userId or sphereId');
+      return;
+    }
     
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const topic = urlParams.get('topic') || 'General Discussion';
+      const topic = urlParams.get('topic') || urlParams.get('matchedTopic') || 'General Discussion';
       
-      await fetch('/.netlify/functions/manage-room', {
+      const response = await fetch('/.netlify/functions/manage-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -9656,9 +9668,16 @@ function ensureSpectatorTracksForParticipant(participant) {
         })
       });
       
-      console.log('🏠 Room registered as active');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🏠 Room registered as active:', data);
+      } else {
+        // Don't fail silently - table might not exist
+        console.warn('⚠️ Room registration returned non-OK status (table may not exist yet)');
+      }
     } catch (error) {
-      console.warn('⚠️ Could not register room:', error);
+      // Non-critical - don't break the room if this fails
+      console.warn('⚠️ Could not register room (non-critical):', error.message);
     }
   }
   
@@ -9683,16 +9702,17 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Get all participants (exclude spectators)
     const participants = [];
     
-    // Add local user if they're a participant
-    if (!isSpectator) {
+    // Add local user if they're a participant (not spectator)
+    const localUserId = window.currentUserData?.userId || userId;
+    if (!isSpectator && localUserId) {
       participants.push({
-        id: window.currentUserData?.userId || userId,
+        id: localUserId,
         name: window.currentUserData?.displayName || userName || 'You'
       });
     }
     
     // Add remote participant
-    if (otherParticipantId) {
+    if (otherParticipantId && otherParticipantId !== localUserId) {
       participants.push({
         id: otherParticipantId,
         name: otherParticipantName || 'Opponent'
@@ -9700,6 +9720,16 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
     
     roomTypeState.participants = participants;
+    
+    // Show message if waiting for opponent
+    if (participants.length < 2) {
+      targetsContainer.innerHTML = `
+        <div class="text-center text-white text-opacity-70 py-2 text-sm">
+          ⏳ Waiting for opponent to join...
+        </div>
+      `;
+      return;
+    }
     
     targetsContainer.innerHTML = participants.map((p, idx) => `
       <button 

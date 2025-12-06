@@ -46,7 +46,15 @@ exports.handler = async function(event) {
           .eq('room_id', roomId)
           .single();
 
-        if (error || !data) {
+        if (error) {
+          // Table might not exist yet
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({ rooms: [] }),
+            };
+          }
           return {
             statusCode: 404,
             headers,
@@ -76,7 +84,17 @@ exports.handler = async function(event) {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      // Handle case where table doesn't exist yet
+      if (error) {
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ rooms: [] }),
+          };
+        }
+        throw error;
+      }
 
       return {
         statusCode: 200,

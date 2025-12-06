@@ -468,7 +468,7 @@
         <div class="empty-state-icon">🔇</div>
         <h2 class="empty-state-title">No Live Rooms Right Now</h2>
         <p class="empty-state-text">Be the first to start a conversation!</p>
-        <a href="/matchmaking.html" class="btn btn-primary">🎯 Start a Room</a>
+        <button onclick="openCreateRoomModal()" class="btn btn-primary">🎯 Create a Room</button>
       </div>
       
       <!-- Rooms Grid -->
@@ -480,7 +480,7 @@
       <div class="create-room-cta">
         <h3>Ready to Host?</h3>
         <p>Start your own debate or help session and earn gems from tips!</p>
-        <a href="/matchmaking.html" class="create-room-btn">🚀 Create a Room</a>
+        <button onclick="openCreateRoomModal()" class="create-room-btn">🚀 Create a Room</button>
       </div>
       
       <!-- Footer -->
@@ -496,6 +496,102 @@
     </main>
   </div>
   
+  <!-- Create Room Modal -->
+  <div id="create-room-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+    <div class="bg-light-rose rounded-3xl p-6 max-w-md w-full shadow-2xl border-4 border-gold relative" style="animation: scaleIn 0.3s ease-out;">
+      <!-- Close button -->
+      <button onclick="closeCreateRoomModal()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+      
+      <!-- Header -->
+      <div class="text-center mb-6">
+        <div class="w-16 h-16 mx-auto mb-4 bg-gold rounded-full flex items-center justify-center">
+          <span class="text-3xl">🎙️</span>
+        </div>
+        <h2 class="text-xl font-bold text-charcoal mb-2">Create Your Room</h2>
+        <p class="text-charcoal opacity-70 text-sm">Host a debate or help session</p>
+      </div>
+      
+      <!-- Room Type Selection -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-charcoal mb-2">Room Type</label>
+        <div class="grid grid-cols-2 gap-3">
+          <button id="type-red" onclick="selectRoomType('red')" class="p-4 rounded-xl border-3 border-main-red bg-white text-center transition-all hover:shadow-lg" style="border-width: 3px;">
+            <div class="text-2xl mb-1">🔴</div>
+            <div class="font-bold text-charcoal">Red Room</div>
+            <div class="text-xs text-charcoal opacity-70">Debate • Winner takes pot</div>
+          </button>
+          <button id="type-green" onclick="selectRoomType('green')" class="p-4 rounded-xl border-2 border-rose bg-white text-center transition-all hover:shadow-lg opacity-70">
+            <div class="text-2xl mb-1">🟢</div>
+            <div class="font-bold text-charcoal">Green Room</div>
+            <div class="text-xs text-charcoal opacity-70">Help • Tips for advice</div>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Topic Input -->
+      <div class="mb-4">
+        <label class="block text-sm font-bold text-charcoal mb-2">Topic</label>
+        <input 
+          type="text" 
+          id="create-room-topic" 
+          placeholder="What do you want to discuss?"
+          maxlength="100"
+          class="w-full px-4 py-3 rounded-xl border-2 border-rose focus:border-main-red outline-none font-semibold"
+        >
+      </div>
+      
+      <!-- Description (optional) -->
+      <div class="mb-6">
+        <label class="block text-sm font-bold text-charcoal mb-2">Description (optional)</label>
+        <textarea 
+          id="create-room-description" 
+          placeholder="Add more details about your room..."
+          maxlength="200"
+          rows="2"
+          class="w-full px-4 py-3 rounded-xl border-2 border-rose focus:border-main-red outline-none resize-none"
+        ></textarea>
+      </div>
+      
+      <!-- Public/Private Toggle -->
+      <div class="mb-6 flex items-center justify-between p-3 bg-rose rounded-xl">
+        <div>
+          <div class="font-bold text-charcoal text-sm">Public Room</div>
+          <div class="text-xs text-charcoal opacity-70">Visible on Live Rooms page</div>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="create-room-public" checked class="sr-only peer">
+          <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-main-red"></div>
+        </label>
+      </div>
+      
+      <!-- Create Button -->
+      <button 
+        id="create-room-btn"
+        onclick="createRoom()"
+        class="w-full py-4 bg-main-red text-white font-bold rounded-full hover:bg-red-700 transition-all text-lg"
+      >
+        🚀 Create Room
+      </button>
+      
+      <!-- Sign in prompt (shown if not logged in) -->
+      <div id="create-room-signin" class="hidden mt-4 text-center p-4 bg-rose rounded-xl">
+        <p class="text-charcoal font-semibold mb-2">Sign in to create a room</p>
+        <a href="/matchmaking.html" class="text-main-red underline font-bold">Sign In</a>
+      </div>
+    </div>
+  </div>
+  
+  <style>
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+
   <!-- Navigation Script -->
   <script src="/assets/js/navigation.js"></script>
   
@@ -503,13 +599,154 @@
   <script>
     let allRooms = [];
     let currentFilter = 'all';
+    let selectedRoomType = 'red';
+    let currentUserId = null;
     
     // Load rooms on page load
     document.addEventListener('DOMContentLoaded', () => {
       loadRooms();
       // Refresh every 30 seconds
       setInterval(loadRooms, 30000);
+      
+      // Check auth state for create room
+      checkAuthForCreateRoom();
     });
+    
+    // ============================================
+    // CREATE ROOM MODAL
+    // ============================================
+    
+    function openCreateRoomModal() {
+      const modal = document.getElementById('create-room-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        
+        // Check if user is logged in
+        if (!currentUserId) {
+          document.getElementById('create-room-btn').classList.add('hidden');
+          document.getElementById('create-room-signin').classList.remove('hidden');
+        } else {
+          document.getElementById('create-room-btn').classList.remove('hidden');
+          document.getElementById('create-room-signin').classList.add('hidden');
+        }
+      }
+    }
+    window.openCreateRoomModal = openCreateRoomModal;
+    
+    function closeCreateRoomModal() {
+      const modal = document.getElementById('create-room-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+    window.closeCreateRoomModal = closeCreateRoomModal;
+    
+    function selectRoomType(type) {
+      selectedRoomType = type;
+      
+      const redBtn = document.getElementById('type-red');
+      const greenBtn = document.getElementById('type-green');
+      
+      if (type === 'red') {
+        redBtn.style.borderWidth = '3px';
+        redBtn.style.borderColor = '#e63946';
+        redBtn.classList.remove('opacity-70');
+        greenBtn.style.borderWidth = '2px';
+        greenBtn.style.borderColor = '#FFB6B9';
+        greenBtn.classList.add('opacity-70');
+      } else {
+        greenBtn.style.borderWidth = '3px';
+        greenBtn.style.borderColor = '#10b981';
+        greenBtn.classList.remove('opacity-70');
+        redBtn.style.borderWidth = '2px';
+        redBtn.style.borderColor = '#FFB6B9';
+        redBtn.classList.add('opacity-70');
+      }
+    }
+    window.selectRoomType = selectRoomType;
+    
+    async function createRoom() {
+      const topic = document.getElementById('create-room-topic').value.trim();
+      const description = document.getElementById('create-room-description').value.trim();
+      const isPublic = document.getElementById('create-room-public').checked;
+      
+      if (!topic) {
+        alert('Please enter a topic for your room');
+        return;
+      }
+      
+      if (!currentUserId) {
+        alert('Please sign in to create a room');
+        return;
+      }
+      
+      const createBtn = document.getElementById('create-room-btn');
+      createBtn.textContent = 'Creating...';
+      createBtn.disabled = true;
+      
+      try {
+        // Generate a unique room ID
+        const roomId = 'room-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 6);
+        
+        // Create the room via API
+        const response = await fetch('/.netlify/functions/manage-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            roomId: roomId,
+            hostId: currentUserId,
+            hostName: currentUserName || 'Host',
+            roomType: selectedRoomType,
+            topic: topic,
+            description: description,
+            isPublic: isPublic,
+            durationMinutes: 60 // Default to 60 min, pro users get more in the room
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Redirect to the room as host
+          const roomUrl = `/index.html?room=${roomId}&mode=participant&roomType=${selectedRoomType}&topic=${encodeURIComponent(topic)}&host=true`;
+          window.location.href = roomUrl;
+        } else {
+          throw new Error(data.error || 'Failed to create room');
+        }
+      } catch (error) {
+        console.error('Error creating room:', error);
+        alert('Failed to create room: ' + error.message);
+        createBtn.textContent = '🚀 Create Room';
+        createBtn.disabled = false;
+      }
+    }
+    window.createRoom = createRoom;
+    
+    // Check auth state for create room functionality
+    let currentUserName = null;
+    
+    async function checkAuthForCreateRoom() {
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      
+      if (!window.supabase || !supabaseConfig.url || !supabaseConfig.anonKey) {
+        return;
+      }
+      
+      try {
+        const client = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
+        const { data: { session } } = await client.auth.getSession();
+        
+        if (session?.user) {
+          currentUserId = session.user.id;
+          currentUserName = session.user.user_metadata?.name || 
+                           session.user.user_metadata?.full_name || 
+                           session.user.email?.split('@')[0] || 'Host';
+          console.log('✅ User authenticated for room creation:', currentUserName);
+        }
+      } catch (e) {
+        console.warn('Auth check failed:', e);
+      }
+    }
     
     async function loadRooms() {
       try {

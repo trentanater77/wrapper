@@ -10,6 +10,7 @@
   let menuToggle = null;
   let navMenu = null;
   let navOverlay = null;
+  let navClose = null;
   let header = null;
 
   // State
@@ -24,6 +25,7 @@
     menuToggle = document.getElementById('menu-toggle');
     navMenu = document.getElementById('nav-menu');
     navOverlay = document.getElementById('nav-overlay');
+    navClose = document.getElementById('nav-close');
     header = document.querySelector('.site-header');
 
     if (!menuToggle || !navMenu) {
@@ -53,6 +55,11 @@
     // Close menu when clicking overlay
     if (navOverlay) {
       navOverlay.addEventListener('click', closeMenu);
+    }
+
+    // Close menu when clicking close button
+    if (navClose) {
+      navClose.addEventListener('click', closeMenu);
     }
 
     // Close menu on escape key

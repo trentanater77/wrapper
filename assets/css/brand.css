@@ -293,6 +293,34 @@ body {
   transform: translateX(0);
 }
 
+/* Nav Close Button (Mobile) */
+.nav-close {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--rose);
+  border: none;
+  border-radius: 50%;
+  color: var(--charcoal);
+  font-size: 1.5rem;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  line-height: 1;
+  transition: all var(--transition-fast);
+  z-index: 10;
+}
+
+.nav-close:hover {
+  background: var(--main-red);
+  color: var(--light-rose);
+  transform: rotate(90deg);
+}
+
 /* Navigation Links */
 .nav-links {
   display: flex;

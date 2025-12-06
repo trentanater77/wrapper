@@ -1,0 +1,122 @@
+/**
+ * ChatSpheres Ad Styles
+ * Ensures ads are displayed in a user-friendly manner
+ */
+
+/* Hide ads when user has ad-free plan */
+body.ads-hidden .chatspheres-ad-container,
+body.ads-hidden .chatspheres-ad,
+body.ads-hidden .ad-container {
+  display: none !important;
+}
+
+/* Ad Container Base Styles */
+.chatspheres-ad-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* Header Ad - Below navigation */
+.chatspheres-ad-header {
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  min-height: 90px;
+  max-height: 120px;
+  background: var(--light-rose);
+  border-bottom: 1px solid var(--rose);
+}
+
+/* Footer Ad - Above footer */
+.chatspheres-ad-footer {
+  padding: var(--space-md);
+  margin-top: var(--space-lg);
+  min-height: 90px;
+  max-height: 120px;
+  background: var(--light-rose);
+  border-top: 1px solid var(--rose);
+}
+
+/* Sidebar Ad */
+.chatspheres-ad-sidebar {
+  padding: var(--space-sm, 0.5rem);
+  min-height: 250px;
+  max-width: 100%;
+  background: var(--light-rose, #FCE2E5);
+  border-radius: var(--radius-lg, 1rem);
+  border: 1px solid var(--rose, #F8B4C0);
+}
+
+/* Video chat page sidebar ads */
+#sidebar-ad,
+#spectator-sidebar-ad {
+  background: white;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+}
+
+/* Inline Ad - Between content */
+.chatspheres-ad-inline {
+  padding: var(--space-md);
+  margin: var(--space-lg) 0;
+  min-height: 100px;
+  background: var(--light-rose);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--rose);
+}
+
+/* Ad label for transparency */
+.chatspheres-ad-container::before {
+  content: 'Advertisement';
+  display: block;
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  color: var(--charcoal);
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.chatspheres-ad-container {
+  position: relative;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chatspheres-ad-header,
+  .chatspheres-ad-footer {
+    min-height: 60px;
+    max-height: 100px;
+  }
+  
+  .chatspheres-ad-sidebar {
+    max-width: 100%;
+    min-height: 100px;
+  }
+}
+
+/* Ensure AdSense elements display correctly */
+.adsbygoogle {
+  display: block;
+  width: 100%;
+}
+
+/* Empty ad fallback (when no ads available) */
+.chatspheres-ad-container:empty,
+.adsbygoogle:empty {
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+}
+
+.chatspheres-ad-container:empty::before {
+  display: none;
+}

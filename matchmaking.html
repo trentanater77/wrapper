@@ -6,6 +6,9 @@
   <title>ChatSpheres - Find Your Match</title>
   <meta name="description" content="Type what's on your mind and find someone to talk about it. AI-powered semantic matchmaking for meaningful conversations.">
   
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
   <!-- Firebase SDKs (same as main app) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -27,6 +30,9 @@
   
   <!-- Brand CSS -->
   <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Ads CSS -->
+  <link rel="stylesheet" href="/assets/css/ads.css">
   
   <!-- Favicon (vesica piscis) -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
@@ -767,7 +773,7 @@
   <!-- Header -->
   <header class="site-header">
     <div class="header-container">
-      <a href="/" class="site-logo">
+      <a href="/explore.html" class="site-logo">
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
           <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
@@ -797,9 +803,12 @@
   
   <!-- Navigation Menu -->
   <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
     <ul class="nav-links">
-      <li><a href="/" class="nav-link"><span class="nav-link-icon">🔮</span> Video Chat</a></li>
+      <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
       <li><a href="/matchmaking.html" class="nav-link active"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/features.html" class="nav-link"><span class="nav-link-icon">✨</span> Features</a></li>
+      <li><a href="/creators.html" class="nav-link"><span class="nav-link-icon">🎙️</span> For Creators</a></li>
       <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
       <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
     </ul>
@@ -807,6 +816,8 @@
     <div class="nav-divider"></div>
     
     <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="https://www.chatspheres.com" class="nav-link" target="_blank"><span class="nav-link-icon">🌐</span> Explore</a></li>
       <li><a href="/profile.html" class="nav-link"><span class="nav-link-icon">👤</span> Profile</a></li>
       <li><a href="/cashout.html" class="nav-link"><span class="nav-link-icon">💰</span> Cash Out</a></li>
       <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
@@ -886,6 +897,15 @@
             </button>
           </div>
         </div>
+        
+        <!-- Ad below input area (user is deciding, not in a hurry) -->
+        <div class="chatspheres-ad-container chatspheres-ad-inline" id="input-ad" style="margin-top: var(--space-xl);">
+          <ins class="adsbygoogle chatspheres-ad"
+               style="display:block"
+               data-ad-client="ca-pub-8986841930339200"
+               data-ad-format="horizontal"
+               data-full-width-responsive="true"></ins>
+        </div>
       </section>
       
       <!-- ========== SCANNING SCREEN ========== -->
@@ -905,6 +925,15 @@
         <p class="queue-status" id="queue-status">Connecting to matchmaking...</p>
         
         <button id="cancel-btn" class="cancel-btn">Cancel Search</button>
+        
+        <!-- Ad shown while scanning (perfect timing - user is waiting) -->
+        <div class="chatspheres-ad-container chatspheres-ad-inline" id="scanning-ad" style="margin-top: var(--space-xl);">
+          <ins class="adsbygoogle chatspheres-ad"
+               style="display:block"
+               data-ad-client="ca-pub-8986841930339200"
+               data-ad-format="horizontal"
+               data-full-width-responsive="true"></ins>
+        </div>
       </section>
       
       <!-- ========== MATCH FOUND SCREEN ========== -->
@@ -933,6 +962,15 @@
           🚀 Join Video Chat
         </button>
       </section>
+      
+      <!-- Ad Container (shown to non-ad-free users) -->
+      <div class="chatspheres-ad-container chatspheres-ad-inline" id="matchmaking-ad">
+        <ins class="adsbygoogle chatspheres-ad"
+             style="display:block"
+             data-ad-client="ca-pub-8986841930339200"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+      </div>
       
       <!-- Footer -->
       <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl);">
@@ -1091,9 +1129,25 @@
         }
       }
       
+      // Handle auth callback hash (OAuth redirect)
+      function handleAuthCallback() {
+        if (window.location.hash.includes('auth-callback') || window.location.hash.includes('access_token')) {
+          console.log('🔐 Handling auth callback on matchmaking page...');
+          // Clear the hash after processing
+          setTimeout(() => {
+            if (window.location.hash) {
+              history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+          }, 100);
+        }
+      }
+      
       // Check auth state on load
       async function checkAuthState() {
         if (!supabaseClient) return;
+        
+        // Handle auth callback if present
+        handleAuthCallback();
         
         try {
           const { data: { session } } = await supabaseClient.auth.getSession();
@@ -1112,20 +1166,9 @@
             
             // Track referral signup if this is a new user
             if (event === 'SIGNED_IN') {
-              const storedRefCode = sessionStorage.getItem('chatspheres_referral_code');
-              if (storedRefCode) {
-                console.log('🔗 Tracking referral signup for code:', storedRefCode);
-                fetch('/.netlify/functions/track-referral', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    action: 'signup',
-                    referralCode: storedRefCode,
-                    referredUserId: session.user.id
-                  })
-                }).then(() => {
-                  sessionStorage.removeItem('chatspheres_referral_code');
-                }).catch(err => console.log('Referral signup tracking failed:', err));
+              // Use cross-domain referral tracking
+              if (window.ChatSpheresReferral) {
+                window.ChatSpheresReferral.trackReferralSignup(session.user.id);
               }
             }
           } else {
@@ -1133,18 +1176,8 @@
           }
         });
         
-        // Check for referral code in URL
-        const urlParams = new URLSearchParams(window.location.search);
-        const refCode = urlParams.get('ref');
-        if (refCode) {
-          sessionStorage.setItem('chatspheres_referral_code', refCode);
-          console.log('📎 Referral code detected:', refCode);
-          fetch('/.netlify/functions/track-referral', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'click', referralCode: refCode })
-          }).catch(err => console.log('Referral tracking not available'));
-        }
+        // Referral code tracking is now handled by /assets/js/referral.js
+        // which uses cross-domain cookies for better tracking across subdomains
       }
       
       function updateHeaderForUser(user) {
@@ -1319,5 +1352,11 @@
       }
     })();
   </script>
+  
+  <!-- Ad Management Script -->
+  <script src="/assets/js/ads.js"></script>
+  
+  <!-- Cross-Domain Referral Tracking -->
+  <script src="/assets/js/referral.js"></script>
 </body>
 </html>

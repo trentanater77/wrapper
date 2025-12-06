@@ -6,6 +6,9 @@
   <title>Contact Us - ChatSpheres</title>
   <meta name="description" content="Get in touch with ChatSpheres support team. We're here to help!">
   
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,6 +16,9 @@
   
   <!-- Brand CSS -->
   <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Ads CSS -->
+  <link rel="stylesheet" href="/assets/css/ads.css">
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
@@ -270,7 +276,7 @@
   <!-- Simple Header -->
   <header class="site-header">
     <div class="header-container">
-      <a href="/" class="site-logo">
+      <a href="/explore.html" class="site-logo">
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
           <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
@@ -279,7 +285,7 @@
         </svg>
         <span class="site-logo-text">ChatSpheres</span>
       </a>
-      <a href="/" class="btn btn-ghost">← Back to App</a>
+      <a href="/explore.html" class="btn btn-ghost">← Back to App</a>
     </div>
   </header>
   
@@ -301,9 +307,9 @@
           <div class="contact-card">
             <h2>📧 Email Us</h2>
             <p>For the fastest response, email us directly. We typically respond within 24-48 hours.</p>
-            <a href="mailto:chatspheres.worldwide@gmail.com" class="email-link">
+            <a href="mailto:chatspheres.worldwide@mail.com" class="email-link">
               <span>✉️</span>
-              chatspheres.worldwide@gmail.com
+              chatspheres.worldwide@mail.com
             </a>
           </div>
           
@@ -467,7 +473,7 @@
         const body = encodeURIComponent(`Name: ${name}\nEmail: ${email}\nTopic: ${topic}\n\nMessage:\n${message}`);
         
         // Open email client
-        window.location.href = `mailto:chatspheres.worldwide@gmail.com?subject=${subject}&body=${body}`;
+        window.location.href = `mailto:chatspheres.worldwide@mail.com?subject=${subject}&body=${body}`;
         
         // Show success message
         messageEl.textContent = '✅ Opening your email client... If it didn\'t open, please email us directly.';
@@ -478,7 +484,7 @@
         
       } catch (error) {
         console.error('Form error:', error);
-        messageEl.textContent = '❌ Something went wrong. Please email us directly at chatspheres.worldwide@gmail.com';
+        messageEl.textContent = '❌ Something went wrong. Please email us directly at chatspheres.worldwide@mail.com';
         messageEl.className = 'form-message error';
       }
       
@@ -487,5 +493,8 @@
       btn.innerHTML = originalText;
     }
   </script>
+  
+  <!-- Ad Management Script -->
+  <script src="/assets/js/ads.js"></script>
 </body>
 </html>

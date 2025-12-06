@@ -33,7 +33,7 @@ exports.handler = async function(event) {
       }
 
       const { data: mutes, error } = await supabase
-        .from('chat_mutes')
+        .from('muted_chat_users')
         .select('muted_user_id')
         .eq('room_id', roomId);
 
@@ -108,7 +108,7 @@ exports.handler = async function(event) {
     if (action === 'unmute') {
       // Remove the mute
       const { error } = await supabase
-        .from('chat_mutes')
+        .from('muted_chat_users')
         .delete()
         .eq('room_id', roomId)
         .eq('muted_user_id', mutedUserId);
@@ -130,11 +130,11 @@ exports.handler = async function(event) {
     } else {
       // Add the mute
       const { error } = await supabase
-        .from('chat_mutes')
+        .from('muted_chat_users')
         .upsert({
           room_id: roomId,
           muted_user_id: mutedUserId,
-          muted_by_host_id: hostId,
+          host_id: hostId,
         }, {
           onConflict: 'room_id,muted_user_id'
         });

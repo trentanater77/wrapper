@@ -196,6 +196,12 @@ async function trackSignup(referralCode, referredUserId) {
     return { success: false, message: 'No pending referral found' };
   }
 
+  // FRAUD PREVENTION: Block self-referrals
+  if (referral.referrer_user_id === referredUserId) {
+    console.log('🚫 FRAUD BLOCKED: User tried to refer themselves:', referredUserId);
+    return { success: false, message: 'Self-referral not allowed' };
+  }
+
   // Update the referral with the referred user
   const { data, error } = await supabase
     .from('referrals')
@@ -238,11 +244,22 @@ async function activateReferral(referredUserId) {
     return { success: false, message: 'No pending referral found' };
   }
 
+  // FRAUD PREVENTION: Double-check not a self-referral
+  if (referral.referrer_user_id === referredUserId) {
+    console.log('🚫 FRAUD BLOCKED: Self-referral activation attempt:', referredUserId);
+    // Mark as fraudulent so it doesn't keep trying
+    await supabase
+      .from('referrals')
+      .update({ status: 'fraudulent', updated_at: new Date().toISOString() })
+      .eq('id', referral.id);
+    return { success: false, message: 'Self-referral not allowed' };
+  }
+
   // Award gems to the referrer
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.SIGNUP_COMPLETE.referrer, 
-    'referral_bonus',
+    'promo',
     `Referral bonus - friend completed first chat`
   );
 
@@ -250,7 +267,7 @@ async function activateReferral(referredUserId) {
   await awardGems(
     referredUserId, 
     REWARDS.SIGNUP_COMPLETE.referred, 
-    'referral_welcome',
+    'promo',
     `Welcome bonus - signed up with referral link`
   );
 
@@ -304,14 +321,14 @@ async function trackPurchase(referredUserId) {
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.FIRST_PURCHASE.referrer, 
-    'referral_purchase_bonus',
+    'promo',
     `Referral bonus - friend made first purchase`
   );
 
   await awardGems(
     referredUserId, 
     REWARDS.FIRST_PURCHASE.referred, 
-    'purchase_bonus',
+    'promo',
     `Bonus gems for first purchase`
   );
 
@@ -351,14 +368,14 @@ async function trackSubscription(referredUserId) {
   await awardGems(
     referral.referrer_user_id, 
     REWARDS.SUBSCRIPTION.referrer, 
-    'referral_subscription_bonus',
+    'promo',
     `Referral bonus - friend subscribed`
   );
 
   await awardGems(
     referredUserId, 
     REWARDS.SUBSCRIPTION.referred, 
-    'subscription_bonus',
+    'promo',
     `Bonus gems for subscribing`
   );
 
@@ -378,41 +395,67 @@ async function trackSubscription(referredUserId) {
 
 // Helper function to award gems to a user
 async function awardGems(userId, amount, transactionType, description) {
+  console.log(`💎 Awarding ${amount} gems to user ${userId}...`);
+  
   // Update or create gem balance
-  const { data: existingBalance } = await supabase
+  const { data: existingBalance, error: fetchError } = await supabase
     .from('gem_balances')
     .select('*')
     .eq('user_id', userId)
     .single();
 
+  if (fetchError && fetchError.code !== 'PGRST116') {
+    console.error('Error fetching gem balance:', fetchError);
+  }
+
   if (existingBalance) {
-    await supabase
+    // Update existing balance - add to spendable_gems
+    const { error: updateError } = await supabase
       .from('gem_balances')
       .update({
-        earned_gems: (existingBalance.earned_gems || 0) + amount,
+        spendable_gems: (existingBalance.spendable_gems || 0) + amount,
+        promo_gems: (existingBalance.promo_gems || 0) + amount, // Track as promo gems too
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', userId);
+    
+    if (updateError) {
+      console.error('Error updating gem balance:', updateError);
+      throw updateError;
+    }
+    console.log(`✅ Updated existing balance: +${amount} gems`);
   } else {
-    await supabase
+    // Create new balance record
+    const { error: insertError } = await supabase
       .from('gem_balances')
       .insert({
         user_id: userId,
-        earned_gems: amount,
-        spendable_gems: 0,
+        spendable_gems: amount,
+        cashable_gems: 0,
+        promo_gems: amount, // Referral gems are promo gems
       });
+    
+    if (insertError) {
+      console.error('Error creating gem balance:', insertError);
+      throw insertError;
+    }
+    console.log(`✅ Created new balance with ${amount} gems`);
   }
 
   // Record transaction
-  await supabase
+  const { error: txError } = await supabase
     .from('gem_transactions')
     .insert({
       user_id: userId,
       transaction_type: transactionType,
       amount: amount,
-      wallet_type: 'earned',
+      wallet_type: 'spendable',
       description: description,
     });
+
+  if (txError) {
+    console.error('Error recording transaction:', txError);
+  }
 
   console.log(`✅ Awarded ${amount} gems to user ${userId}`);
 }

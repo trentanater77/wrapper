@@ -26,8 +26,9 @@ exports.handler = async function authCallbackHandler(event) {
     });
   }
   
-  // Redirect to the main page where the client-side JS will handle the session
-  const redirectTarget = `${siteUrl}/?${searchParams.toString()}#auth-callback`;
+  // Redirect to matchmaking page where the client-side JS will handle the session
+  // Using matchmaking instead of index.html since index.html redirects away without room code
+  const redirectTarget = `${siteUrl}/matchmaking.html?${searchParams.toString()}#auth-callback`;
   
   return {
     statusCode: 302,

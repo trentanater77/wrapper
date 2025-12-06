@@ -1,6 +1,7 @@
 /**
  * ChatSpheres Moderation - Shared Script
  * Handles pending ratings and suspension checks across all pages
+ * Uses localStorage for persistent rating tracking across tabs/sessions
  */
 
 (function() {
@@ -8,6 +9,9 @@
   
   // State
   let pendingRatingData = null;
+  
+  // LocalStorage key for pending ratings (same as index.html)
+  const PENDING_RATING_STORAGE_KEY = 'chatspheres_pending_rating';
   
   // Create rating modal if it doesn't exist
   function createRatingModal() {
@@ -105,18 +109,45 @@
       
       if (data.success) {
         console.log(`✅ Rating submitted: ${rating}`);
+        // CRITICAL: Clear localStorage only after successful submission
+        clearPendingRatingFromStorage();
       } else {
         console.error('Rating submission failed:', data.error);
+        // Don't clear localStorage - user can try again
       }
     } catch (error) {
       console.error('Error submitting rating:', error);
+      // Don't clear localStorage on error - user can try again
     }
     
     closeRatingModal();
   }
   
-  // Skip rating
+  // Skip rating - keeps the pending rating so it shows again next time
   function skipRating() {
+    console.log('⏭️ User skipped rating - keeping pending rating for next visit');
+    
+    // DON'T clear localStorage! The rating will show again when user returns
+    // Just save to database as backup
+    if (pendingRatingData) {
+      const otherUserName = document.getElementById('rating-other-user-name')?.textContent;
+      
+      // Re-save to localStorage to ensure it persists
+      savePendingRatingToStorage(pendingRatingData.ratedId, otherUserName, pendingRatingData.raterId, pendingRatingData.roomId);
+      
+      // Also save to database as backup
+      fetch('/.netlify/functions/save-pending-rating', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: pendingRatingData.raterId,
+          roomId: pendingRatingData.roomId,
+          otherUserId: pendingRatingData.ratedId,
+          otherUserName: otherUserName,
+        }),
+      }).catch(err => console.log('Could not save pending rating to database:', err));
+    }
+    
     closeRatingModal();
   }
   
@@ -127,7 +158,70 @@
     pendingRatingData = null;
   }
   
-  // Check for pending rating
+  // ========================================
+  // LOCAL STORAGE HELPERS FOR PERSISTENT RATINGS
+  // ========================================
+  
+  // Save pending rating to localStorage
+  function savePendingRatingToStorage(otherUserId, otherUserName, raterId, roomId) {
+    if (!otherUserId || !raterId) return;
+    
+    const pendingData = {
+      raterId: raterId,
+      ratedId: otherUserId,
+      otherUserName: otherUserName || 'your chat partner',
+      roomId: roomId || 'unknown',
+      timestamp: Date.now(),
+      rated: false
+    };
+    
+    try {
+      localStorage.setItem(PENDING_RATING_STORAGE_KEY, JSON.stringify(pendingData));
+      console.log('💾 Saved pending rating to localStorage:', pendingData.ratedId);
+    } catch (e) {
+      console.warn('Could not save pending rating to localStorage:', e);
+    }
+  }
+  
+  // Get pending rating from localStorage
+  function getPendingRatingFromStorage(userId) {
+    try {
+      const data = localStorage.getItem(PENDING_RATING_STORAGE_KEY);
+      if (!data) return null;
+      
+      const parsed = JSON.parse(data);
+      
+      // Only return if it's for the current user and not expired (24 hours)
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      if (parsed.raterId === userId && 
+          !parsed.rated &&
+          (Date.now() - parsed.timestamp) < twentyFourHours) {
+        return parsed;
+      }
+      
+      // Clean up expired data
+      if ((Date.now() - parsed.timestamp) >= twentyFourHours) {
+        clearPendingRatingFromStorage();
+      }
+      
+      return null;
+    } catch (e) {
+      console.warn('Could not read pending rating from localStorage:', e);
+      return null;
+    }
+  }
+  
+  // Clear pending rating from localStorage
+  function clearPendingRatingFromStorage() {
+    try {
+      localStorage.removeItem(PENDING_RATING_STORAGE_KEY);
+      console.log('🗑️ Cleared pending rating from localStorage');
+    } catch (e) {
+      console.warn('Could not clear pending rating from localStorage:', e);
+    }
+  }
+  
+  // Check for pending rating - checks localStorage FIRST, then database
   async function checkPendingRating() {
     // Get current user ID from various sources
     let userId = null;
@@ -154,11 +248,37 @@
       return;
     }
     
+    // FIRST: Check localStorage (faster and more reliable)
+    const localStorageData = getPendingRatingFromStorage(userId);
+    if (localStorageData && localStorageData.ratedId) {
+      console.log('📊 Found pending rating in localStorage - showing modal');
+      setTimeout(() => {
+        showRatingModal(
+          localStorageData.ratedId,
+          localStorageData.otherUserName,
+          localStorageData.roomId,
+          userId
+        );
+      }, 500);
+      return; // Don't check database if we found local data
+    }
+    
+    // FALLBACK: Check database
     try {
       const response = await fetch(`/.netlify/functions/get-pending-rating?userId=${userId}`);
       const data = await response.json();
       
       if (data.hasPending && data.pendingRating) {
+        console.log('📊 Found pending rating in database - showing modal');
+        
+        // Also save to localStorage for next time
+        savePendingRatingToStorage(
+          data.pendingRating.otherUserId, 
+          data.pendingRating.otherUserName,
+          userId,
+          data.pendingRating.roomId
+        );
+        
         // Show rating modal for previous call
         setTimeout(() => {
           showRatingModal(
@@ -170,7 +290,7 @@
         }, 1000);
       }
     } catch (error) {
-      console.log('Could not check pending rating:', error);
+      console.log('Could not check pending rating from database:', error);
     }
   }
   

@@ -545,6 +545,9 @@
   }
 
   // ========== RATING ==========
+  // Uses the shared localStorage system from moderation.js
+  const PENDING_RATING_STORAGE_KEY = 'chatspheres_pending_rating';
+  
   function checkForRating() {
     const urlParams = new URLSearchParams(window.location.search);
     const showRating = urlParams.get('rate');
@@ -552,6 +555,55 @@
     if (showRating === 'true') {
       showRatingModal();
       window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+    
+    // ALSO check localStorage for pending ratings (from video chat)
+    // The moderation.js script handles this, but add a fallback check here too
+    setTimeout(() => {
+      checkLocalStorageRating();
+    }, 1000);
+  }
+  
+  // Check localStorage for pending ratings (shared with index.html)
+  function checkLocalStorageRating() {
+    try {
+      const data = localStorage.getItem(PENDING_RATING_STORAGE_KEY);
+      if (!data) return;
+      
+      const parsed = JSON.parse(data);
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      
+      // Only show if not expired and not yet rated
+      if (parsed.ratedId && !parsed.rated && (Date.now() - parsed.timestamp) < twentyFourHours) {
+        console.log('📊 Found pending rating in localStorage on matchmaking page');
+        
+        // Use the moderation.js showRatingModal if available, otherwise use our own
+        if (window.showRatingModal && typeof window.showRatingModal === 'function') {
+          // Let moderation.js handle it - it will show the proper modal
+          // It already checks on load, so just trigger it again
+          if (window.checkPendingRating) {
+            window.checkPendingRating();
+          }
+        } else {
+          // Fallback to matchmaking's own rating modal
+          showRatingModalWithData(parsed.ratedId, parsed.otherUserName);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not check localStorage rating:', e);
+    }
+  }
+  
+  // Show rating modal with data from localStorage
+  function showRatingModalWithData(otherUserId, otherUserName) {
+    // Store for submit
+    localStorage.setItem('last_matched_with', otherUserId);
+    
+    // Update the matchmaking modal if it exists, or let moderation.js handle it
+    if (elements.ratingModal) {
+      elements.ratingModal.classList.add('active');
+      elements.ratingModal.style.display = 'flex';
     }
   }
 
@@ -590,6 +642,14 @@
         });
         
         console.log(`⭐ Rated user ${matchedWith}: ${rating}/5`);
+        
+        // Clear the shared localStorage key after successful rating
+        try {
+          localStorage.removeItem(PENDING_RATING_STORAGE_KEY);
+          console.log('🗑️ Cleared pending rating from localStorage');
+        } catch (e) {
+          console.warn('Could not clear pending rating:', e);
+        }
       } catch (error) {
         console.warn('Rating failed:', error);
       }

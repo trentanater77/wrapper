@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatSpheres | Meaningful Video Conversations</title>
+  <meta name="description" content="Join meaningful 1-on-1 video conversations on topics you care about. Find your match, share ideas, and connect authentically.">
+  
+  <!-- Open Graph -->
+  <meta property="og:title" content="ChatSpheres - Meaningful Video Conversations">
+  <meta property="og:description" content="Talk with purpose. Connect with heart. Find someone to discuss what's on your mind.">
+  <meta property="og:type" content="website">
+  
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: #FFE7DD;
+      color: #22223B;
+      overflow-x: hidden;
+    }
+    
+    /* Animated background circles */
+    .bg-circles {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    
+    .bg-circle {
+      position: absolute;
+      border-radius: 50%;
+      opacity: 0.1;
+      animation: float 20s infinite ease-in-out;
+    }
+    
+    .bg-circle:nth-child(1) {
+      width: 400px;
+      height: 400px;
+      background: #e63946;
+      top: -100px;
+      right: -100px;
+      animation-delay: 0s;
+    }
+    
+    .bg-circle:nth-child(2) {
+      width: 300px;
+      height: 300px;
+      background: #FFD166;
+      bottom: -50px;
+      left: -50px;
+      animation-delay: -5s;
+    }
+    
+    .bg-circle:nth-child(3) {
+      width: 200px;
+      height: 200px;
+      background: #FFB6B9;
+      top: 50%;
+      left: 50%;
+      animation-delay: -10s;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(30px, -30px) scale(1.1); }
+    }
+    
+    /* Header */
+    .site-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 1rem 2rem;
+      background: rgba(255, 231, 221, 0.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 2px solid #FFB6B9;
+    }
+    
+    .header-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    
+    .cta-btn {
+      background: #FFD166;
+      color: #22223B;
+      border: none;
+      border-radius: 999px;
+      padding: 0.75rem 2rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .cta-btn:hover {
+      background: #e63946;
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3);
+    }
+    
+    .cta-btn.secondary {
+      background: transparent;
+      border: 2px solid #22223B;
+    }
+    
+    .cta-btn.secondary:hover {
+      background: #22223B;
+      color: #FCE2E5;
+    }
+    
+    .cta-btn.large {
+      padding: 1rem 3rem;
+      font-size: 1.1rem;
+    }
+    
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8rem 2rem 4rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .hero-content {
+      text-align: center;
+      max-width: 800px;
+    }
+    
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: #FCE2E5;
+      padding: 0.5rem 1rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 2rem;
+      border: 2px solid #FFB6B9;
+    }
+    
+    .hero-title {
+      font-size: 3.5rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      color: #22223B;
+    }
+    
+    .hero-title .highlight {
+      color: #e63946;
+    }
+    
+    .hero-subtitle {
+      font-size: 1.25rem;
+      color: #22223B;
+      opacity: 0.8;
+      margin-bottom: 2.5rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .hero-ctas {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 3rem;
+    }
+    
+    .hero-stats {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      flex-wrap: wrap;
+    }
+    
+    .stat {
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #e63946;
+    }
+    
+    .stat-label {
+      font-size: 0.875rem;
+      color: #22223B;
+      opacity: 0.7;
+    }
+    
+    /* Features Section */
+    .features {
+      padding: 6rem 2rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .section-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+    
+    .section-title {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 1rem;
+    }
+    
+    .section-subtitle {
+      font-size: 1.1rem;
+      color: #22223B;
+      opacity: 0.7;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    
+    .feature-card {
+      background: #FCE2E5;
+      border-radius: 24px;
+      padding: 2rem;
+      border: 3px solid #FFB6B9;
+      transition: all 0.3s;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-8px);
+      border-color: #e63946;
+      box-shadow: 0 12px 40px rgba(230, 57, 70, 0.15);
+    }
+    
+    .feature-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+    
+    .feature-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    
+    .feature-desc {
+      color: #22223B;
+      opacity: 0.8;
+      line-height: 1.6;
+    }
+    
+    /* How It Works */
+    .how-it-works {
+      padding: 6rem 2rem;
+      background: linear-gradient(135deg, #FCE2E5 0%, #FFB6B9 100%);
+      position: relative;
+      z-index: 1;
+    }
+    
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+    }
+    
+    .step {
+      text-align: center;
+      padding: 2rem;
+    }
+    
+    .step-number {
+      width: 60px;
+      height: 60px;
+      background: #e63946;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 0 auto 1.5rem;
+    }
+    
+    .step-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+    }
+    
+    .step-desc {
+      color: #22223B;
+      opacity: 0.8;
+    }
+    
+    /* Topics/Spheres Section */
+    .spheres {
+      padding: 6rem 2rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .sphere-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+    
+    .tag {
+      display: inline-flex;
+      padding: 0.5rem 1.25rem;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      background: #FFD166;
+      color: #22223B;
+      transition: all 0.2s;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .tag:hover {
+      background: #e63946;
+      color: #ffffff;
+      transform: translateY(-2px);
+    }
+    
+    /* Pricing Section */
+    .pricing-preview {
+      padding: 6rem 2rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .pricing-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+      margin-top: 3rem;
+      max-width: 900px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    
+    .pricing-card {
+      background: #FCE2E5;
+      border-radius: 24px;
+      padding: 2.5rem;
+      border: 3px solid #FFB6B9;
+      text-align: center;
+      position: relative;
+    }
+    
+    .pricing-card.featured {
+      border-color: #e63946;
+      box-shadow: 0 12px 40px rgba(230, 57, 70, 0.2);
+    }
+    
+    .pricing-card.featured::before {
+      content: '⭐ POPULAR';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #e63946;
+      color: white;
+      padding: 0.25rem 1rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+    
+    .pricing-card.best-value {
+      border-color: #FFD166;
+      background: linear-gradient(135deg, #FCE2E5 0%, #FFD166 100%);
+    }
+    
+    .pricing-card.best-value::before {
+      content: '🔥 BEST VALUE';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #FFD166;
+      color: #22223B;
+      padding: 0.25rem 1rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+    
+    .pricing-name {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+    }
+    
+    .pricing-price {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: #e63946;
+      margin-bottom: 1.5rem;
+    }
+    
+    .pricing-price span {
+      font-size: 1rem;
+      opacity: 0.7;
+    }
+    
+    .pricing-features {
+      list-style: none;
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+    
+    .pricing-features li {
+      padding: 0.5rem 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    
+    .pricing-features li::before {
+      content: '✓';
+      color: #e63946;
+      font-weight: 700;
+    }
+    
+    /* CTA Section */
+    .final-cta {
+      padding: 8rem 2rem;
+      text-align: center;
+      background: linear-gradient(135deg, #e63946 0%, #FFB6B9 100%);
+      color: white;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .final-cta .section-title {
+      color: white;
+      margin-bottom: 1rem;
+    }
+    
+    .final-cta .section-subtitle {
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 2.5rem;
+    }
+    
+    .final-cta .cta-btn {
+      background: white;
+      color: #e63946;
+    }
+    
+    .final-cta .cta-btn:hover {
+      background: #22223B;
+      color: white;
+    }
+    
+    /* Footer */
+    .site-footer {
+      background: #22223B;
+      color: #FCE2E5;
+      padding: 4rem 2rem 2rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .footer-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 3rem;
+      margin-bottom: 3rem;
+    }
+    
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    
+    .footer-brand-text {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #FCE2E5;
+    }
+    
+    .footer-tagline {
+      color: #FFB6B9;
+      font-size: 0.875rem;
+    }
+    
+    .footer-title {
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: #FFD166;
+    }
+    
+    .footer-links {
+      list-style: none;
+    }
+    
+    .footer-links li {
+      margin-bottom: 0.5rem;
+    }
+    
+    .footer-links a {
+      color: #FFB6B9;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    
+    .footer-links a:hover {
+      color: #FFD166;
+    }
+    
+    .footer-bottom {
+      text-align: center;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255, 182, 185, 0.2);
+      font-size: 0.875rem;
+      color: #FFB6B9;
+    }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .hero-title {
+        font-size: 2.25rem;
+      }
+      
+      .section-title {
+        font-size: 1.75rem;
+      }
+      
+      .hero-stats {
+        gap: 1.5rem;
+      }
+    }
+    
+    /* Vesica Piscis decoration */
+    .vesica-decoration {
+      position: absolute;
+      opacity: 0.05;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Animated Background -->
+  <div class="bg-circles">
+    <div class="bg-circle"></div>
+    <div class="bg-circle"></div>
+    <div class="bg-circle"></div>
+  </div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <ul class="nav-links">
+      <li><a href="/explore.html" class="nav-link active"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/features.html" class="nav-link"><span class="nav-link-icon">✨</span> Features</a></li>
+      <li><a href="/creators.html" class="nav-link"><span class="nav-link-icon">🎙️</span> For Creators</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="https://www.chatspheres.com" class="nav-link" target="_blank"><span class="nav-link-icon">🌐</span> Explore</a></li>
+      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none; margin-bottom: var(--space-sm);">Sign Up</a>
+      <a href="/matchmaking.html" class="btn btn-ghost btn-full" style="text-decoration: none;">Sign In</a>
+    </div>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        ✨ Real conversations. Real connections.
+      </div>
+      
+      <h1 class="hero-title">
+        Talk with <span class="highlight">Purpose</span>.<br>
+        Connect with <span class="highlight">Heart</span>.
+      </h1>
+      
+      <p class="hero-subtitle">
+        Join meaningful 1-on-1 video conversations on topics you care about. 
+        Find your match, share ideas, and connect authentically.
+      </p>
+      
+      <div class="hero-ctas">
+        <a href="/matchmaking.html" class="cta-btn large">🎯 Find Your Match</a>
+        <a href="/about.html" class="cta-btn secondary large">Learn More →</a>
+      </div>
+      
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="stat-value">💬</div>
+          <div class="stat-label">Meaningful Chats</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">🎯</div>
+          <div class="stat-label">Topic Matching</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">🔒</div>
+          <div class="stat-label">Private & Safe</div>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Features Section -->
+  <section class="features">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Why ChatSpheres?</h2>
+        <p class="section-subtitle">
+          Unlike random video chat, we match you with someone who actually wants to talk about the same things you do.
+        </p>
+      </div>
+      
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h3 class="feature-title">Topic-Based Matching</h3>
+          <p class="feature-desc">
+            Type what's on your mind and our AI finds someone with similar interests. No more awkward "hi, how are you" loops.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">💡</div>
+          <h3 class="feature-title">Conversation Sparks</h3>
+          <p class="feature-desc">
+            AI-generated prompts help keep the conversation flowing. Never run out of things to talk about.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">👀</div>
+          <h3 class="feature-title">Watch & Learn</h3>
+          <p class="feature-desc">
+            Join as a spectator to watch interesting conversations. Learn from others before jumping in.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">📹</div>
+          <h3 class="feature-title">Record & Share</h3>
+          <p class="feature-desc">
+            Save your best conversations. Build a library of memorable discussions to revisit anytime.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">💎</div>
+          <h3 class="feature-title">Tip & Earn</h3>
+          <p class="feature-desc">
+            Show appreciation with gems. Hosts can earn real money from tips and paid entry rooms.
+          </p>
+        </div>
+        
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3 class="feature-title">Safe & Moderated</h3>
+          <p class="feature-desc">
+            Rating system, reporting tools, and active moderation keep the community positive and respectful.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- How It Works -->
+  <section class="how-it-works">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">How It Works</h2>
+        <p class="section-subtitle">Three simple steps to your next great conversation</p>
+      </div>
+      
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3 class="step-title">Share Your Topic</h3>
+          <p class="step-desc">
+            Tell us what you want to talk about. Career advice? Philosophy? That show everyone's watching?
+          </p>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3 class="step-title">Get Matched</h3>
+          <p class="step-desc">
+            Our AI finds someone who wants to discuss the same thing. Usually in under a minute.
+          </p>
+        </div>
+        
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3 class="step-title">Start Talking</h3>
+          <p class="step-desc">
+            Video chat instantly. Conversation sparks help if you need them. It's that simple.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Topics/Spheres -->
+  <section class="spheres">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Explore Topics</h2>
+        <p class="section-subtitle">Join conversations about things that matter to you</p>
+      </div>
+      
+      <div class="sphere-tags">
+        <a href="/matchmaking.html" class="tag">💬 Life Advice</a>
+        <a href="/matchmaking.html" class="tag">🤖 Tech & AI</a>
+        <a href="/matchmaking.html" class="tag">🎬 Movies & TV</a>
+        <a href="/matchmaking.html" class="tag">💼 Career Talk</a>
+        <a href="/matchmaking.html" class="tag">🧠 Philosophy</a>
+        <a href="/matchmaking.html" class="tag">❤️ Relationships</a>
+        <a href="/matchmaking.html" class="tag">🎮 Gaming</a>
+        <a href="/matchmaking.html" class="tag">📚 Books</a>
+        <a href="/matchmaking.html" class="tag">🌍 World Events</a>
+        <a href="/matchmaking.html" class="tag">🎵 Music</a>
+        <a href="/matchmaking.html" class="tag">🏋️ Fitness</a>
+        <a href="/matchmaking.html" class="tag">🍳 Food & Cooking</a>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Pricing Section -->
+  <section class="pricing-preview">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Simple, Transparent Pricing</h2>
+        <p class="section-subtitle">Start free. Upgrade when you're ready. No surprises.</p>
+      </div>
+      
+      <div class="pricing-cards" style="max-width: 1100px;">
+        <!-- Free -->
+        <div class="pricing-card">
+          <div class="pricing-name">Free</div>
+          <div class="pricing-price">$0 <span>forever</span></div>
+          <ul class="pricing-features">
+            <li>60 minutes per room</li>
+            <li>Unlimited guests</li>
+            <li>Topic matching</li>
+            <li>Basic video chat</li>
+            <li>Community access</li>
+          </ul>
+          <a href="/matchmaking.html" class="cta-btn" style="width: 100%; text-align: center;">Start Free</a>
+        </div>
+        
+        <!-- Ad-Free Premium -->
+        <div class="pricing-card">
+          <div class="pricing-name">Ad-Free</div>
+          <div class="pricing-price">$9.99 <span>/month</span></div>
+          <ul class="pricing-features">
+            <li>No ads anywhere</li>
+            <li>1,200 gems monthly</li>
+            <li>Priority support</li>
+            <li>Exclusive badge</li>
+            <li>Support creators</li>
+          </ul>
+          <a href="/pricing.html" class="cta-btn" style="width: 100%; text-align: center;">Go Ad-Free</a>
+        </div>
+        
+        <!-- Host Pro -->
+        <div class="pricing-card featured">
+          <div class="pricing-name">Host Pro</div>
+          <div class="pricing-price">$19.99 <span>/month</span></div>
+          <ul class="pricing-features">
+            <li>3 hours per room</li>
+            <li>Recording enabled</li>
+            <li>Custom branding</li>
+            <li>Green Room (paid entry)</li>
+            <li>Cash out earnings</li>
+          </ul>
+          <a href="/pricing.html" class="cta-btn" style="width: 100%; text-align: center;">Become a Host</a>
+        </div>
+        
+        <!-- Pro Bundle -->
+        <div class="pricing-card best-value">
+          <div class="pricing-name">Pro Bundle</div>
+          <div class="pricing-price">$24.99 <span>/month</span></div>
+          <ul class="pricing-features">
+            <li>Everything in Host Pro</li>
+            <li>Everything in Ad-Free</li>
+            <li>1,200 gems monthly</li>
+            <li>Save $5/month</li>
+            <li>Best for serious creators</li>
+          </ul>
+          <a href="/pricing.html" class="cta-btn" style="width: 100%; text-align: center;">Get the Bundle</a>
+        </div>
+      </div>
+    </div>
+  </section>
+  
+  <!-- Final CTA -->
+  <section class="final-cta">
+    <div class="section-container">
+      <h2 class="section-title">Ready to Connect?</h2>
+      <p class="section-subtitle">
+        Two seats. One topic. Infinite insight.<br>
+        Start your first conversation today.
+      </p>
+      <a href="/matchmaking.html" class="cta-btn large">🚀 Find Your Match Now</a>
+    </div>
+  </section>
+  
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <svg viewBox="0 0 64 64" width="32" height="32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+              <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+            </svg>
+            <span class="footer-brand-text">ChatSpheres</span>
+          </div>
+          <p class="footer-tagline">Talk with purpose. Connect with heart.</p>
+        </div>
+        
+        <div>
+          <div class="footer-title">Product</div>
+          <ul class="footer-links">
+            <li><a href="/matchmaking.html">Find Match</a></li>
+            <li><a href="/recordings.html">Recordings</a></li>
+            <li><a href="/pricing.html">Pricing</a></li>
+            <li><a href="/affiliate.html">Affiliate Program</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <div class="footer-title">Company</div>
+          <ul class="footer-links">
+            <li><a href="/about.html">About</a></li>
+            <li><a href="https://www.chatspheres.com" target="_blank">Explore</a></li>
+            <li><a href="/contact.html">Contact</a></li>
+            <li><a href="/community-guidelines.html">Guidelines</a></li>
+          </ul>
+        </div>
+        
+        <div>
+          <div class="footer-title">Legal</div>
+          <ul class="footer-links">
+            <li><a href="/terms.html">Terms of Service</a></li>
+            <li><a href="/privacy.html">Privacy Policy</a></li>
+            <li><a href="/creator-agreement.html">Creator Agreement</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        © 2025 ChatSpheres. All rights reserved.
+      </div>
+    </div>
+  </footer>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
+  <script src="/assets/js/referral.js"></script>
+  
+  <!-- Auth Script -->
+  <script>
+    (function() {
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      const authConfig = runtimeConfig.auth || {};
+      
+      const SUPABASE_URL = supabaseConfig.url || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      
+      let supabaseClient = null;
+      
+      // Initialize Supabase with cross-domain cookie storage
+      if (window.supabase && window.supabase.createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true,
+              flowType: 'pkce',
+              storage: {
+                getItem: (key) => {
+                  const cookies = document.cookie.split(';');
+                  for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === key) return decodeURIComponent(value);
+                  }
+                  try { return localStorage.getItem(key); } catch(e) { return null; }
+                },
+                setItem: (key, value) => {
+                  const maxAge = 60 * 60 * 24 * 365;
+                  let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                  if (window.location.protocol === 'https:') cookieStr += '; Secure';
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.setItem(key, value); } catch(e) {}
+                },
+                removeItem: (key) => {
+                  let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.removeItem(key); } catch(e) {}
+                }
+              }
+            }
+          });
+          console.log('✅ Supabase auth initialized');
+        } catch (e) {
+          console.error('❌ Supabase init error:', e);
+        }
+      } else {
+        console.warn('⚠️ Supabase config not available yet, retrying...');
+        // Retry after a short delay in case config hasn't loaded yet
+        setTimeout(() => {
+          const retryConfig = window.__CHATSPHERES_CONFIG__ || {};
+          const retrySupabase = retryConfig.supabase || {};
+          if (retrySupabase.url && retrySupabase.anonKey) {
+            window.location.reload();
+          }
+        }, 1000);
+      }
+      
+      // Check auth state on load
+      async function checkAuthState() {
+        if (!supabaseClient) return;
+        
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          }
+        } catch (e) {
+          console.error('Auth check error:', e);
+        }
+        
+        // Listen for auth changes
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          } else {
+            updateHeaderForGuest();
+          }
+        });
+      }
+      
+      function updateHeaderForUser(user) {
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const userName = document.getElementById('nav-user-name');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (guestLinks) guestLinks.style.display = 'none';
+        if (userSection) userSection.style.display = 'block';
+        if (headerGemBadge) headerGemBadge.style.display = 'flex';
+        
+        if (userName) {
+          const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          userName.textContent = name;
+        }
+        
+        fetchAndDisplayGemBalance(user.id);
+      }
+      
+      function updateHeaderForGuest() {
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (guestLinks) guestLinks.style.display = 'block';
+        if (userSection) userSection.style.display = 'none';
+        if (headerGemBadge) headerGemBadge.style.display = 'none';
+      }
+      
+      async function fetchAndDisplayGemBalance(userId) {
+        try {
+          const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const totalGems = data.totalGems || 0;
+            const navGems = document.getElementById('nav-user-gems');
+            const headerGemCount = document.querySelector('.gem-count');
+            if (navGems) navGems.textContent = totalGems.toLocaleString();
+            if (headerGemCount) headerGemCount.textContent = totalGems.toLocaleString();
+          }
+        } catch (e) {
+          console.error('Error fetching gem balance:', e);
+        }
+      }
+      
+      window.handleLogout = async function() {
+        if (supabaseClient) {
+          await supabaseClient.auth.signOut();
+          updateHeaderForGuest();
+        }
+      };
+      
+      // Init on load
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkAuthState);
+      } else {
+        checkAuthState();
+      }
+    })();
+  </script>
+</body>
+</html>

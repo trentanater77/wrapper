@@ -1311,12 +1311,18 @@
             ${potHtml}
             
             <div class="room-actions">
-              <a href="/index.html?room=${room.room_id}&mode=spectator" class="room-btn room-btn-secondary">
+              <a href="/index.html?room=${room.room_id}&mode=spectator&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-secondary">
                 👁️ Watch
               </a>
-              <a href="/index.html?room=${room.room_id}&mode=participant" class="room-btn room-btn-primary">
-                🚀 Join
-              </a>
+              ${room.participant_count >= 2 ? `
+                <a href="/index.html?room=${room.room_id}&mode=spectator&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-primary" title="Room is full - joining as spectator">
+                  👁️ Watch (Full)
+                </a>
+              ` : `
+                <a href="/index.html?room=${room.room_id}&mode=participant&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-primary">
+                  🚀 Join
+                </a>
+              `}
             </div>
           </div>
         </div>

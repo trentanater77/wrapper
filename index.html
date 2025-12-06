@@ -4531,27 +4531,35 @@ async function initializeApp() {
     const urlParam = decodeURIComponent(roomUrl);
     console.log("🔍 Looking for room URL:", urlParam);
 
-    // First check if this is a matchmaking room with topic in URL params
+    // First check if topic is in URL params (from matchmaking or live room creation)
     const urlParams = new URLSearchParams(window.location.search);
     const isMatchedRoom = urlParams.get('matched') === 'true';
+    const isHostRoom = urlParams.get('host') === 'true';
     const topicFromUrl = urlParams.get('topic');
     const matchedTopicFromUrl = urlParams.get('matchedTopic');
     const similarityFromUrl = urlParams.get('similarity');
+    const roomTypeFromUrl = urlParams.get('roomType');
 
-    if (isMatchedRoom && topicFromUrl) {
-      // This is from matchmaking - use the topic from URL
+    // Use topic from URL if it exists (matchmaking or live room creation)
+    if (topicFromUrl) {
       const topic = decodeURIComponent(topicFromUrl);
       const matchedTopic = matchedTopicFromUrl ? decodeURIComponent(matchedTopicFromUrl) : null;
       const similarity = similarityFromUrl ? `${similarityFromUrl}% Match` : '';
       
-      let description = `You're matched to discuss: "${topic}"`;
-      if (matchedTopic && matchedTopic !== topic) {
+      let description;
+      if (isMatchedRoom && matchedTopic && matchedTopic !== topic) {
         description = `Your topic: "${topic}" matched with "${matchedTopic}" ${similarity ? `(${similarity})` : ''}`;
+      } else if (isHostRoom) {
+        // From live room creation
+        const roomTypeLabel = roomTypeFromUrl === 'green' ? '🟢 Help Room' : '🔴 Debate';
+        description = `${roomTypeLabel}: ${topic}`;
+      } else {
+        description = `Discussing: "${topic}"`;
       }
       
-      console.log("✅ Found matchmaking topic:", topic);
-      console.log("✅ Matched topic:", matchedTopic);
-      console.log("🎯 Similarity:", similarity);
+      console.log("✅ Found topic from URL:", topic);
+      console.log("🏠 Is host room:", isHostRoom);
+      console.log("🎯 Room type:", roomTypeFromUrl);
       
       updateTopicDisplay(topic, description);
       

@@ -42,39 +42,34 @@ exports.handler = async function(event) {
   try {
     // GET - List pending payout requests
     if (event.httpMethod === 'GET') {
+      // Simple query - just get payout requests
       const { data: requests, error } = await supabase
         .from('payout_requests')
-        .select(`
-          *,
-          gem_balances!inner (
-            spendable_gems,
-            cashable_gems
-          )
-        `)
+        .select('*')
         .order('requested_at', { ascending: true });
 
-      if (error) throw error;
-
-      // Get user emails
-      const userIds = requests?.map(r => r.user_id) || [];
-      const { data: users } = await supabase
-        .from('auth.users')
-        .select('id, email')
-        .in('id', userIds);
-
-      const userMap = {};
-      users?.forEach(u => userMap[u.id] = u.email);
-
-      const enrichedRequests = requests?.map(r => ({
-        ...r,
-        userEmail: userMap[r.user_id] || 'Unknown'
-      }));
+      if (error) {
+        console.error('Error fetching payout requests:', error);
+        // Table might not exist yet - return empty
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              requests: [],
+              summary: { pending: 0, processing: 0, completed: 0, rejected: 0, totalPendingUsd: 0 },
+              note: 'No payout requests table yet - will be created when first payout is requested'
+            }),
+          };
+        }
+        throw error;
+      }
 
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
-          requests: enrichedRequests || [],
+          requests: requests || [],
           summary: {
             pending: requests?.filter(r => r.status === 'pending').length || 0,
             processing: requests?.filter(r => r.status === 'processing').length || 0,
@@ -82,7 +77,7 @@ exports.handler = async function(event) {
             rejected: requests?.filter(r => r.status === 'rejected').length || 0,
             totalPendingUsd: requests
               ?.filter(r => r.status === 'pending')
-              .reduce((sum, r) => sum + parseFloat(r.usd_amount), 0) || 0
+              .reduce((sum, r) => sum + parseFloat(r.usd_amount || 0), 0) || 0
           }
         }),
       };

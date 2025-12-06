@@ -9915,50 +9915,59 @@ function ensureSpectatorTracksForParticipant(participant) {
   
   function notifyRoomOfTip(senderName, recipientName, amount, animation, message, useTTS) {
     const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) {
-      console.warn('⚠️ No sphereId for tip notification');
-      return;
-    }
-    
-    console.log('📤 Sending tip notification to Firebase...', { sphereId, senderName, recipientName, amount, animation });
-    
-    try {
-      const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-      const newTipRef = tipNotifRef.push();
-      
-      const tipData = {
+    if (!sphereId || !chatRef) {
+      console.warn('⚠️ No sphereId or chatRef for tip notification');
+      // Still play locally
+      playTipCelebration({
         senderName,
         recipientName: recipientName || 'someone',
         amount,
         animation: animation || 'gems',
         message: message || '',
         useTTS: useTTS !== false,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-      };
-      
-      // Track this tip ID so we don't double-play from Firebase listener
-      sentTipIds.add(newTipRef.key);
-      
-      newTipRef.set(tipData)
-        .then(() => {
-          console.log('✅ Tip notification sent successfully! Key:', newTipRef.key);
-          // Play locally for the sender immediately
-          playTipCelebration({
-            ...tipData,
-            timestamp: Date.now() // Use local time for immediate playback
-          });
-        })
-        .catch(err => {
-          console.warn('⚠️ Could not send tip notification (permissions):', err.message);
-          // Still play locally even if Firebase fails
-          playTipCelebration({
-            ...tipData,
-            timestamp: Date.now()
-          });
-        });
-    } catch (err) {
-      console.warn('⚠️ Tip notification error:', err.message);
+        timestamp: Date.now()
+      });
+      return;
     }
+    
+    console.log('📤 Sending tip notification via chat system...', { sphereId, senderName, recipientName, amount, animation });
+    
+    // Create tip data
+    const tipData = {
+      senderName,
+      recipientName: recipientName || 'someone',
+      amount,
+      animation: animation || 'gems',
+      message: message || '',
+      useTTS: useTTS !== false,
+      timestamp: Date.now()
+    };
+    
+    // Send as a special chat message (uses existing permissions)
+    const tipMessage = {
+      text: `💎 ${senderName} tipped ${recipientName} ${amount} gems!${message ? ` "${message}"` : ''}`,
+      sender: senderName,
+      senderName: senderName,
+      senderId: window.currentUserData?.userId || userId || 'anonymous',
+      timestamp: firebase.database.ServerValue.TIMESTAMP,
+      userType: 'tip', // Special type for tips
+      isTip: true,
+      tipData: tipData // Embed full tip data for animation
+    };
+    
+    chatRef.push(tipMessage)
+      .then((ref) => {
+        console.log('✅ Tip notification sent via chat! Key:', ref.key);
+        // Track this tip ID so we don't double-play from listener
+        sentTipIds.add(ref.key);
+        // Play locally for the sender immediately
+        playTipCelebration(tipData);
+      })
+      .catch(err => {
+        console.warn('⚠️ Could not send tip via chat:', err.message);
+        // Still play locally even if Firebase fails
+        playTipCelebration(tipData);
+      });
   }
   
   // Keep old function name for backwards compatibility
@@ -9979,68 +9988,61 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
+    // Listen for tip messages in the chat (new approach - uses existing permissions)
+    if (chatRef) {
+      console.log('🔔 Listening for tips in chat at:', chatRef.toString());
+      
+      // Listen for new messages that might be tips
+      chatRef.orderByChild('timestamp').startAt(Date.now() - 5000).on('child_added', (snapshot) => {
+        const msgId = snapshot.key;
+        const msg = snapshot.val();
+        
+        // Only process tip messages
+        if (!msg || !msg.isTip || !msg.tipData) return;
+        
+        // Skip if already processed or sent by us
+        if (processedTipIds.has(msgId) || sentTipIds.has(msgId)) {
+          console.log('🔔 Skipping processed/own tip:', msgId);
+          return;
+        }
+        
+        // Skip old tips
+        const tipAge = Date.now() - (msg.tipData.timestamp || 0);
+        if (tipAge > 10000) {
+          console.log('🔔 Skipping old tip (age: ' + Math.round(tipAge/1000) + 's)');
+          processedTipIds.add(msgId);
+          return;
+        }
+        
+        processedTipIds.add(msgId);
+        console.log('🎉 Tip message received:', msg.tipData);
+        playTipCelebration(msg.tipData);
+      });
+    }
+    
+    // Also listen to the old tips path as fallback (for backwards compatibility)
     const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-    console.log('🔔 Listening for tips at:', `chats/${sphereId}/tips`);
+    console.log('🔔 Also listening at legacy path:', `chats/${sphereId}/tips`);
     
-    // Use a 30 second buffer to catch tips that might have slight clock differences
-    // But track processed tips to avoid duplicates
-    const startTime = Date.now() - 30000; // 30 seconds ago
-    
-    tipNotifRef.orderByChild('timestamp').startAt(startTime).on('child_added', (snapshot) => {
+    tipNotifRef.orderByChild('timestamp').startAt(Date.now() - 5000).on('child_added', (snapshot) => {
       const tipId = snapshot.key;
       const tip = snapshot.val();
       
       if (!tip) return;
+      if (processedTipIds.has(tipId) || sentTipIds.has(tipId)) return;
       
-      // Skip if we already processed this tip
-      if (processedTipIds.has(tipId)) {
-        console.log('🔔 Skipping already processed tip:', tipId);
-        return;
-      }
-      
-      // Skip if we sent this tip ourselves (already played locally)
-      if (sentTipIds.has(tipId)) {
-        console.log('🔔 Skipping our own tip:', tipId);
-        processedTipIds.add(tipId);
-        return;
-      }
-      
-      // Skip old tips (more than 10 seconds old when we receive them)
       const tipAge = Date.now() - (tip.timestamp || 0);
       if (tipAge > 10000) {
-        console.log('🔔 Skipping old tip (age: ' + Math.round(tipAge/1000) + 's):', tipId);
         processedTipIds.add(tipId);
         return;
       }
       
-      // Mark as processed
       processedTipIds.add(tipId);
-      
-      console.log('🎉 Tip received:', tip);
-      console.log('🎉 Tip ID:', tipId, '| Age:', Math.round(tipAge/1000) + 's');
-      
-      // PLAY THE CELEBRATION ANIMATION FOR EVERYONE!
+      console.log('🎉 [Legacy] Tip received:', tip);
       playTipCelebration(tip);
     }, (error) => {
-      console.error('❌ Tip listener error:', error);
-    });
-    
-    // Also listen for tips without timestamp filter as backup
-    // This catches tips immediately when they're added
-    tipNotifRef.limitToLast(1).on('child_added', (snapshot) => {
-      const tipId = snapshot.key;
-      const tip = snapshot.val();
-      
-      // Skip already processed, our own tips, or missing data
-      if (!tip || processedTipIds.has(tipId) || sentTipIds.has(tipId)) return;
-      
-      // Only process very recent tips (within 5 seconds)
-      const tipAge = Date.now() - (tip.timestamp || 0);
-      if (tipAge > 5000) return;
-      
-      processedTipIds.add(tipId);
-      console.log('🎉 [Backup] Tip received:', tip);
-      playTipCelebration(tip);
+      // Silently fail for legacy path - it might not have permissions
+      console.log('🔔 Legacy tip path not available (expected if no permissions)');
     });
     
     console.log('✅ Tip notification listeners ready');

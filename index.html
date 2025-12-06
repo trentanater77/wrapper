@@ -1150,9 +1150,10 @@
             <div class="text-xs text-red-200">Winner takes 50% • Platform keeps 50%</div>
           </div>
           
-          <!-- Tip to Pot Buttons -->
-          <div class="p-4 bg-black bg-opacity-20">
-            <div class="text-xs text-red-200 text-center mb-3">Tip to the pot for your favorite:</div>
+          <!-- Tip to Pot Buttons (Spectators Only) -->
+          <div id="pot-tip-section" class="p-4 bg-black bg-opacity-20">
+            <div class="text-xs text-red-200 text-center mb-2">👁️ Spectators: Tip to support your favorite!</div>
+            <div class="text-xs text-yellow-300 text-center mb-3">Your balance: <span id="pot-tip-balance">💎 0</span></div>
             <div id="pot-tip-targets" class="space-y-2">
               <!-- Populated dynamically with participant names -->
             </div>
@@ -1162,6 +1163,11 @@
               <button onclick="tipToPot(50)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition">💎50</button>
               <button onclick="tipToPot(100)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition">💎100</button>
             </div>
+          </div>
+          
+          <!-- Participant Message -->
+          <div id="pot-participant-message" class="p-4 bg-black bg-opacity-20 hidden">
+            <div class="text-xs text-yellow-300 text-center">🎤 You're debating! Spectators will tip for you.</div>
           </div>
           
           <!-- Void Rule Warning -->
@@ -5066,6 +5072,36 @@ async function initializeApp() {
         console.error('⚠️ Failed to persist viewer counts:', error);
       });
     }
+    
+    // Also update Supabase active_rooms for live page display
+    updateActiveRoomCounts(participantCount, spectatorCount);
+  }
+  
+  // Debounced function to update room counts in Supabase
+  let roomCountsUpdateTimeout = null;
+  function updateActiveRoomCounts(participants, spectators) {
+    if (roomCountsUpdateTimeout) clearTimeout(roomCountsUpdateTimeout);
+    
+    // Debounce to avoid too many API calls
+    roomCountsUpdateTimeout = setTimeout(async () => {
+      const sphereId = extractSphereId(roomUrl);
+      if (!sphereId) return;
+      
+      try {
+        await fetch('/.netlify/functions/manage-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update-counts',
+            roomId: sphereId,
+            participantCount: participants,
+            spectatorCount: spectators
+          })
+        });
+      } catch (error) {
+        // Silently fail - not critical
+      }
+    }, 2000); // Update every 2 seconds max
   }
 
   function updateParticipantViewForSpectators(spectatorCount) {
@@ -9625,10 +9661,33 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     // Show/hide Red Room pot panel based on room type
     const potPanel = document.getElementById('red-room-pot-panel');
+    const potTipSection = document.getElementById('pot-tip-section');
+    
     if (potPanel) {
       if (roomType === 'red') {
         potPanel.classList.remove('hidden');
-        // Initialize pot targets with just the local user for now
+        
+        // Only spectators can tip to the pot (Jeff Bezos approved)
+        // Participants are debating, not tipping
+        const participantMessage = document.getElementById('pot-participant-message');
+        if (potTipSection) {
+          if (isSpectator) {
+            potTipSection.style.display = 'block';
+            if (participantMessage) participantMessage.style.display = 'none';
+            // Load gem balance for spectators to tip
+            loadUserGemBalanceForTip();
+            // Also update the pot balance display
+            setTimeout(() => {
+              const potBalanceEl = document.getElementById('pot-tip-balance');
+              if (potBalanceEl) potBalanceEl.textContent = `💎 ${userGemBalance.toLocaleString()}`;
+            }, 500);
+          } else {
+            potTipSection.style.display = 'none';
+            if (participantMessage) participantMessage.style.display = 'block';
+          }
+        }
+        
+        // Initialize pot targets and listeners
         setTimeout(() => {
           updatePotTargets();
           listenForPotUpdates();
@@ -9643,7 +9702,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       registerActiveRoom();
     }
     
-    console.log(`🏠 Room type: ${roomType}, isHost: ${isHost}`);
+    console.log(`🏠 Room type: ${roomType}, isHost: ${isHost}, isSpectator: ${isSpectator}`);
   }
   
   // Register this room as active
@@ -9768,10 +9827,16 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   window.selectPotRecipient = selectPotRecipient;
   
-  // Tip to the pot
+  // Tip to the pot (spectators only)
   async function tipToPot(amount) {
     if (roomTypeState.type !== 'red') {
       showToast('💡 Pot tips are only for Red Room debates');
+      return;
+    }
+    
+    // Only spectators can tip (Jeff Bezos approved)
+    if (!isSpectator) {
+      showToast('🎤 Participants can\'t tip - you\'re debating!');
       return;
     }
     
@@ -9787,9 +9852,14 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
+    // Reload gem balance if it's 0 (might not have loaded yet)
+    if (userGemBalance === 0) {
+      await loadUserGemBalanceForTip();
+    }
+    
     // Check gem balance
     if (amount > userGemBalance) {
-      showToast('❌ Insufficient gems');
+      showToast(`❌ Insufficient gems (you have ${userGemBalance})`);
       return;
     }
     

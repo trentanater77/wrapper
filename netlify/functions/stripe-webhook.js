@@ -167,6 +167,9 @@ async function handleCheckoutComplete(session) {
   } else if (planType === 'ad_free_plus') {
     await addBonusGems(userId, 500, 'subscription_bonus');
   }
+  
+  // 🎉 VEST REFERRAL GEMS - Subscription proves this user is committed!
+  await vestReferralGemsOnPurchase(userId, 'subscription');
 }
 
 /**
@@ -245,6 +248,10 @@ async function handleGemPurchase(session) {
     }
 
     console.log(`✅ Successfully credited ${gems} gems to user ${userId}`);
+    
+    // 🎉 VEST REFERRAL GEMS - Purchase proves this user is real!
+    await vestReferralGemsOnPurchase(userId, 'gem_purchase');
+    
   } catch (error) {
     console.error('❌ Error processing gem purchase:', error);
     throw error;
@@ -434,5 +441,96 @@ async function addBonusGems(userId, amount, transactionType) {
   } catch (error) {
     console.error('❌ Error in addBonusGems:', error);
     throw error;
+  }
+}
+
+/**
+ * Vest referral gems when a referred user makes a purchase
+ * This is the key fraud protection - gems only become cashable when the referred user proves value
+ */
+async function vestReferralGemsOnPurchase(purchasingUserId, purchaseType) {
+  console.log(`🔓 Checking for referral gems to vest for user ${purchasingUserId} (${purchaseType})...`);
+  
+  try {
+    // Find if this user was referred by someone
+    const { data: referral, error: findError } = await supabase
+      .from('referrals')
+      .select('*')
+      .eq('referred_user_id', purchasingUserId)
+      .eq('status', 'rewarded')
+      .eq('vested', false)
+      .single();
+    
+    if (findError || !referral) {
+      console.log('No unvested referral found for this user');
+      return;
+    }
+    
+    const referrerId = referral.referrer_user_id;
+    const gemsToVest = referral.gems_awarded_referrer || 0;
+    
+    if (gemsToVest <= 0) {
+      console.log('No gems to vest');
+      return;
+    }
+    
+    console.log(`🎉 Found referral! Vesting ${gemsToVest} gems for referrer ${referrerId}`);
+    
+    // Get the referrer's current balance
+    const { data: balance, error: balanceError } = await supabase
+      .from('gem_balances')
+      .select('*')
+      .eq('user_id', referrerId)
+      .single();
+    
+    if (balanceError || !balance) {
+      console.error('Could not find referrer balance');
+      return;
+    }
+    
+    // Move gems from pending to cashable
+    const newPending = Math.max(0, (balance.pending_referral_gems || 0) - gemsToVest);
+    const newCashable = (balance.cashable_gems || 0) + gemsToVest;
+    
+    const { error: updateError } = await supabase
+      .from('gem_balances')
+      .update({
+        pending_referral_gems: newPending,
+        cashable_gems: newCashable,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', referrerId);
+    
+    if (updateError) {
+      console.error('Error updating referrer balance:', updateError);
+      return;
+    }
+    
+    // Mark the referral as vested
+    await supabase
+      .from('referrals')
+      .update({
+        vested: true,
+        vested_at: new Date().toISOString(),
+        vested_reason: `Referred user made ${purchaseType}`,
+      })
+      .eq('id', referral.id);
+    
+    // Log the vesting transaction
+    await supabase
+      .from('gem_transactions')
+      .insert({
+        user_id: referrerId,
+        transaction_type: 'vest',
+        amount: gemsToVest,
+        wallet_type: 'cashable',
+        description: `Referral gems vested: referred user made ${purchaseType}`,
+      });
+    
+    console.log(`✅ Vested ${gemsToVest} gems for referrer ${referrerId}!`);
+    
+  } catch (error) {
+    console.error('Error in vestReferralGemsOnPurchase:', error);
+    // Don't throw - vesting failure shouldn't block the purchase
   }
 }

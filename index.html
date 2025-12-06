@@ -9594,16 +9594,18 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Populate recipient dropdown
+    // Reset selection BEFORE populating dropdown
+    selectedTipAmount = 0;
+    selectedTipAnimation = 'gems';
+    selectedTipRecipient = null;
+    
+    // Populate recipient dropdown (this will auto-select if there's a host or single recipient)
     populateTipRecipientDropdown();
     
     // Load user's gem balance
     await loadUserGemBalanceForTip();
     
-    // Reset selection
-    selectedTipAmount = 0;
-    selectedTipAnimation = 'gems';
-    selectedTipRecipient = null;
+    // Update display after everything is set
     updateTipDisplay();
     
     // Reset message input

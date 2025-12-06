@@ -7028,10 +7028,10 @@ async function initializeApp() {
     let participantName = getParticipantName(participantId);
     
     if (!spectatorParticipant1) {
-      spectatorParticipant1 = { participantId, participantName };
+      spectatorParticipant1 = { participantId, participantName, displayName: participantName, identity: participantId };
       participantSlot = 1;
     } else if (!spectatorParticipant2) {
-      spectatorParticipant2 = { participantId, participantName };
+      spectatorParticipant2 = { participantId, participantName, displayName: participantName, identity: participantId };
       participantSlot = 2;
     } else {
       console.log('⚠️ Already have 2 participants, ignoring additional participant:', participantId);
@@ -7039,6 +7039,13 @@ async function initializeApp() {
     }
     
     console.log(`📍 Assigned participant ${participantId} to slot ${participantSlot}`);
+    
+    // Update Red Room pot targets when spectators see participants
+    if (roomTypeState.type === 'red') {
+      setTimeout(() => {
+        updatePotTargets();
+      }, 500);
+    }
     
     // Get the video element and placeholder for this slot
     const videoElement = document.getElementById(`spectator-participant-${participantSlot}`);
@@ -9851,12 +9858,19 @@ function ensureSpectatorTracksForParticipant(participant) {
     roomTypeState.potAmount = amount;
     const potDisplay = document.getElementById('pot-amount-display');
     if (potDisplay) {
-      potDisplay.textContent = amount.toLocaleString();
+      potDisplay.textContent = `💎 ${amount.toLocaleString()}`;
       
-      // Add animation
+      // Add animation for visual feedback
       potDisplay.classList.add('scale-110');
-      setTimeout(() => potDisplay.classList.remove('scale-110'), 300);
+      potDisplay.style.color = '#ffd166'; // Gold flash
+      setTimeout(() => {
+        potDisplay.classList.remove('scale-110');
+        potDisplay.style.color = '';
+      }, 500);
     }
+    
+    // Also update the scoreboard
+    updateDebateScoreboard();
   }
   
   // Update pot targets (participants to tip)
@@ -9865,22 +9879,57 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     // Get all participants (exclude spectators)
     const participants = [];
-    
-    // Add local user if they're a participant (not spectator)
     const localUserId = window.currentUserData?.userId || userId;
-    if (!isSpectator && localUserId) {
-      participants.push({
-        id: localUserId,
-        name: window.currentUserData?.displayName || userName || 'You'
-      });
-    }
     
-    // Add remote participant
-    if (otherParticipantId && otherParticipantId !== localUserId) {
-      participants.push({
-        id: otherParticipantId,
-        name: otherParticipantName || 'Opponent'
-      });
+    if (isSpectator) {
+      // SPECTATORS: Get participants from LiveKit room or spectator slots
+      if (spectatorParticipant1) {
+        participants.push({
+          id: spectatorParticipant1.odorId || spectatorParticipant1.participantId || 'participant1',
+          name: spectatorParticipant1.displayName || spectatorParticipant1.identity || 'Debater 1'
+        });
+      }
+      if (spectatorParticipant2) {
+        participants.push({
+          id: spectatorParticipant2.odorId || spectatorParticipant2.participantId || 'participant2',
+          name: spectatorParticipant2.displayName || spectatorParticipant2.identity || 'Debater 2'
+        });
+      }
+      
+      // Also try LiveKit room directly if spectator slots not populated
+      if (participants.length < 2 && livekitRoom) {
+        const remoteParticipants = Array.from(livekitRoom.remoteParticipants?.values() || []);
+        for (const p of remoteParticipants) {
+          // Skip spectators
+          if (p.metadata?.includes('spectator')) continue;
+          
+          const pName = p.name || p.identity || 'Debater';
+          const pId = p.identity || p.sid;
+          
+          // Don't add duplicates
+          if (!participants.find(existing => existing.id === pId || existing.name === pName)) {
+            participants.push({ id: pId, name: pName });
+          }
+          
+          if (participants.length >= 2) break;
+        }
+      }
+    } else {
+      // PARTICIPANTS: Add self and opponent
+      if (localUserId) {
+        participants.push({
+          id: localUserId,
+          name: window.currentUserData?.displayName || userName || 'You'
+        });
+      }
+      
+      // Add remote participant
+      if (otherParticipantId && otherParticipantId !== localUserId) {
+        participants.push({
+          id: otherParticipantId,
+          name: otherParticipantName || 'Opponent'
+        });
+      }
     }
     
     roomTypeState.participants = participants;
@@ -9895,7 +9944,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (participants.length < 2) {
       targetsContainer.innerHTML = `
         <div class="col-span-2 text-center text-white text-opacity-70 py-2 text-sm">
-          ⏳ Waiting for opponent to join...
+          ⏳ Waiting for debaters to join...
         </div>
       `;
       return;

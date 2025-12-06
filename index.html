@@ -4484,7 +4484,29 @@ async function initializeApp() {
       console.log("🎯 Similarity:", similarity);
       
       updateTopicDisplay(topic, description);
+      
+      // Save topic to Firebase so spectators can see it
+      saveRoomTopicToFirebase(topic, matchedTopic, description);
       return;
+    }
+
+    // For spectators/late joiners: Try to get topic from Firebase first
+    const sphereId = extractSphereId(roomUrl);
+    if (sphereId) {
+      try {
+        console.log("🔍 Checking Firebase for room topic...");
+        await ensureFirebaseAuth();
+        const topicSnapshot = await db.ref(`room-topics/${sphereId}`).once('value');
+        const savedTopic = topicSnapshot.val();
+        
+        if (savedTopic && savedTopic.topic) {
+          console.log("✅ Found topic from Firebase:", savedTopic.topic);
+          updateTopicDisplay(savedTopic.topic, savedTopic.description || `Discussing: "${savedTopic.topic}"`);
+          return;
+        }
+      } catch (firebaseError) {
+        console.log("⚠️ Could not fetch topic from Firebase:", firebaseError.message);
+      }
     }
 
     try {
@@ -4542,6 +4564,29 @@ async function initializeApp() {
     
     console.log("✅ Updated topic:", topic);
     console.log("✅ Updated description:", description);
+  }
+  
+  // Save room topic to Firebase so spectators/late joiners can see it
+  async function saveRoomTopicToFirebase(topic, matchedTopic, description) {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId || !topic) return;
+    
+    try {
+      await ensureFirebaseAuth();
+      const topicRef = db.ref(`room-topics/${sphereId}`);
+      await topicRef.set({
+        topic: topic,
+        matchedTopic: matchedTopic || null,
+        description: description,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      console.log("💾 Saved room topic to Firebase:", topic);
+      
+      // Clean up old topics when room ends (set expiry)
+      topicRef.onDisconnect().remove();
+    } catch (error) {
+      console.warn("⚠️ Could not save topic to Firebase:", error.message);
+    }
   }
 
   async function initializeVideoChat() {

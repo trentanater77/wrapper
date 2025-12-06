@@ -170,7 +170,25 @@ exports.handler = async function(event) {
           .select()
           .single();
 
-        if (error) throw error;
+        // Handle table not existing yet (migration not run)
+        if (error) {
+          if (error.code === '42P01' || error.message?.includes('does not exist')) {
+            console.log(`⚠️ active_rooms table not found - room will work via Firebase only`);
+            // Still return success - room can work without DB entry
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({
+                success: true,
+                room: { room_id: roomId, room_type: roomType || 'red', topic },
+                inviteCode,
+                inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${inviteCode}`,
+                warning: 'Room created but not saved to database (migration pending)'
+              }),
+            };
+          }
+          throw error;
+        }
 
         console.log(`🏠 Room created: ${roomId} (${roomType || 'red'})`);
 

@@ -275,6 +275,181 @@
       50% { opacity: 0.5; }
     }
 
+    /* ========== TIP ANIMATION STYLES ========== */
+    
+    /* Animation picker selected state */
+    .tip-anim-btn.selected {
+      background: linear-gradient(135deg, #FFD166 0%, #e63946 100%) !important;
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba(230, 57, 70, 0.4);
+    }
+    
+    /* Particle base styles */
+    .tip-particle {
+      position: absolute;
+      pointer-events: none;
+      font-size: 2rem;
+      z-index: 10001;
+      will-change: transform, opacity;
+    }
+    
+    /* Falling animation (for rain effects) */
+    @keyframes tipFall {
+      0% {
+        transform: translateY(-100px) rotate(0deg) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) rotate(720deg) scale(0.5);
+        opacity: 0;
+      }
+    }
+    
+    /* Rising animation (for fire, etc) */
+    @keyframes tipRise {
+      0% {
+        transform: translateY(100vh) scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-100px) scale(0.3);
+        opacity: 0;
+      }
+    }
+    
+    /* Explosion from center */
+    @keyframes tipExplode {
+      0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 1;
+      }
+      50% {
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--tx), var(--ty)) scale(1);
+        opacity: 0;
+      }
+    }
+    
+    /* Float up gently */
+    @keyframes tipFloat {
+      0% {
+        transform: translateY(0) translateX(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(-200px) translateX(var(--drift)) rotate(var(--rot));
+        opacity: 0;
+      }
+    }
+    
+    /* Rocket animation */
+    @keyframes tipRocket {
+      0% {
+        transform: translateX(-100%) translateY(50vh) rotate(45deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateX(100vw) translateY(-100px) rotate(45deg);
+        opacity: 1;
+      }
+    }
+    
+    /* Bounce in for announcement */
+    @keyframes tipBounceIn {
+      0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+      }
+      50% {
+        transform: translate(-50%, -50%) scale(1.2);
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+      }
+    }
+    
+    /* Shake effect for big tips */
+    @keyframes tipShake {
+      0%, 100% { transform: translateX(0); }
+      10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+      20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+    
+    /* Glow pulse for amount */
+    @keyframes tipGlow {
+      0%, 100% {
+        text-shadow: 0 0 20px rgba(255,209,102,0.8), 0 0 40px rgba(255,209,102,0.5);
+      }
+      50% {
+        text-shadow: 0 0 40px rgba(255,209,102,1), 0 0 80px rgba(255,209,102,0.8), 0 0 120px rgba(230,57,70,0.5);
+      }
+    }
+    
+    /* Rainbow shimmer */
+    @keyframes tipRainbow {
+      0% { filter: hue-rotate(0deg); }
+      100% { filter: hue-rotate(360deg); }
+    }
+    
+    /* Disco strobe */
+    @keyframes tipDisco {
+      0% { background: rgba(255,0,0,0.3); }
+      16% { background: rgba(255,165,0,0.3); }
+      33% { background: rgba(255,255,0,0.3); }
+      50% { background: rgba(0,255,0,0.3); }
+      66% { background: rgba(0,0,255,0.3); }
+      83% { background: rgba(128,0,128,0.3); }
+      100% { background: rgba(255,0,0,0.3); }
+    }
+    
+    /* Spin animation for disco ball */
+    @keyframes tipSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Snow drift */
+    @keyframes tipSnow {
+      0% {
+        transform: translateY(-50px) translateX(0) rotate(0deg);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(100vh) translateX(var(--drift)) rotate(360deg);
+        opacity: 0.5;
+      }
+    }
+    
+    /* Announcement visible state */
+    #tip-announcement.visible {
+      opacity: 1;
+      animation: tipBounceIn 0.5s ease-out forwards;
+    }
+    
+    #tip-announcement-amount {
+      animation: tipGlow 1s ease-in-out infinite;
+    }
+    
+    /* Disco overlay */
+    .tip-disco-overlay {
+      position: fixed;
+      inset: 0;
+      animation: tipDisco 0.5s linear infinite;
+      pointer-events: none;
+      z-index: 10000;
+    }
+    
+    /* GIF display animation */
+    #tip-gif-display.visible {
+      display: block !important;
+      animation: tipBounceIn 0.5s ease-out forwards;
+    }
+    
+    /* ========== END TIP ANIMATION STYLES ========== */
+
     .recording-upload-status {
       font-size: 0.7rem;
       font-weight: 600;
@@ -530,11 +705,29 @@
   </div>
 </div>
 
-<!-- Tip Modal -->
+<!-- Tip Animation Overlay (everyone sees this) -->
+<div id="tip-animation-overlay" class="fixed inset-0 z-[10000] pointer-events-none overflow-hidden" style="display: none;">
+  <!-- Particle container -->
+  <div id="tip-particles-container" class="absolute inset-0"></div>
+  
+  <!-- Center announcement -->
+  <div id="tip-announcement" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center opacity-0 transition-all duration-500">
+    <div id="tip-announcement-amount" class="text-6xl font-black text-white drop-shadow-lg mb-2" style="text-shadow: 0 0 20px rgba(255,209,102,0.8), 0 0 40px rgba(255,209,102,0.5);"></div>
+    <div id="tip-announcement-sender" class="text-2xl font-bold text-gold mb-4"></div>
+    <div id="tip-announcement-message" class="max-w-md mx-auto text-xl text-white bg-charcoal/80 rounded-2xl px-6 py-4 backdrop-blur-sm" style="display: none;"></div>
+  </div>
+  
+  <!-- GIF display area (for cat/meme modes) -->
+  <div id="tip-gif-display" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" style="display: none;">
+    <img id="tip-gif-image" class="max-w-sm max-h-64 rounded-2xl shadow-2xl border-4 border-gold" src="" alt="">
+  </div>
+</div>
+
+<!-- Tip Modal (Enhanced with message + animation picker) -->
 <div id="tip-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
-  <div class="bg-light-rose rounded-3xl p-6 max-w-sm w-full shadow-2xl border-4 border-gold relative">
+  <div class="bg-light-rose rounded-3xl p-5 max-w-md w-full shadow-2xl border-4 border-gold relative max-h-[90vh] overflow-y-auto">
     <!-- Close button -->
-    <button onclick="closeTipModal()" class="absolute top-4 right-4 text-charcoal hover:text-main-red transition-colors">
+    <button onclick="closeTipModal()" class="absolute top-3 right-3 text-charcoal hover:text-main-red transition-colors z-10">
       <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
       </svg>
@@ -543,52 +736,197 @@
     <!-- Content -->
     <div class="text-center">
       <!-- Icon -->
-      <div class="w-16 h-16 mx-auto mb-3 bg-gold rounded-full flex items-center justify-center">
-        <span class="text-3xl">💎</span>
+      <div class="w-14 h-14 mx-auto mb-2 bg-gold rounded-full flex items-center justify-center">
+        <span class="text-2xl">💎</span>
       </div>
       
       <!-- Title -->
       <h2 class="text-xl font-bold text-charcoal mb-1">Send a Tip</h2>
-      <p class="text-sm text-charcoal opacity-70 mb-4">Support <span id="tip-host-name" class="font-bold">the host</span></p>
+      <p class="text-sm text-charcoal opacity-70 mb-2">Choose who to support!</p>
+      
+      <!-- Recipient Picker -->
+      <div class="mb-3">
+        <label class="block text-left text-xs font-bold text-charcoal mb-1">👤 Tip to:</label>
+        <select id="tip-recipient-select" class="w-full p-2 border-2 border-charcoal rounded-xl font-bold focus:border-main-red outline-none bg-white text-charcoal" onchange="onTipRecipientChange()">
+          <option value="">-- Select a participant --</option>
+        </select>
+        <p id="tip-recipient-info" class="text-left text-xs text-charcoal/60 mt-1 hidden">
+          <span id="tip-recipient-badge"></span>
+        </p>
+        <p id="tip-no-recipients" class="text-left text-xs text-main-red mt-1 hidden">
+          ⚠️ No signed-in participants to tip. Guests cannot receive tips.
+        </p>
+      </div>
       
       <!-- Your balance -->
-      <div class="mb-4 p-2 bg-rose rounded-xl">
+      <div class="mb-3 p-2 bg-rose rounded-xl">
         <p class="text-xs text-charcoal">Your balance: <span id="tip-your-balance" class="font-bold">💎 0</span></p>
       </div>
       
       <!-- Quick amounts -->
-      <div class="grid grid-cols-4 gap-2 mb-4">
-        <button onclick="selectTipAmount(10)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+      <div class="grid grid-cols-4 gap-2 mb-3">
+        <button onclick="selectTipAmount(10)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all text-sm">
           💎 10
         </button>
-        <button onclick="selectTipAmount(50)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+        <button onclick="selectTipAmount(50)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all text-sm">
           💎 50
         </button>
-        <button onclick="selectTipAmount(100)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+        <button onclick="selectTipAmount(100)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all text-sm">
           💎 100
         </button>
-        <button onclick="selectTipAmount(500)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all">
+        <button onclick="selectTipAmount(500)" class="tip-amount-btn p-2 bg-gold rounded-xl font-bold text-charcoal hover:bg-main-red hover:text-white transition-all text-sm">
           💎 500
         </button>
       </div>
       
       <!-- Custom amount -->
-      <div class="mb-4">
-        <input type="number" id="tip-custom-amount" placeholder="Custom amount" min="10" 
-          class="w-full p-3 border-2 border-charcoal rounded-xl text-center font-bold text-lg focus:border-main-red outline-none"
+      <div class="mb-3">
+        <input type="number" id="tip-custom-amount" placeholder="Custom amount (min 10)" min="10" 
+          class="w-full p-2 border-2 border-charcoal rounded-xl text-center font-bold focus:border-main-red outline-none"
           onchange="selectTipAmount(this.value)">
       </div>
       
+      <!-- Custom Message Input -->
+      <div class="mb-3">
+        <label class="block text-left text-xs font-bold text-charcoal mb-1">💬 Add a message (optional)</label>
+        <input type="text" id="tip-message-input" placeholder="Say something nice..." maxlength="100"
+          class="w-full p-2 border-2 border-charcoal rounded-xl text-sm focus:border-main-red outline-none">
+        <p class="text-right text-xs text-charcoal/60 mt-1"><span id="tip-message-count">0</span>/100</p>
+      </div>
+      
+      <!-- Animation Picker -->
+      <div class="mb-3">
+        <label class="block text-left text-xs font-bold text-charcoal mb-2">🎬 Choose your celebration style</label>
+        <div class="grid grid-cols-5 gap-1.5 max-h-32 overflow-y-auto p-1 bg-white/50 rounded-xl" id="animation-picker">
+          <!-- Row 1: Classic -->
+          <button type="button" onclick="selectTipAnimation('gems')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center selected" data-anim="gems">
+            <span class="text-xl">💎</span>
+            <span class="text-[10px] font-bold">Gems</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('confetti')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="confetti">
+            <span class="text-xl">🎉</span>
+            <span class="text-[10px] font-bold">Confetti</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('money')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="money">
+            <span class="text-xl">💰</span>
+            <span class="text-[10px] font-bold">Money</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('fire')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="fire">
+            <span class="text-xl">🔥</span>
+            <span class="text-[10px] font-bold">Fire</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('stars')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="stars">
+            <span class="text-xl">⭐</span>
+            <span class="text-[10px] font-bold">Stars</span>
+          </button>
+          <!-- Row 2: Animals -->
+          <button type="button" onclick="selectTipAnimation('cats')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="cats">
+            <span class="text-xl">🐱</span>
+            <span class="text-[10px] font-bold">Cats</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('dogs')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="dogs">
+            <span class="text-xl">🐕</span>
+            <span class="text-[10px] font-bold">Dogs</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('frogs')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="frogs">
+            <span class="text-xl">🐸</span>
+            <span class="text-[10px] font-bold">Frogs</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('butterflies')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="butterflies">
+            <span class="text-xl">🦋</span>
+            <span class="text-[10px] font-bold">Butterfly</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('unicorn')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="unicorn">
+            <span class="text-xl">🦄</span>
+            <span class="text-[10px] font-bold">Unicorn</span>
+          </button>
+          <!-- Row 3: Food & Fun -->
+          <button type="button" onclick="selectTipAnimation('pizza')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="pizza">
+            <span class="text-xl">🍕</span>
+            <span class="text-[10px] font-bold">Pizza</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('tacos')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="tacos">
+            <span class="text-xl">🌮</span>
+            <span class="text-[10px] font-bold">Tacos</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('hearts')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="hearts">
+            <span class="text-xl">💖</span>
+            <span class="text-[10px] font-bold">Hearts</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('rocket')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="rocket">
+            <span class="text-xl">🚀</span>
+            <span class="text-[10px] font-bold">Rocket</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('rainbow')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="rainbow">
+            <span class="text-xl">🌈</span>
+            <span class="text-[10px] font-bold">Rainbow</span>
+          </button>
+          <!-- Row 4: Vibes -->
+          <button type="button" onclick="selectTipAnimation('gaming')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="gaming">
+            <span class="text-xl">🎮</span>
+            <span class="text-[10px] font-bold">Gaming</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('music')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="music">
+            <span class="text-xl">🎵</span>
+            <span class="text-[10px] font-bold">Music</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('disco')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="disco">
+            <span class="text-xl">🪩</span>
+            <span class="text-[10px] font-bold">Disco</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('skull')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="skull">
+            <span class="text-xl">💀</span>
+            <span class="text-[10px] font-bold">Spooky</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('sparkles')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="sparkles">
+            <span class="text-xl">✨</span>
+            <span class="text-[10px] font-bold">Sparkle</span>
+          </button>
+          <!-- Row 5: Nature & Weather -->
+          <button type="button" onclick="selectTipAnimation('snow')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="snow">
+            <span class="text-xl">❄️</span>
+            <span class="text-[10px] font-bold">Snow</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('cherry')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="cherry">
+            <span class="text-xl">🌸</span>
+            <span class="text-[10px] font-bold">Sakura</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('leaves')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="leaves">
+            <span class="text-xl">🍂</span>
+            <span class="text-[10px] font-bold">Autumn</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('meme')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="meme">
+            <span class="text-xl">😂</span>
+            <span class="text-[10px] font-bold">Meme</span>
+          </button>
+          <button type="button" onclick="selectTipAnimation('random')" class="tip-anim-btn p-2 rounded-lg bg-white hover:bg-gold transition-all flex flex-col items-center" data-anim="random">
+            <span class="text-xl">🎲</span>
+            <span class="text-[10px] font-bold">Random</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- TTS Toggle -->
+      <div class="mb-3 flex items-center justify-between bg-white/50 rounded-xl p-2">
+        <label class="text-xs font-bold text-charcoal flex items-center gap-1">
+          🔊 Read message aloud (TTS)
+        </label>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="tip-tts-toggle" class="sr-only peer" checked>
+          <div class="w-9 h-5 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-main-red"></div>
+        </label>
+      </div>
+      
       <!-- Selected amount display -->
-      <div class="mb-4 p-3 bg-charcoal rounded-xl">
+      <div class="mb-3 p-3 bg-charcoal rounded-xl">
         <p class="text-white text-sm">Sending: <span id="tip-selected-amount" class="text-xl font-bold text-gold">💎 0</span></p>
         <p class="text-xs text-gray-300 mt-1">Host receives 50% • <span id="tip-host-receives">💎 0</span></p>
       </div>
       
       <!-- Send button -->
       <button id="send-tip-btn" onclick="sendTip()" disabled
-        class="w-full py-3 px-6 bg-gold text-charcoal font-bold rounded-full hover:bg-main-red hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-        Send Tip
+        class="w-full py-3 px-6 bg-gold text-charcoal font-bold rounded-full hover:bg-main-red hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed text-lg">
+        🎉 Send Tip
       </button>
       
       <!-- Error message -->
@@ -1130,6 +1468,113 @@
 
       <!-- Live Chat and Sparks Sidebar -->
       <div class="lg:col-span-1 space-y-6">
+        
+        <!-- RED ROOM POT DISPLAY (Visible to all in Red Rooms) -->
+        <div id="red-room-pot-panel" class="hidden bg-gradient-to-br from-red-600 to-red-800 rounded-2xl shadow-lg border-2 border-red-400 overflow-hidden">
+          <!-- Pot Header -->
+          <div class="p-3 bg-black bg-opacity-30">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-white flex items-center gap-2 text-sm">
+                🔴 <span>RED ROOM</span>
+              </h3>
+              <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">LIVE DEBATE</span>
+            </div>
+          </div>
+          
+          <!-- LIVE SCOREBOARD - Who's Winning -->
+          <div id="debate-scoreboard" class="p-4 bg-black bg-opacity-20">
+            <div class="text-xs text-center text-red-200 mb-3 font-bold">⚔️ BATTLE FOR THE POT ⚔️</div>
+            
+            <!-- Participant 1 Score -->
+            <div id="debater-1-row" class="mb-2">
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <span id="debater-1-crown" class="hidden">👑</span>
+                  <span id="debater-1-name" class="text-white font-bold text-sm truncate max-w-24">Waiting...</span>
+                </div>
+                <span id="debater-1-tips" class="text-yellow-300 font-bold">💎 0</span>
+              </div>
+              <div class="w-full bg-black bg-opacity-40 rounded-full h-3 overflow-hidden">
+                <div id="debater-1-bar" class="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-500 rounded-full" style="width: 0%"></div>
+              </div>
+            </div>
+            
+            <!-- VS Divider -->
+            <div class="text-center my-2">
+              <span class="text-white font-extrabold text-lg">VS</span>
+            </div>
+            
+            <!-- Participant 2 Score -->
+            <div id="debater-2-row" class="mb-2">
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <span id="debater-2-crown" class="hidden">👑</span>
+                  <span id="debater-2-name" class="text-white font-bold text-sm truncate max-w-24">Waiting...</span>
+                </div>
+                <span id="debater-2-tips" class="text-yellow-300 font-bold">💎 0</span>
+              </div>
+              <div class="w-full bg-black bg-opacity-40 rounded-full h-3 overflow-hidden">
+                <div id="debater-2-bar" class="h-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-500 rounded-full" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Total Pot Display -->
+          <div class="p-4 text-center bg-black bg-opacity-10">
+            <div class="text-xs text-red-200 mb-1">💰 TOTAL POT</div>
+            <div id="pot-amount-display" class="text-3xl font-extrabold text-white mb-1">💎 0</div>
+            <div class="text-xs text-red-200">Winner takes 50%</div>
+          </div>
+          
+          <!-- Tip to Pot Buttons (Spectators Only) -->
+          <div id="pot-tip-section" class="p-4 bg-black bg-opacity-20">
+            <div class="text-xs text-yellow-300 text-center mb-2">👁️ Pick your champion and tip!</div>
+            <div class="text-xs text-red-200 text-center mb-3">Your balance: <span id="pot-tip-balance">💎 0</span></div>
+            
+            <!-- Select who to tip -->
+            <div id="pot-tip-targets" class="grid grid-cols-2 gap-2 mb-3">
+              <!-- Populated dynamically with participant names -->
+            </div>
+            
+            <!-- Tip amounts -->
+            <div class="grid grid-cols-4 gap-2">
+              <button onclick="tipToPot(10)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎10</button>
+              <button onclick="tipToPot(25)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎25</button>
+              <button onclick="tipToPot(50)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎50</button>
+              <button onclick="tipToPot(100)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎100</button>
+            </div>
+          </div>
+          
+          <!-- Participant Message -->
+          <div id="pot-participant-message" class="p-4 bg-black bg-opacity-20 hidden">
+            <div class="text-center">
+              <div class="text-yellow-300 font-bold mb-1">🎤 You're in the ring!</div>
+              <div class="text-xs text-red-200">Spectators are betting on you. Make your case!</div>
+            </div>
+          </div>
+          
+          <!-- Void Rule Warning -->
+          <div class="p-2 bg-black bg-opacity-40 text-center">
+            <div class="text-xs text-red-300">
+              ⚠️ Void Rule: Pot under 100💎 = full refund
+            </div>
+          </div>
+        </div>
+        
+        <!-- VOTING PANEL (Shown when debate ends) -->
+        <div id="voting-panel" class="hidden bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl shadow-lg border-2 border-purple-400 p-6">
+          <div class="text-center">
+            <div class="text-3xl mb-2">🗳️</div>
+            <h3 class="text-xl font-extrabold text-white mb-4">Who Won?</h3>
+            <div id="vote-options" class="space-y-3">
+              <!-- Populated dynamically -->
+            </div>
+            <button onclick="voteForDraw()" class="mt-4 w-full py-2 bg-gray-500 hover:bg-gray-400 text-white font-bold rounded-lg transition">
+              🤝 It's a Draw
+            </button>
+          </div>
+        </div>
+        
         <!-- Live Chat (also for participants) -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
           <!-- Chat Header -->
@@ -1527,6 +1972,18 @@
     <!-- Success Message (hidden by default) -->
     <div id="share-success-msg" class="hidden text-center py-3 bg-gold rounded-xl mb-4">
       <span class="text-charcoal font-bold">✅ Link copied! Share it with a friend</span>
+    </div>
+    
+    <!-- Invite Code (for easy verbal sharing) -->
+    <div class="bg-charcoal rounded-xl p-4 mb-4">
+      <div class="text-center">
+        <div class="text-xs text-white opacity-70 mb-1">📱 Quick Invite Code</div>
+        <div id="invite-code-display" class="text-2xl font-extrabold text-gold tracking-widest">----</div>
+        <div class="text-xs text-white opacity-50 mt-1">Tell friends: "Join my room with code <span id="invite-code-text">----</span>"</div>
+      </div>
+      <button onclick="copyInviteCode()" class="w-full mt-3 py-2 bg-gold text-charcoal rounded-full font-bold text-sm hover:bg-main-red hover:text-white transition-all">
+        📋 Copy Invite Code
+      </button>
     </div>
     
     <!-- Footer -->
@@ -2794,6 +3251,8 @@
   let timerRef = null;
   let timerSyncInitialized = false;
   let timerExpiredHandled = false;
+  let cliffhangerWarningShown = false;
+  let cliffhangerFinalWarning = false;
   let timerState = {
     durationSeconds: 60 * 60,
     startedAt: null,
@@ -4461,30 +4920,60 @@ async function initializeApp() {
     const urlParam = decodeURIComponent(roomUrl);
     console.log("🔍 Looking for room URL:", urlParam);
 
-    // First check if this is a matchmaking room with topic in URL params
+    // First check if topic is in URL params (from matchmaking or live room creation)
     const urlParams = new URLSearchParams(window.location.search);
     const isMatchedRoom = urlParams.get('matched') === 'true';
+    const isHostRoom = urlParams.get('host') === 'true';
     const topicFromUrl = urlParams.get('topic');
     const matchedTopicFromUrl = urlParams.get('matchedTopic');
     const similarityFromUrl = urlParams.get('similarity');
+    const roomTypeFromUrl = urlParams.get('roomType');
 
-    if (isMatchedRoom && topicFromUrl) {
-      // This is from matchmaking - use the topic from URL
+    // Use topic from URL if it exists (matchmaking or live room creation)
+    if (topicFromUrl) {
       const topic = decodeURIComponent(topicFromUrl);
       const matchedTopic = matchedTopicFromUrl ? decodeURIComponent(matchedTopicFromUrl) : null;
       const similarity = similarityFromUrl ? `${similarityFromUrl}% Match` : '';
       
-      let description = `You're matched to discuss: "${topic}"`;
-      if (matchedTopic && matchedTopic !== topic) {
+      let description;
+      if (isMatchedRoom && matchedTopic && matchedTopic !== topic) {
         description = `Your topic: "${topic}" matched with "${matchedTopic}" ${similarity ? `(${similarity})` : ''}`;
+      } else if (isHostRoom) {
+        // From live room creation
+        const roomTypeLabel = roomTypeFromUrl === 'green' ? '🟢 Help Room' : '🔴 Debate';
+        description = `${roomTypeLabel}: ${topic}`;
+      } else {
+        description = `Discussing: "${topic}"`;
       }
       
-      console.log("✅ Found matchmaking topic:", topic);
-      console.log("✅ Matched topic:", matchedTopic);
-      console.log("🎯 Similarity:", similarity);
+      console.log("✅ Found topic from URL:", topic);
+      console.log("🏠 Is host room:", isHostRoom);
+      console.log("🎯 Room type:", roomTypeFromUrl);
       
       updateTopicDisplay(topic, description);
+      
+      // Save topic to Firebase so spectators can see it
+      saveRoomTopicToFirebase(topic, matchedTopic, description);
       return;
+    }
+
+    // For spectators/late joiners: Try to get topic from Firebase first
+    const sphereId = extractSphereId(roomUrl);
+    if (sphereId) {
+      try {
+        console.log("🔍 Checking Firebase for room topic...");
+        await ensureFirebaseAuth();
+        const topicSnapshot = await db.ref(`room-topics/${sphereId}`).once('value');
+        const savedTopic = topicSnapshot.val();
+        
+        if (savedTopic && savedTopic.topic) {
+          console.log("✅ Found topic from Firebase:", savedTopic.topic);
+          updateTopicDisplay(savedTopic.topic, savedTopic.description || `Discussing: "${savedTopic.topic}"`);
+          return;
+        }
+      } catch (firebaseError) {
+        console.log("⚠️ Could not fetch topic from Firebase:", firebaseError.message);
+      }
     }
 
     try {
@@ -4543,6 +5032,29 @@ async function initializeApp() {
     console.log("✅ Updated topic:", topic);
     console.log("✅ Updated description:", description);
   }
+  
+  // Save room topic to Firebase so spectators/late joiners can see it
+  async function saveRoomTopicToFirebase(topic, matchedTopic, description) {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId || !topic) return;
+    
+    try {
+      await ensureFirebaseAuth();
+      const topicRef = db.ref(`room-topics/${sphereId}`);
+      await topicRef.set({
+        topic: topic,
+        matchedTopic: matchedTopic || null,
+        description: description,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      console.log("💾 Saved room topic to Firebase:", topic);
+      
+      // Clean up old topics when room ends (set expiry)
+      topicRef.onDisconnect().remove();
+    } catch (error) {
+      console.warn("⚠️ Could not save topic to Firebase:", error.message);
+    }
+  }
 
   async function initializeVideoChat() {
     console.log('🚀 ======= INITIALIZING VIDEO CHAT =======');
@@ -4579,6 +5091,10 @@ async function initializeApp() {
     setupUserRoleDisplay();
     configureTimerUiForMode();
     console.log('✅ UI configured');
+    
+    // Initialize room type (Red Room or Green Room)
+    initializeRoomType();
+    console.log('✅ Room type initialized');
     
     // Set up layout based on user type
     if (isSpectator) {
@@ -4939,6 +5455,36 @@ async function initializeApp() {
         console.error('⚠️ Failed to persist viewer counts:', error);
       });
     }
+    
+    // Also update Supabase active_rooms for live page display
+    updateActiveRoomCounts(participantCount, spectatorCount);
+  }
+  
+  // Debounced function to update room counts in Supabase
+  let roomCountsUpdateTimeout = null;
+  function updateActiveRoomCounts(participants, spectators) {
+    if (roomCountsUpdateTimeout) clearTimeout(roomCountsUpdateTimeout);
+    
+    // Debounce to avoid too many API calls
+    roomCountsUpdateTimeout = setTimeout(async () => {
+      const sphereId = extractSphereId(roomUrl);
+      if (!sphereId) return;
+      
+      try {
+        await fetch('/.netlify/functions/manage-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update-counts',
+            roomId: sphereId,
+            participantCount: participants,
+            spectatorCount: spectators
+          })
+        });
+      } catch (error) {
+        // Silently fail - not critical
+      }
+    }, 2000); // Update every 2 seconds max
   }
 
   function updateParticipantViewForSpectators(spectatorCount) {
@@ -5552,6 +6098,16 @@ async function initializeApp() {
       if (!isSpectatorParticipant) {
         hideRemoteVideo();
         showToast(`👋 ${participantDisplayName} left the call`);
+        
+        // Update pot targets and scoreboard when opponent leaves
+        if (roomTypeState.type === 'red') {
+          otherParticipantId = null;
+          otherParticipantName = null;
+          setTimeout(() => {
+            updatePotTargets();
+            updateDebateScoreboard();
+          }, 500);
+        }
       } else {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
@@ -5560,6 +6116,12 @@ async function initializeApp() {
       updateSpectatorParticipants();
       showToast(`👋 ${participantDisplayName} left the conversation`);
     }
+    
+    // Update room counts in database when someone leaves
+    setTimeout(() => {
+      // The presence count will update automatically via Firebase,
+      // which triggers updateViewerCount -> updateActiveRoomCounts
+    }, 1000);
   }
 
   function handleParticipantUpdated(event) {
@@ -5996,6 +6558,20 @@ async function initializeApp() {
       currentSparkIndex = 0;
       updateSparkDisplay();
       showToast(`✨ Partner generated new sparks for "${event.data.topic}"!`);
+    } else if (event.data.type === 'tip-celebration') {
+      // Received a tip celebration from another participant!
+      console.log('🎉 Tip celebration received via LiveKit:', event.data.tipData);
+      const tipData = event.data.tipData;
+      if (tipData) {
+        // Check if this is from someone else (not ourselves)
+        const myName = window.currentUserData?.username || window.currentUserData?.displayName || userName;
+        if (tipData.senderName !== myName) {
+          console.log('🎉 Playing tip celebration from:', tipData.senderName);
+          playTipCelebration(tipData);
+        } else {
+          console.log('🔔 Skipping our own tip celebration (already played locally)');
+        }
+      }
     }
   }
 
@@ -6804,10 +7380,10 @@ async function initializeApp() {
     let participantName = getParticipantName(participantId);
     
     if (!spectatorParticipant1) {
-      spectatorParticipant1 = { participantId, participantName };
+      spectatorParticipant1 = { participantId, participantName, displayName: participantName, identity: participantId };
       participantSlot = 1;
     } else if (!spectatorParticipant2) {
-      spectatorParticipant2 = { participantId, participantName };
+      spectatorParticipant2 = { participantId, participantName, displayName: participantName, identity: participantId };
       participantSlot = 2;
     } else {
       console.log('⚠️ Already have 2 participants, ignoring additional participant:', participantId);
@@ -6815,6 +7391,13 @@ async function initializeApp() {
     }
     
     console.log(`📍 Assigned participant ${participantId} to slot ${participantSlot}`);
+    
+    // Update Red Room pot targets when spectators see participants
+    if (roomTypeState.type === 'red') {
+      setTimeout(() => {
+        updatePotTargets();
+      }, 500);
+    }
     
     // Get the video element and placeholder for this slot
     const videoElement = document.getElementById(`spectator-participant-${participantSlot}`);
@@ -7147,14 +7730,86 @@ function ensureSpectatorTracksForParticipant(participant) {
     return video1Active || video2Active;
   }
 
+  // Helper to check if a string looks like a UUID
+  function isUuid(str) {
+    if (!str) return false;
+    // UUID format: 8-4-4-4-12 hex characters (with or without dashes)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidNoDashRegex = /^[0-9a-f]{32}$/i;
+    return uuidRegex.test(str) || uuidNoDashRegex.test(str);
+  }
+  
+  // Helper to check if a string is a valid display name
+  function isValidDisplayName(name) {
+    if (!name) return false;
+    // Filter out checkout session IDs
+    if (name.startsWith('cs_')) return false;
+    // Filter out PA_ (participant IDs)
+    if (name.startsWith('PA_')) return false;
+    // Filter out UUIDs
+    if (isUuid(name)) return false;
+    // Filter out just numbers
+    if (/^\d+$/.test(name)) return false;
+    return true;
+  }
+
   function getParticipantName(participantId) {
-    const participants = getParticipantsSnapshot();
-    for (const [id, participant] of Object.entries(participants)) {
-      if (id === participantId) {
-        return participant.user_name || 'Participant';
+    // First try to get from LiveKit room directly (most reliable)
+    if (livekitRoom) {
+      // Check local participant
+      if (livekitRoom.localParticipant?.sid === participantId || 
+          livekitRoom.localParticipant?.identity === participantId) {
+        const name = livekitRoom.localParticipant?.name;
+        if (isValidDisplayName(name)) return name;
+        
+        // Try metadata
+        try {
+          const metadata = JSON.parse(livekitRoom.localParticipant?.metadata || '{}');
+          if (isValidDisplayName(metadata.displayName)) return metadata.displayName;
+          if (isValidDisplayName(metadata.name)) return metadata.name;
+        } catch (e) {}
+      }
+      
+      // Check remote participants
+      for (const p of livekitRoom.remoteParticipants?.values() || []) {
+        if (p.sid === participantId || p.identity === participantId) {
+          // Prefer name over identity (identity might be checkout session ID)
+          const name = p.name;
+          if (isValidDisplayName(name)) return name;
+          
+          // Try to parse metadata for actual name
+          try {
+            const metadata = JSON.parse(p.metadata || '{}');
+            if (isValidDisplayName(metadata.displayName)) return metadata.displayName;
+            if (isValidDisplayName(metadata.name)) return metadata.name;
+          } catch (e) {}
+          
+          // Last resort - identity if valid
+          if (isValidDisplayName(p.identity)) return p.identity;
+        }
       }
     }
-    return 'Participant';
+    
+    // Fallback to participants snapshot (Firebase presence)
+    const participants = getParticipantsSnapshot();
+    for (const [id, participant] of Object.entries(participants)) {
+      if (id === participantId || participant.user_id === participantId) {
+        const name = participant.user_name || participant.displayName;
+        if (isValidDisplayName(name)) return name;
+      }
+    }
+    
+    // Also check by matching other criteria in presence
+    for (const [id, participant] of Object.entries(participants)) {
+      // Sometimes participantId is the Firebase key, not user_id
+      const name = participant.user_name || participant.displayName;
+      if (isValidDisplayName(name)) {
+        // If this is the only participant with a valid name and we haven't found one yet
+        // This is a fallback
+      }
+    }
+    
+    return 'Debater';
   }
 
   function removeSpectatorParticipant(participantId) {
@@ -8586,6 +9241,18 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
 
+    // CLIFFHANGER WARNING: Show warning at 5 minutes remaining
+    if (effectiveTimeRemaining === 300 && !cliffhangerWarningShown && !isSpectator) {
+      cliffhangerWarningShown = true;
+      showCliffhangerWarning();
+    }
+    
+    // CLIFFHANGER: Show final warning at 1 minute
+    if (effectiveTimeRemaining === 60 && !cliffhangerFinalWarning && !isSpectator) {
+      cliffhangerFinalWarning = true;
+      showCliffhangerFinalWarning();
+    }
+
     if (effectiveTimeRemaining > 0) {
       timerExpiredHandled = false;
       return;
@@ -8601,6 +9268,9 @@ function ensureSpectatorTracksForParticipant(participant) {
 
     timerExpiredHandled = true;
     clearInterval(timerInterval);
+    
+    // CLIFFHANGER: Cut to black for non-Pro users
+    handleCliffhangerExpiration();
     
     console.log('⏰ Timer expired - showing upgrade modal');
     
@@ -8754,6 +9424,147 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
+  // ============================================
+  // CLIFFHANGER TIMER WARNINGS
+  // ============================================
+  
+  function showCliffhangerWarning() {
+    console.log('⏰ CLIFFHANGER: 5 minutes remaining!');
+    
+    // Show warning toast
+    showToast('⚠️ 5 MINUTES REMAINING! Room will end soon.');
+    
+    // Add visual warning to timer
+    const timerElements = document.querySelectorAll('#timer, #timer-header');
+    timerElements.forEach(el => {
+      el.classList.add('text-yellow-400', 'animate-pulse');
+    });
+    
+    // Show cliffhanger overlay
+    showCliffhangerOverlay(5);
+  }
+  
+  function showCliffhangerFinalWarning() {
+    console.log('⏰ CLIFFHANGER: 1 minute remaining!');
+    
+    // Show urgent toast
+    showToast('🚨 FINAL MINUTE! Say your goodbyes!');
+    
+    // Make timer red and more urgent
+    const timerElements = document.querySelectorAll('#timer, #timer-header');
+    timerElements.forEach(el => {
+      el.classList.remove('text-yellow-400');
+      el.classList.add('text-red-500', 'font-extrabold');
+      el.style.animation = 'pulse 0.5s infinite';
+    });
+  }
+  
+  function handleCliffhangerExpiration() {
+    // Check if user is Host Pro (they get 3 hours, no cutoff)
+    const userPlan = sessionLimitState?.userPlan || 'free';
+    const isHostPro = userPlan === 'host_pro' || userPlan === 'pro_bundle';
+    
+    if (isHostPro) {
+      console.log('⏰ Host Pro user - no cutoff applied');
+      return;
+    }
+    
+    console.log('⏰ CLIFFHANGER: Cutting to black for non-Pro user');
+    
+    // Cut video feed to black
+    const localVideo = document.getElementById('local-video');
+    const remoteVideo = document.getElementById('remote-video');
+    const localPlaceholder = document.getElementById('local-placeholder');
+    const remotePlaceholder = document.getElementById('remote-placeholder');
+    
+    // Hide videos, show black screens
+    if (localVideo) localVideo.style.display = 'none';
+    if (remoteVideo) remoteVideo.style.display = 'none';
+    if (localPlaceholder) {
+      localPlaceholder.style.display = 'flex';
+      localPlaceholder.style.background = '#000';
+      localPlaceholder.innerHTML = '<span style="color: #e63946; font-size: 2rem;">⏰</span><span style="color: white;">Time\'s Up!</span>';
+    }
+    if (remotePlaceholder) {
+      remotePlaceholder.style.display = 'flex';
+      remotePlaceholder.style.background = '#000';
+    }
+    
+    // Mute audio
+    if (callObject) {
+      try {
+        callObject.setLocalAudio(false);
+        callObject.setLocalVideo(false);
+      } catch (e) {
+        console.warn('Could not disable A/V:', e);
+      }
+    }
+  }
+  
+  function showCliffhangerOverlay(minutesRemaining) {
+    // Remove existing overlay if any
+    const existing = document.getElementById('cliffhanger-overlay');
+    if (existing) existing.remove();
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'cliffhanger-overlay';
+    overlay.innerHTML = `
+      <div style="
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: linear-gradient(135deg, #e63946 0%, #FFD166 100%);
+        padding: 2rem 3rem;
+        border-radius: 24px;
+        text-align: center;
+        z-index: 10000;
+        animation: scaleIn 0.3s ease-out;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      ">
+        <div style="font-size: 3rem; margin-bottom: 0.5rem;">⏰</div>
+        <div style="font-size: 1.5rem; font-weight: 800; color: white; margin-bottom: 0.5rem;">
+          ${minutesRemaining} Minutes Left!
+        </div>
+        <div style="color: rgba(255,255,255,0.9); margin-bottom: 1rem;">
+          Upgrade to Host Pro for 3 hours of uninterrupted conversation
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" style="
+          background: white;
+          color: #e63946;
+          border: none;
+          padding: 0.75rem 2rem;
+          border-radius: 100px;
+          font-weight: 700;
+          cursor: pointer;
+          margin-right: 0.5rem;
+        ">Got it</button>
+        <a href="/pricing.html" target="_blank" style="
+          display: inline-block;
+          background: #22223B;
+          color: white;
+          text-decoration: none;
+          padding: 0.75rem 2rem;
+          border-radius: 100px;
+          font-weight: 700;
+        ">Upgrade →</a>
+      </div>
+    `;
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      backdrop-filter: blur(4px);
+    `;
+    document.body.appendChild(overlay);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+      if (overlay.parentElement) overlay.remove();
+    }, 5000);
+  }
+
   function showUpgradeModal() {
     const modal = document.getElementById('upgrade-modal');
     const planSpan = document.getElementById('upgrade-modal-plan');
@@ -9044,20 +9855,26 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Show tip button only if user is NOT the host
-    // Hosts cannot tip themselves in production
-    const ALLOW_SELF_TIP = false; // Disabled for production
+    // Check if current user is signed in (required to send tips)
+    const currentUserId = window.currentUserData?.userId || userId;
+    const userCanTip = currentUserId && isValidUuid(currentUserId);
     
-    console.log('💎 Is host?', roomHostData.isHost);
+    console.log('💎 User can tip?', userCanTip);
     
-    if (!roomHostData.isHost || ALLOW_SELF_TIP) {
+    if (userCanTip) {
+      // User is signed in - show tip button
       tipBtn.classList.remove('hidden');
-      tipBtn.style.display = 'block'; // Force visibility
-      console.log('💎 Tip button NOW VISIBLE');
+      tipBtn.style.display = 'block';
+      tipBtn.style.opacity = '1';
+      tipBtn.title = 'Send a tip to participants';
+      console.log('💎 Tip button NOW VISIBLE (user can tip)');
     } else {
-      tipBtn.classList.add('hidden');
-      tipBtn.style.display = 'none';
-      console.log('👑 Tip button hidden (you are the host)');
+      // User is a guest - show dimmed button with message
+      tipBtn.classList.remove('hidden');
+      tipBtn.style.display = 'block';
+      tipBtn.style.opacity = '0.5';
+      tipBtn.title = 'Sign in to send tips';
+      console.log('💎 Tip button dimmed (user is guest)');
     }
     
     // Update spectator management button visibility (hosts only)
@@ -9098,26 +9915,225 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
+  // ============================================
+  // TIP ANIMATION ENGINE (Jeff Bezos Approved™)
+  // ============================================
+  
+  // Animation configuration - all the fun stuff!
+  let selectedTipAnimation = 'gems';
+  let selectedTipRecipient = null; // { id, name, isHost }
+  let tippableParticipants = []; // List of signed-in participants who can receive tips
+  
+  const TIP_ANIMATIONS = {
+    // Classic
+    gems: { emoji: ['💎', '💠', '🔷', '🔹'], type: 'rain', sound: 'coin' },
+    confetti: { emoji: ['🎉', '🎊', '✨', '🎈', '🎁'], type: 'explode', sound: 'party' },
+    money: { emoji: ['💵', '💰', '💸', '🤑', '💲'], type: 'rain', sound: 'coin' },
+    fire: { emoji: ['🔥', '🔥', '🔥', '💥', '⚡'], type: 'rise', sound: 'whoosh' },
+    stars: { emoji: ['⭐', '🌟', '✨', '💫', '🌠'], type: 'float', sound: 'magic' },
+    // Animals
+    cats: { emoji: ['🐱', '😺', '😸', '😻', '🐈'], type: 'rain', sound: 'meow', useGif: 'cat' },
+    dogs: { emoji: ['🐕', '🐶', '🦮', '🐕‍🦺', '🐩'], type: 'rain', sound: 'woof', useGif: 'dog' },
+    frogs: { emoji: ['🐸', '🐸', '🐸', '🐸', '🐸'], type: 'rain', sound: 'ribbit' },
+    butterflies: { emoji: ['🦋', '🦋', '🦋', '🌸', '🌺'], type: 'float', sound: 'magic' },
+    unicorn: { emoji: ['🦄', '🌈', '✨', '💖', '⭐'], type: 'float', sound: 'magic' },
+    // Food
+    pizza: { emoji: ['🍕', '🍕', '🍕', '🧀', '🍅'], type: 'rain', sound: 'chomp' },
+    tacos: { emoji: ['🌮', '🌯', '🫔', '🌶️', '🥑'], type: 'rain', sound: 'chomp' },
+    // Vibes
+    hearts: { emoji: ['💖', '💕', '💗', '💓', '❤️'], type: 'float', sound: 'love' },
+    rocket: { emoji: ['🚀'], type: 'rocket', sound: 'whoosh' },
+    rainbow: { emoji: ['🌈', '🌈', '🌈', '✨', '🦄'], type: 'wave', sound: 'magic' },
+    gaming: { emoji: ['🎮', '👾', '🕹️', '🎯', '🏆'], type: 'rain', sound: 'game' },
+    music: { emoji: ['🎵', '🎶', '🎸', '🎤', '🎧'], type: 'float', sound: 'music' },
+    disco: { emoji: ['🪩', '🕺', '💃', '✨', '🎵'], type: 'disco', sound: 'music' },
+    skull: { emoji: ['💀', '👻', '🎃', '🦇', '🕷️'], type: 'rain', sound: 'spooky' },
+    sparkles: { emoji: ['✨', '✨', '✨', '💫', '⭐'], type: 'explode', sound: 'magic' },
+    // Nature
+    snow: { emoji: ['❄️', '❄️', '❄️', '🌨️', '⛄'], type: 'snow', sound: 'wind' },
+    cherry: { emoji: ['🌸', '🌸', '🌸', '💮', '🏵️'], type: 'snow', sound: 'wind' },
+    leaves: { emoji: ['🍂', '🍁', '🍃', '🌾', '🍂'], type: 'snow', sound: 'wind' },
+    // Special
+    meme: { emoji: ['😂', '🤣', '💀', '😭', '🔥'], type: 'explode', sound: 'laugh', useGif: 'meme' },
+    random: { emoji: [], type: 'random', sound: 'random' }
+  };
+
+  // GIF APIs (all FREE!)
+  const GIF_APIS = {
+    cat: 'https://api.thecatapi.com/v1/images/search?mime_types=gif',
+    dog: 'https://api.thedogapi.com/v1/images/search?mime_types=gif',
+    meme: 'https://meme-api.com/gimme'
+  };
+
   async function openTipModal() {
     const modal = document.getElementById('tip-modal');
     if (!modal) return;
     
-    // Update host name
-    const hostNameEl = document.getElementById('tip-host-name');
-    if (hostNameEl) {
-      hostNameEl.textContent = roomHostData.hostName || 'the host';
+    // Check if current user is signed in (required to send tips)
+    const currentUserId = window.currentUserData?.userId || userId;
+    if (!currentUserId || !isValidUuid(currentUserId)) {
+      showToast('⚠️ Please sign in to send tips!');
+      return;
     }
+    
+    // Load tippable participants (signed-in users only, excluding self)
+    await loadTippableParticipants();
+    
+    // Check if there's anyone to tip
+    if (tippableParticipants.length === 0) {
+      showToast('⚠️ No signed-in participants to tip. Guests cannot receive tips.');
+      return;
+    }
+    
+    // Populate recipient dropdown
+    populateTipRecipientDropdown();
     
     // Load user's gem balance
     await loadUserGemBalanceForTip();
     
     // Reset selection
     selectedTipAmount = 0;
+    selectedTipAnimation = 'gems';
+    selectedTipRecipient = null;
     updateTipDisplay();
+    
+    // Reset message input
+    const msgInput = document.getElementById('tip-message-input');
+    if (msgInput) msgInput.value = '';
+    updateTipMessageCount();
+    
+    // Reset animation selection
+    document.querySelectorAll('.tip-anim-btn').forEach(btn => {
+      btn.classList.remove('selected');
+      if (btn.dataset.anim === 'gems') btn.classList.add('selected');
+    });
     
     // Show modal
     modal.classList.remove('hidden');
   }
+  
+  // Get list of participants who can receive tips (signed-in only, excluding self)
+  async function loadTippableParticipants() {
+    tippableParticipants = [];
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    if (!sphereId) {
+      console.warn('⚠️ No sphereId for loading tippable participants');
+      return;
+    }
+    
+    try {
+      const presenceRef = db.ref(`presence/${sphereId}`);
+      const snapshot = await presenceRef.once('value');
+      const presenceData = snapshot.val();
+      
+      if (!presenceData) {
+        console.log('👥 No presence data found');
+        return;
+      }
+      
+      // Filter to signed-in users only (valid UUID), excluding self
+      Object.entries(presenceData).forEach(([key, participant]) => {
+        if (!participant) return;
+        
+        const participantUserId = participant.userId;
+        const isSignedIn = participantUserId && isValidUuid(participantUserId);
+        const isSelf = participantUserId === currentUserId;
+        const isOnline = participant.status === 'online';
+        
+        if (isSignedIn && !isSelf && isOnline) {
+          tippableParticipants.push({
+            id: participantUserId,
+            name: participant.displayName || participant.name || participant.user_name || 'User',
+            type: participant.type || 'participant',
+            isHost: roomHostData.hostId === participantUserId
+          });
+        }
+      });
+      
+      // Sort: host first, then by name
+      tippableParticipants.sort((a, b) => {
+        if (a.isHost && !b.isHost) return -1;
+        if (!a.isHost && b.isHost) return 1;
+        return a.name.localeCompare(b.name);
+      });
+      
+      console.log('👥 Tippable participants:', tippableParticipants);
+    } catch (error) {
+      console.error('❌ Error loading tippable participants:', error);
+    }
+  }
+  
+  // Populate the recipient dropdown with tippable participants
+  function populateTipRecipientDropdown() {
+    const select = document.getElementById('tip-recipient-select');
+    const noRecipientsMsg = document.getElementById('tip-no-recipients');
+    
+    if (!select) return;
+    
+    // Clear existing options (keep placeholder)
+    select.innerHTML = '<option value="">-- Select a participant --</option>';
+    
+    if (tippableParticipants.length === 0) {
+      if (noRecipientsMsg) noRecipientsMsg.classList.remove('hidden');
+      return;
+    }
+    
+    if (noRecipientsMsg) noRecipientsMsg.classList.add('hidden');
+    
+    // Add participants as options
+    tippableParticipants.forEach((p, index) => {
+      const option = document.createElement('option');
+      option.value = p.id;
+      const badge = p.isHost ? '👑 ' : (p.type === 'spectator' ? '👀 ' : '');
+      const hostLabel = p.isHost ? ' (Host)' : '';
+      option.textContent = `${badge}${p.name}${hostLabel}`;
+      select.appendChild(option);
+    });
+    
+    // Auto-select if only one option, or select host by default
+    if (tippableParticipants.length === 1) {
+      select.value = tippableParticipants[0].id;
+      selectedTipRecipient = tippableParticipants[0];
+      onTipRecipientChange();
+    } else {
+      // Try to select host by default
+      const hostParticipant = tippableParticipants.find(p => p.isHost);
+      if (hostParticipant) {
+        select.value = hostParticipant.id;
+        selectedTipRecipient = hostParticipant;
+        onTipRecipientChange();
+      }
+    }
+  }
+  
+  // Handle recipient selection change
+  function onTipRecipientChange() {
+    const select = document.getElementById('tip-recipient-select');
+    const infoEl = document.getElementById('tip-recipient-info');
+    const badgeEl = document.getElementById('tip-recipient-badge');
+    
+    if (!select) return;
+    
+    const selectedId = select.value;
+    selectedTipRecipient = tippableParticipants.find(p => p.id === selectedId) || null;
+    
+    if (infoEl && badgeEl && selectedTipRecipient) {
+      const typeLabel = selectedTipRecipient.isHost ? '👑 Host' : 
+                       (selectedTipRecipient.type === 'spectator' ? '👀 Spectator' : '🎤 Participant');
+      badgeEl.textContent = `Tipping: ${selectedTipRecipient.name} (${typeLabel})`;
+      infoEl.classList.remove('hidden');
+    } else if (infoEl) {
+      infoEl.classList.add('hidden');
+    }
+    
+    // Update tip display (enable/disable button)
+    updateTipDisplay();
+  }
+  
+  // Make function globally available
+  window.onTipRecipientChange = onTipRecipientChange;
   
   function closeTipModal() {
     const modal = document.getElementById('tip-modal');
@@ -9125,11 +10141,31 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     // Reset
     selectedTipAmount = 0;
+    selectedTipAnimation = 'gems';
+    selectedTipRecipient = null;
+    
     const customInput = document.getElementById('tip-custom-amount');
     if (customInput) customInput.value = '';
     
+    const msgInput = document.getElementById('tip-message-input');
+    if (msgInput) msgInput.value = '';
+    
     const errorEl = document.getElementById('tip-error');
     if (errorEl) errorEl.classList.add('hidden');
+    
+    // Reset send button
+    const sendBtn = document.getElementById('send-tip-btn');
+    if (sendBtn) {
+      sendBtn.textContent = '🎉 Send Tip';
+      sendBtn.disabled = true;
+    }
+    
+    // Reset recipient dropdown
+    const recipientSelect = document.getElementById('tip-recipient-select');
+    if (recipientSelect) recipientSelect.value = '';
+    
+    const recipientInfo = document.getElementById('tip-recipient-info');
+    if (recipientInfo) recipientInfo.classList.add('hidden');
   }
   
   async function loadUserGemBalanceForTip() {
@@ -9172,6 +10208,36 @@ function ensureSpectatorTracksForParticipant(participant) {
     updateTipDisplay();
   }
   
+  function selectTipAnimation(animType) {
+    selectedTipAnimation = animType;
+    
+    // Update UI
+    document.querySelectorAll('.tip-anim-btn').forEach(btn => {
+      btn.classList.remove('selected');
+      if (btn.dataset.anim === animType) {
+        btn.classList.add('selected');
+      }
+    });
+    
+    console.log('🎬 Selected animation:', animType);
+  }
+  
+  function updateTipMessageCount() {
+    const input = document.getElementById('tip-message-input');
+    const counter = document.getElementById('tip-message-count');
+    if (input && counter) {
+      counter.textContent = input.value.length;
+    }
+  }
+  
+  // Add event listener for message input
+  document.addEventListener('DOMContentLoaded', () => {
+    const msgInput = document.getElementById('tip-message-input');
+    if (msgInput) {
+      msgInput.addEventListener('input', updateTipMessageCount);
+    }
+  });
+  
   function updateTipDisplay() {
     const selectedEl = document.getElementById('tip-selected-amount');
     const hostReceivesEl = document.getElementById('tip-host-receives');
@@ -9183,14 +10249,25 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
     
     if (hostReceivesEl) {
-      const hostShare = Math.floor(selectedTipAmount * 0.5);
-      hostReceivesEl.textContent = `💎 ${hostShare.toLocaleString()}`;
+      const recipientShare = Math.floor(selectedTipAmount * 0.5);
+      const recipientName = selectedTipRecipient?.name || 'recipient';
+      hostReceivesEl.textContent = `💎 ${recipientShare.toLocaleString()} to ${recipientName}`;
     }
     
-    // Enable/disable send button
+    // Enable/disable send button - must have amount AND recipient selected
     if (sendBtn) {
-      const canSend = selectedTipAmount >= 10 && selectedTipAmount <= userGemBalance;
+      const hasRecipient = selectedTipRecipient && selectedTipRecipient.id;
+      const canSend = selectedTipAmount >= 10 && selectedTipAmount <= userGemBalance && hasRecipient;
       sendBtn.disabled = !canSend;
+      
+      // Update button text based on state
+      if (!hasRecipient) {
+        sendBtn.textContent = '👤 Select recipient';
+      } else if (selectedTipAmount < 10) {
+        sendBtn.textContent = '💎 Enter amount';
+      } else {
+        sendBtn.textContent = `🎉 Tip ${selectedTipRecipient.name}`;
+      }
     }
     
     // Show error if insufficient balance
@@ -9215,12 +10292,29 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Save the amount before modal closes and resets it
+    // Check if recipient is selected
+    if (!selectedTipRecipient || !selectedTipRecipient.id) {
+      showToast('❌ Please select who you want to tip');
+      return;
+    }
+    
+    // Validate recipient has valid ID
+    if (!isValidUuid(selectedTipRecipient.id)) {
+      showToast('❌ Selected user cannot receive tips (not signed in)');
+      return;
+    }
+    
+    // Save values before modal closes
     const tipAmountToSend = selectedTipAmount;
+    const tipAnimation = selectedTipAnimation;
+    const tipMessage = document.getElementById('tip-message-input')?.value?.trim() || '';
+    const useTTS = document.getElementById('tip-tts-toggle')?.checked ?? true;
+    const recipientId = selectedTipRecipient.id;
+    const recipientName = selectedTipRecipient.name;
     
     const sendBtn = document.getElementById('send-tip-btn');
     if (sendBtn) {
-      sendBtn.textContent = 'Sending...';
+      sendBtn.textContent = '🚀 Sending...';
       sendBtn.disabled = true;
     }
     
@@ -9228,13 +10322,15 @@ function ensureSpectatorTracksForParticipant(participant) {
     const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
     const sphereId = extractSphereId(roomUrl);
     
+    console.log('💎 Sending tip:', { senderId: currentUserId, recipientId, recipientName, amount: tipAmountToSend });
+    
     try {
       const response = await fetch('/.netlify/functions/send-tip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           senderId: currentUserId,
-          hostId: roomHostData.hostId,
+          hostId: recipientId, // Using recipient ID (backend still calls it hostId)
           amount: tipAmountToSend,
           roomId: sphereId,
           senderName: currentUserName
@@ -9245,16 +10341,15 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       if (data.success) {
         closeTipModal();
-        showToast(`💎 You tipped ${tipAmountToSend} gems! (${data.hostReceived} to host)`);
         
-        // Try to notify host via Firebase (may fail if no write permission)
-        notifyHostOfTip(currentUserName, tipAmountToSend);
+        // Notify everyone via Firebase (includes animation + message + recipient)
+        notifyRoomOfTip(currentUserName, recipientName, tipAmountToSend, tipAnimation, tipMessage, useTTS);
         
         // Update gem display in header
         fetchAndDisplayGemBalance();
         
-        console.log(`💸 Tip sent: ${tipAmountToSend} gems to ${roomHostData.hostName}`);
-        console.log(`💰 Host received: ${data.hostReceived} gems | Platform fee: ${data.platformFee} gems`);
+        console.log(`💸 Tip sent: ${tipAmountToSend} gems to ${recipientName} with ${tipAnimation} animation`);
+        console.log(`💰 ${recipientName} received: ${data.hostReceived} gems | Platform fee: ${data.platformFee} gems`);
       } else {
         throw new Error(data.error || 'Failed to send tip');
       }
@@ -9263,61 +10358,1109 @@ function ensureSpectatorTracksForParticipant(participant) {
       showToast(`❌ ${error.message}`);
       
       if (sendBtn) {
-        sendBtn.textContent = 'Send Tip';
+        sendBtn.textContent = '🎉 Send Tip';
         sendBtn.disabled = false;
       }
     }
   }
   
-  function notifyHostOfTip(senderName, amount) {
-    // Send notification via Firebase to show toast to host
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) return;
+  function notifyRoomOfTip(senderName, recipientName, amount, animation, message, useTTS) {
+    console.log('📤 Sending tip notification via LiveKit...', { senderName, recipientName, amount, animation });
     
-    // Try to push tip notification - may fail due to permissions
-    try {
-      const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-      tipNotifRef.push({
-        senderName,
-        amount,
-        timestamp: firebase.database.ServerValue.TIMESTAMP
-      }).catch(err => {
-        // Notification failed, but tip was already processed - just log it
-        console.warn('⚠️ Could not send tip notification (permissions):', err.message);
-      });
-    } catch (err) {
-      console.warn('⚠️ Tip notification error:', err.message);
+    // Create tip data
+    const tipData = {
+      senderName,
+      recipientName: recipientName || 'someone',
+      amount,
+      animation: animation || 'gems',
+      message: message || '',
+      useTTS: useTTS !== false,
+      timestamp: Date.now()
+    };
+    
+    // Send via LiveKit data message (works for all participants, no Firebase permissions needed!)
+    if (livekitRoom && livekitRoom.localParticipant) {
+      try {
+        const tipMessage = {
+          type: 'tip-celebration',
+          tipData: tipData
+        };
+        publishLiveKitDataMessage(tipMessage);
+        console.log('✅ Tip notification sent via LiveKit!');
+      } catch (err) {
+        console.warn('⚠️ Could not send tip via LiveKit:', err.message);
+      }
+    } else {
+      console.warn('⚠️ LiveKit room not available for tip notification');
+    }
+    
+    // Always play locally for the sender immediately
+    playTipCelebration(tipData);
+  }
+  
+  // Keep old function name for backwards compatibility
+  function notifyHostOfTip(senderName, amount, animation, message, useTTS) {
+    notifyRoomOfTip(senderName, roomHostData.hostName || 'the host', amount, animation, message, useTTS);
+  }
+
+  function listenForTipNotifications() {
+    // Tip notifications are now handled via LiveKit data messages!
+    // See handleAppMessage() for the 'tip-celebration' type handler.
+    // This function is kept for compatibility but LiveKit is the primary mechanism.
+    console.log('🔔 Tip notifications enabled via LiveKit data messages');
+    console.log('✅ Tip notification system ready');
+  }
+  
+  // ============================================
+  // TIP CELEBRATION ANIMATION ENGINE
+  // ============================================
+  
+  async function playTipCelebration(tip) {
+    const { senderName, recipientName, amount, animation, message, useTTS } = tip;
+    
+    // Get animation config (or random if selected)
+    let animConfig;
+    if (animation === 'random') {
+      const keys = Object.keys(TIP_ANIMATIONS).filter(k => k !== 'random');
+      const randomKey = keys[Math.floor(Math.random() * keys.length)];
+      animConfig = TIP_ANIMATIONS[randomKey];
+    } else {
+      animConfig = TIP_ANIMATIONS[animation] || TIP_ANIMATIONS.gems;
+    }
+    
+    // Show the overlay
+    const overlay = document.getElementById('tip-animation-overlay');
+    if (overlay) {
+      overlay.style.display = 'block';
+    }
+    
+    // Calculate intensity based on amount
+    const intensity = amount >= 500 ? 'mega' : amount >= 100 ? 'high' : amount >= 50 ? 'medium' : 'low';
+    const particleCount = intensity === 'mega' ? 150 : intensity === 'high' ? 100 : intensity === 'medium' ? 60 : 30;
+    
+    // Show announcement (sender → recipient)
+    showTipAnnouncement(senderName, recipientName, amount, message);
+    
+    // Shake screen for big tips
+    if (intensity === 'mega' || intensity === 'high') {
+      document.body.style.animation = 'tipShake 0.5s ease-in-out';
+      setTimeout(() => { document.body.style.animation = ''; }, 500);
+    }
+    
+    // Disco mode overlay
+    if (animConfig.type === 'disco') {
+      const discoOverlay = document.createElement('div');
+      discoOverlay.className = 'tip-disco-overlay';
+      document.body.appendChild(discoOverlay);
+      setTimeout(() => discoOverlay.remove(), 5000);
+    }
+    
+    // Fetch and show GIF if needed
+    if (animConfig.useGif) {
+      await showTipGif(animConfig.useGif);
+    }
+    
+    // Spawn particles based on animation type
+    switch (animConfig.type) {
+      case 'rain':
+        spawnRainParticles(animConfig.emoji, particleCount);
+        break;
+      case 'rise':
+        spawnRiseParticles(animConfig.emoji, particleCount);
+        break;
+      case 'explode':
+        spawnExplodeParticles(animConfig.emoji, particleCount);
+        break;
+      case 'float':
+        spawnFloatParticles(animConfig.emoji, particleCount);
+        break;
+      case 'snow':
+        spawnSnowParticles(animConfig.emoji, particleCount);
+        break;
+      case 'rocket':
+        spawnRocketAnimation();
+        break;
+      case 'wave':
+        spawnRainbowWave();
+        break;
+      case 'disco':
+        spawnFloatParticles(animConfig.emoji, particleCount);
+        break;
+      default:
+        spawnRainParticles(animConfig.emoji, particleCount);
+    }
+    
+    // Play Text-to-Speech if enabled
+    if (useTTS && message) {
+      speakTipMessage(senderName, recipientName, amount, message);
+    } else if (useTTS) {
+      speakTipMessage(senderName, recipientName, amount, '');
+    }
+    
+    // Clean up after animation
+    setTimeout(() => {
+      hideTipOverlay();
+    }, 6000);
+  }
+  
+  function showTipAnnouncement(senderName, recipientName, amount, message) {
+    const announcement = document.getElementById('tip-announcement');
+    const amountEl = document.getElementById('tip-announcement-amount');
+    const senderEl = document.getElementById('tip-announcement-sender');
+    const messageEl = document.getElementById('tip-announcement-message');
+    
+    if (amountEl) amountEl.textContent = `💎 ${amount}`;
+    if (senderEl) {
+      // Show who tipped who
+      if (recipientName) {
+        senderEl.textContent = `${senderName} → ${recipientName}`;
+      } else {
+        senderEl.textContent = `${senderName} tipped!`;
+      }
+    }
+    
+    if (messageEl) {
+      if (message) {
+        messageEl.textContent = `"${message}"`;
+        messageEl.style.display = 'block';
+      } else {
+        messageEl.style.display = 'none';
+      }
+    }
+    
+    if (announcement) {
+      announcement.classList.add('visible');
+      
+      // Hide after 4 seconds
+      setTimeout(() => {
+        announcement.classList.remove('visible');
+      }, 4000);
     }
   }
   
-  function listenForTipNotifications() {
-    console.log('🔔 Setting up tip notification listener...');
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) {
-      console.warn('⚠️ No sphereId for tip notifications');
+  async function showTipGif(type) {
+    const gifDisplay = document.getElementById('tip-gif-display');
+    const gifImage = document.getElementById('tip-gif-image');
+    if (!gifDisplay || !gifImage) return;
+    
+    try {
+      let gifUrl = '';
+      
+      if (type === 'cat') {
+        const res = await fetch(GIF_APIS.cat);
+        const data = await res.json();
+        gifUrl = data[0]?.url || '';
+      } else if (type === 'dog') {
+        const res = await fetch(GIF_APIS.dog);
+        const data = await res.json();
+        gifUrl = data[0]?.url || '';
+      } else if (type === 'meme') {
+        const res = await fetch(GIF_APIS.meme);
+        const data = await res.json();
+        gifUrl = data?.url || '';
+      }
+      
+      if (gifUrl) {
+        gifImage.src = gifUrl;
+        gifDisplay.classList.add('visible');
+        
+        // Hide after 4 seconds
+        setTimeout(() => {
+          gifDisplay.classList.remove('visible');
+          gifDisplay.style.display = 'none';
+        }, 4000);
+      }
+    } catch (err) {
+      console.warn('Could not load GIF:', err);
+    }
+  }
+  
+  function spawnRainParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'tip-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.left = Math.random() * 100 + 'vw';
+        particle.style.top = '-50px';
+        particle.style.fontSize = (1.5 + Math.random() * 2) + 'rem';
+        particle.style.animation = `tipFall ${2 + Math.random() * 2}s linear forwards`;
+        particle.style.animationDelay = Math.random() * 0.5 + 's';
+        container.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 5000);
+      }, i * 30);
+    }
+  }
+  
+  function spawnRiseParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'tip-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.left = 20 + Math.random() * 60 + 'vw';
+        particle.style.bottom = '-50px';
+        particle.style.fontSize = (1.5 + Math.random() * 2) + 'rem';
+        particle.style.animation = `tipRise ${2 + Math.random() * 2}s linear forwards`;
+        container.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 5000);
+      }, i * 50);
+    }
+  }
+  
+  function spawnExplodeParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      const particle = document.createElement('div');
+      particle.className = 'tip-particle';
+      particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+      particle.style.left = '50%';
+      particle.style.top = '50%';
+      particle.style.fontSize = (1 + Math.random() * 2) + 'rem';
+      
+      // Random direction
+      const angle = Math.random() * Math.PI * 2;
+      const distance = 100 + Math.random() * 300;
+      const tx = Math.cos(angle) * distance + 'px';
+      const ty = Math.sin(angle) * distance + 'px';
+      
+      particle.style.setProperty('--tx', tx);
+      particle.style.setProperty('--ty', ty);
+      particle.style.animation = `tipExplode ${1 + Math.random()}s ease-out forwards`;
+      container.appendChild(particle);
+      
+      setTimeout(() => particle.remove(), 3000);
+    }
+  }
+  
+  function spawnFloatParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'tip-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.left = Math.random() * 100 + 'vw';
+        particle.style.bottom = '0';
+        particle.style.fontSize = (1.5 + Math.random() * 2) + 'rem';
+        particle.style.setProperty('--drift', (Math.random() - 0.5) * 100 + 'px');
+        particle.style.setProperty('--rot', Math.random() * 360 + 'deg');
+        particle.style.animation = `tipFloat ${3 + Math.random() * 2}s ease-out forwards`;
+        container.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 6000);
+      }, i * 40);
+    }
+  }
+  
+  function spawnSnowParticles(emojis, count) {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        const particle = document.createElement('div');
+        particle.className = 'tip-particle';
+        particle.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        particle.style.left = Math.random() * 100 + 'vw';
+        particle.style.top = '-50px';
+        particle.style.fontSize = (1 + Math.random() * 1.5) + 'rem';
+        particle.style.setProperty('--drift', (Math.random() - 0.5) * 200 + 'px');
+        particle.style.animation = `tipSnow ${4 + Math.random() * 3}s linear forwards`;
+        container.appendChild(particle);
+        
+        setTimeout(() => particle.remove(), 8000);
+      }, i * 100);
+    }
+  }
+  
+  function spawnRocketAnimation() {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    // Main rocket
+    const rocket = document.createElement('div');
+    rocket.className = 'tip-particle';
+    rocket.textContent = '🚀';
+    rocket.style.fontSize = '4rem';
+    rocket.style.animation = 'tipRocket 2s ease-in-out forwards';
+    container.appendChild(rocket);
+    
+    // Trail particles
+    for (let i = 0; i < 20; i++) {
+      setTimeout(() => {
+        const trail = document.createElement('div');
+        trail.className = 'tip-particle';
+        trail.textContent = ['✨', '💫', '⭐'][Math.floor(Math.random() * 3)];
+        trail.style.left = Math.random() * 100 + 'vw';
+        trail.style.top = 40 + Math.random() * 20 + 'vh';
+        trail.style.opacity = '0.7';
+        trail.style.animation = `tipFloat 1s ease-out forwards`;
+        container.appendChild(trail);
+        setTimeout(() => trail.remove(), 2000);
+      }, i * 100);
+    }
+    
+    setTimeout(() => rocket.remove(), 3000);
+  }
+  
+  function spawnRainbowWave() {
+    const container = document.getElementById('tip-particles-container');
+    if (!container) return;
+    
+    const colors = ['🔴', '🟠', '🟡', '🟢', '🔵', '🟣'];
+    
+    for (let row = 0; row < 6; row++) {
+      for (let col = 0; col < 15; col++) {
+        setTimeout(() => {
+          const particle = document.createElement('div');
+          particle.className = 'tip-particle';
+          particle.textContent = colors[row];
+          particle.style.left = col * 7 + 'vw';
+          particle.style.top = 30 + row * 8 + 'vh';
+          particle.style.fontSize = '2rem';
+          particle.style.opacity = '0';
+          particle.style.transition = 'opacity 0.3s ease-in-out';
+          container.appendChild(particle);
+          
+          setTimeout(() => { particle.style.opacity = '1'; }, 50);
+          setTimeout(() => { particle.style.opacity = '0'; }, 2000);
+          setTimeout(() => particle.remove(), 2500);
+        }, row * 100 + col * 50);
+      }
+    }
+  }
+  
+  function hideTipOverlay() {
+    const overlay = document.getElementById('tip-animation-overlay');
+    const container = document.getElementById('tip-particles-container');
+    const gifDisplay = document.getElementById('tip-gif-display');
+    const announcement = document.getElementById('tip-announcement');
+    
+    if (container) container.innerHTML = '';
+    if (gifDisplay) {
+      gifDisplay.classList.remove('visible');
+      gifDisplay.style.display = 'none';
+    }
+    if (announcement) announcement.classList.remove('visible');
+    if (overlay) overlay.style.display = 'none';
+  }
+  
+  // ============================================
+  // TEXT-TO-SPEECH (FREE!)
+  // ============================================
+  
+  function speakTipMessage(senderName, recipientName, amount, message) {
+    if (!('speechSynthesis' in window)) {
+      console.warn('TTS not supported');
       return;
     }
     
-    // Use existing 'chats' path which has permissions
-    const tipNotifRef = db.ref(`chats/${sphereId}/tips`);
-    console.log('🔔 Listening for tips at:', `chats/${sphereId}/tips`);
+    // Cancel any ongoing speech
+    speechSynthesis.cancel();
     
-    // Only listen to new tips (after now)
-    tipNotifRef.orderByChild('timestamp').startAt(Date.now()).on('child_added', (snapshot) => {
-      const tip = snapshot.val();
-      if (!tip) return;
-      
-      console.log('🎉 Tip received:', tip);
-      // Show toast to everyone in room
-      showToast(`🎉 ${tip.senderName} tipped 💎 ${tip.amount}!`);
-    });
+    // Build the message with recipient
+    let text;
+    if (recipientName) {
+      text = `${senderName} tipped ${recipientName} ${amount} gems!`;
+    } else {
+      text = `${senderName} donated ${amount} gems!`;
+    }
+    if (message) {
+      text += ` They say: ${message}`;
+    }
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.volume = 0.8;
+    
+    // Try to use a nice voice
+    const voices = speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Natural')) || voices[0];
+    if (preferredVoice) utterance.voice = preferredVoice;
+    
+    speechSynthesis.speak(utterance);
+    console.log('🔊 TTS:', text);
+  }
+  
+  // Pre-load voices
+  if ('speechSynthesis' in window) {
+    speechSynthesis.getVoices();
+    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
   }
   
   // Make functions globally available
   window.openTipModal = openTipModal;
   window.closeTipModal = closeTipModal;
   window.selectTipAmount = selectTipAmount;
+  window.selectTipAnimation = selectTipAnimation;
   window.sendTip = sendTip;
+  window.playTipCelebration = playTipCelebration;
+
+  // ============================================
+  // RED ROOM POT SYSTEM
+  // ============================================
+  
+  let roomTypeState = {
+    type: 'red', // 'red' for debate, 'green' for help
+    potAmount: 0,
+    participants: [],
+    participantTips: {}, // Track tips per participant {participantId: tipAmount}
+    selectedPotRecipient: null,
+    votingActive: false,
+    hasVoted: false,
+    isHost: false
+  };
+  
+  // Initialize room type from URL or Firebase
+  async function initializeRoomType() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let roomType = urlParams.get('roomType');
+    const isHost = urlParams.get('host') === 'true';
+    
+    // If no roomType in URL, try to detect from Firebase (for existing rooms)
+    if (!roomType) {
+      const sphereId = extractSphereId(roomUrl);
+      if (sphereId && db) {
+        try {
+          const roomInfoRef = db.ref(`rooms/${sphereId}/info`);
+          const snapshot = await roomInfoRef.once('value');
+          const roomInfo = snapshot.val();
+          if (roomInfo?.roomType) {
+            roomType = roomInfo.roomType;
+            console.log('🔍 Detected room type from Firebase:', roomType);
+          }
+        } catch (e) {
+          console.log('⚠️ Could not detect room type from Firebase');
+        }
+      }
+    }
+    
+    // Default to red room if still not set
+    roomType = roomType || 'red';
+    roomTypeState.type = roomType;
+    roomTypeState.isHost = isHost;
+    
+    // Save room type to Firebase so others can detect it
+    const sphereId = extractSphereId(roomUrl);
+    if (sphereId && db && !isSpectator) {
+      try {
+        await db.ref(`rooms/${sphereId}/info`).update({
+          roomType: roomType,
+          updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+      } catch (e) {
+        // Non-critical
+      }
+    }
+    
+    // Show/hide Red Room pot panel based on room type
+    const potPanel = document.getElementById('red-room-pot-panel');
+    const potTipSection = document.getElementById('pot-tip-section');
+    
+    if (potPanel) {
+      if (roomType === 'red') {
+        potPanel.classList.remove('hidden');
+        
+        // Only spectators can tip to the pot (Jeff Bezos approved)
+        // Participants are debating, not tipping
+        const participantMessage = document.getElementById('pot-participant-message');
+        if (potTipSection) {
+          if (isSpectator) {
+            potTipSection.style.display = 'block';
+            if (participantMessage) participantMessage.style.display = 'none';
+            // Load gem balance for spectators to tip
+            loadUserGemBalanceForTip();
+            // Also update the pot balance display
+            setTimeout(() => {
+              const potBalanceEl = document.getElementById('pot-tip-balance');
+              if (potBalanceEl) potBalanceEl.textContent = `💎 ${userGemBalance.toLocaleString()}`;
+            }, 500);
+          } else {
+            potTipSection.style.display = 'none';
+            if (participantMessage) participantMessage.style.display = 'block';
+          }
+        }
+        
+        // Initialize pot targets and listeners
+        setTimeout(() => {
+          updatePotTargets();
+          updateDebateScoreboard();
+          listenForPotUpdates();
+        }, 1000);
+      } else {
+        potPanel.classList.add('hidden');
+      }
+    }
+    
+    // Register room with server (only if host or first participant)
+    if (isHost || !isSpectator) {
+      registerActiveRoom();
+    }
+    
+    console.log(`🏠 Room type: ${roomType}, isHost: ${isHost}, isSpectator: ${isSpectator}`);
+  }
+  
+  // Register this room as active
+  async function registerActiveRoom() {
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    if (!currentUserId || !sphereId) {
+      console.log('⚠️ Cannot register room: missing userId or sphereId');
+      return;
+    }
+    
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const topic = urlParams.get('topic') || urlParams.get('matchedTopic') || 'General Discussion';
+      
+      const response = await fetch('/.netlify/functions/manage-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          roomId: sphereId,
+          hostId: currentUserId,
+          hostName: window.currentUserData?.displayName || userName || 'Host',
+          hostAvatar: window.currentUserData?.avatar || '',
+          roomType: roomTypeState.type,
+          topic: decodeURIComponent(topic),
+          isPublic: true,
+          durationMinutes: sessionLimitState?.limitMinutes || 60
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🏠 Room registered as active:', data);
+      } else {
+        // Don't fail silently - table might not exist
+        console.warn('⚠️ Room registration returned non-OK status (table may not exist yet)');
+      }
+    } catch (error) {
+      // Non-critical - don't break the room if this fails
+      console.warn('⚠️ Could not register room (non-critical):', error.message);
+    }
+  }
+  
+  // Update pot display
+  function updatePotDisplay(amount) {
+    roomTypeState.potAmount = amount;
+    const potDisplay = document.getElementById('pot-amount-display');
+    if (potDisplay) {
+      potDisplay.textContent = `💎 ${amount.toLocaleString()}`;
+      
+      // Add animation for visual feedback
+      potDisplay.classList.add('scale-110');
+      potDisplay.style.color = '#ffd166'; // Gold flash
+      setTimeout(() => {
+        potDisplay.classList.remove('scale-110');
+        potDisplay.style.color = '';
+      }, 500);
+    }
+    
+    // Also update the scoreboard
+    updateDebateScoreboard();
+  }
+  
+  // Update pot targets (participants to tip)
+  function updatePotTargets() {
+    const targetsContainer = document.getElementById('pot-tip-targets');
+    
+    // Get all participants (exclude spectators)
+    const participants = [];
+    const localUserId = window.currentUserData?.userId || userId;
+    
+    if (isSpectator) {
+      // SPECTATORS: Get participants from LiveKit room or spectator slots
+      // Helper function to clean participant name
+      const cleanName = (name) => {
+        if (!isValidDisplayName(name)) return null;
+        return name;
+      };
+      
+      if (spectatorParticipant1) {
+        const name = cleanName(spectatorParticipant1.participantName) || 
+                     cleanName(spectatorParticipant1.displayName) ||
+                     getParticipantName(spectatorParticipant1.participantId) ||
+                     'Debater 1';
+        participants.push({
+          id: spectatorParticipant1.participantId || 'participant1',
+          name: name
+        });
+      }
+      if (spectatorParticipant2) {
+        const name = cleanName(spectatorParticipant2.participantName) || 
+                     cleanName(spectatorParticipant2.displayName) ||
+                     getParticipantName(spectatorParticipant2.participantId) ||
+                     'Debater 2';
+        participants.push({
+          id: spectatorParticipant2.participantId || 'participant2',
+          name: name
+        });
+      }
+      
+      // Also try LiveKit room directly if spectator slots not populated
+      if (participants.length < 2 && livekitRoom) {
+        const remoteParticipants = Array.from(livekitRoom.remoteParticipants?.values() || []);
+        for (const p of remoteParticipants) {
+          // Skip spectators
+          if (p.metadata?.includes('spectator')) continue;
+          
+          // Get clean name, preferring name over identity
+          let pName = p.name;
+          // If name is invalid, try to get from metadata
+          if (!isValidDisplayName(pName)) {
+            try {
+              const metadata = JSON.parse(p.metadata || '{}');
+              pName = metadata.displayName || metadata.name;
+            } catch (e) {}
+          }
+          // Still bad? Use identity if valid
+          if (!isValidDisplayName(pName)) {
+            pName = isValidDisplayName(p.identity) ? p.identity : 'Debater';
+          }
+          
+          const pId = p.sid || p.identity;
+          
+          // Don't add duplicates
+          if (!participants.find(existing => existing.id === pId || existing.name === pName)) {
+            participants.push({ id: pId, name: pName });
+          }
+          
+          if (participants.length >= 2) break;
+        }
+      }
+    } else {
+      // PARTICIPANTS: Add self and opponent
+      if (localUserId) {
+        participants.push({
+          id: localUserId,
+          name: window.currentUserData?.displayName || userName || 'You'
+        });
+      }
+      
+      // Add remote participant - filter out invalid names
+      if (otherParticipantId && otherParticipantId !== localUserId) {
+        let oppName = otherParticipantName;
+        // Filter out invalid names (checkout session IDs, UUIDs, etc.)
+        if (!isValidDisplayName(oppName)) {
+          oppName = getParticipantName(otherParticipantId) || 'Opponent';
+        }
+        participants.push({
+          id: otherParticipantId,
+          name: oppName
+        });
+      }
+    }
+    
+    console.log('🎯 Pot targets updated:', participants);
+    
+    roomTypeState.participants = participants;
+    
+    // Update the scoreboard with participants
+    updateDebateScoreboard();
+    
+    // Only show target buttons for spectators
+    if (!targetsContainer) return;
+    
+    // Show message if waiting for opponent
+    if (participants.length < 2) {
+      targetsContainer.innerHTML = `
+        <div class="col-span-2 text-center text-white text-opacity-70 py-2 text-sm">
+          ⏳ Waiting for debaters to join...
+        </div>
+      `;
+      return;
+    }
+    
+    // Create selection buttons (grid layout)
+    targetsContainer.innerHTML = participants.map((p, idx) => {
+      const tips = roomTypeState.participantTips[p.id] || 0;
+      const isSelected = roomTypeState.selectedPotRecipient === p.id;
+      const color = idx === 0 ? 'from-yellow-400 to-yellow-500' : 'from-blue-400 to-blue-500';
+      
+      return `
+        <button 
+          onclick="selectPotRecipient('${p.id}')"
+          id="pot-target-${p.id}"
+          class="py-3 px-3 rounded-xl font-bold text-sm transition transform ${
+            isSelected 
+              ? `bg-gradient-to-r ${color} text-black scale-105 shadow-lg` 
+              : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30 hover:scale-102'
+          }"
+        >
+          <div class="flex flex-col items-center gap-1">
+            <span class="truncate max-w-full">${idx === 0 ? '🟡' : '🔵'} ${p.name}</span>
+            <span class="text-xs opacity-80">💎 ${tips.toLocaleString()}</span>
+          </div>
+        </button>
+      `;
+    }).join('');
+    
+    // Auto-select first participant if none selected
+    if (!roomTypeState.selectedPotRecipient && participants.length > 0) {
+      roomTypeState.selectedPotRecipient = participants[0].id;
+      updatePotTargets(); // Re-render with selection
+    }
+  }
+  
+  // Select who to tip in the pot
+  function selectPotRecipient(recipientId) {
+    roomTypeState.selectedPotRecipient = recipientId;
+    updatePotTargets();
+    console.log('🎯 Selected pot recipient:', recipientId);
+  }
+  window.selectPotRecipient = selectPotRecipient;
+  
+  // Tip to the pot (spectators only)
+  async function tipToPot(amount) {
+    if (roomTypeState.type !== 'red') {
+      showToast('💡 Pot tips are only for Red Room debates');
+      return;
+    }
+    
+    // Only spectators can tip (Jeff Bezos approved)
+    if (!isSpectator) {
+      showToast('🎤 Participants can\'t tip - you\'re debating!');
+      return;
+    }
+    
+    if (!roomTypeState.selectedPotRecipient) {
+      showToast('❌ Please select who you want to win first');
+      return;
+    }
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    if (!currentUserId) {
+      showToast('❌ Please sign in to tip');
+      showAuthModal();
+      return;
+    }
+    
+    // Reload gem balance if it's 0 (might not have loaded yet)
+    if (userGemBalance === 0) {
+      await loadUserGemBalanceForTip();
+    }
+    
+    // Check gem balance
+    if (amount > userGemBalance) {
+      showToast(`❌ Insufficient gems (you have ${userGemBalance})`);
+      return;
+    }
+    
+    const sphereId = extractSphereId(roomUrl);
+    const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
+    
+    try {
+      const response = await fetch('/.netlify/functions/tip-to-pot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: currentUserId,
+          recipientId: roomTypeState.selectedPotRecipient,
+          amount: amount,
+          roomId: sphereId,
+          senderName: currentUserName
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        updatePotDisplay(data.potTotal);
+        showToast(`💎 Added ${amount} gems to the pot!`);
+        
+        // Update gem balance display
+        fetchAndDisplayGemBalance();
+        
+        // Notify others via chat
+        broadcastPotUpdate(amount, data.potTotal);
+        
+        console.log(`🔴 Pot tip: ${amount} gems, total pot: ${data.potTotal}`);
+      } else {
+        throw new Error(data.error || 'Failed to add to pot');
+      }
+    } catch (error) {
+      console.error('❌ Error tipping to pot:', error);
+      showToast(`❌ ${error.message}`);
+    }
+  }
+  window.tipToPot = tipToPot;
+  
+  // Broadcast pot update to all viewers (including per-participant tips)
+  function broadcastPotUpdate(tipAmount, totalPot) {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId || !db) return;
+    
+    try {
+      const recipientId = roomTypeState.selectedPotRecipient;
+      
+      // Update total pot
+      const potRef = db.ref(`rooms/${sphereId}/pot`);
+      potRef.update({
+        amount: totalPot,
+        lastTip: tipAmount,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      }).catch(err => console.warn('Could not broadcast pot update:', err));
+      
+      // Update per-participant tips
+      if (recipientId) {
+        const participantTipsRef = db.ref(`rooms/${sphereId}/participantTips/${recipientId}`);
+        participantTipsRef.transaction((currentTips) => {
+          return (currentTips || 0) + tipAmount;
+        });
+      }
+    } catch (err) {
+      console.warn('Pot broadcast error:', err);
+    }
+  }
+  
+  // Listen for pot updates (including per-participant tips)
+  function listenForPotUpdates() {
+    if (roomTypeState.type !== 'red') return;
+    
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId || !db) return;
+    
+    // Listen for total pot
+    const potRef = db.ref(`rooms/${sphereId}/pot`);
+    potRef.on('value', (snapshot) => {
+      const pot = snapshot.val();
+      if (pot && pot.amount !== undefined) {
+        updatePotDisplay(pot.amount);
+      }
+    });
+    
+    // Listen for per-participant tips
+    const participantTipsRef = db.ref(`rooms/${sphereId}/participantTips`);
+    participantTipsRef.on('value', (snapshot) => {
+      const tips = snapshot.val() || {};
+      roomTypeState.participantTips = tips;
+      updateDebateScoreboard();
+    });
+    
+    console.log('🔴 Listening for pot updates');
+  }
+  
+  // Update the debate scoreboard with live tip counts
+  function updateDebateScoreboard() {
+    const participants = roomTypeState.participants;
+    const tips = roomTypeState.participantTips;
+    
+    // Get the two debaters
+    const debater1 = participants[0];
+    const debater2 = participants[1];
+    
+    // Get elements
+    const name1El = document.getElementById('debater-1-name');
+    const tips1El = document.getElementById('debater-1-tips');
+    const bar1El = document.getElementById('debater-1-bar');
+    const crown1El = document.getElementById('debater-1-crown');
+    
+    const name2El = document.getElementById('debater-2-name');
+    const tips2El = document.getElementById('debater-2-tips');
+    const bar2El = document.getElementById('debater-2-bar');
+    const crown2El = document.getElementById('debater-2-crown');
+    
+    // Calculate tips for each
+    const tips1 = debater1 ? (tips[debater1.id] || 0) : 0;
+    const tips2 = debater2 ? (tips[debater2.id] || 0) : 0;
+    const totalTips = tips1 + tips2 || 1; // Avoid division by zero
+    
+    // Update debater 1
+    if (name1El) name1El.textContent = debater1?.name || 'Waiting...';
+    if (tips1El) tips1El.textContent = `💎 ${tips1.toLocaleString()}`;
+    if (bar1El) bar1El.style.width = `${(tips1 / totalTips) * 100}%`;
+    if (crown1El) {
+      crown1El.style.display = tips1 > tips2 && tips1 > 0 ? 'inline' : 'none';
+    }
+    
+    // Update debater 2
+    if (name2El) name2El.textContent = debater2?.name || 'Waiting...';
+    if (tips2El) tips2El.textContent = `💎 ${tips2.toLocaleString()}`;
+    if (bar2El) bar2El.style.width = `${(tips2 / totalTips) * 100}%`;
+    if (crown2El) {
+      crown2El.style.display = tips2 > tips1 && tips2 > 0 ? 'inline' : 'none';
+    }
+    
+    // Add animation if someone just took the lead
+    if (tips1 > tips2 && tips1 > 0 && bar1El) {
+      bar1El.classList.add('animate-pulse');
+      setTimeout(() => bar1El.classList.remove('animate-pulse'), 2000);
+    }
+    if (tips2 > tips1 && tips2 > 0 && bar2El) {
+      bar2El.classList.add('animate-pulse');
+      setTimeout(() => bar2El.classList.remove('animate-pulse'), 2000);
+    }
+  }
+  
+  // Start voting phase
+  function startVoting() {
+    roomTypeState.votingActive = true;
+    
+    // Hide pot panel, show voting panel
+    const potPanel = document.getElementById('red-room-pot-panel');
+    const votingPanel = document.getElementById('voting-panel');
+    
+    if (potPanel) potPanel.classList.add('hidden');
+    if (votingPanel) {
+      votingPanel.classList.remove('hidden');
+      populateVoteOptions();
+    }
+    
+    showToast('🗳️ Voting has begun! Who won the debate?');
+    console.log('🗳️ Voting phase started');
+  }
+  window.startVoting = startVoting;
+  
+  // Populate vote options
+  function populateVoteOptions() {
+    const voteContainer = document.getElementById('vote-options');
+    if (!voteContainer) return;
+    
+    voteContainer.innerHTML = roomTypeState.participants.map(p => `
+      <button 
+        onclick="voteForWinner('${p.id}')"
+        class="w-full py-3 px-4 bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-bold rounded-lg transition flex items-center justify-center gap-2"
+      >
+        <span>🏆</span>
+        <span>${p.name}</span>
+      </button>
+    `).join('');
+  }
+  
+  // Vote for winner
+  async function voteForWinner(winnerId) {
+    if (roomTypeState.hasVoted) {
+      showToast('⚠️ You\'ve already voted!');
+      return;
+    }
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    try {
+      const response = await fetch('/.netlify/functions/vote-winner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: sphereId,
+          voterId: currentUserId,
+          votedFor: winnerId,
+          isDraw: false
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        roomTypeState.hasVoted = true;
+        showToast('✅ Vote recorded!');
+        
+        // Update UI
+        const votingPanel = document.getElementById('voting-panel');
+        if (votingPanel) {
+          votingPanel.innerHTML = `
+            <div class="text-center py-6">
+              <div class="text-4xl mb-2">✅</div>
+              <div class="text-white font-bold">Vote Recorded!</div>
+              <div class="text-purple-200 text-sm mt-2">Waiting for results...</div>
+            </div>
+          `;
+        }
+      } else {
+        throw new Error(data.error || 'Vote failed');
+      }
+    } catch (error) {
+      console.error('❌ Error voting:', error);
+      showToast(`❌ ${error.message}`);
+    }
+  }
+  window.voteForWinner = voteForWinner;
+  
+  // Vote for draw
+  async function voteForDraw() {
+    if (roomTypeState.hasVoted) {
+      showToast('⚠️ You\'ve already voted!');
+      return;
+    }
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    try {
+      const response = await fetch('/.netlify/functions/vote-winner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: sphereId,
+          voterId: currentUserId,
+          isDraw: true
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        roomTypeState.hasVoted = true;
+        showToast('✅ Voted for draw!');
+      }
+    } catch (error) {
+      console.error('❌ Error voting draw:', error);
+      showToast(`❌ ${error.message}`);
+    }
+  }
+  window.voteForDraw = voteForDraw;
+  
+  // End the Red Room and distribute pot
+  async function endRedRoom() {
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    try {
+      const response = await fetch('/.netlify/functions/end-red-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: sphereId,
+          hostId: currentUserId
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        if (data.result === 'void') {
+          showToast(`⚠️ ${data.reason}`);
+        } else if (data.result === 'draw') {
+          showToast(`🤝 Draw! Pot of 💎${data.totalPot} split between winners`);
+        } else {
+          showToast(`🏆 Winner takes 💎${data.winnerShare}!`);
+        }
+        
+        console.log('🔴 Red Room ended:', data);
+      }
+    } catch (error) {
+      console.error('❌ Error ending Red Room:', error);
+      showToast(`❌ ${error.message}`);
+    }
+  }
+  window.endRedRoom = endRedRoom;
 
   // ============================================
   // BRANDING MODAL FUNCTIONS
@@ -9536,6 +11679,49 @@ function ensureSpectatorTracksForParticipant(participant) {
   let shareStatsInitialized = false;
   let currentShareStats = { participants: 0, spectators: 0, linkShares: 0 };
 
+  // Generate a short invite code from room ID
+  let currentInviteCode = null;
+  
+  function generateInviteCode() {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) return '----';
+    
+    // Create a short, memorable code from the room ID
+    // Take first 4 chars and make uppercase
+    const code = sphereId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase();
+    currentInviteCode = code || '----';
+    return currentInviteCode;
+  }
+  
+  function updateInviteCodeDisplay() {
+    const code = generateInviteCode();
+    const codeDisplay = document.getElementById('invite-code-display');
+    const codeText = document.getElementById('invite-code-text');
+    
+    if (codeDisplay) codeDisplay.textContent = code;
+    if (codeText) codeText.textContent = code;
+  }
+  
+  async function copyInviteCode() {
+    const code = currentInviteCode || generateInviteCode();
+    const sphereId = extractSphereId(roomUrl);
+    const inviteLink = `https://sphere.chatspheres.com/index.html?room=${sphereId}`;
+    
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      showToast(`✅ Invite link copied! Code: ${code}`);
+    } catch (err) {
+      // Fallback: copy just the code
+      try {
+        await navigator.clipboard.writeText(code);
+        showToast(`✅ Code ${code} copied!`);
+      } catch (e) {
+        showToast(`📱 Invite code: ${code}`);
+      }
+    }
+  }
+  window.copyInviteCode = copyInviteCode;
+
   function openShareModal() {
     const modal = document.getElementById('share-modal');
     const input = document.getElementById('share-link-input');
@@ -9554,6 +11740,9 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       // Initialize presence stats
       initSharePresenceStats();
+      
+      // Update invite code display
+      updateInviteCodeDisplay();
       
       // Hide native share if not supported
       const nativeBtn = document.getElementById('native-share-btn');
@@ -11323,6 +13512,12 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       // CRITICAL: Save to localStorage immediately so we can show rating even if user closes tab
       savePendingRatingToStorage(participantId, participantName);
+      
+      // Update Red Room pot targets with new participant
+      if (roomTypeState.type === 'red') {
+        updatePotTargets();
+        listenForPotUpdates();
+      }
     }
   }
   

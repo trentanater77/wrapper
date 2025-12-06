@@ -1468,6 +1468,113 @@
 
       <!-- Live Chat and Sparks Sidebar -->
       <div class="lg:col-span-1 space-y-6">
+        
+        <!-- RED ROOM POT DISPLAY (Visible to all in Red Rooms) -->
+        <div id="red-room-pot-panel" class="hidden bg-gradient-to-br from-red-600 to-red-800 rounded-2xl shadow-lg border-2 border-red-400 overflow-hidden">
+          <!-- Pot Header -->
+          <div class="p-3 bg-black bg-opacity-30">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-white flex items-center gap-2 text-sm">
+                🔴 <span>RED ROOM</span>
+              </h3>
+              <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">LIVE DEBATE</span>
+            </div>
+          </div>
+          
+          <!-- LIVE SCOREBOARD - Who's Winning -->
+          <div id="debate-scoreboard" class="p-4 bg-black bg-opacity-20">
+            <div class="text-xs text-center text-red-200 mb-3 font-bold">⚔️ BATTLE FOR THE POT ⚔️</div>
+            
+            <!-- Participant 1 Score -->
+            <div id="debater-1-row" class="mb-2">
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <span id="debater-1-crown" class="hidden">👑</span>
+                  <span id="debater-1-name" class="text-white font-bold text-sm truncate max-w-24">Waiting...</span>
+                </div>
+                <span id="debater-1-tips" class="text-yellow-300 font-bold">💎 0</span>
+              </div>
+              <div class="w-full bg-black bg-opacity-40 rounded-full h-3 overflow-hidden">
+                <div id="debater-1-bar" class="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-500 rounded-full" style="width: 0%"></div>
+              </div>
+            </div>
+            
+            <!-- VS Divider -->
+            <div class="text-center my-2">
+              <span class="text-white font-extrabold text-lg">VS</span>
+            </div>
+            
+            <!-- Participant 2 Score -->
+            <div id="debater-2-row" class="mb-2">
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <span id="debater-2-crown" class="hidden">👑</span>
+                  <span id="debater-2-name" class="text-white font-bold text-sm truncate max-w-24">Waiting...</span>
+                </div>
+                <span id="debater-2-tips" class="text-yellow-300 font-bold">💎 0</span>
+              </div>
+              <div class="w-full bg-black bg-opacity-40 rounded-full h-3 overflow-hidden">
+                <div id="debater-2-bar" class="h-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-500 rounded-full" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Total Pot Display -->
+          <div class="p-4 text-center bg-black bg-opacity-10">
+            <div class="text-xs text-red-200 mb-1">💰 TOTAL POT</div>
+            <div id="pot-amount-display" class="text-3xl font-extrabold text-white mb-1">💎 0</div>
+            <div class="text-xs text-red-200">Winner takes 50%</div>
+          </div>
+          
+          <!-- Tip to Pot Buttons (Spectators Only) -->
+          <div id="pot-tip-section" class="p-4 bg-black bg-opacity-20">
+            <div class="text-xs text-yellow-300 text-center mb-2">👁️ Pick your champion and tip!</div>
+            <div class="text-xs text-red-200 text-center mb-3">Your balance: <span id="pot-tip-balance">💎 0</span></div>
+            
+            <!-- Select who to tip -->
+            <div id="pot-tip-targets" class="grid grid-cols-2 gap-2 mb-3">
+              <!-- Populated dynamically with participant names -->
+            </div>
+            
+            <!-- Tip amounts -->
+            <div class="grid grid-cols-4 gap-2">
+              <button onclick="tipToPot(10)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎10</button>
+              <button onclick="tipToPot(25)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎25</button>
+              <button onclick="tipToPot(50)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎50</button>
+              <button onclick="tipToPot(100)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎100</button>
+            </div>
+          </div>
+          
+          <!-- Participant Message -->
+          <div id="pot-participant-message" class="p-4 bg-black bg-opacity-20 hidden">
+            <div class="text-center">
+              <div class="text-yellow-300 font-bold mb-1">🎤 You're in the ring!</div>
+              <div class="text-xs text-red-200">Spectators are betting on you. Make your case!</div>
+            </div>
+          </div>
+          
+          <!-- Void Rule Warning -->
+          <div class="p-2 bg-black bg-opacity-40 text-center">
+            <div class="text-xs text-red-300">
+              ⚠️ Void Rule: Pot under 100💎 = full refund
+            </div>
+          </div>
+        </div>
+        
+        <!-- VOTING PANEL (Shown when debate ends) -->
+        <div id="voting-panel" class="hidden bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl shadow-lg border-2 border-purple-400 p-6">
+          <div class="text-center">
+            <div class="text-3xl mb-2">🗳️</div>
+            <h3 class="text-xl font-extrabold text-white mb-4">Who Won?</h3>
+            <div id="vote-options" class="space-y-3">
+              <!-- Populated dynamically -->
+            </div>
+            <button onclick="voteForDraw()" class="mt-4 w-full py-2 bg-gray-500 hover:bg-gray-400 text-white font-bold rounded-lg transition">
+              🤝 It's a Draw
+            </button>
+          </div>
+        </div>
+        
         <!-- Live Chat (also for participants) -->
         <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
           <!-- Chat Header -->
@@ -3157,6 +3264,24 @@
   // Chat system
   let chatRef = null;
   let viewerCountRef = null;
+
+  // Helper to check if a string looks like a UUID
+  function isUuid(str) {
+    if (!str) return false;
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const uuidNoDashRegex = /^[0-9a-f]{32}$/i;
+    return uuidRegex.test(str) || uuidNoDashRegex.test(str);
+  }
+  
+  // Helper to check if a string is a valid display name
+  function isValidDisplayName(name) {
+    if (!name) return false;
+    if (name.startsWith('cs_')) return false;
+    if (name.startsWith('PA_')) return false;
+    if (isUuid(name)) return false;
+    if (/^\d+$/.test(name)) return false;
+    return true;
+  }
 
   // Sparks data
   let currentSparks = [
@@ -4932,6 +5057,10 @@ async function initializeApp() {
     configureTimerUiForMode();
     console.log('✅ UI configured');
     
+    // Initialize room type (Red Room or Green Room)
+    initializeRoomType();
+    console.log('✅ Room type initialized');
+    
     // Set up layout based on user type
     if (isSpectator) {
       console.log('👀 Setting up SPECTATOR mode');
@@ -5855,6 +5984,12 @@ async function initializeApp() {
         }
         
         showToast(`👋 ${participantDisplayName} joined the call!`);
+        
+        // Update Red Room pot targets with new participant
+        if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
+          updatePotTargets();
+          listenForPotUpdates();
+        }
       } else {
         console.log('🔒 Ignoring spectator join event to prevent participant disruption');
       }
@@ -5904,6 +6039,14 @@ async function initializeApp() {
       if (!isSpectatorParticipant) {
         hideRemoteVideo();
         showToast(`👋 ${participantDisplayName} left the call`);
+        
+        // Update pot targets and scoreboard when opponent leaves
+        if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
+          setTimeout(() => {
+            updatePotTargets();
+            updateDebateScoreboard();
+          }, 500);
+        }
       } else {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
@@ -7316,6 +7459,13 @@ async function initializeApp() {
         });
       } else {
         console.log(`🎥 Video ready to play after user interaction for participant ${participantId}`);
+      }
+      
+      // Update Red Room pot targets when spectators see participants
+      if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
+        setTimeout(() => {
+          updatePotTargets();
+        }, 500);
       }
       
     } catch (error) {
@@ -10479,6 +10629,578 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.onTipRecipientChange = onTipRecipientChange;
   window.sendTip = sendTip;
   window.playTipCelebration = playTipCelebration;
+
+  // ============================================
+  // RED ROOM POT SYSTEM
+  // ============================================
+  
+  let roomTypeState = {
+    type: 'red', // 'red' for debate, 'green' for help
+    potAmount: 0,
+    participants: [],
+    participantTips: {}, // Track tips per participant {participantId: tipAmount}
+    selectedPotRecipient: null,
+    votingActive: false,
+    hasVoted: false,
+    isHost: false
+  };
+  
+  // Initialize room type from URL or Firebase
+  async function initializeRoomType() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let roomType = urlParams.get('roomType');
+    const isHost = urlParams.get('host') === 'true';
+    
+    // If no roomType in URL, try to detect from Firebase (for existing rooms)
+    if (!roomType) {
+      const sphereId = extractSphereId(roomUrl);
+      if (sphereId && db) {
+        try {
+          const roomInfoRef = db.ref(`rooms/${sphereId}/info`);
+          const snapshot = await roomInfoRef.once('value');
+          const roomInfo = snapshot.val();
+          if (roomInfo?.roomType) {
+            roomType = roomInfo.roomType;
+            console.log('🔍 Detected room type from Firebase:', roomType);
+          }
+        } catch (e) {
+          console.log('⚠️ Could not detect room type from Firebase');
+        }
+      }
+    }
+    
+    // Default to red room if still not set
+    roomType = roomType || 'red';
+    roomTypeState.type = roomType;
+    roomTypeState.isHost = isHost;
+    
+    // Save room type to Firebase so others can detect it
+    const sphereId = extractSphereId(roomUrl);
+    if (sphereId && db && !isSpectator) {
+      try {
+        await db.ref(`rooms/${sphereId}/info`).update({
+          roomType: roomType,
+          updatedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+      } catch (e) {
+        // Non-critical
+      }
+    }
+    
+    // Show/hide Red Room pot panel based on room type
+    const potPanel = document.getElementById('red-room-pot-panel');
+    const potTipSection = document.getElementById('pot-tip-section');
+    
+    if (potPanel) {
+      if (roomType === 'red') {
+        potPanel.classList.remove('hidden');
+        
+        // Only spectators can tip to the pot
+        // Participants are debating, not tipping
+        const participantMessage = document.getElementById('pot-participant-message');
+        if (potTipSection) {
+          if (isSpectator) {
+            potTipSection.style.display = 'block';
+            if (participantMessage) participantMessage.style.display = 'none';
+            // Load gem balance for spectators to tip
+            loadUserGemBalanceForTip();
+            // Also update the pot balance display
+            setTimeout(() => {
+              const potBalanceEl = document.getElementById('pot-tip-balance');
+              if (potBalanceEl) potBalanceEl.textContent = `💎 ${userGemBalance.toLocaleString()}`;
+            }, 500);
+          } else {
+            potTipSection.style.display = 'none';
+            if (participantMessage) participantMessage.style.display = 'block';
+          }
+        }
+        
+        // Initialize pot targets and listeners
+        setTimeout(() => {
+          updatePotTargets();
+          updateDebateScoreboard();
+          listenForPotUpdates();
+        }, 1000);
+      } else {
+        potPanel.classList.add('hidden');
+      }
+    }
+    
+    // Register room with server (only if host or first participant)
+    if (isHost || !isSpectator) {
+      registerActiveRoom();
+    }
+    
+    console.log(`🏠 Room type: ${roomType}, isHost: ${isHost}, isSpectator: ${isSpectator}`);
+  }
+  
+  // Register this room as active
+  async function registerActiveRoom() {
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    if (!currentUserId || !sphereId) {
+      console.log('⚠️ Cannot register room: missing userId or sphereId');
+      return;
+    }
+    
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const topic = urlParams.get('topic') || urlParams.get('matchedTopic') || 'General Discussion';
+      
+      const response = await fetch('/.netlify/functions/manage-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          roomId: sphereId,
+          hostId: currentUserId,
+          hostName: window.currentUserData?.displayName || userName || 'Host',
+          hostAvatar: window.currentUserData?.avatar || '',
+          roomType: roomTypeState.type,
+          topic: decodeURIComponent(topic),
+          isPublic: true,
+          durationMinutes: sessionLimitState?.limitMinutes || 60
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🏠 Room registered as active:', data);
+      } else {
+        console.warn('⚠️ Room registration returned non-OK status');
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not register room:', error.message);
+    }
+  }
+  
+  // Update pot display
+  function updatePotDisplay(amount) {
+    roomTypeState.potAmount = amount;
+    const potDisplay = document.getElementById('pot-amount-display');
+    if (potDisplay) {
+      potDisplay.textContent = `💎 ${amount.toLocaleString()}`;
+      
+      // Add animation for visual feedback
+      potDisplay.classList.add('scale-110');
+      potDisplay.style.color = '#ffd166';
+      setTimeout(() => {
+        potDisplay.classList.remove('scale-110');
+        potDisplay.style.color = '';
+      }, 500);
+    }
+    
+    updateDebateScoreboard();
+  }
+  
+  // Update pot targets (participants to tip)
+  function updatePotTargets() {
+    const targetsContainer = document.getElementById('pot-tip-targets');
+    
+    // Get all participants (exclude spectators)
+    const participants = [];
+    const localUserId = window.currentUserData?.userId || userId;
+    
+    if (isSpectator) {
+      // SPECTATORS: Get participants from LiveKit room or spectator slots
+      const cleanName = (name) => {
+        if (!isValidDisplayName(name)) return null;
+        return name;
+      };
+      
+      if (typeof spectatorParticipant1 !== 'undefined' && spectatorParticipant1) {
+        const name = cleanName(spectatorParticipant1.participantName) || 
+                     cleanName(spectatorParticipant1.displayName) ||
+                     'Debater 1';
+        participants.push({
+          id: spectatorParticipant1.participantId || 'participant1',
+          name: name
+        });
+      }
+      if (typeof spectatorParticipant2 !== 'undefined' && spectatorParticipant2) {
+        const name = cleanName(spectatorParticipant2.participantName) || 
+                     cleanName(spectatorParticipant2.displayName) ||
+                     'Debater 2';
+        participants.push({
+          id: spectatorParticipant2.participantId || 'participant2',
+          name: name
+        });
+      }
+      
+      // Also try LiveKit room directly if spectator slots not populated
+      if (participants.length < 2 && livekitRoom) {
+        const remoteParticipants = Array.from(livekitRoom.remoteParticipants?.values() || []);
+        for (const p of remoteParticipants) {
+          if (p.metadata?.includes('spectator')) continue;
+          
+          let pName = p.name;
+          if (!isValidDisplayName(pName)) {
+            try {
+              const metadata = JSON.parse(p.metadata || '{}');
+              pName = metadata.displayName || metadata.name;
+            } catch (e) {}
+          }
+          if (!isValidDisplayName(pName)) {
+            pName = isValidDisplayName(p.identity) ? p.identity : 'Debater';
+          }
+          
+          const pId = p.sid || p.identity;
+          
+          if (!participants.find(existing => existing.id === pId || existing.name === pName)) {
+            participants.push({ id: pId, name: pName });
+          }
+          
+          if (participants.length >= 2) break;
+        }
+      }
+    } else {
+      // PARTICIPANTS: Add self and opponent
+      if (localUserId) {
+        participants.push({
+          id: localUserId,
+          name: window.currentUserData?.displayName || userName || 'You'
+        });
+      }
+      
+      if (typeof otherParticipantId !== 'undefined' && otherParticipantId && otherParticipantId !== localUserId) {
+        let oppName = otherParticipantName;
+        if (!isValidDisplayName(oppName)) {
+          oppName = 'Opponent';
+        }
+        participants.push({
+          id: otherParticipantId,
+          name: oppName
+        });
+      }
+    }
+    
+    console.log('🎯 Pot targets updated:', participants);
+    
+    roomTypeState.participants = participants;
+    
+    updateDebateScoreboard();
+    
+    if (!targetsContainer) return;
+    
+    if (participants.length < 2) {
+      targetsContainer.innerHTML = `
+        <div class="col-span-2 text-center text-white text-opacity-70 py-2 text-sm">
+          ⏳ Waiting for debaters to join...
+        </div>
+      `;
+      return;
+    }
+    
+    // Create selection buttons
+    targetsContainer.innerHTML = participants.map((p, idx) => {
+      const tips = roomTypeState.participantTips[p.id] || 0;
+      const isSelected = roomTypeState.selectedPotRecipient === p.id;
+      const color = idx === 0 ? 'from-yellow-400 to-yellow-500' : 'from-blue-400 to-blue-500';
+      
+      return `
+        <button 
+          onclick="selectPotRecipient('${p.id}')"
+          class="p-3 rounded-lg font-bold text-sm transition transform hover:scale-105 ${isSelected ? 'ring-2 ring-white bg-gradient-to-r ' + color + ' text-black' : 'bg-white bg-opacity-20 text-white'}"
+        >
+          ${isSelected ? '✓ ' : ''}${p.name}
+          <div class="text-xs mt-1">💎 ${tips}</div>
+        </button>
+      `;
+    }).join('');
+    
+    // Auto-select first participant if none selected
+    if (!roomTypeState.selectedPotRecipient && participants.length > 0) {
+      roomTypeState.selectedPotRecipient = participants[0].id;
+      updatePotTargets();
+    }
+  }
+  
+  // Select who to tip in the pot
+  function selectPotRecipient(recipientId) {
+    roomTypeState.selectedPotRecipient = recipientId;
+    updatePotTargets();
+    console.log('🎯 Selected pot recipient:', recipientId);
+  }
+  window.selectPotRecipient = selectPotRecipient;
+  
+  // Tip to the pot (spectators only)
+  async function tipToPot(amount) {
+    if (roomTypeState.type !== 'red') {
+      showToast('💡 Pot tips are only for Red Room debates');
+      return;
+    }
+    
+    if (!isSpectator) {
+      showToast('🎤 Participants can\'t tip - you\'re debating!');
+      return;
+    }
+    
+    if (!roomTypeState.selectedPotRecipient) {
+      showToast('❌ Please select who you want to win first');
+      return;
+    }
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    if (!currentUserId) {
+      showToast('❌ Please sign in to tip');
+      showAuthModal && showAuthModal();
+      return;
+    }
+    
+    if (userGemBalance === 0) {
+      await loadUserGemBalanceForTip();
+    }
+    
+    if (amount > userGemBalance) {
+      showToast(`❌ Insufficient gems (you have ${userGemBalance})`);
+      return;
+    }
+    
+    const sphereId = extractSphereId(roomUrl);
+    const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
+    
+    try {
+      const response = await fetch('/.netlify/functions/tip-to-pot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: currentUserId,
+          recipientId: roomTypeState.selectedPotRecipient,
+          amount: amount,
+          roomId: sphereId,
+          senderName: currentUserName
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        updatePotDisplay(data.potTotal);
+        showToast(`💎 Added ${amount} gems to the pot!`);
+        
+        fetchAndDisplayGemBalance();
+        broadcastPotUpdate(amount, data.potTotal);
+        
+        console.log(`🔴 Pot tip: ${amount} gems, total pot: ${data.potTotal}`);
+      } else {
+        throw new Error(data.error || 'Failed to add to pot');
+      }
+    } catch (error) {
+      console.error('❌ Error tipping to pot:', error);
+      showToast(`❌ ${error.message}`);
+    }
+  }
+  window.tipToPot = tipToPot;
+  
+  // Broadcast pot update to all viewers
+  function broadcastPotUpdate(tipAmount, totalPot) {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId || !db) return;
+    
+    try {
+      const recipientId = roomTypeState.selectedPotRecipient;
+      
+      const potRef = db.ref(`rooms/${sphereId}/pot`);
+      potRef.update({
+        amount: totalPot,
+        lastTip: tipAmount,
+        updatedAt: firebase.database.ServerValue.TIMESTAMP
+      }).catch(err => console.warn('Could not broadcast pot update:', err));
+      
+      if (recipientId) {
+        const participantTipsRef = db.ref(`rooms/${sphereId}/participantTips/${recipientId}`);
+        participantTipsRef.transaction((currentTips) => {
+          return (currentTips || 0) + tipAmount;
+        });
+      }
+    } catch (err) {
+      console.warn('Pot broadcast error:', err);
+    }
+  }
+  
+  // Listen for pot updates
+  function listenForPotUpdates() {
+    if (roomTypeState.type !== 'red') return;
+    
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId || !db) return;
+    
+    const potRef = db.ref(`rooms/${sphereId}/pot`);
+    potRef.on('value', (snapshot) => {
+      const pot = snapshot.val();
+      if (pot && pot.amount !== undefined) {
+        updatePotDisplay(pot.amount);
+      }
+    });
+    
+    const participantTipsRef = db.ref(`rooms/${sphereId}/participantTips`);
+    participantTipsRef.on('value', (snapshot) => {
+      const tips = snapshot.val() || {};
+      roomTypeState.participantTips = tips;
+      updateDebateScoreboard();
+    });
+    
+    console.log('🔴 Listening for pot updates');
+  }
+  
+  // Update the debate scoreboard
+  function updateDebateScoreboard() {
+    const participants = roomTypeState.participants;
+    const tips = roomTypeState.participantTips;
+    
+    const debater1 = participants[0];
+    const debater2 = participants[1];
+    
+    const name1El = document.getElementById('debater-1-name');
+    const tips1El = document.getElementById('debater-1-tips');
+    const bar1El = document.getElementById('debater-1-bar');
+    const crown1El = document.getElementById('debater-1-crown');
+    
+    const name2El = document.getElementById('debater-2-name');
+    const tips2El = document.getElementById('debater-2-tips');
+    const bar2El = document.getElementById('debater-2-bar');
+    const crown2El = document.getElementById('debater-2-crown');
+    
+    const tips1 = debater1 ? (tips[debater1.id] || 0) : 0;
+    const tips2 = debater2 ? (tips[debater2.id] || 0) : 0;
+    const totalTips = tips1 + tips2 || 1;
+    
+    if (name1El) name1El.textContent = debater1?.name || 'Waiting...';
+    if (tips1El) tips1El.textContent = `💎 ${tips1.toLocaleString()}`;
+    if (bar1El) bar1El.style.width = `${(tips1 / totalTips) * 100}%`;
+    if (crown1El) crown1El.style.display = tips1 > tips2 && tips1 > 0 ? 'inline' : 'none';
+    
+    if (name2El) name2El.textContent = debater2?.name || 'Waiting...';
+    if (tips2El) tips2El.textContent = `💎 ${tips2.toLocaleString()}`;
+    if (bar2El) bar2El.style.width = `${(tips2 / totalTips) * 100}%`;
+    if (crown2El) crown2El.style.display = tips2 > tips1 && tips2 > 0 ? 'inline' : 'none';
+    
+    if (tips1 > tips2 && tips1 > 0 && bar1El) {
+      bar1El.classList.add('animate-pulse');
+      setTimeout(() => bar1El.classList.remove('animate-pulse'), 2000);
+    }
+    if (tips2 > tips1 && tips2 > 0 && bar2El) {
+      bar2El.classList.add('animate-pulse');
+      setTimeout(() => bar2El.classList.remove('animate-pulse'), 2000);
+    }
+  }
+  
+  // Start voting phase
+  function startVoting() {
+    roomTypeState.votingActive = true;
+    
+    const potPanel = document.getElementById('red-room-pot-panel');
+    const votingPanel = document.getElementById('voting-panel');
+    
+    if (potPanel) potPanel.classList.add('hidden');
+    if (votingPanel) {
+      votingPanel.classList.remove('hidden');
+      populateVoteOptions();
+    }
+    
+    showToast('🗳️ Voting has begun! Who won the debate?');
+    console.log('🗳️ Voting phase started');
+  }
+  window.startVoting = startVoting;
+  
+  // Populate vote options
+  function populateVoteOptions() {
+    const voteContainer = document.getElementById('vote-options');
+    if (!voteContainer) return;
+    
+    voteContainer.innerHTML = roomTypeState.participants.map(p => `
+      <button 
+        onclick="voteForWinner('${p.id}')"
+        class="w-full py-3 px-4 bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-bold rounded-lg transition flex items-center justify-center gap-2"
+      >
+        <span>🏆</span>
+        <span>${p.name}</span>
+      </button>
+    `).join('');
+  }
+  
+  // Vote for winner
+  async function voteForWinner(winnerId) {
+    if (roomTypeState.hasVoted) {
+      showToast('⚠️ You\'ve already voted!');
+      return;
+    }
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    try {
+      const response = await fetch('/.netlify/functions/vote-winner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: sphereId,
+          voterId: currentUserId,
+          votedFor: winnerId,
+          isDraw: false
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        roomTypeState.hasVoted = true;
+        showToast('✅ Vote recorded!');
+        
+        const votingPanel = document.getElementById('voting-panel');
+        if (votingPanel) {
+          votingPanel.innerHTML = `
+            <div class="text-center py-6">
+              <div class="text-4xl mb-2">✅</div>
+              <div class="text-white font-bold">Vote Recorded!</div>
+              <div class="text-purple-200 text-sm mt-2">Waiting for results...</div>
+            </div>
+          `;
+        }
+      } else {
+        throw new Error(data.error || 'Vote failed');
+      }
+    } catch (error) {
+      console.error('❌ Error voting:', error);
+      showToast(`❌ ${error.message}`);
+    }
+  }
+  window.voteForWinner = voteForWinner;
+  
+  // Vote for draw
+  async function voteForDraw() {
+    if (roomTypeState.hasVoted) {
+      showToast('⚠️ You\'ve already voted!');
+      return;
+    }
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    const sphereId = extractSphereId(roomUrl);
+    
+    try {
+      const response = await fetch('/.netlify/functions/vote-winner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: sphereId,
+          voterId: currentUserId,
+          isDraw: true
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        roomTypeState.hasVoted = true;
+        showToast('✅ Voted for draw!');
+      }
+    } catch (error) {
+      console.error('❌ Error voting draw:', error);
+      showToast(`❌ ${error.message}`);
+    }
+  }
+  window.voteForDraw = voteForDraw;
 
   // ============================================
   // BRANDING MODAL FUNCTIONS

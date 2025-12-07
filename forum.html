@@ -99,6 +99,26 @@
     .spinner { width: 48px; height: 48px; border: 5px solid var(--light-rose); border-top-color: var(--main-red); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto var(--space-md); }
     @keyframes spin { to { transform: rotate(360deg); } }
     
+    /* Modal Styles */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; padding: var(--space-lg); }
+    .modal-overlay.active { display: flex; }
+    .modal { background: white; border-radius: var(--radius-xl); max-width: 500px; width: 100%; padding: var(--space-xl); box-shadow: var(--shadow-xl); animation: modalIn 0.2s ease; }
+    @keyframes modalIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .modal h2 { color: var(--charcoal); margin-bottom: var(--space-lg); display: flex; align-items: center; gap: var(--space-sm); }
+    .modal-close { position: absolute; top: var(--space-md); right: var(--space-md); background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--charcoal); opacity: 0.5; }
+    .modal-close:hover { opacity: 1; }
+    .form-group { margin-bottom: var(--space-lg); }
+    .form-label { display: block; font-weight: var(--font-weight-bold); color: var(--charcoal); margin-bottom: var(--space-sm); }
+    .form-input { width: 100%; padding: var(--space-md); border: 3px solid var(--rose); border-radius: var(--radius-lg); font-family: var(--font-family); font-size: 1rem; box-sizing: border-box; }
+    .form-input:focus { border-color: var(--main-red); outline: none; }
+    .form-hint { font-size: 0.85rem; color: var(--charcoal); opacity: 0.6; margin-top: var(--space-xs); }
+    .modal-actions { display: flex; gap: var(--space-md); margin-top: var(--space-xl); }
+    .btn-modal-cancel { flex: 1; padding: var(--space-md); background: white; border: 3px solid var(--rose); border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; }
+    .btn-modal-cancel:hover { border-color: var(--main-red); }
+    .btn-modal-submit { flex: 1; padding: var(--space-md); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; }
+    .btn-modal-submit:hover { background: var(--charcoal); }
+    .btn-modal-submit:disabled { background: #9ca3af; cursor: not-allowed; }
+    
     footer { text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl); max-width: 1000px; margin-left: auto; margin-right: auto; }
     footer a { color: var(--main-red); }
   </style>
@@ -159,6 +179,28 @@
       <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
     </div>
   </nav>
+
+  <!-- Create Room Modal -->
+  <div class="modal-overlay" id="createRoomModal">
+    <div class="modal">
+      <h2>🎬 Start a Room</h2>
+      <form id="createRoomForm" onsubmit="submitCreateRoom(event)">
+        <div class="form-group">
+          <label class="form-label">Room Title *</label>
+          <input type="text" class="form-input" id="roomTitle" placeholder="What are you chatting about?" required maxlength="200">
+          <p class="form-hint">Give your room a catchy title</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description (optional)</label>
+          <input type="text" class="form-input" id="roomDescription" placeholder="Brief description..." maxlength="500">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" onclick="closeCreateRoomModal()">Cancel</button>
+          <button type="submit" class="btn-modal-submit" id="createRoomBtn">🚀 Go Live</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <main class="main-content">
     <div id="pageContent">
@@ -424,7 +466,7 @@
         if (!isOwner) {
           html += `<button class="btn-leave" onclick="leaveForum()">Leave Forum</button>`;
         }
-        html += `<a href="/matchmaking.html?forum=${forum.id}&forumSlug=${forum.slug}" class="btn-start-room">🎬 Start Room</a>`;
+        html += `<button class="btn-start-room" onclick="openCreateRoomModal()">🎬 Start Room</button>`;
       } else {
         html += `<button class="btn-join" onclick="joinForum()">+ Join Forum</button>`;
       }
@@ -570,6 +612,120 @@
     };
 
     window.showModPanel = function() { alert('Moderation panel coming soon!'); };
+
+    // Room creation functions
+    window.openCreateRoomModal = function() {
+      if (!currentUser) {
+        alert('Please sign in to start a room');
+        return;
+      }
+      if (!forumData?.userStatus?.isMember && !forumData?.userStatus?.role) {
+        alert('You must be a member to start a room');
+        return;
+      }
+      document.getElementById('createRoomModal').classList.add('active');
+      document.getElementById('roomTitle').focus();
+    };
+
+    window.closeCreateRoomModal = function() {
+      document.getElementById('createRoomModal').classList.remove('active');
+      document.getElementById('createRoomForm').reset();
+    };
+
+    window.submitCreateRoom = async function(e) {
+      e.preventDefault();
+      
+      const title = document.getElementById('roomTitle').value.trim();
+      const description = document.getElementById('roomDescription').value.trim();
+      const btn = document.getElementById('createRoomBtn');
+      
+      if (!title) {
+        alert('Please enter a room title');
+        return;
+      }
+      
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      
+      try {
+        // Generate a unique room ID
+        const roomId = 'forum-' + forumData.id.substring(0, 8) + '-' + Date.now().toString(36);
+        const userName = currentUser.user_metadata?.name || currentUser.user_metadata?.full_name || currentUser.email?.split('@')[0] || 'Host';
+        
+        // Step 1: Create the room in active_rooms via manage-room
+        const createRes = await fetch('/.netlify/functions/manage-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            roomId: roomId,
+            hostId: currentUser.id,
+            hostName: userName,
+            roomType: 'green', // Green room for forums (2 participants + spectators)
+            topic: title,
+            description: description,
+            isPublic: forumData.forumType !== 'private',
+            durationMinutes: 120 // 2 hour default
+          })
+        });
+        
+        const createData = await createRes.json();
+        console.log('Room create response:', createData);
+        
+        if (!createRes.ok) {
+          throw new Error(createData.error || 'Failed to create room');
+        }
+        
+        // Step 2: Link the room to the forum via forum-room
+        const linkRes = await fetch('/.netlify/functions/forum-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            userId: currentUser.id,
+            forumId: forumData.id,
+            roomId: roomId,
+            roomUrl: createData.inviteLink,
+            title: title,
+            description: description,
+            hostName: userName,
+            roomType: 'live'
+          })
+        });
+        
+        const linkData = await linkRes.json();
+        console.log('Forum room link response:', linkData);
+        
+        if (!linkRes.ok) {
+          console.error('Failed to link room to forum:', linkData);
+          // Don't fail - room is still created, just not linked
+        }
+        
+        closeCreateRoomModal();
+        
+        // Redirect to the room
+        // The room URL goes to the main app with the room ID
+        const roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${createData.inviteCode || ''}&forum=${forumData.slug}`;
+        console.log('Redirecting to room:', roomUrl);
+        window.location.href = roomUrl;
+        
+      } catch (err) {
+        console.error('Error creating room:', err);
+        alert(err.message || 'Failed to create room');
+        btn.disabled = false;
+        btn.textContent = '🚀 Go Live';
+      }
+    };
+
+    // Close modal on overlay click
+    document.getElementById('createRoomModal')?.addEventListener('click', function(e) {
+      if (e.target === this) closeCreateRoomModal();
+    });
+
+    // Close modal on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeCreateRoomModal();
+    });
 
     function updateHeaderForUser(user) {
       document.getElementById('nav-guest-links').style.display = 'none';

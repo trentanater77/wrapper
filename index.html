@@ -1653,7 +1653,7 @@
             </div>
           </div>
           
-          <!-- End Debate Button (Host Only) -->
+          <!-- End Debate Button (Host Only - Red Rooms) -->
           <div id="end-debate-section" class="p-3 bg-black bg-opacity-30 hidden">
             <button 
               id="end-debate-btn"
@@ -1663,6 +1663,18 @@
               🏁 End Debate & Distribute Pot
             </button>
           </div>
+        </div>
+        
+        <!-- End Session Button (Host Only - Green Rooms) -->
+        <div id="end-session-section" class="mt-4 hidden">
+          <button 
+            id="end-session-btn"
+            onclick="confirmEndGreenRoom()"
+            class="w-full py-3 bg-gradient-to-r from-green-700 to-green-800 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-lg text-sm transition transform hover:scale-102 border-2 border-green-400 shadow-lg"
+          >
+            🏁 End Help Session
+          </button>
+          <p class="text-xs text-gray-400 text-center mt-1">This will close the room for all participants</p>
         </div>
         
         <!-- VOTING PANEL (Shown when debate ends) -->
@@ -4939,6 +4951,24 @@
         }
       }
       
+      // Warn Green Room hosts before leaving - the room will end when host leaves
+      if (typeof roomTypeState !== 'undefined' && 
+          roomTypeState.type === 'green' && 
+          !roomTypeState.roomEnded && 
+          !isSpectator) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isHost = urlParams.get('host') === 'true';
+        
+        if (isHost) {
+          // End the green room when host leaves
+          endGreenRoom();
+          // Show warning
+          event.preventDefault();
+          event.returnValue = 'You are the host of this Green Room. Leaving will end the session for everyone.';
+          return event.returnValue;
+        }
+      }
+      
       // CRITICAL: Save pending rating to localStorage before page unloads
       // This ensures the rating modal shows when user returns
       if (otherParticipantId && !isSpectator && window.currentUserData?.userId && !window.currentUserData?.isGuest) {
@@ -6858,6 +6888,12 @@ async function initializeApp() {
       console.log('🏁 Debate ended notification received via LiveKit:', event.data);
       if (typeof handleDebateEnded === 'function') {
         handleDebateEnded(event.data);
+      }
+    } else if (event.data.type === 'room-ended') {
+      // Host ended a green room - show notification to all users
+      console.log('🟢 Room ended notification received via LiveKit:', event.data);
+      if (typeof handleGreenRoomEnded === 'function') {
+        handleGreenRoomEnded(event.data);
       }
     }
   }
@@ -11076,7 +11112,9 @@ function ensureSpectatorTracksForParticipant(participant) {
     selectedPotRecipient: null,
     votingActive: false,
     hasVoted: false,
-    isHost: false
+    isHost: false,
+    debateEnded: false, // For red rooms
+    roomEnded: false    // For green rooms
   };
   
   // Initialize room type from URL or Firebase
@@ -11183,12 +11221,22 @@ function ensureSpectatorTracksForParticipant(participant) {
       // Green room - hide all red room panels
       if (potPanel) potPanel.classList.add('hidden');
       if (spectatorPotPanel) spectatorPotPanel.classList.add('hidden');
+      
+      // Show End Session button if user is the host (for Green Rooms)
+      setTimeout(() => {
+        showEndDebateButtonIfHost();
+      }, 1000);
     }
     
     // Register room with server (only if host or first participant)
     if (isHost || !isSpectator) {
       registerActiveRoom();
     }
+    
+    // Periodically update room counts (every 30 seconds) to keep live page in sync
+    setInterval(() => {
+      updateRoomCounts();
+    }, 30000);
     
     console.log(`🏠 Room type: ${roomType}, isHost: ${isHost}, isSpectator: ${isSpectator}`);
   }
@@ -11914,18 +11962,32 @@ function ensureSpectatorTracksForParticipant(participant) {
   // Show the End Debate button to the host
   function showEndDebateButtonIfHost() {
     const endDebateSection = document.getElementById('end-debate-section');
-    if (!endDebateSection) return;
+    const endSessionSection = document.getElementById('end-session-section');
     
-    // Only show if: Red Room + Host + Participant (not spectator)
-    const isRedRoom = roomTypeState.type === 'red';
     const urlParams = new URLSearchParams(window.location.search);
     const isHost = urlParams.get('host') === 'true';
     
-    if (isRedRoom && isHost && !isSpectator) {
-      endDebateSection.classList.remove('hidden');
-      console.log('🏁 End Debate button shown (you are the host)');
-    } else {
-      endDebateSection.classList.add('hidden');
+    // Red Room - show End Debate button
+    if (roomTypeState.type === 'red' && endDebateSection) {
+      if (isHost && !isSpectator) {
+        endDebateSection.classList.remove('hidden');
+        console.log('🏁 End Debate button shown (you are the host)');
+      }
+    }
+    
+    // Green Room - show End Session button
+    if (roomTypeState.type === 'green' && endSessionSection) {
+      if (isHost && !isSpectator) {
+        endSessionSection.classList.remove('hidden');
+        console.log('🟢 End Session button shown (you are the host)');
+      }
+    }
+  }
+  
+  // Confirm and end green room
+  function confirmEndGreenRoom() {
+    if (confirm('Are you sure you want to end this help session? All participants will be notified.')) {
+      endGreenRoom();
     }
   }
   
@@ -12324,6 +12386,68 @@ function ensureSpectatorTracksForParticipant(participant) {
       console.error('❌ Error auto-ending debate:', error);
       roomTypeState.debateEnded = false; // Allow retry
     }
+  }
+  
+  // End Green Room (when host leaves or manually ends)
+  async function endGreenRoom() {
+    if (roomTypeState.roomEnded) return;
+    
+    roomTypeState.roomEnded = true;
+    
+    const sphereId = extractSphereId(roomUrl);
+    
+    try {
+      console.log('🟢 Ending Green Room...');
+      
+      // Update room status in database
+      const response = await fetch('/.netlify/functions/manage-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'end',
+          roomId: sphereId
+        })
+      });
+      
+      const data = await response.json();
+      console.log('🟢 Green room ended:', data);
+      
+      // Broadcast to all participants that room is ending
+      if (livekitRoom) {
+        const endMessage = {
+          type: 'room-ended',
+          roomType: 'green',
+          message: 'The host has ended this help session.'
+        };
+        try {
+          await livekitRoom.localParticipant?.publishData(
+            new TextEncoder().encode(JSON.stringify(endMessage)),
+            { reliable: true }
+          );
+        } catch (e) {
+          console.warn('⚠️ Could not broadcast room end message:', e);
+        }
+      }
+      
+      showToast('🟢 Help session ended. Thank you for hosting!');
+      
+    } catch (error) {
+      console.error('❌ Error ending green room:', error);
+      roomTypeState.roomEnded = false; // Allow retry
+    }
+  }
+  
+  // Handle room ended message for Green Rooms
+  function handleGreenRoomEnded(data) {
+    console.log('🟢 Green Room ended:', data);
+    showToast(data.message || '🟢 This help session has ended.');
+    
+    // Optionally redirect after a delay
+    setTimeout(() => {
+      if (confirm('The help session has ended. Return to live rooms?')) {
+        window.location.href = '/live.html';
+      }
+    }, 2000);
   }
   
   // Start voting phase

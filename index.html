@@ -4324,6 +4324,15 @@
                   const remoteUserId = getParticipantUserId(participantData);
                   if (remoteUserId) {
                     updateOtherParticipant(remoteUserId, participant.identity);
+                    
+                    // Update pot targets for Red Room
+                    if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
+                      updatePotTargets();
+                      // Reload pot state from Supabase to ensure fresh data
+                      if (typeof loadPotStateFromSupabase === 'function') {
+                        loadPotStateFromSupabase();
+                      }
+                    }
                   }
                   break;
                 }
@@ -12500,6 +12509,43 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     if (participant) {
       console.log('🎭 Processing remote participant for participant view:', participantId, participant.user_name);
+      
+      // CRITICAL: Track this as the other participant for Red Room scoreboard
+      // Try to get userId from the participant data or LiveKit
+      let remoteUserId = null;
+      let remoteDisplayName = participant.user_name || 'Guest';
+      
+      // Method 1: Try getParticipantUserId directly
+      remoteUserId = getParticipantUserId(participant);
+      
+      // Method 2: Try from LiveKit participant metadata
+      if (!remoteUserId && livekitRoom) {
+        const lkParticipant = livekitRoom.remoteParticipants.get(participantId) ||
+                             Array.from(livekitRoom.remoteParticipants.values()).find(p => p.sid === participantId);
+        if (lkParticipant) {
+          const metadata = parseLiveKitMetadata(lkParticipant.metadata);
+          remoteUserId = metadata?.userId || metadata?.user_id;
+          if (metadata?.displayName) {
+            remoteDisplayName = metadata.displayName;
+          }
+        }
+      }
+      
+      if (remoteUserId) {
+        console.log('👤 Found existing participant userId:', remoteUserId, 'name:', remoteDisplayName);
+        updateOtherParticipant(remoteUserId, remoteDisplayName);
+        
+        // Update pot targets for Red Room
+        if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
+          updatePotTargets();
+          // Reload pot state from Supabase to ensure fresh data
+          if (typeof loadPotStateFromSupabase === 'function') {
+            loadPotStateFromSupabase();
+          }
+        }
+      } else {
+        console.log('⚠️ Could not extract userId for existing participant');
+      }
       
       // Try to get video track from multiple sources
       let videoTrack = null;

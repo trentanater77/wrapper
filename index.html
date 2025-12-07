@@ -4298,6 +4298,14 @@
           for (const [sid, participant] of livekitRoom.remoteParticipants) {
             console.log(`👤 Processing existing participant: ${participant.identity} (${sid.substring(0, 12)})`);
             
+            // CRITICAL: Skip spectators - we only want actual debate participants for 1:1 view
+            const participantData = normalizeLiveKitParticipant(participant, { local: false });
+            const participantRole = getParticipantRole(participantData);
+            if (participantRole === 'spectator') {
+              console.log(`⏭️ Skipping spectator: ${participant.identity}`);
+              continue;
+            }
+            
             // Check for video tracks
             for (const pub of participant.videoTrackPublications.values()) {
               // Skip screen share tracks
@@ -12503,9 +12511,22 @@ function ensureSpectatorTracksForParticipant(participant) {
       hideWaitingOverlay();
     }
     
+    // CRITICAL: Filter out spectators - we only want actual debate participants
+    const actualParticipants = remoteParticipants.filter(([id, p]) => {
+      const role = getParticipantRole(p);
+      if (role === 'spectator') {
+        console.log('⏭️ Skipping spectator:', p.user_name);
+        return false;
+      }
+      return true;
+    });
+    
+    console.log('🎯 Actual participants (non-spectators):', actualParticipants.length,
+      actualParticipants.map(([id, p]) => `${p.user_name}(${id.substring(0,8)})`));
+    
     // Only set up ONE remote participant for participant view (1:1 call)
-    // Take the first actual remote participant
-    const [participantId, participant] = remoteParticipants[0] || [];
+    // Take the first actual remote participant (not spectator)
+    const [participantId, participant] = actualParticipants[0] || [];
     
     if (participant) {
       console.log('🎭 Processing remote participant for participant view:', participantId, participant.user_name);

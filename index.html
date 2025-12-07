@@ -5038,32 +5038,50 @@ async function initializeApp() {
     const urlParam = decodeURIComponent(roomUrl);
     console.log("🔍 Looking for room URL:", urlParam);
 
-    // First check if this is a matchmaking room with topic in URL params
+    // First check URL params for topic (works for matchmaking AND red/green rooms)
     const urlParams = new URLSearchParams(window.location.search);
     const isMatchedRoom = urlParams.get('matched') === 'true';
     const topicFromUrl = urlParams.get('topic');
     const matchedTopicFromUrl = urlParams.get('matchedTopic');
     const similarityFromUrl = urlParams.get('similarity');
+    const roomTypeFromUrl = urlParams.get('roomType');
+    const isHostFromUrl = urlParams.get('host') === 'true';
 
-    if (isMatchedRoom && topicFromUrl) {
-      // This is from matchmaking - use the topic from URL
+    // If topic is in URL, use it (works for Red/Green rooms and matchmaking)
+    if (topicFromUrl) {
       const topic = decodeURIComponent(topicFromUrl);
-      const matchedTopic = matchedTopicFromUrl ? decodeURIComponent(matchedTopicFromUrl) : null;
-      const similarity = similarityFromUrl ? `${similarityFromUrl}% Match` : '';
+      let description;
       
-      let description = `You're matched to discuss: "${topic}"`;
-      if (matchedTopic && matchedTopic !== topic) {
-        description = `Your topic: "${topic}" matched with "${matchedTopic}" ${similarity ? `(${similarity})` : ''}`;
+      if (isMatchedRoom) {
+        // Matchmaking room
+        const matchedTopic = matchedTopicFromUrl ? decodeURIComponent(matchedTopicFromUrl) : null;
+        const similarity = similarityFromUrl ? `${similarityFromUrl}% Match` : '';
+        description = `You're matched to discuss: "${topic}"`;
+        if (matchedTopic && matchedTopic !== topic) {
+          description = `Your topic: "${topic}" matched with "${matchedTopic}" ${similarity ? `(${similarity})` : ''}`;
+        }
+        console.log("✅ Found matchmaking topic:", topic);
+        console.log("✅ Matched topic:", matchedTopic);
+        console.log("🎯 Similarity:", similarity);
+      } else if (roomTypeFromUrl === 'red') {
+        // Red Room debate
+        description = `🔴 Red Room Debate: "${topic}"`;
+        console.log("✅ Found Red Room topic:", topic);
+      } else if (roomTypeFromUrl === 'green') {
+        // Green Room help session
+        description = `🟢 Green Room Help: "${topic}"`;
+        console.log("✅ Found Green Room topic:", topic);
+      } else {
+        // Generic room with topic
+        description = `Discussing: "${topic}"`;
+        console.log("✅ Found topic from URL:", topic);
       }
-      
-      console.log("✅ Found matchmaking topic:", topic);
-      console.log("✅ Matched topic:", matchedTopic);
-      console.log("🎯 Similarity:", similarity);
       
       updateTopicDisplay(topic, description);
       return;
     }
 
+    // No topic in URL, try to load from API
     try {
       const apiUrl = `https://x8ki-letl-twmt.n7.xano.io/api:6PAcsVDu/get-room-info?room_identifier=${encodeURIComponent(urlParam)}`;
       console.log("🌐 API URL:", apiUrl);

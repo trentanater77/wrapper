@@ -7706,6 +7706,10 @@ async function initializeApp() {
       if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
         setTimeout(() => {
           updatePotTargets();
+          // Reload pot state from Supabase to get accurate tip amounts
+          if (typeof loadPotStateFromSupabase === 'function') {
+            loadPotStateFromSupabase();
+          }
         }, 500);
       }
       
@@ -11305,7 +11309,8 @@ function ensureSpectatorTracksForParticipant(participant) {
       }
       
       container.innerHTML = participants.map((p, idx) => {
-        const tips = roomTypeState.participantTips[p.id] || 0;
+        // Look up tips by userId (stable UUID) first, then fall back to id (SID)
+        const tips = roomTypeState.participantTips[p.userId] || roomTypeState.participantTips[p.id] || 0;
         const isSelected = roomTypeState.selectedPotRecipient === p.id;
         const color = idx === 0 ? 'from-yellow-400 to-yellow-500' : 'from-blue-400 to-blue-500';
         
@@ -11315,7 +11320,7 @@ function ensureSpectatorTracksForParticipant(participant) {
             class="p-3 rounded-lg font-bold text-sm transition transform hover:scale-105 ${isSelected ? 'ring-2 ring-white bg-gradient-to-r ' + color + ' text-black' : 'bg-white bg-opacity-20 text-white'}"
           >
             ${isSelected ? '✓ ' : ''}${p.name}
-            <div class="text-xs mt-1">💎 ${tips}</div>
+            <div class="text-xs mt-1">💎 ${tips.toLocaleString()}</div>
           </button>
         `;
       }).join('');
@@ -11330,6 +11335,38 @@ function ensureSpectatorTracksForParticipant(participant) {
       roomTypeState.selectedPotRecipient = participants[0].id;
       updatePotTargets();
     }
+  }
+  
+  // Re-render just the tip target buttons (without rebuilding participants array)
+  // Called after loading tips from Supabase to update displayed amounts
+  function rerenderPotTargetButtons() {
+    const participants = roomTypeState.participants || [];
+    if (participants.length < 2) return;
+    
+    function renderToContainer(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      
+      container.innerHTML = participants.map((p, idx) => {
+        // Look up tips by userId (stable UUID) first, then fall back to id (SID)
+        const tips = roomTypeState.participantTips[p.userId] || roomTypeState.participantTips[p.id] || 0;
+        const isSelected = roomTypeState.selectedPotRecipient === p.id;
+        const color = idx === 0 ? 'from-yellow-400 to-yellow-500' : 'from-blue-400 to-blue-500';
+        
+        return `
+          <button 
+            onclick="selectPotRecipient('${p.id}')"
+            class="p-3 rounded-lg font-bold text-sm transition transform hover:scale-105 ${isSelected ? 'ring-2 ring-white bg-gradient-to-r ' + color + ' text-black' : 'bg-white bg-opacity-20 text-white'}"
+          >
+            ${isSelected ? '✓ ' : ''}${p.name}
+            <div class="text-xs mt-1">💎 ${tips.toLocaleString()}</div>
+          </button>
+        `;
+      }).join('');
+    }
+    
+    renderToContainer('pot-tip-targets');
+    renderToContainer('spectator-pot-tip-targets');
   }
   
   // Select who to tip in the pot
@@ -11554,6 +11591,16 @@ function ensureSpectatorTracksForParticipant(participant) {
         
         updatePotDisplay(totalPot);
         updateDebateScoreboard();
+        
+        // Re-render the tip target buttons with updated tip amounts
+        rerenderPotTargetButtons();
+      } else {
+        // No transactions found, but still update displays to show 0
+        roomTypeState.participantTips = roomTypeState.participantTips || {};
+        roomTypeState.potTotal = roomTypeState.potTotal || 0;
+        updatePotDisplay(roomTypeState.potTotal);
+        updateDebateScoreboard();
+        rerenderPotTargetButtons();
       }
     } catch (err) {
       console.warn('⚠️ Error loading pot state:', err);

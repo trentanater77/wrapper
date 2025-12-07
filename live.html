@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatSpheres - Live Rooms</title>
+  <meta name="description" content="Watch live debates and help sessions. Join active conversations on ChatSpheres.">
+  
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Load config from Netlify function -->
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    /* Page-specific styles */
+    .live-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .live-title {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .live-subtitle {
+      font-size: 1.1rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-lg);
+    }
+    
+    /* Room Type Tabs */
+    .room-tabs {
+      display: flex;
+      justify-content: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .room-tab {
+      padding: var(--space-sm) var(--space-lg);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      background: var(--light-rose);
+      color: var(--charcoal);
+    }
+    
+    .room-tab:hover {
+      background: var(--gold);
+    }
+    
+    .room-tab.active {
+      background: var(--main-red);
+      color: white;
+      border-color: var(--main-red);
+    }
+    
+    .room-tab.active.green {
+      background: #10b981;
+      border-color: #10b981;
+    }
+    
+    /* Room Grid */
+    .rooms-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: var(--space-lg);
+    }
+    
+    /* Room Card */
+    .room-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      transition: all var(--transition-fast);
+      border: 3px solid var(--rose);
+    }
+    
+    .room-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .room-card.red {
+      border-color: var(--main-red);
+    }
+    
+    .room-card.green {
+      border-color: #10b981;
+    }
+    
+    .room-card-header {
+      padding: var(--space-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .room-card.red .room-card-header {
+      background: linear-gradient(135deg, var(--main-red) 0%, #c92a35 100%);
+    }
+    
+    .room-card.green .room-card-header {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    .room-type-badge {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      background: rgba(255,255,255,0.2);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-bold);
+      color: white;
+    }
+    
+    .live-badge {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(255,255,255,0.25);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-full);
+      font-size: 0.7rem;
+      font-weight: var(--font-weight-bold);
+      color: white;
+    }
+    
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      background: white;
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .room-card-body {
+      padding: var(--space-lg);
+    }
+    
+    .room-topic {
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      line-height: 1.3;
+    }
+    
+    .room-host {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+    
+    .room-host-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--rose);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+    }
+    
+    .room-host-name {
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      font-size: 0.9rem;
+    }
+    
+    .room-stats {
+      display: flex;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+    }
+    
+    .room-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .room-pot {
+      background: var(--gold);
+      color: var(--charcoal);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-lg);
+      font-weight: var(--font-weight-bold);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .room-actions {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .room-btn {
+      flex: 1;
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      font-size: 0.9rem;
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .room-btn-primary {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .room-btn-primary:hover {
+      background: #c92a35;
+      transform: scale(1.02);
+    }
+    
+    .room-btn-secondary {
+      background: var(--light-rose);
+      color: var(--charcoal);
+    }
+    
+    .room-btn-secondary:hover {
+      background: var(--rose);
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: var(--space-2xl);
+      color: var(--charcoal);
+    }
+    
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: var(--space-md);
+    }
+    
+    .empty-state-title {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .empty-state-text {
+      opacity: 0.7;
+      margin-bottom: var(--space-lg);
+    }
+    
+    /* Loading State */
+    .loading {
+      text-align: center;
+      padding: var(--space-2xl);
+    }
+    
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--rose);
+      border-top-color: var(--main-red);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto var(--space-md);
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Create Room CTA */
+    .create-room-cta {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--main-red) 100%);
+      padding: var(--space-xl);
+      border-radius: var(--radius-xl);
+      text-align: center;
+      margin-top: var(--space-2xl);
+    }
+    
+    .create-room-cta h3 {
+      color: white;
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-extrabold);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .create-room-cta p {
+      color: rgba(255,255,255,0.9);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .create-room-btn {
+      display: inline-block;
+      background: white;
+      color: var(--main-red);
+      padding: var(--space-md) var(--space-xl);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      text-decoration: none;
+      transition: all var(--transition-fast);
+    }
+    
+    .create-room-btn:hover {
+      transform: scale(1.05);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .live-title {
+        font-size: 1.75rem;
+      }
+      
+      .rooms-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .room-tabs {
+        flex-wrap: wrap;
+      }
+    }
+    
+    /* ==========================================
+       MODAL STYLES (replacing Tailwind classes)
+       ========================================== */
+    
+    /* Hidden utility */
+    .hidden {
+      display: none !important;
+    }
+    
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-md);
+      background: rgba(34, 34, 59, 0.95);
+      backdrop-filter: blur(8px);
+    }
+    
+    /* Modal container */
+    .modal-container {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+      max-width: 420px;
+      width: 100%;
+      box-shadow: var(--shadow-xl);
+      border: 4px solid var(--gold);
+      position: relative;
+      animation: modalScaleIn 0.3s ease-out;
+    }
+    
+    @keyframes modalScaleIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    
+    /* Modal close button */
+    .modal-close {
+      position: absolute;
+      top: var(--space-md);
+      right: var(--space-md);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--charcoal);
+      padding: var(--space-xs);
+      border-radius: var(--radius-md);
+      transition: all var(--transition-fast);
+    }
+    
+    .modal-close:hover {
+      color: var(--main-red);
+      background: var(--rose);
+    }
+    
+    /* Modal header */
+    .modal-header {
+      text-align: center;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .modal-icon {
+      width: 64px;
+      height: 64px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto var(--space-md);
+      font-size: 2rem;
+    }
+    
+    .modal-title {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .modal-subtitle {
+      font-size: 0.875rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    /* Room type selector */
+    .room-type-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+    
+    .room-type-btn {
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      border: 2px solid var(--rose);
+      background: white;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .room-type-btn:hover {
+      box-shadow: var(--shadow-md);
+    }
+    
+    .room-type-btn.selected {
+      border-width: 3px;
+    }
+    
+    .room-type-btn.selected.red {
+      border-color: var(--main-red);
+    }
+    
+    .room-type-btn.selected.green {
+      border-color: #10b981;
+    }
+    
+    .room-type-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .room-type-icon {
+      font-size: 1.5rem;
+      margin-bottom: var(--space-xs);
+    }
+    
+    .room-type-name {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      font-size: 0.9rem;
+    }
+    
+    .room-type-desc {
+      font-size: 0.75rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    /* Form inputs */
+    .form-group {
+      margin-bottom: var(--space-md);
+    }
+    
+    .form-label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: var(--space-sm) var(--space-md);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      transition: border-color var(--transition-fast);
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--main-red);
+    }
+    
+    .form-textarea {
+      resize: none;
+    }
+    
+    /* Toggle switch */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-sm) var(--space-md);
+      background: var(--rose);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-md);
+    }
+    
+    .toggle-label {
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+    }
+    
+    .toggle-desc {
+      font-size: 0.75rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .toggle-switch {
+      width: 44px;
+      height: 24px;
+      background: #ccc;
+      border-radius: 24px;
+      position: relative;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    
+    .toggle-switch.active {
+      background: var(--main-red);
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform var(--transition-fast);
+    }
+    
+    .toggle-switch.active::after {
+      transform: translateX(20px);
+    }
+    
+    /* Plan warning boxes */
+    .plan-warning {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-md);
+    }
+    
+    .plan-warning.gold {
+      background: var(--gold);
+      border: 2px solid var(--charcoal);
+    }
+    
+    .plan-warning.red {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .plan-warning-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .plan-warning-title {
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .plan-warning ul {
+      font-size: 0.75rem;
+      padding-left: 0;
+      list-style: none;
+      margin: 0;
+    }
+    
+    .plan-warning li {
+      margin-bottom: 2px;
+    }
+    
+    .plan-warning a {
+      display: inline-block;
+      margin-top: var(--space-xs);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-bold);
+      text-decoration: underline;
+    }
+    
+    .plan-warning.gold a {
+      color: var(--main-red);
+    }
+    
+    .plan-warning.red a {
+      color: var(--gold);
+    }
+    
+    /* Modal buttons */
+    .modal-btn {
+      width: 100%;
+      padding: var(--space-md);
+      border: none;
+      border-radius: var(--radius-full);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .modal-btn-primary {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .modal-btn-primary:hover:not(:disabled) {
+      background: #c92a35;
+      transform: scale(1.02);
+    }
+    
+    .modal-btn-primary:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* Sign in prompt */
+    .signin-prompt {
+      text-align: center;
+      padding: var(--space-md);
+      background: var(--rose);
+      border-radius: var(--radius-lg);
+      margin-top: var(--space-md);
+    }
+    
+    .signin-prompt p {
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .signin-prompt a {
+      color: var(--main-red);
+      font-weight: var(--font-weight-bold);
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <ul class="nav-links">
+      <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/live.html" class="nav-link active"><span class="nav-link-icon">🔴</span> Live Rooms</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+    </ul>
+    
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <a href="https://www.chatspheres.com/sign-up/" class="btn btn-primary btn-full" style="text-decoration: none; margin-bottom: var(--space-sm);">Sign Up</a>
+      <a href="/matchmaking.html" class="btn btn-ghost btn-full" style="text-decoration: none;">Sign In</a>
+    </div>
+    
+    <!-- User Section (shown when logged in) -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
+  <!-- Main Content -->
+  <div class="page-wrapper">
+    <main class="main-content">
+      <!-- Hero -->
+      <section class="live-hero">
+        <h1 class="live-title">🔴 Live Rooms</h1>
+        <p class="live-subtitle">Watch debates and join conversations happening right now</p>
+        
+        <!-- Room Type Tabs -->
+        <div class="room-tabs">
+          <button class="room-tab active" data-type="all" onclick="filterRooms('all')">
+            All Rooms
+          </button>
+          <button class="room-tab" data-type="red" onclick="filterRooms('red')">
+            🔴 Red Rooms (Debates)
+          </button>
+          <button class="room-tab green" data-type="green" onclick="filterRooms('green')">
+            🟢 Green Rooms (Help)
+          </button>
+        </div>
+      </section>
+      
+      <!-- Loading State -->
+      <div id="loading-state" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading live rooms...</p>
+      </div>
+      
+      <!-- Empty State -->
+      <div id="empty-state" class="empty-state hidden">
+        <div class="empty-state-icon">🔇</div>
+        <h2 class="empty-state-title">No Live Rooms Right Now</h2>
+        <p class="empty-state-text">Be the first to start a conversation!</p>
+        <button onclick="window.openCreateRoomModal()" class="btn btn-primary">🎯 Create a Room</button>
+      </div>
+      
+      <!-- Rooms Grid -->
+      <div id="rooms-grid" class="rooms-grid hidden">
+        <!-- Room cards will be populated here -->
+      </div>
+      
+      <!-- Create Room CTA -->
+      <div class="create-room-cta">
+        <h3>Ready to Host?</h3>
+        <p>Start your own debate or help session and earn gems from tips!</p>
+        <button onclick="window.openCreateRoomModal()" class="create-room-btn">🚀 Create a Room</button>
+      </div>
+      
+      <!-- Footer -->
+      <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl);">
+        <p>
+          <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
+          <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
+          <a href="/community-guidelines.html" style="color: var(--main-red);">Guidelines</a> · 
+          <a href="/contact.html" style="color: var(--main-red);">Contact</a>
+        </p>
+        <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+      </footer>
+    </main>
+  </div>
+  
+  <!-- Create Room Modal -->
+  <div id="create-room-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;align-items:center;justify-content:center;background:rgba(34,34,59,0.95);padding:16px;">
+    <div style="background:#FCE2E5;border-radius:24px;padding:24px;max-width:420px;width:100%;border:4px solid #FFD166;box-shadow:0 8px 32px rgba(34,34,59,0.2);position:relative;max-height:90vh;overflow-y:auto;">
+      <!-- Close button -->
+      <button onclick="window.closeCreateRoomModal()" class="modal-close">
+        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+      
+      <!-- Header -->
+      <div class="modal-header">
+        <div class="modal-icon">🎙️</div>
+        <h2 class="modal-title">Create Your Room</h2>
+        <p class="modal-subtitle">Host a debate or help session</p>
+      </div>
+      
+      <!-- Room Type Selection -->
+      <div class="form-group">
+        <label class="form-label">Room Type</label>
+        <div class="room-type-selector">
+          <button id="type-red" onclick="window.selectRoomType('red')" class="room-type-btn selected red">
+            <div class="room-type-icon">🔴</div>
+            <div class="room-type-name">Red Room</div>
+            <div class="room-type-desc">Debate • Winner takes pot</div>
+          </button>
+          <button id="type-green" onclick="window.selectRoomType('green')" class="room-type-btn">
+            <div class="room-type-icon">🟢</div>
+            <div class="room-type-name">Green Room</div>
+            <div class="room-type-desc">Help • Tips for advice</div>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Topic Input -->
+      <div class="form-group">
+        <label class="form-label">Topic</label>
+        <input 
+          type="text" 
+          id="create-room-topic" 
+          placeholder="What do you want to discuss?"
+          maxlength="100"
+          class="form-input"
+        >
+      </div>
+      
+      <!-- Description (optional) -->
+      <div class="form-group">
+        <label class="form-label">Description (optional)</label>
+        <textarea 
+          id="create-room-description" 
+          placeholder="Add more details about your room..."
+          maxlength="200"
+          rows="2"
+          class="form-input form-textarea"
+        ></textarea>
+      </div>
+      
+      <!-- Public/Private Toggle -->
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Public Room</div>
+          <div class="toggle-desc">Visible on Live Rooms page</div>
+        </div>
+        <div id="public-toggle" class="toggle-switch active" onclick="window.togglePublic()"></div>
+        <input type="hidden" id="create-room-public" value="true">
+      </div>
+      
+      <!-- Plan Warning for Free Users -->
+      <div id="create-room-plan-warning" class="plan-warning gold" style="display:none;">
+        <div class="plan-warning-header">
+          <span>⏱️</span>
+          <span class="plan-warning-title">Free Plan Limits</span>
+        </div>
+        <ul>
+          <li>• Room duration: <strong>60 minutes max</strong></li>
+          <li>• Red Rooms only (Green Rooms require Pro)</li>
+        </ul>
+        <a href="/pricing.html">Upgrade to Host Pro for 3 hours →</a>
+      </div>
+      
+      <!-- Green Room Pro Warning -->
+      <div id="green-room-pro-warning" class="plan-warning red" style="display:none;">
+        <div class="plan-warning-header">
+          <span>🔒</span>
+          <span class="plan-warning-title">Green Rooms require Host Pro</span>
+        </div>
+        <p style="font-size: 0.75rem; margin-top: 4px; opacity: 0.9;">Upgrade to create paid advice rooms.</p>
+        <a href="/pricing.html">Upgrade Now →</a>
+      </div>
+      
+      <!-- Create Button -->
+      <button id="create-room-btn" onclick="window.createRoom()" class="modal-btn modal-btn-primary" style="width:100%;padding:16px;background:#e63946;color:white;border:none;border-radius:999px;font-weight:bold;font-size:1rem;cursor:pointer;">
+        🚀 Create Room
+      </button>
+      
+      <!-- Sign in prompt (shown if not logged in) -->
+      <div id="create-room-signin" class="signin-prompt" style="display:none;">
+        <p>Sign in to create a room</p>
+        <a href="/matchmaking.html">Sign In</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
+  
+  <!-- Live Rooms Script -->
+  <script>
+    // ============================================
+    // GLOBAL STATE
+    // ============================================
+    let allRooms = [];
+    let currentFilter = 'all';
+    let selectedRoomType = 'red';
+    let currentUserId = null;
+    let currentUserName = null;
+    let userPlan = 'free';
+    
+    // ============================================
+    // CREATE ROOM MODAL - DEFINED FIRST FOR onclick
+    // ============================================
+    
+    window.openCreateRoomModal = function() {
+      console.log('🔓 Opening create room modal...');
+      const modal = document.getElementById('create-room-modal');
+      if (!modal) {
+        console.error('❌ Create room modal not found!');
+        alert('Error: Modal not found. Please refresh the page.');
+        return;
+      }
+      
+      // Use direct style manipulation instead of class toggle
+      modal.style.display = 'flex';
+      console.log('✅ Modal opened, display:', modal.style.display);
+      
+      // Check if user is logged in
+      const createBtn = document.getElementById('create-room-btn');
+      const signinPrompt = document.getElementById('create-room-signin');
+      const planWarning = document.getElementById('create-room-plan-warning');
+      
+      if (!currentUserId) {
+        if (createBtn) createBtn.style.display = 'none';
+        if (signinPrompt) signinPrompt.style.display = 'block';
+        if (planWarning) planWarning.style.display = 'none';
+      } else {
+        if (createBtn) createBtn.style.display = 'block';
+        if (signinPrompt) signinPrompt.style.display = 'none';
+        
+        // Show plan warning for free users
+        if (planWarning) {
+          planWarning.style.display = (userPlan === 'free') ? 'block' : 'none';
+        }
+      }
+    };
+    
+    window.closeCreateRoomModal = function() {
+      const modal = document.getElementById('create-room-modal');
+      if (modal) modal.style.display = 'none';
+    };
+    
+    // Toggle public/private switch
+    let isPublic = true;
+    window.togglePublic = function() {
+      isPublic = !isPublic;
+      const toggle = document.getElementById('public-toggle');
+      const input = document.getElementById('create-room-public');
+      if (toggle) {
+        if (isPublic) {
+          toggle.classList.add('active');
+        } else {
+          toggle.classList.remove('active');
+        }
+      }
+      if (input) {
+        input.value = isPublic ? 'true' : 'false';
+      }
+    };
+    
+    window.selectRoomType = function(type) {
+      selectedRoomType = type;
+      
+      const redBtn = document.getElementById('type-red');
+      const greenBtn = document.getElementById('type-green');
+      const greenProWarning = document.getElementById('green-room-pro-warning');
+      const createBtn = document.getElementById('create-room-btn');
+      
+      if (type === 'red') {
+        // Update button styles
+        if (redBtn) {
+          redBtn.classList.add('selected', 'red');
+          redBtn.style.borderColor = '#e63946';
+          redBtn.style.borderWidth = '3px';
+        }
+        if (greenBtn) {
+          greenBtn.classList.remove('selected', 'green');
+          greenBtn.style.borderColor = '#FFB6B9';
+          greenBtn.style.borderWidth = '2px';
+        }
+        // Hide green room warning
+        if (greenProWarning) greenProWarning.style.display = 'none';
+        if (createBtn && currentUserId) {
+          createBtn.disabled = false;
+          createBtn.style.opacity = '1';
+        }
+      } else {
+        // Green room selected
+        if (greenBtn) {
+          greenBtn.classList.add('selected', 'green');
+          greenBtn.style.borderColor = '#10b981';
+          greenBtn.style.borderWidth = '3px';
+        }
+        if (redBtn) {
+          redBtn.classList.remove('selected', 'red');
+          redBtn.style.borderColor = '#FFB6B9';
+          redBtn.style.borderWidth = '2px';
+        }
+        
+        // Check if user has pro plan for green rooms
+        if (userPlan === 'free' && currentUserId) {
+          if (greenProWarning) greenProWarning.style.display = 'block';
+          if (createBtn) {
+            createBtn.disabled = true;
+            createBtn.style.opacity = '0.5';
+          }
+        } else {
+          if (greenProWarning) greenProWarning.style.display = 'none';
+          if (createBtn && currentUserId) {
+            createBtn.disabled = false;
+            createBtn.style.opacity = '1';
+          }
+        }
+      }
+    };
+    
+    // Load rooms on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('📦 DOM loaded, initializing live rooms...');
+      loadRooms();
+      // Refresh every 30 seconds
+      setInterval(loadRooms, 30000);
+      
+      // Check auth state for create room
+      checkAuthForCreateRoom();
+    });
+    
+    // Plan limits configuration (matches pricing.html)
+    const PLAN_LIMITS = {
+      free: { durationMinutes: 60, greenRoomEnabled: false },
+      host_pro: { durationMinutes: 180, greenRoomEnabled: true },
+      ad_free_premium: { durationMinutes: 60, greenRoomEnabled: false },
+      ad_free_plus: { durationMinutes: 60, greenRoomEnabled: false },
+      pro_bundle: { durationMinutes: 180, greenRoomEnabled: true }
+    };
+    
+    window.createRoom = async function() {
+      const topic = document.getElementById('create-room-topic').value.trim();
+      const description = document.getElementById('create-room-description').value.trim();
+      // Use the global isPublic variable set by togglePublic()
+      
+      if (!topic) {
+        alert('Please enter a topic for your room');
+        return;
+      }
+      
+      if (!currentUserId) {
+        alert('Please sign in to create a room');
+        return;
+      }
+      
+      // Plan-based validation
+      const planLimits = PLAN_LIMITS[userPlan] || PLAN_LIMITS.free;
+      
+      // Check if Green Room is allowed
+      if (selectedRoomType === 'green' && !planLimits.greenRoomEnabled) {
+        alert('Green Rooms require Host Pro subscription. Please upgrade to create paid advice rooms.');
+        return;
+      }
+      
+      const createBtn = document.getElementById('create-room-btn');
+      createBtn.textContent = 'Creating...';
+      createBtn.disabled = true;
+      
+      try {
+        // Generate a unique room ID
+        const roomId = 'room-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 6);
+        
+        // Create the room via API
+        const response = await fetch('/.netlify/functions/manage-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            roomId: roomId,
+            hostId: currentUserId,
+            hostName: currentUserName || 'Host',
+            roomType: selectedRoomType,
+            topic: topic,
+            description: description,
+            isPublic: isPublic,
+            durationMinutes: planLimits.durationMinutes,
+            userPlan: userPlan
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Redirect to the room as host with plan info
+          const roomUrl = `/index.html?room=${roomId}&mode=participant&roomType=${selectedRoomType}&topic=${encodeURIComponent(topic)}&host=true&duration=${planLimits.durationMinutes}`;
+          window.location.href = roomUrl;
+        } else {
+          throw new Error(data.error || 'Failed to create room');
+        }
+      } catch (error) {
+        console.error('Error creating room:', error);
+        alert('Failed to create room: ' + error.message);
+        createBtn.textContent = '🚀 Create Room';
+        createBtn.disabled = false;
+      }
+    };
+    
+    // Check auth state for create room functionality
+    async function checkAuthForCreateRoom() {
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      
+      if (!window.supabase || !supabaseConfig.url || !supabaseConfig.anonKey) {
+        console.warn('⚠️ Supabase not configured for auth check');
+        return;
+      }
+      
+      try {
+        const client = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
+        const { data: { session } } = await client.auth.getSession();
+        
+        if (session?.user) {
+          currentUserId = session.user.id;
+          currentUserName = session.user.user_metadata?.name || 
+                           session.user.user_metadata?.full_name || 
+                           session.user.email?.split('@')[0] || 'Host';
+          console.log('✅ User authenticated for room creation:', currentUserName);
+          
+          // Fetch user's subscription plan via Netlify function (same as ads.js)
+          try {
+            const response = await fetch(`/.netlify/functions/get-subscription?userId=${session.user.id}`);
+            const data = await response.json();
+            
+            if (data.plan) {
+              userPlan = data.plan;
+              console.log('✅ User plan:', userPlan);
+            } else {
+              userPlan = 'free';
+              console.log('ℹ️ No active subscription, using free plan');
+            }
+          } catch (subError) {
+            // No subscription found, stay on free plan
+            userPlan = 'free';
+            console.log('ℹ️ Subscription check failed:', subError.message);
+          }
+        }
+      } catch (e) {
+        console.warn('Auth check failed:', e);
+      }
+    }
+    
+    async function loadRooms() {
+      try {
+        const response = await fetch('/.netlify/functions/manage-room');
+        if (!response.ok) throw new Error('Failed to load rooms');
+        
+        const data = await response.json();
+        allRooms = data.rooms || [];
+        
+        renderRooms();
+      } catch (error) {
+        console.error('Error loading rooms:', error);
+        showEmptyState();
+      }
+    }
+    
+    function filterRooms(type) {
+      currentFilter = type;
+      
+      // Update tab styles
+      document.querySelectorAll('.room-tab').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.type === type) {
+          tab.classList.add('active');
+        }
+      });
+      
+      renderRooms();
+    }
+    window.filterRooms = filterRooms;
+    
+    function renderRooms() {
+      const loadingEl = document.getElementById('loading-state');
+      const emptyEl = document.getElementById('empty-state');
+      const gridEl = document.getElementById('rooms-grid');
+      
+      // Hide loading
+      loadingEl.classList.add('hidden');
+      
+      // Filter rooms
+      let filteredRooms = allRooms;
+      if (currentFilter !== 'all') {
+        filteredRooms = allRooms.filter(room => room.room_type === currentFilter);
+      }
+      
+      if (filteredRooms.length === 0) {
+        showEmptyState();
+        return;
+      }
+      
+      // Show grid, hide empty
+      emptyEl.classList.add('hidden');
+      gridEl.classList.remove('hidden');
+      
+      // Render room cards
+      gridEl.innerHTML = filteredRooms.map(room => renderRoomCard(room)).join('');
+    }
+    
+    function renderRoomCard(room) {
+      const isRed = room.room_type === 'red';
+      const typeLabel = isRed ? '🔴 Debate' : '🟢 Help';
+      const typeClass = isRed ? 'red' : 'green';
+      
+      const viewerCount = (room.participant_count || 0) + (room.spectator_count || 0);
+      const potHtml = isRed && room.pot_amount > 0 ? `
+        <div class="room-pot">
+          💎 Pot: ${room.pot_amount.toLocaleString()} gems
+        </div>
+      ` : '';
+      
+      // Calculate time elapsed
+      const startTime = new Date(room.started_at);
+      const elapsed = Math.floor((Date.now() - startTime.getTime()) / 60000);
+      const timeDisplay = elapsed < 60 ? `${elapsed}m` : `${Math.floor(elapsed/60)}h ${elapsed%60}m`;
+      
+      return `
+        <div class="room-card ${typeClass}">
+          <div class="room-card-header">
+            <div class="room-type-badge">
+              ${typeLabel}
+            </div>
+            <div class="live-badge">
+              <div class="live-dot"></div>
+              LIVE • ${timeDisplay}
+            </div>
+          </div>
+          
+          <div class="room-card-body">
+            <h3 class="room-topic">${escapeHtml(room.topic || 'Untitled Room')}</h3>
+            
+            <div class="room-host">
+              <div class="room-host-avatar">
+                ${room.host_avatar ? `<img src="${room.host_avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : '👤'}
+              </div>
+              <span class="room-host-name">Hosted by ${escapeHtml(room.host_name || 'Host')}</span>
+            </div>
+            
+            <div class="room-stats">
+              <div class="room-stat">
+                <span>👥</span>
+                <span>${room.participant_count || 0} participants</span>
+              </div>
+              <div class="room-stat">
+                <span>👁️</span>
+                <span>${room.spectator_count || 0} watching</span>
+              </div>
+            </div>
+            
+            ${potHtml}
+            
+            <div class="room-actions">
+              <a href="/index.html?room=${room.room_id}&mode=spectator&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-secondary">
+                👁️ Watch
+              </a>
+              ${room.participant_count >= 2 ? `
+                <a href="/index.html?room=${room.room_id}&mode=spectator&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-primary" title="Room is full - joining as spectator">
+                  👁️ Watch (Full)
+                </a>
+              ` : `
+                <a href="/index.html?room=${room.room_id}&mode=participant&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-primary">
+                  🚀 Join
+                </a>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function showEmptyState() {
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('rooms-grid').classList.add('hidden');
+      document.getElementById('empty-state').classList.remove('hidden');
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+  
+  <!-- Auth Script -->
+  <script>
+    (function() {
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      const authConfig = runtimeConfig.auth || {};
+      
+      const SUPABASE_URL = supabaseConfig.url || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      
+      let supabaseClient = null;
+      
+      if (window.supabase && window.supabase.createClient && SUPABASE_URL && SUPABASE_ANON_KEY) {
+        try {
+          supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+              persistSession: true,
+              autoRefreshToken: true,
+              detectSessionInUrl: true,
+              flowType: 'pkce',
+              storage: {
+                getItem: (key) => {
+                  const cookies = document.cookie.split(';');
+                  for (const cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === key) return decodeURIComponent(value);
+                  }
+                  try { return localStorage.getItem(key); } catch(e) { return null; }
+                },
+                setItem: (key, value) => {
+                  const maxAge = 60 * 60 * 24 * 365;
+                  let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+                  if (window.location.protocol === 'https:') cookieStr += '; Secure';
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.setItem(key, value); } catch(e) {}
+                },
+                removeItem: (key) => {
+                  let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+                  if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+                  document.cookie = cookieStr;
+                  try { localStorage.removeItem(key); } catch(e) {}
+                }
+              }
+            }
+          });
+        } catch (e) {
+          console.error('Supabase init error:', e);
+        }
+      }
+      
+      async function checkAuthState() {
+        if (!supabaseClient) return;
+        
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          }
+        } catch (e) {
+          console.error('Auth check error:', e);
+        }
+        
+        supabaseClient.auth.onAuthStateChange(async (event, session) => {
+          if (session?.user) {
+            updateHeaderForUser(session.user);
+          } else {
+            updateHeaderForGuest();
+          }
+        });
+      }
+      
+      function updateHeaderForUser(user) {
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const userName = document.getElementById('nav-user-name');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (guestLinks) guestLinks.style.display = 'none';
+        if (userSection) userSection.style.display = 'block';
+        if (headerGemBadge) headerGemBadge.style.display = 'flex';
+        
+        if (userName) {
+          const name = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          userName.textContent = name;
+        }
+        
+        fetchAndDisplayGemBalance(user.id);
+      }
+      
+      function updateHeaderForGuest() {
+        const guestLinks = document.getElementById('nav-guest-links');
+        const userSection = document.getElementById('nav-user-section');
+        const headerGemBadge = document.getElementById('header-gem-badge');
+        
+        if (guestLinks) guestLinks.style.display = 'block';
+        if (userSection) userSection.style.display = 'none';
+        if (headerGemBadge) headerGemBadge.style.display = 'none';
+      }
+      
+      async function fetchAndDisplayGemBalance(userId) {
+        try {
+          const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+          if (response.ok) {
+            const data = await response.json();
+            const totalGems = data.totalGems || 0;
+            const navGems = document.getElementById('nav-user-gems');
+            const headerGemCount = document.querySelector('.gem-count');
+            if (navGems) navGems.textContent = totalGems.toLocaleString();
+            if (headerGemCount) headerGemCount.textContent = totalGems.toLocaleString();
+          }
+        } catch (e) {
+          console.error('Error fetching gem balance:', e);
+        }
+      }
+      
+      window.handleLogout = async function() {
+        if (supabaseClient) {
+          await supabaseClient.auth.signOut();
+          updateHeaderForGuest();
+        }
+      };
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkAuthState);
+      } else {
+        checkAuthState();
+      }
+    })();
+  </script>
+</body>
+</html>

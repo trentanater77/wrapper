@@ -5111,10 +5111,65 @@ async function initializeApp() {
       
     } catch (error) {
       console.error("❌ API Error:", error);
-      console.log("🔄 Using fallback topic because room not found or API error");
+      console.log("🔄 API failed, trying Firebase for topic...");
     }
     
-    console.log("🔄 Using fallback topic");
+    // Try to get topic from Firebase as last resort
+    try {
+      const sphereId = extractSphereId(roomUrl);
+      if (sphereId && db) {
+        const roomInfoRef = db.ref(`rooms/${sphereId}/info`);
+        const snapshot = await roomInfoRef.once('value');
+        const roomInfo = snapshot.val();
+        if (roomInfo?.topic) {
+          const topic = roomInfo.topic;
+          const roomType = roomInfo.roomType || 'red';
+          let description;
+          if (roomType === 'red') {
+            description = `🔴 Red Room Debate: "${topic}"`;
+          } else if (roomType === 'green') {
+            description = `🟢 Green Room Help: "${topic}"`;
+          } else {
+            description = `Discussing: "${topic}"`;
+          }
+          console.log("✅ Found topic from Firebase:", topic);
+          updateTopicDisplay(topic, description);
+          return;
+        }
+      }
+    } catch (firebaseError) {
+      console.log("⚠️ Could not get topic from Firebase:", firebaseError.message);
+    }
+    
+    // Also try to get from Supabase active_rooms
+    try {
+      const sphereId = extractSphereId(roomUrl);
+      if (sphereId) {
+        const response = await fetch(`/.netlify/functions/manage-room?roomId=${sphereId}`);
+        if (response.ok) {
+          const roomData = await response.json();
+          if (roomData?.topic) {
+            const topic = roomData.topic;
+            const roomType = roomData.room_type || 'red';
+            let description;
+            if (roomType === 'red') {
+              description = `🔴 Red Room Debate: "${topic}"`;
+            } else if (roomType === 'green') {
+              description = `🟢 Green Room Help: "${topic}"`;
+            } else {
+              description = `Discussing: "${topic}"`;
+            }
+            console.log("✅ Found topic from database:", topic);
+            updateTopicDisplay(topic, description);
+            return;
+          }
+        }
+      }
+    } catch (dbError) {
+      console.log("⚠️ Could not get topic from database:", dbError.message);
+    }
+    
+    console.log("🔄 Using fallback topic - no topic found anywhere");
     updateTopicDisplay("General Chat", "Connect and have meaningful conversations!");
   }
 
@@ -10816,16 +10871,36 @@ function ensureSpectatorTracksForParticipant(participant) {
     roomTypeState.type = roomType;
     roomTypeState.isHost = isHost;
     
-    // Save room type to Firebase so others can detect it
+    // Save room type AND topic to Firebase so others can detect it
     const sphereId = extractSphereId(roomUrl);
     if (sphereId && db && !isSpectator) {
       try {
-        await db.ref(`rooms/${sphereId}/info`).update({
+        // Get topic from URL or displayed element
+        const urlParams = new URLSearchParams(window.location.search);
+        let topic = urlParams.get('topic');
+        if (topic) {
+          topic = decodeURIComponent(topic);
+        } else {
+          const topicEl = document.getElementById('topic-display');
+          if (topicEl && topicEl.textContent && topicEl.textContent !== 'Loading Topic...' && topicEl.textContent !== 'General Chat') {
+            topic = topicEl.textContent;
+          }
+        }
+        
+        const updateData = {
           roomType: roomType,
           updatedAt: firebase.database.ServerValue.TIMESTAMP
-        });
+        };
+        
+        // Only add topic if we have one
+        if (topic) {
+          updateData.topic = topic;
+        }
+        
+        await db.ref(`rooms/${sphereId}/info`).update(updateData);
+        console.log('✅ Saved room info to Firebase:', { roomType, topic });
       } catch (e) {
-        // Non-critical
+        console.log('⚠️ Could not save room info to Firebase:', e.message);
       }
     }
     

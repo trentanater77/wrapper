@@ -10277,6 +10277,27 @@ function ensureSpectatorTracksForParticipant(participant) {
         // Update gem display in header
         fetchAndDisplayGemBalance();
         
+        // If in Red Room, also update the debate scoreboard with this tip
+        if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
+          const sphereId = extractSphereId(roomUrl);
+          if (sphereId && db) {
+            // Find the participant ID that matches this recipient
+            const participant = roomTypeState.participants.find(p => 
+              p.userId === recipientId || p.name === recipientName
+            );
+            if (participant) {
+              const participantTipsRef = db.ref(`rooms/${sphereId}/participantTips/${participant.id}`);
+              participantTipsRef.transaction((currentTips) => {
+                return (currentTips || 0) + tipAmountToSend;
+              }).then(() => {
+                console.log('📊 Debate scoreboard updated with regular tip');
+              }).catch(err => {
+                console.warn('⚠️ Could not update debate scoreboard:', err);
+              });
+            }
+          }
+        }
+        
         console.log(`💸 Tip sent: ${tipAmountToSend} gems to ${recipientName} with ${tipAnimation} animation`);
         console.log(`💰 ${recipientName} received: ${data.hostReceived} gems | Platform fee: ${data.platformFee} gems`);
       } else {

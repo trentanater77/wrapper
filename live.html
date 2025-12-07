@@ -752,6 +752,7 @@
     
     <ul class="nav-links">
       <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="/branding.html" class="nav-link"><span class="nav-link-icon">🎨</span> Branding</a></li>
       <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
     </ul>
     
@@ -777,8 +778,15 @@
   <!-- Main Content -->
   <div class="page-wrapper">
     <main class="main-content">
+      <!-- Create Room CTA - NOW AT TOP for better visibility -->
+      <div class="create-room-cta" style="margin-bottom: var(--space-xl); margin-top: 0;">
+        <h3>🎙️ Ready to Host?</h3>
+        <p>Start your own debate or help session and earn gems from tips!</p>
+        <button onclick="window.openCreateRoomModal()" class="create-room-btn">🚀 Create a Room</button>
+      </div>
+      
       <!-- Hero -->
-      <section class="live-hero">
+      <section class="live-hero" style="padding-top: var(--space-lg);">
         <h1 class="live-title">🔴 Live Rooms</h1>
         <p class="live-subtitle">Watch debates and join conversations happening right now</p>
         
@@ -813,13 +821,6 @@
       <!-- Rooms Grid -->
       <div id="rooms-grid" class="rooms-grid hidden">
         <!-- Room cards will be populated here -->
-      </div>
-      
-      <!-- Create Room CTA -->
-      <div class="create-room-cta">
-        <h3>Ready to Host?</h3>
-        <p>Start your own debate or help session and earn gems from tips!</p>
-        <button onclick="window.openCreateRoomModal()" class="create-room-btn">🚀 Create a Room</button>
       </div>
       
       <!-- Footer -->
@@ -1275,8 +1276,13 @@
       const elapsed = Math.floor((Date.now() - startTime.getTime()) / 60000);
       const timeDisplay = elapsed < 60 ? `${elapsed}m` : `${Math.floor(elapsed/60)}h ${elapsed%60}m`;
       
+      // Use onclick handlers to check room status before joining
+      const roomId = room.room_id;
+      const roomType = room.room_type || 'red';
+      const topic = encodeURIComponent(room.topic || '');
+      
       return `
-        <div class="room-card ${typeClass}">
+        <div class="room-card ${typeClass}" data-room-id="${roomId}">
           <div class="room-card-header">
             <div class="room-type-badge">
               ${typeLabel}
@@ -1311,23 +1317,57 @@
             ${potHtml}
             
             <div class="room-actions">
-              <a href="/index.html?room=${room.room_id}&mode=spectator&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-secondary">
+              <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}')" class="room-btn room-btn-secondary">
                 👁️ Watch
-              </a>
+              </button>
               ${room.participant_count >= 2 ? `
-                <a href="/index.html?room=${room.room_id}&mode=spectator&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-primary" title="Room is full - joining as spectator">
+                <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}')" class="room-btn room-btn-primary" title="Room is full - joining as spectator">
                   👁️ Watch (Full)
-                </a>
+                </button>
               ` : `
-                <a href="/index.html?room=${room.room_id}&mode=participant&roomType=${room.room_type || 'red'}&topic=${encodeURIComponent(room.topic || '')}" class="room-btn room-btn-primary">
+                <button onclick="joinRoom('${roomId}', 'participant', '${roomType}', '${topic}')" class="room-btn room-btn-primary">
                   🚀 Join
-                </a>
+                </button>
               `}
             </div>
           </div>
         </div>
       `;
     }
+    
+    // Join room with status check first
+    async function joinRoom(roomId, mode, roomType, topic) {
+      // Show loading state
+      const card = document.querySelector(`[data-room-id="${roomId}"]`);
+      if (card) {
+        const buttons = card.querySelectorAll('.room-btn');
+        buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+        });
+      }
+      
+      try {
+        // Check if room is still active
+        const response = await fetch(`/.netlify/functions/manage-room?roomId=${roomId}`);
+        const data = await response.json();
+        
+        if (!data.room || data.room.status === 'ended') {
+          alert('This room has ended. Refreshing the page to show active rooms...');
+          loadRooms(); // Refresh the room list
+          return;
+        }
+        
+        // Room is active, navigate to it
+        window.location.href = `/index.html?room=${roomId}&mode=${mode}&roomType=${roomType}&topic=${topic}`;
+        
+      } catch (error) {
+        console.error('Error checking room status:', error);
+        // If check fails, try to join anyway
+        window.location.href = `/index.html?room=${roomId}&mode=${mode}&roomType=${roomType}&topic=${topic}`;
+      }
+    }
+    window.joinRoom = joinRoom;
     
     function showEmptyState() {
       document.getElementById('loading-state').classList.add('hidden');

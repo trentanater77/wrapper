@@ -996,6 +996,38 @@
   </div>
 </div>
 
+<!-- Debate Winner Announcement Modal (shown to ALL users when debate ends) -->
+<div id="winner-announcement-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-gradient-to-br from-purple-900 via-purple-800 to-pink-900 rounded-3xl p-6 max-w-md w-full shadow-2xl border-4 border-yellow-400 relative overflow-hidden">
+    <!-- Sparkle effects -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-4 left-4 text-4xl animate-bounce" style="animation-delay: 0s;">✨</div>
+      <div class="absolute top-8 right-8 text-3xl animate-bounce" style="animation-delay: 0.2s;">⭐</div>
+      <div class="absolute bottom-12 left-8 text-3xl animate-bounce" style="animation-delay: 0.4s;">🌟</div>
+      <div class="absolute bottom-8 right-4 text-4xl animate-bounce" style="animation-delay: 0.6s;">✨</div>
+    </div>
+    
+    <!-- Content -->
+    <div class="relative text-center">
+      <div id="winner-icon" class="text-7xl mb-4 animate-pulse">🏆</div>
+      <h2 id="winner-title" class="text-3xl font-extrabold text-white mb-3">Debate Over!</h2>
+      
+      <div id="winner-details" class="bg-black bg-opacity-30 rounded-xl p-5 mb-5">
+        <!-- Populated by JS -->
+        <div class="text-yellow-300 text-lg font-bold mb-2">Loading results...</div>
+      </div>
+      
+      <div id="winner-message" class="text-sm text-purple-200 mb-5">
+        Thanks for participating!
+      </div>
+      
+      <button onclick="closeWinnerModal()" class="w-full py-3 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-300 hover:to-yellow-400 text-black font-bold rounded-xl transition transform hover:scale-105">
+        ✓ Got It!
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Floating Tip Button (shown to non-hosts) -->
 <button id="floating-tip-btn" onclick="openTipModal()" 
   class="hidden fixed bottom-24 right-6 z-50 bg-gold hover:bg-main-red text-charcoal hover:text-white p-4 rounded-full shadow-lg transition-all transform hover:scale-110"
@@ -6346,11 +6378,24 @@ async function initializeApp() {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
     } else {
-      // Spectator left - update counts
-      setTimeout(() => updateRoomCounts(), 500);
-      removeSpectatorParticipant(participantId);
-      updateSpectatorParticipants();
-      showToast(`👋 ${participantDisplayName} left the conversation`);
+      // Spectator viewing - someone else left
+      // Update counts immediately for all room types
+      setTimeout(() => updateRoomCounts(), 300);
+      
+      if (!isSpectatorParticipant) {
+        // A debater left - update spectator view
+        removeSpectatorParticipant(participantId);
+        updateSpectatorParticipants();
+        showToast(`👋 ${participantDisplayName} left the conversation`);
+        
+        // Check for auto-end if Red Room
+        if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
+          checkAutoEndDebate();
+        }
+      } else {
+        // Another spectator left - just update counts, no video change needed
+        console.log(`👁️ Spectator left: ${participantDisplayName}`);
+      }
     }
   }
 
@@ -11211,16 +11256,36 @@ function ensureSpectatorTracksForParticipant(participant) {
       if (livekitRoom) {
         const remoteParticipants = Array.from(livekitRoom.remoteParticipants?.values() || []);
         
-        // Include local participant if not a spectator
+        // Include local participant
         if (!isSpectator) {
           participantCount = 1;
         } else {
           spectatorCount = 1;
         }
         
+        // Count remote participants by their role
         for (const p of remoteParticipants) {
-          const metadata = p.metadata ? JSON.parse(p.metadata) : {};
-          if (metadata.role === 'spectator' || p.identity?.startsWith('Viewer_')) {
+          let isRemoteSpectator = false;
+          
+          // Check metadata for role
+          if (p.metadata) {
+            try {
+              const metadata = JSON.parse(p.metadata);
+              if (metadata.role === 'spectator') {
+                isRemoteSpectator = true;
+              }
+            } catch (e) {}
+          }
+          
+          // Also check identity pattern for spectators
+          if (!isRemoteSpectator && p.identity) {
+            // Spectators have identities like cs_XXXXXX_spectator_... or contain 'spectator'
+            if (p.identity.includes('spectator') || p.identity.startsWith('Viewer_')) {
+              isRemoteSpectator = true;
+            }
+          }
+          
+          if (isRemoteSpectator) {
             spectatorCount++;
           } else {
             participantCount++;
@@ -11228,18 +11293,37 @@ function ensureSpectatorTracksForParticipant(participant) {
         }
       }
       
-      await fetch('/.netlify/functions/manage-room', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update-counts',
-          roomId: sphereId,
-          participantCount,
-          spectatorCount
-        })
+      // Use sendBeacon for reliability (works even on page close)
+      const payload = JSON.stringify({
+        action: 'update-counts',
+        roomId: sphereId,
+        participantCount,
+        spectatorCount
       });
       
+      // Try fetch first, fallback to sendBeacon
+      try {
+        await fetch('/.netlify/functions/manage-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: payload
+        });
+      } catch (fetchError) {
+        // Fallback to sendBeacon
+        navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([payload], { type: 'application/json' }));
+      }
+      
       console.log(`📊 Room counts updated: ${participantCount} participants, ${spectatorCount} spectators`);
+      
+      // Also update local display if we have viewer count elements
+      const viewerCountEls = [
+        document.getElementById('participant-chat-viewer-count'),
+        document.getElementById('spectator-chat-viewer-count')
+      ];
+      viewerCountEls.forEach(el => {
+        if (el) el.textContent = spectatorCount;
+      });
+      
     } catch (error) {
       console.warn('⚠️ Could not update room counts:', error.message);
     }
@@ -12020,14 +12104,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Mark debate as ended to prevent further auto-end attempts
     roomTypeState.debateEnded = true;
     
-    // Show a toast notification
-    if (data.result === 'void') {
-      showToast('🔄 Debate voided - all gems refunded!');
-    } else if (data.result === 'draw') {
-      showToast('🤝 Debate ended in a draw!');
-    } else {
-      showToast(`🏆 ${data.winnerName || 'Winner'} won the debate!`);
-    }
+    // Show the winner announcement modal (more prominent than toast)
+    showWinnerAnnouncementModal(data);
     
     // Hide pot panels
     ['red-room-pot-panel', 'spectator-red-room-pot-panel'].forEach(id => {
@@ -12040,6 +12118,69 @@ function ensureSpectatorTracksForParticipant(participant) {
       fetchAndDisplayGemBalance();
     }
   }
+  
+  // Show winner announcement modal to all users
+  function showWinnerAnnouncementModal(data) {
+    const modal = document.getElementById('winner-announcement-modal');
+    const icon = document.getElementById('winner-icon');
+    const title = document.getElementById('winner-title');
+    const details = document.getElementById('winner-details');
+    const message = document.getElementById('winner-message');
+    
+    if (!modal) return;
+    
+    if (data.result === 'void') {
+      // Pot was voided
+      icon.textContent = '🔄';
+      title.textContent = 'Debate Voided';
+      details.innerHTML = `
+        <div class="text-yellow-300 text-xl font-bold mb-2">Pot Under Minimum</div>
+        <div class="text-white text-lg">💎 ${data.totalPot || 0} gems</div>
+        <div class="text-purple-200 text-sm mt-3">All gems have been refunded to their senders.</div>
+      `;
+      message.textContent = 'Better luck next time! Tip more to reach the 100 gem minimum.';
+    } else if (data.result === 'draw') {
+      // Draw
+      icon.textContent = '🤝';
+      title.textContent = 'It\'s a Draw!';
+      details.innerHTML = `
+        <div class="text-blue-300 text-xl font-bold mb-2">Evenly Matched!</div>
+        <div class="text-white text-lg">💎 ${data.totalPot?.toLocaleString() || 0} total pot</div>
+        <div class="text-purple-200 text-sm mt-3">Tips were equal - each debater keeps their share.</div>
+      `;
+      message.textContent = 'A close battle! Both debaters performed well.';
+    } else {
+      // Winner!
+      const winnerName = data.winnerName || 'The Winner';
+      icon.textContent = '🏆';
+      title.textContent = `${winnerName} Wins!`;
+      details.innerHTML = `
+        <div class="text-green-300 text-xl font-bold mb-2">🎉 Victory! 🎉</div>
+        <div class="text-white text-2xl font-bold mb-2">💎 ${(data.winnerAmount || 0).toLocaleString()}</div>
+        <div class="text-purple-200 text-sm">credited to ${winnerName}</div>
+        <div class="text-purple-300 text-xs mt-3">Total pot was: 💎 ${(data.totalPot || 0).toLocaleString()}</div>
+      `;
+      message.textContent = 'Congratulations to the winner! Thanks for watching!';
+    }
+    
+    modal.classList.remove('hidden');
+    
+    // Also show a toast as backup
+    if (data.result === 'void') {
+      showToast('🔄 Debate voided - gems refunded!');
+    } else if (data.result === 'draw') {
+      showToast('🤝 It\'s a draw!');
+    } else {
+      showToast(`🏆 ${data.winnerName || 'Winner'} takes the pot!`);
+    }
+  }
+  
+  // Close the winner announcement modal
+  function closeWinnerModal() {
+    const modal = document.getElementById('winner-announcement-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+  window.closeWinnerModal = closeWinnerModal;
   
   // ============================================
   // AUTO-END DEBATE WHEN PARTICIPANTS LEAVE

@@ -7533,15 +7533,15 @@ async function initializeApp() {
     if (!spectatorParticipant1) {
       spectatorParticipant1 = { participantId, participantName, userId: participantUserId };
       participantSlot = 1;
+      console.log('📍 Assigned to slot 1:', { participantId: participantId?.substring(0, 15), participantName, userId: participantUserId?.substring(0, 15) || 'null' });
     } else if (!spectatorParticipant2) {
       spectatorParticipant2 = { participantId, participantName, userId: participantUserId };
       participantSlot = 2;
+      console.log('📍 Assigned to slot 2:', { participantId: participantId?.substring(0, 15), participantName, userId: participantUserId?.substring(0, 15) || 'null' });
     } else {
       console.log('⚠️ Already have 2 participants, ignoring additional participant:', participantId);
       return;
     }
-    
-    console.log(`📍 Assigned participant ${participantId} to slot ${participantSlot}`);
     
     // Get the video element and placeholder for this slot
     const videoElement = document.getElementById(`spectator-participant-${participantSlot}`);
@@ -11320,7 +11320,25 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Find the actual userId for the selected recipient
     // selectedPotRecipient is the 'id' field (LiveKit participant ID for spectators)
     const selectedParticipant = roomTypeState.participants.find(p => p.id === roomTypeState.selectedPotRecipient);
-    const recipientUserId = selectedParticipant?.userId || roomTypeState.selectedPotRecipient;
+    let recipientUserId = selectedParticipant?.userId;
+    
+    // If userId not found in stored participant, try to look it up directly from LiveKit
+    if (!recipientUserId && livekitRoom && livekitRoom.remoteParticipants) {
+      console.log('🔍 Attempting direct LiveKit lookup for userId...');
+      for (const [identity, p] of livekitRoom.remoteParticipants) {
+        if (p.sid === roomTypeState.selectedPotRecipient) {
+          const metadata = parseLiveKitMetadata(p.metadata);
+          recipientUserId = metadata?.userId || metadata?.user_id;
+          console.log('🔍 Direct LiveKit lookup found userId:', recipientUserId);
+          break;
+        }
+      }
+    }
+    
+    // Fallback to the selectedPotRecipient if still no userId
+    if (!recipientUserId) {
+      recipientUserId = roomTypeState.selectedPotRecipient;
+    }
     
     if (!recipientUserId) {
       console.error('❌ Could not find userId for selected recipient:', roomTypeState.selectedPotRecipient);
@@ -11339,8 +11357,18 @@ function ensureSpectatorTracksForParticipant(participant) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(recipientUserId)) {
       console.error('❌ recipientUserId is not a valid UUID:', recipientUserId);
-      showToast('❌ Could not identify the debater. Please wait for them to fully connect.');
-      return;
+      console.log('🔍 Attempting to refresh pot targets to get userId...');
+      // Try refreshing pot targets to get the userId
+      updatePotTargets();
+      // Try again after refresh
+      const refreshedParticipant = roomTypeState.participants.find(p => p.id === roomTypeState.selectedPotRecipient);
+      if (refreshedParticipant?.userId && uuidRegex.test(refreshedParticipant.userId)) {
+        recipientUserId = refreshedParticipant.userId;
+        console.log('✅ Got userId after refresh:', recipientUserId);
+      } else {
+        showToast('❌ Could not identify the debater. Please wait for them to fully connect.');
+        return;
+      }
     }
     
     const sphereId = extractSphereId(roomUrl);

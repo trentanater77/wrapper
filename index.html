@@ -1826,9 +1826,109 @@
         </div>
       </div>
 
-      <!-- Live Chat (1/4 width) -->
-      <div class="lg:col-span-1">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 h-full flex flex-col">
+      <!-- Spectator Sidebar (1/4 width) -->
+      <div class="lg:col-span-1 space-y-4">
+        
+        <!-- RED ROOM POT DISPLAY FOR SPECTATORS -->
+        <div id="spectator-red-room-pot-panel" class="hidden bg-gradient-to-br from-red-600 to-red-800 rounded-2xl shadow-lg border-2 border-red-400 overflow-hidden">
+          <!-- Pot Header -->
+          <div class="p-3 bg-black bg-opacity-30">
+            <div class="flex items-center justify-between">
+              <h3 class="font-extrabold text-white flex items-center gap-2 text-sm">
+                🔴 <span>RED ROOM</span>
+              </h3>
+              <span class="bg-red-500 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">LIVE DEBATE</span>
+            </div>
+          </div>
+          
+          <!-- LIVE SCOREBOARD -->
+          <div id="spectator-debate-scoreboard" class="p-4 bg-black bg-opacity-20">
+            <div class="text-xs text-center text-red-200 mb-3 font-bold">⚔️ BATTLE FOR THE POT ⚔️</div>
+            
+            <!-- Participant 1 Score -->
+            <div class="mb-2">
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <span id="spectator-debater-1-crown" class="hidden">👑</span>
+                  <span id="spectator-debater-1-name" class="text-white font-bold text-sm truncate max-w-24">Waiting...</span>
+                </div>
+                <span id="spectator-debater-1-tips" class="text-yellow-300 font-bold">💎 0</span>
+              </div>
+              <div class="w-full bg-black bg-opacity-40 rounded-full h-3 overflow-hidden">
+                <div id="spectator-debater-1-bar" class="h-full bg-gradient-to-r from-yellow-400 to-yellow-500 transition-all duration-500 rounded-full" style="width: 0%"></div>
+              </div>
+            </div>
+            
+            <!-- VS Divider -->
+            <div class="text-center my-2">
+              <span class="text-white font-extrabold text-lg">VS</span>
+            </div>
+            
+            <!-- Participant 2 Score -->
+            <div class="mb-2">
+              <div class="flex items-center justify-between mb-1">
+                <div class="flex items-center gap-2">
+                  <span id="spectator-debater-2-crown" class="hidden">👑</span>
+                  <span id="spectator-debater-2-name" class="text-white font-bold text-sm truncate max-w-24">Waiting...</span>
+                </div>
+                <span id="spectator-debater-2-tips" class="text-yellow-300 font-bold">💎 0</span>
+              </div>
+              <div class="w-full bg-black bg-opacity-40 rounded-full h-3 overflow-hidden">
+                <div id="spectator-debater-2-bar" class="h-full bg-gradient-to-r from-blue-400 to-blue-500 transition-all duration-500 rounded-full" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Total Pot Display -->
+          <div class="p-4 text-center bg-black bg-opacity-10">
+            <div class="text-xs text-red-200 mb-1">💰 TOTAL POT</div>
+            <div id="spectator-pot-amount-display" class="text-3xl font-extrabold text-white mb-1">💎 0</div>
+            <div class="text-xs text-red-200">Winner takes 50%</div>
+          </div>
+          
+          <!-- Tip to Pot Buttons -->
+          <div id="spectator-pot-tip-section" class="p-4 bg-black bg-opacity-20">
+            <div class="text-xs text-yellow-300 text-center mb-2">👁️ Pick your champion and tip!</div>
+            <div class="text-xs text-red-200 text-center mb-3">Your balance: <span id="spectator-pot-tip-balance">💎 0</span></div>
+            
+            <!-- Select who to tip -->
+            <div id="spectator-pot-tip-targets" class="grid grid-cols-2 gap-2 mb-3">
+              <!-- Populated dynamically -->
+            </div>
+            
+            <!-- Tip amounts -->
+            <div class="grid grid-cols-4 gap-2">
+              <button onclick="tipToPot(10)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎10</button>
+              <button onclick="tipToPot(25)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎25</button>
+              <button onclick="tipToPot(50)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎50</button>
+              <button onclick="tipToPot(100)" class="bg-yellow-400 hover:bg-yellow-300 text-black font-bold py-2 rounded-lg text-sm transition transform hover:scale-105">💎100</button>
+            </div>
+          </div>
+          
+          <!-- Void Rule Warning -->
+          <div class="p-2 bg-black bg-opacity-40 text-center">
+            <div class="text-xs text-red-300">
+              ⚠️ Void Rule: Pot under 100💎 = full refund
+            </div>
+          </div>
+        </div>
+        
+        <!-- SPECTATOR VOTING PANEL -->
+        <div id="spectator-voting-panel" class="hidden bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl shadow-lg border-2 border-purple-400 p-6">
+          <div class="text-center">
+            <div class="text-3xl mb-2">🗳️</div>
+            <h3 class="text-xl font-extrabold text-white mb-4">Who Won?</h3>
+            <div id="spectator-vote-options" class="space-y-3">
+              <!-- Populated dynamically -->
+            </div>
+            <button onclick="voteForDraw()" class="mt-4 w-full py-2 bg-gray-500 hover:bg-gray-400 text-white font-bold rounded-lg transition">
+              🤝 It's a Draw
+            </button>
+          </div>
+        </div>
+        
+        <!-- Live Chat -->
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
           <!-- Chat Header -->
           <div class="p-4 border-b border-gray-200 dark:border-gray-600">
             <div class="flex items-center justify-between">
@@ -1840,7 +1940,7 @@
           </div>
 
           <!-- Chat Messages -->
-          <div id="live-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 live-chat">
+          <div id="live-chat-messages" class="flex-1 overflow-y-auto p-4 space-y-3 live-chat" style="height: 250px;">
             <!-- Welcome message -->
             <div class="text-center text-xs text-gray-500 dark:text-gray-400 py-2">
               Welcome to the chat! 👋
@@ -9870,12 +9970,11 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   async function loadUserGemBalanceForTip() {
-    const balanceEl = document.getElementById('tip-your-balance');
     const currentUserId = window.currentUserData?.userId || userId;
     
     if (!currentUserId || !isValidUuid(currentUserId)) {
-      if (balanceEl) balanceEl.textContent = '💎 0';
       userGemBalance = 0;
+      updateAllGemBalanceDisplays();
       return;
     }
     
@@ -9884,12 +9983,24 @@ function ensureSpectatorTracksForParticipant(participant) {
       if (response.ok) {
         const data = await response.json();
         userGemBalance = data.totalGems || 0;
-        if (balanceEl) balanceEl.textContent = `💎 ${userGemBalance.toLocaleString()}`;
+        updateAllGemBalanceDisplays();
       }
     } catch (error) {
       console.error('❌ Error loading gem balance for tip:', error);
       userGemBalance = 0;
+      updateAllGemBalanceDisplays();
     }
+  }
+  
+  // Update all gem balance displays across the UI
+  function updateAllGemBalanceDisplays() {
+    const balanceText = `💎 ${userGemBalance.toLocaleString()}`;
+    
+    // Update all balance displays
+    ['tip-your-balance', 'pot-tip-balance', 'spectator-pot-tip-balance'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = balanceText;
+    });
   }
   
   function selectTipAmount(amount) {
@@ -10702,41 +10813,44 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     // Show/hide Red Room pot panel based on room type
     const potPanel = document.getElementById('red-room-pot-panel');
+    const spectatorPotPanel = document.getElementById('spectator-red-room-pot-panel');
     const potTipSection = document.getElementById('pot-tip-section');
+    const spectatorPotTipSection = document.getElementById('spectator-pot-tip-section');
     
-    if (potPanel) {
-      if (roomType === 'red') {
-        potPanel.classList.remove('hidden');
+    if (roomType === 'red') {
+      // Show appropriate panel based on user type
+      if (isSpectator) {
+        // Show spectator panel, hide participant panel
+        if (spectatorPotPanel) spectatorPotPanel.classList.remove('hidden');
+        if (potPanel) potPanel.classList.add('hidden');
         
-        // Only spectators can tip to the pot
-        // Participants are debating, not tipping
-        const participantMessage = document.getElementById('pot-participant-message');
-        if (potTipSection) {
-          if (isSpectator) {
-            potTipSection.style.display = 'block';
-            if (participantMessage) participantMessage.style.display = 'none';
-            // Load gem balance for spectators to tip
-            loadUserGemBalanceForTip();
-            // Also update the pot balance display
-            setTimeout(() => {
-              const potBalanceEl = document.getElementById('pot-tip-balance');
-              if (potBalanceEl) potBalanceEl.textContent = `💎 ${userGemBalance.toLocaleString()}`;
-            }, 500);
-          } else {
-            potTipSection.style.display = 'none';
-            if (participantMessage) participantMessage.style.display = 'block';
-          }
-        }
-        
-        // Initialize pot targets and listeners
+        // Load gem balance for spectators to tip
+        loadUserGemBalanceForTip();
         setTimeout(() => {
-          updatePotTargets();
-          updateDebateScoreboard();
-          listenForPotUpdates();
-        }, 1000);
+          const potBalanceEl = document.getElementById('spectator-pot-tip-balance');
+          if (potBalanceEl) potBalanceEl.textContent = `💎 ${userGemBalance.toLocaleString()}`;
+        }, 500);
       } else {
-        potPanel.classList.add('hidden');
+        // Show participant panel, hide spectator panel
+        if (potPanel) potPanel.classList.remove('hidden');
+        if (spectatorPotPanel) spectatorPotPanel.classList.add('hidden');
+        
+        // Participants can't tip to pot - show message
+        const participantMessage = document.getElementById('pot-participant-message');
+        if (potTipSection) potTipSection.style.display = 'none';
+        if (participantMessage) participantMessage.style.display = 'block';
       }
+      
+      // Initialize pot targets and listeners
+      setTimeout(() => {
+        updatePotTargets();
+        updateDebateScoreboard();
+        listenForPotUpdates();
+      }, 1000);
+    } else {
+      // Green room - hide all red room panels
+      if (potPanel) potPanel.classList.add('hidden');
+      if (spectatorPotPanel) spectatorPotPanel.classList.add('hidden');
     }
     
     // Register room with server (only if host or first participant)
@@ -10844,21 +10958,25 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
-  // Update pot display
+  // Update pot display (both participant and spectator panels)
   function updatePotDisplay(amount) {
     roomTypeState.potAmount = amount;
-    const potDisplay = document.getElementById('pot-amount-display');
-    if (potDisplay) {
-      potDisplay.textContent = `💎 ${amount.toLocaleString()}`;
-      
-      // Add animation for visual feedback
-      potDisplay.classList.add('scale-110');
-      potDisplay.style.color = '#ffd166';
-      setTimeout(() => {
-        potDisplay.classList.remove('scale-110');
-        potDisplay.style.color = '';
-      }, 500);
-    }
+    
+    // Update both participant and spectator pot displays
+    ['pot-amount-display', 'spectator-pot-amount-display'].forEach(id => {
+      const potDisplay = document.getElementById(id);
+      if (potDisplay) {
+        potDisplay.textContent = `💎 ${amount.toLocaleString()}`;
+        
+        // Add animation for visual feedback
+        potDisplay.classList.add('scale-110');
+        potDisplay.style.color = '#ffd166';
+        setTimeout(() => {
+          potDisplay.classList.remove('scale-110');
+          potDisplay.style.color = '';
+        }, 500);
+      }
+    });
     
     updateDebateScoreboard();
   }
@@ -10950,33 +11068,40 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     updateDebateScoreboard();
     
-    if (!targetsContainer) return;
-    
-    if (participants.length < 2) {
-      targetsContainer.innerHTML = `
-        <div class="col-span-2 text-center text-white text-opacity-70 py-2 text-sm">
-          ⏳ Waiting for debaters to join...
-        </div>
-      `;
-      return;
+    // Helper function to render targets in a container
+    function renderTargets(containerId) {
+      const container = document.getElementById(containerId);
+      if (!container) return;
+      
+      if (participants.length < 2) {
+        container.innerHTML = `
+          <div class="col-span-2 text-center text-white text-opacity-70 py-2 text-sm">
+            ⏳ Waiting for debaters to join...
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = participants.map((p, idx) => {
+        const tips = roomTypeState.participantTips[p.id] || 0;
+        const isSelected = roomTypeState.selectedPotRecipient === p.id;
+        const color = idx === 0 ? 'from-yellow-400 to-yellow-500' : 'from-blue-400 to-blue-500';
+        
+        return `
+          <button 
+            onclick="selectPotRecipient('${p.id}')"
+            class="p-3 rounded-lg font-bold text-sm transition transform hover:scale-105 ${isSelected ? 'ring-2 ring-white bg-gradient-to-r ' + color + ' text-black' : 'bg-white bg-opacity-20 text-white'}"
+          >
+            ${isSelected ? '✓ ' : ''}${p.name}
+            <div class="text-xs mt-1">💎 ${tips}</div>
+          </button>
+        `;
+      }).join('');
     }
     
-    // Create selection buttons
-    targetsContainer.innerHTML = participants.map((p, idx) => {
-      const tips = roomTypeState.participantTips[p.id] || 0;
-      const isSelected = roomTypeState.selectedPotRecipient === p.id;
-      const color = idx === 0 ? 'from-yellow-400 to-yellow-500' : 'from-blue-400 to-blue-500';
-      
-      return `
-        <button 
-          onclick="selectPotRecipient('${p.id}')"
-          class="p-3 rounded-lg font-bold text-sm transition transform hover:scale-105 ${isSelected ? 'ring-2 ring-white bg-gradient-to-r ' + color + ' text-black' : 'bg-white bg-opacity-20 text-white'}"
-        >
-          ${isSelected ? '✓ ' : ''}${p.name}
-          <div class="text-xs mt-1">💎 ${tips}</div>
-        </button>
-      `;
-    }).join('');
+    // Render targets in both participant and spectator panels
+    renderTargets('pot-tip-targets');
+    renderTargets('spectator-pot-tip-targets');
     
     // Auto-select first participant if none selected
     if (!roomTypeState.selectedPotRecipient && participants.length > 0) {
@@ -11113,7 +11238,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     console.log('🔴 Listening for pot updates');
   }
   
-  // Update the debate scoreboard
+  // Update the debate scoreboard (both participant and spectator panels)
   function updateDebateScoreboard() {
     const participants = roomTypeState.participants;
     const tips = roomTypeState.participantTips;
@@ -11121,64 +11246,74 @@ function ensureSpectatorTracksForParticipant(participant) {
     const debater1 = participants[0];
     const debater2 = participants[1];
     
-    const name1El = document.getElementById('debater-1-name');
-    const tips1El = document.getElementById('debater-1-tips');
-    const bar1El = document.getElementById('debater-1-bar');
-    const crown1El = document.getElementById('debater-1-crown');
-    
-    const name2El = document.getElementById('debater-2-name');
-    const tips2El = document.getElementById('debater-2-tips');
-    const bar2El = document.getElementById('debater-2-bar');
-    const crown2El = document.getElementById('debater-2-crown');
-    
     const tips1 = debater1 ? (tips[debater1.id] || 0) : 0;
     const tips2 = debater2 ? (tips[debater2.id] || 0) : 0;
     const totalTips = tips1 + tips2 || 1;
     
-    if (name1El) name1El.textContent = debater1?.name || 'Waiting...';
-    if (tips1El) tips1El.textContent = `💎 ${tips1.toLocaleString()}`;
-    if (bar1El) bar1El.style.width = `${(tips1 / totalTips) * 100}%`;
-    if (crown1El) crown1El.style.display = tips1 > tips2 && tips1 > 0 ? 'inline' : 'none';
-    
-    if (name2El) name2El.textContent = debater2?.name || 'Waiting...';
-    if (tips2El) tips2El.textContent = `💎 ${tips2.toLocaleString()}`;
-    if (bar2El) bar2El.style.width = `${(tips2 / totalTips) * 100}%`;
-    if (crown2El) crown2El.style.display = tips2 > tips1 && tips2 > 0 ? 'inline' : 'none';
-    
-    if (tips1 > tips2 && tips1 > 0 && bar1El) {
-      bar1El.classList.add('animate-pulse');
-      setTimeout(() => bar1El.classList.remove('animate-pulse'), 2000);
+    // Helper function to update a panel's scoreboard
+    function updatePanel(prefix) {
+      const name1El = document.getElementById(prefix + 'debater-1-name');
+      const tips1El = document.getElementById(prefix + 'debater-1-tips');
+      const bar1El = document.getElementById(prefix + 'debater-1-bar');
+      const crown1El = document.getElementById(prefix + 'debater-1-crown');
+      
+      const name2El = document.getElementById(prefix + 'debater-2-name');
+      const tips2El = document.getElementById(prefix + 'debater-2-tips');
+      const bar2El = document.getElementById(prefix + 'debater-2-bar');
+      const crown2El = document.getElementById(prefix + 'debater-2-crown');
+      
+      if (name1El) name1El.textContent = debater1?.name || 'Waiting...';
+      if (tips1El) tips1El.textContent = `💎 ${tips1.toLocaleString()}`;
+      if (bar1El) bar1El.style.width = `${(tips1 / totalTips) * 100}%`;
+      if (crown1El) crown1El.style.display = tips1 > tips2 && tips1 > 0 ? 'inline' : 'none';
+      
+      if (name2El) name2El.textContent = debater2?.name || 'Waiting...';
+      if (tips2El) tips2El.textContent = `💎 ${tips2.toLocaleString()}`;
+      if (bar2El) bar2El.style.width = `${(tips2 / totalTips) * 100}%`;
+      if (crown2El) crown2El.style.display = tips2 > tips1 && tips2 > 0 ? 'inline' : 'none';
+      
+      if (tips1 > tips2 && tips1 > 0 && bar1El) {
+        bar1El.classList.add('animate-pulse');
+        setTimeout(() => bar1El.classList.remove('animate-pulse'), 2000);
+      }
+      if (tips2 > tips1 && tips2 > 0 && bar2El) {
+        bar2El.classList.add('animate-pulse');
+        setTimeout(() => bar2El.classList.remove('animate-pulse'), 2000);
+      }
     }
-    if (tips2 > tips1 && tips2 > 0 && bar2El) {
-      bar2El.classList.add('animate-pulse');
-      setTimeout(() => bar2El.classList.remove('animate-pulse'), 2000);
-    }
+    
+    // Update both participant and spectator panels
+    updatePanel(''); // Participant panel (debater-1-name, etc.)
+    updatePanel('spectator-'); // Spectator panel (spectator-debater-1-name, etc.)
   }
   
   // Start voting phase
   function startVoting() {
     roomTypeState.votingActive = true;
     
-    const potPanel = document.getElementById('red-room-pot-panel');
-    const votingPanel = document.getElementById('voting-panel');
+    // Hide pot panels, show voting panels (both participant and spectator)
+    ['red-room-pot-panel', 'spectator-red-room-pot-panel'].forEach(id => {
+      const panel = document.getElementById(id);
+      if (panel) panel.classList.add('hidden');
+    });
     
-    if (potPanel) potPanel.classList.add('hidden');
-    if (votingPanel) {
-      votingPanel.classList.remove('hidden');
-      populateVoteOptions();
-    }
+    ['voting-panel', 'spectator-voting-panel'].forEach(id => {
+      const panel = document.getElementById(id);
+      if (panel) {
+        panel.classList.remove('hidden');
+      }
+    });
+    
+    populateVoteOptions();
     
     showToast('🗳️ Voting has begun! Who won the debate?');
     console.log('🗳️ Voting phase started');
   }
   window.startVoting = startVoting;
   
-  // Populate vote options
+  // Populate vote options (both panels)
   function populateVoteOptions() {
-    const voteContainer = document.getElementById('vote-options');
-    if (!voteContainer) return;
-    
-    voteContainer.innerHTML = roomTypeState.participants.map(p => `
+    const votesHtml = roomTypeState.participants.map(p => `
       <button 
         onclick="voteForWinner('${p.id}')"
         class="w-full py-3 px-4 bg-white bg-opacity-20 hover:bg-opacity-30 text-white font-bold rounded-lg transition flex items-center justify-center gap-2"
@@ -11187,6 +11322,11 @@ function ensureSpectatorTracksForParticipant(participant) {
         <span>${p.name}</span>
       </button>
     `).join('');
+    
+    ['vote-options', 'spectator-vote-options'].forEach(id => {
+      const container = document.getElementById(id);
+      if (container) container.innerHTML = votesHtml;
+    });
   }
   
   // Vote for winner

@@ -72,12 +72,41 @@ exports.handler = async function(event) {
       // List rooms - filter out expired ones
       const now = new Date().toISOString();
       
+      // Also clean up ALL expired rooms first (including ones with null ends_at that are old)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      
+      // Cleanup: Mark expired rooms as ended
+      await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .lt('ends_at', now)
+        .not('ends_at', 'is', null);
+      
+      // Cleanup: Mark old rooms without ends_at as ended (fallback for legacy data)
+      await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .is('ends_at', null)
+        .lt('started_at', oneHourAgo);
+      
+      // Cleanup: Also mark old rooms (started > 3 hours ago) as ended regardless
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .lt('started_at', threeHoursAgo);
+      
+      console.log('🧹 Expired room cleanup completed');
+      
+      // Now fetch only active rooms that haven't expired
       let query = supabase
         .from('active_rooms')
         .select('*')
         .eq('is_public', true)
-        .in('status', ['live', 'voting'])
-        .gt('ends_at', now) // Only show non-expired rooms
+        .eq('status', 'live') // Only live status (not 'voting' or 'ended')
         .order('started_at', { ascending: false })
         .limit(50);
 
@@ -86,17 +115,6 @@ exports.handler = async function(event) {
       }
 
       const { data, error } = await query;
-      
-      // Also clean up expired rooms in the background
-      supabase
-        .from('active_rooms')
-        .update({ status: 'ended', ended_at: now })
-        .lt('ends_at', now)
-        .eq('status', 'live')
-        .then(({ error: cleanupError }) => {
-          if (cleanupError) console.warn('⚠️ Cleanup error:', cleanupError.message);
-          else console.log('🧹 Cleaned up expired rooms');
-        });
 
       // Handle case where table doesn't exist yet
       if (error) {

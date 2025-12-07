@@ -6,604 +6,371 @@
   <title>ChatSpheres - Explore Forums</title>
   <meta name="description" content="Discover video chat communities. Join forums and watch live conversations on ChatSpheres.">
   
-  <!-- Google AdSense -->
   <meta name="google-adsense-account" content="ca-pub-8986841930339200">
   
-  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-  <!-- Load config from Netlify function -->
-  <script>
-    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
-  </script>
+  <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
   <script src="/.netlify/functions/client-config"></script>
   
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Brand CSS -->
   <link rel="stylesheet" href="/assets/css/brand.css">
   
-  <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
   
   <style>
-    .forums-hero {
-      text-align: center;
-      padding: var(--space-xl) 0 var(--space-lg);
-    }
+    .page-wrapper { max-width: 1200px; margin: 0 auto; padding: var(--space-lg); }
     
-    .forums-title {
-      font-size: 2rem;
-      font-weight: var(--font-weight-extrabold);
-      color: var(--charcoal);
-      margin-bottom: var(--space-xs);
-    }
+    .forums-hero { text-align: center; padding: var(--space-lg) 0; }
+    .forums-title { font-size: 2rem; font-weight: var(--font-weight-extrabold); color: var(--charcoal); margin-bottom: var(--space-xs); }
+    .forums-subtitle { color: var(--charcoal); opacity: 0.7; margin-bottom: var(--space-md); }
     
-    .forums-subtitle {
-      font-size: 1rem;
-      color: var(--charcoal);
-      opacity: 0.7;
-    }
+    .create-cta { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); border: 3px solid var(--gold); margin-bottom: var(--space-lg); text-align: center; }
+    .create-cta h3 { color: var(--charcoal); margin-bottom: var(--space-xs); }
+    .create-cta p { color: var(--charcoal); opacity: 0.7; margin-bottom: var(--space-md); font-size: 0.9rem; }
+    .create-btn { display: inline-flex; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--space-lg); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; text-decoration: none; transition: all var(--transition-fast); }
+    .create-btn:hover { background: var(--charcoal); transform: translateY(-2px); }
     
-    /* Layout */
-    .forums-layout {
-      display: grid;
-      grid-template-columns: 200px 1fr;
-      gap: var(--space-lg);
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 var(--space-md);
-    }
+    .filter-tabs { display: flex; gap: var(--space-xs); margin-bottom: var(--space-lg); flex-wrap: wrap; justify-content: center; }
+    .filter-tab { padding: var(--space-xs) var(--space-md); border-radius: var(--radius-full); font-weight: var(--font-weight-bold); font-family: var(--font-family); border: 2px solid transparent; cursor: pointer; transition: all var(--transition-fast); background: var(--light-rose); color: var(--charcoal); font-size: 0.9rem; }
+    .filter-tab:hover { background: var(--gold); }
+    .filter-tab.active { background: var(--main-red); color: white; }
     
-    @media (max-width: 800px) {
-      .forums-layout {
-        grid-template-columns: 1fr;
-      }
-      .forums-sidebar {
-        display: none;
-      }
-    }
+    .search-bar { display: flex; gap: var(--space-xs); margin-bottom: var(--space-lg); max-width: 500px; margin-left: auto; margin-right: auto; }
+    .search-input { flex: 1; padding: var(--space-sm) var(--space-md); border: 2px solid var(--rose); border-radius: var(--radius-lg); font-family: var(--font-family); font-size: 1rem; outline: none; }
+    .search-input:focus { border-color: var(--main-red); }
+    .search-btn { padding: var(--space-sm) var(--space-lg); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; }
+    .search-btn:hover { background: var(--charcoal); }
     
-    /* Sidebar */
-    .forums-sidebar {
-      position: sticky;
-      top: var(--space-md);
-      height: fit-content;
-    }
+    .forums-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-lg); }
     
-    .sidebar-section {
-      background: white;
-      border-radius: var(--radius-lg);
-      padding: var(--space-sm);
-      margin-bottom: var(--space-sm);
-      border: 2px solid var(--rose);
-    }
+    .forum-card { background: white; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-md); transition: all var(--transition-fast); border: 3px solid var(--rose); text-decoration: none; display: block; }
+    .forum-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--main-red); }
+    .forum-card-banner { height: 80px; background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); position: relative; }
+    .forum-card-banner img { width: 100%; height: 100%; object-fit: cover; }
+    .forum-card-icon { width: 56px; height: 56px; border-radius: var(--radius-full); background: white; border: 3px solid white; position: absolute; bottom: -28px; left: var(--space-md); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: var(--shadow-sm); overflow: hidden; }
+    .forum-card-icon img { width: 100%; height: 100%; object-fit: cover; }
+    .forum-card-body { padding: var(--space-lg); padding-top: calc(var(--space-lg) + 20px); }
+    .forum-card-name { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 1.1rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
+    .nsfw-badge { font-size: 0.6rem; background: #ef4444; color: white; padding: 2px 6px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); }
+    .forum-card-slug { color: var(--charcoal); opacity: 0.5; font-size: 0.85rem; margin-bottom: var(--space-sm); }
+    .forum-card-desc { color: var(--charcoal); opacity: 0.7; font-size: 0.9rem; line-height: 1.5; margin-bottom: var(--space-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .forum-card-stats { display: flex; gap: var(--space-md); font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; }
+    .forum-card-stat.live { color: #10b981; font-weight: var(--font-weight-bold); opacity: 1; }
     
-    .sidebar-title {
-      font-weight: var(--font-weight-bold);
-      color: var(--charcoal);
-      margin-bottom: var(--space-xs);
-      padding: var(--space-xs);
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      opacity: 0.7;
-    }
+    .empty-state { text-align: center; padding: var(--space-2xl); color: var(--charcoal); }
+    .empty-state-icon { font-size: 4rem; margin-bottom: var(--space-md); }
+    .empty-state p { opacity: 0.7; margin-bottom: var(--space-lg); }
     
-    .sidebar-link {
-      display: flex;
-      align-items: center;
-      gap: var(--space-xs);
-      padding: var(--space-xs) var(--space-sm);
-      border-radius: var(--radius-md);
-      color: var(--charcoal);
-      text-decoration: none;
-      transition: all var(--transition-fast);
-      font-weight: var(--font-weight-semibold);
-      font-size: 0.9rem;
-    }
+    .loading-spinner { display: flex; justify-content: center; padding: var(--space-2xl); }
+    .spinner { width: 40px; height: 40px; border: 4px solid var(--light-rose); border-top-color: var(--main-red); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     
-    .sidebar-link:hover, .sidebar-link.active {
-      background: var(--light-rose);
-      color: var(--main-red);
-    }
-    
-    /* Tabs */
-    .filter-tabs {
-      display: flex;
-      gap: var(--space-xs);
-      margin-bottom: var(--space-md);
-      flex-wrap: wrap;
-    }
-    
-    .filter-tab {
-      padding: var(--space-xs) var(--space-md);
-      border-radius: var(--radius-full);
-      font-weight: var(--font-weight-bold);
-      font-family: var(--font-family);
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      background: var(--light-rose);
-      color: var(--charcoal);
-      font-size: 0.85rem;
-    }
-    
-    .filter-tab:hover {
-      background: var(--gold);
-    }
-    
-    .filter-tab.active {
-      background: var(--main-red);
-      color: white;
-    }
-    
-    /* Search */
-    .search-bar {
-      display: flex;
-      gap: var(--space-xs);
-      margin-bottom: var(--space-md);
-    }
-    
-    .search-input {
-      flex: 1;
-      padding: var(--space-xs) var(--space-sm);
-      border: 2px solid var(--rose);
-      border-radius: var(--radius-md);
-      font-family: var(--font-family);
-      font-size: 0.9rem;
-      outline: none;
-    }
-    
-    .search-input:focus {
-      border-color: var(--main-red);
-    }
-    
-    .search-btn {
-      padding: var(--space-xs) var(--space-md);
-      background: var(--main-red);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-family: var(--font-family);
-      font-weight: var(--font-weight-bold);
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-    
-    .search-btn:hover {
-      background: var(--charcoal);
-    }
-    
-    /* Forums Grid */
-    .forums-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: var(--space-md);
-    }
-    
-    /* Forum Card */
-    .forum-card {
-      background: white;
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-      box-shadow: var(--shadow-sm);
-      transition: all var(--transition-fast);
-      border: 2px solid var(--rose);
-      text-decoration: none;
-      display: block;
-    }
-    
-    .forum-card:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-      border-color: var(--main-red);
-    }
-    
-    .forum-card-banner {
-      height: 60px;
-      background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%);
-      position: relative;
-    }
-    
-    .forum-card-banner img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .forum-card-icon {
-      width: 48px;
-      height: 48px;
-      border-radius: var(--radius-full);
-      background: white;
-      border: 2px solid white;
-      position: absolute;
-      bottom: -24px;
-      left: var(--space-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.5rem;
-      box-shadow: var(--shadow-sm);
-      overflow: hidden;
-    }
-    
-    .forum-card-icon img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .forum-card-body {
-      padding: var(--space-md);
-      padding-top: calc(var(--space-md) + 16px);
-    }
-    
-    .forum-card-name {
-      font-weight: var(--font-weight-bold);
-      color: var(--charcoal);
-      font-size: 1rem;
-      margin-bottom: 2px;
-      display: flex;
-      align-items: center;
-      gap: var(--space-xs);
-    }
-    
-    .forum-card-name .nsfw-badge {
-      font-size: 0.6rem;
-      background: #ef4444;
-      color: white;
-      padding: 2px 4px;
-      border-radius: 3px;
-      font-weight: var(--font-weight-bold);
-    }
-    
-    .forum-card-slug {
-      color: var(--charcoal);
-      opacity: 0.5;
-      font-size: 0.8rem;
-      margin-bottom: var(--space-xs);
-    }
-    
-    .forum-card-desc {
-      color: var(--charcoal);
-      opacity: 0.7;
-      font-size: 0.85rem;
-      line-height: 1.4;
-      margin-bottom: var(--space-sm);
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    
-    .forum-card-stats {
-      display: flex;
-      gap: var(--space-sm);
-      font-size: 0.8rem;
-      color: var(--charcoal);
-      opacity: 0.6;
-    }
-    
-    .forum-card-stat.live {
-      color: #10b981;
-      font-weight: var(--font-weight-bold);
-      opacity: 1;
-    }
-    
-    /* Live Section */
-    .live-section {
-      background: white;
-      border-radius: var(--radius-lg);
-      padding: var(--space-md);
-      margin-bottom: var(--space-lg);
-      border: 2px solid #10b981;
-    }
-    
-    .live-section-title {
-      display: flex;
-      align-items: center;
-      gap: var(--space-xs);
-      font-weight: var(--font-weight-bold);
-      color: var(--charcoal);
-      margin-bottom: var(--space-sm);
-      font-size: 1rem;
-    }
-    
-    .live-pulse {
-      width: 8px;
-      height: 8px;
-      background: #ef4444;
-      border-radius: 50%;
-      animation: pulse 1.5s infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-    
-    .live-rooms-scroll {
-      display: flex;
-      gap: var(--space-sm);
-      overflow-x: auto;
-      padding-bottom: var(--space-xs);
-    }
-    
-    .live-room-card {
-      flex-shrink: 0;
-      width: 200px;
-      background: var(--light-rose);
-      border-radius: var(--radius-md);
-      padding: var(--space-sm);
-      text-decoration: none;
-      transition: all var(--transition-fast);
-    }
-    
-    .live-room-card:hover {
-      background: var(--gold);
-    }
-    
-    .live-room-title {
-      font-weight: var(--font-weight-bold);
-      color: var(--charcoal);
-      font-size: 0.9rem;
-      margin-bottom: 2px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    
-    .live-room-forum {
-      font-size: 0.75rem;
-      color: var(--charcoal);
-      opacity: 0.6;
-      margin-bottom: 2px;
-    }
-    
-    .live-room-host {
-      font-size: 0.75rem;
-      color: #10b981;
-      font-weight: var(--font-weight-semibold);
-    }
-    
-    /* Empty State */
-    .empty-state {
-      text-align: center;
-      padding: var(--space-2xl) var(--space-lg);
-      color: var(--charcoal);
-    }
-    
-    .empty-state-icon {
-      font-size: 3rem;
-      margin-bottom: var(--space-md);
-    }
-    
-    /* Create Forum Button */
-    .create-forum-btn {
-      display: none;
-      align-items: center;
-      gap: var(--space-xs);
-      padding: var(--space-xs) var(--space-md);
-      background: var(--main-red);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-family: var(--font-family);
-      font-weight: var(--font-weight-bold);
-      cursor: pointer;
-      text-decoration: none;
-      font-size: 0.85rem;
-    }
-    
-    .create-forum-btn:hover {
-      background: var(--charcoal);
-    }
-    
-    /* Loading */
-    .loading-spinner {
-      display: flex;
-      justify-content: center;
-      padding: var(--space-2xl);
-    }
-    
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid var(--light-rose);
-      border-top-color: var(--main-red);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    
-    /* Header */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: var(--space-md) var(--space-lg);
-      background: white;
-      border-bottom: 2px solid var(--rose);
-    }
-    
-    .header-logo {
-      display: flex;
-      align-items: center;
-      gap: var(--space-sm);
-      text-decoration: none;
-      color: var(--charcoal);
-      font-weight: var(--font-weight-bold);
-      font-size: 1.2rem;
-    }
-    
-    .header-logo svg {
-      width: 32px;
-      height: 32px;
-      color: var(--main-red);
-    }
-    
-    .header-nav {
-      display: flex;
-      gap: var(--space-md);
-      align-items: center;
-    }
-    
-    .header-link {
-      color: var(--charcoal);
-      text-decoration: none;
-      font-weight: var(--font-weight-semibold);
-      font-size: 0.9rem;
-      opacity: 0.8;
-    }
-    
-    .header-link:hover, .header-link.active {
-      opacity: 1;
-      color: var(--main-red);
-    }
-    
-    @media (max-width: 600px) {
-      .header-nav {
-        display: none;
-      }
-    }
+    .category-tabs { display: flex; gap: var(--space-xs); flex-wrap: wrap; justify-content: center; margin-bottom: var(--space-lg); }
+    .category-tab { padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-md); font-size: 0.85rem; background: white; border: 2px solid var(--rose); color: var(--charcoal); cursor: pointer; transition: all var(--transition-fast); text-decoration: none; }
+    .category-tab:hover, .category-tab.active { border-color: var(--main-red); background: var(--light-rose); }
   </style>
 </head>
 <body>
-  <!-- Simple Header -->
-  <header class="page-header">
-    <a href="/" class="header-logo">
-      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
-        <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
-      </svg>
-      <span>ChatSpheres</span>
-    </a>
-    <nav class="header-nav">
-      <a href="/" class="header-link">Home</a>
-      <a href="/live" class="header-link">Live</a>
-      <a href="/forums" class="header-link active">Forums</a>
-      <a href="/matchmaking" class="header-link">Match</a>
-      <a href="/create-forum" class="create-forum-btn" id="createForumBtn">+ Create</a>
-    </nav>
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+      </div>
+    </div>
   </header>
-
-  <main class="page-container">
+  
+  <!-- Navigation Overlay -->
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <!-- Navigation Menu -->
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <ul class="nav-links">
+      <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/live.html" class="nav-link"><span class="nav-link-icon">🔴</span> Live Rooms</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/forums" class="nav-link active"><span class="nav-link-icon">🌐</span> Forums</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    
+    <div class="nav-divider"></div>
+    
+    <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="/branding.html" class="nav-link"><span class="nav-link-icon">🎨</span> Branding</a></li>
+      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
+    </ul>
+    
+    <!-- Guest Links -->
+    <div id="nav-guest-links" class="nav-user-section">
+      <a href="/" class="btn btn-primary btn-full" style="text-decoration: none; margin-bottom: var(--space-sm);">Sign In</a>
+    </div>
+    
+    <!-- User Section -->
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
+    </div>
+  </nav>
+  
+  <div class="page-wrapper">
     <section class="forums-hero">
       <h1 class="forums-title">🌐 Explore Forums</h1>
       <p class="forums-subtitle">Discover communities and watch live video conversations</p>
     </section>
-
-    <div class="forums-layout">
-      <!-- Sidebar -->
-      <aside class="forums-sidebar">
-        <div class="sidebar-section">
-          <div class="sidebar-title">Browse</div>
-          <a href="#" class="sidebar-link active" data-filter="top">🔥 Top</a>
-          <a href="#" class="sidebar-link" data-filter="live">📺 Live Now</a>
-          <a href="#" class="sidebar-link" data-filter="trending">📈 Trending</a>
-          <a href="#" class="sidebar-link" data-filter="new">✨ New</a>
-        </div>
-        
-        <div class="sidebar-section" id="myForumsSection" style="display:none;">
-          <div class="sidebar-title">My Forums</div>
-          <a href="#" class="sidebar-link" data-filter="joined">⭐ Joined</a>
-        </div>
-        
-        <div class="sidebar-section">
-          <div class="sidebar-title">Categories</div>
-          <a href="#" class="sidebar-link" data-category="all">📁 All</a>
-          <a href="#" class="sidebar-link" data-category="gaming">🎮 Gaming</a>
-          <a href="#" class="sidebar-link" data-category="technology">💻 Tech</a>
-          <a href="#" class="sidebar-link" data-category="music">🎵 Music</a>
-          <a href="#" class="sidebar-link" data-category="entertainment">🎬 Entertainment</a>
-          <a href="#" class="sidebar-link" data-category="just_chatting">💬 Just Chatting</a>
-        </div>
-      </aside>
-
-      <!-- Main Content -->
-      <div class="forums-main">
-        <!-- Search -->
-        <div class="search-bar">
-          <input type="text" class="search-input" id="searchInput" placeholder="Search forums...">
-          <button class="search-btn" id="searchBtn">Search</button>
-        </div>
-
-        <!-- Mobile Tabs -->
-        <div class="filter-tabs">
-          <button class="filter-tab active" data-filter="top">🔥 Top</button>
-          <button class="filter-tab" data-filter="live">📺 Live</button>
-          <button class="filter-tab" data-filter="new">✨ New</button>
-          <button class="filter-tab" data-filter="joined" id="joinedTab" style="display:none;">⭐ Joined</button>
-        </div>
-
-        <!-- Live Section -->
-        <section class="live-section" id="liveSection" style="display:none;">
-          <h2 class="live-section-title">
-            <span class="live-pulse"></span> Live Now
-          </h2>
-          <div class="live-rooms-scroll" id="liveRoomsScroll"></div>
-        </section>
-
-        <!-- Forums Grid -->
-        <div id="forumsContainer">
-          <div class="loading-spinner">
-            <div class="spinner"></div>
-          </div>
-        </div>
-      </div>
+    
+    <!-- Create CTA -->
+    <div class="create-cta" id="createCTA" style="display: none;">
+      <h3>🚀 Start Your Community</h3>
+      <p>Create a forum and build your audience. Earn 10% of all tips in your forum!</p>
+      <a href="/create-forum" class="create-btn">+ Create Forum</a>
     </div>
-  </main>
+    
+    <!-- Search -->
+    <div class="search-bar">
+      <input type="text" class="search-input" id="searchInput" placeholder="Search forums...">
+      <button class="search-btn" id="searchBtn">Search</button>
+    </div>
+    
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+      <button class="filter-tab active" data-filter="top">🔥 Top</button>
+      <button class="filter-tab" data-filter="live">📺 Live Now</button>
+      <button class="filter-tab" data-filter="trending">📈 Trending</button>
+      <button class="filter-tab" data-filter="new">✨ New</button>
+      <button class="filter-tab" data-filter="joined" id="joinedTab" style="display:none;">⭐ Joined</button>
+    </div>
+    
+    <!-- Categories -->
+    <div class="category-tabs">
+      <a href="#" class="category-tab active" data-category="all">All</a>
+      <a href="#" class="category-tab" data-category="gaming">🎮 Gaming</a>
+      <a href="#" class="category-tab" data-category="technology">💻 Tech</a>
+      <a href="#" class="category-tab" data-category="music">🎵 Music</a>
+      <a href="#" class="category-tab" data-category="entertainment">🎬 Entertainment</a>
+      <a href="#" class="category-tab" data-category="just_chatting">💬 Just Chatting</a>
+    </div>
+    
+    <!-- Forums Grid -->
+    <div id="forumsContainer">
+      <div class="loading-spinner"><div class="spinner"></div></div>
+    </div>
+    
+    <!-- Footer -->
+    <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl);">
+      <p>
+        <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
+        <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
+        <a href="/community-guidelines.html" style="color: var(--main-red);">Guidelines</a>
+      </p>
+      <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+    </footer>
+  </div>
 
-  <script src="/assets/js/forums.js"></script>
+  <script src="/assets/js/navigation.js"></script>
   <script>
-    // Initialize Supabase and forums
-    (function() {
-      let initAttempts = 0;
-      const maxAttempts = 20;
+    let currentFilter = 'top';
+    let currentCategory = 'all';
+    let currentUser = null;
+    let supabaseClient = null;
+
+    const categoryIcons = { gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬', business: '💼', education: '📚', fitness: '💪', creative: '🎨', just_chatting: '💬', other: '📁' };
+
+    async function initPage(supabase) {
+      supabaseClient = supabase;
       
-      function tryInit() {
-        initAttempts++;
-        const config = window.__CHATSPHERES_CONFIG__ || {};
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (user) {
+          currentUser = user;
+          document.getElementById('createCTA').style.display = 'block';
+          document.getElementById('joinedTab').style.display = 'inline-block';
+          updateHeaderForUser(user);
+        }
+      } catch (e) { console.error('Auth error:', e); }
+      
+      setupEventListeners();
+      loadForums();
+    }
+
+    function setupEventListeners() {
+      document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          currentFilter = tab.dataset.filter;
+          loadForums();
+        });
+      });
+      
+      document.querySelectorAll('.category-tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          e.preventDefault();
+          document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+          tab.classList.add('active');
+          currentCategory = tab.dataset.category;
+          loadForums();
+        });
+      });
+      
+      document.getElementById('searchBtn').addEventListener('click', () => {
+        currentFilter = 'search';
+        loadForums(document.getElementById('searchInput').value.trim());
+      });
+      
+      document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          currentFilter = 'search';
+          loadForums(document.getElementById('searchInput').value.trim());
+        }
+      });
+    }
+
+    async function loadForums(search = null) {
+      const container = document.getElementById('forumsContainer');
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+      
+      try {
+        const params = new URLSearchParams({ filter: currentFilter, limit: 20 });
+        if (currentUser) params.append('userId', currentUser.id);
+        if (currentCategory !== 'all') params.append('category', currentCategory);
+        if (search) params.append('search', search);
         
+        const res = await fetch(`/.netlify/functions/list-forums?${params}`);
+        const data = await res.json();
+        
+        if (!res.ok) throw new Error(data.error);
+        renderForums(data.forums);
+      } catch (err) {
+        console.error('Error:', err);
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🌐</div><p>No forums yet!</p><a href="/create-forum" class="create-btn">+ Create First Forum</a></div>`;
+      }
+    }
+
+    function renderForums(forums) {
+      const container = document.getElementById('forumsContainer');
+      
+      if (!forums || !forums.length) {
+        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🌐</div><p>No forums found. ${currentUser ? '' : 'Sign in to create one!'}</p>${currentUser ? '<a href="/create-forum" class="create-btn">+ Create Forum</a>' : ''}</div>`;
+        return;
+      }
+      
+      container.innerHTML = '<div class="forums-grid">' + forums.map(forum => {
+        const icon = forum.iconUrl ? `<img src="${forum.iconUrl}" alt="">` : (categoryIcons[forum.category] || '💬');
+        return `
+          <a href="/f/${forum.slug}" class="forum-card">
+            <div class="forum-card-banner" ${forum.primaryColor ? `style="background:${forum.primaryColor}"` : ''}>
+              ${forum.bannerUrl ? `<img src="${forum.bannerUrl}" alt="">` : ''}
+              <div class="forum-card-icon">${icon}</div>
+            </div>
+            <div class="forum-card-body">
+              <div class="forum-card-name">${escapeHtml(forum.name)}${forum.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}</div>
+              <div class="forum-card-slug">f/${forum.slug}</div>
+              ${forum.description ? `<div class="forum-card-desc">${escapeHtml(forum.description)}</div>` : ''}
+              <div class="forum-card-stats">
+                <span class="forum-card-stat">👥 ${formatNumber(forum.memberCount || 0)}</span>
+                ${forum.activeRoomCount > 0 ? `<span class="forum-card-stat live">🔴 ${forum.activeRoomCount} live</span>` : ''}
+              </div>
+            </div>
+          </a>
+        `;
+      }).join('') + '</div>';
+    }
+
+    function updateHeaderForUser(user) {
+      const guestLinks = document.getElementById('nav-guest-links');
+      const userSection = document.getElementById('nav-user-section');
+      const userName = document.getElementById('nav-user-name');
+      const headerGemBadge = document.getElementById('header-gem-badge');
+      
+      if (guestLinks) guestLinks.style.display = 'none';
+      if (userSection) userSection.style.display = 'block';
+      if (headerGemBadge) headerGemBadge.style.display = 'flex';
+      if (userName) userName.textContent = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      
+      fetchGemBalance(user.id);
+    }
+
+    async function fetchGemBalance(userId) {
+      try {
+        const res = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const gems = data.totalGems || 0;
+          const navGems = document.getElementById('nav-user-gems');
+          const headerGemCount = document.querySelector('.gem-count');
+          if (navGems) navGems.textContent = gems.toLocaleString();
+          if (headerGemCount) headerGemCount.textContent = gems.toLocaleString();
+        }
+      } catch (e) { console.error('Gem fetch error:', e); }
+    }
+
+    window.handleLogout = async function() {
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+        window.location.reload();
+      }
+    };
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toString();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // Init
+    (function() {
+      let attempts = 0;
+      function tryInit() {
+        attempts++;
+        const config = window.__CHATSPHERES_CONFIG__ || {};
         if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
-          try {
-            const supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
-            if (window.initForums) {
-              window.initForums(supabase);
-            }
-          } catch (e) {
-            console.error('Supabase init error:', e);
-          }
-        } else if (initAttempts < maxAttempts) {
+          initPage(window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY));
+        } else if (attempts < 20) {
           setTimeout(tryInit, 250);
         } else {
-          console.error('Failed to load config after', maxAttempts, 'attempts');
-          // Still try to load forums without auth
-          const container = document.getElementById('forumsContainer');
-          if (container) {
-            container.innerHTML = `
-              <div class="empty-state">
-                <div class="empty-state-icon">🌐</div>
-                <p>No forums yet. <a href="/create-forum" style="color: var(--main-red);">Create the first one!</a></p>
-              </div>
-            `;
-          }
+          document.getElementById('forumsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🌐</div><p>No forums yet!</p></div>';
         }
       }
-      
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', tryInit);
-      } else {
-        tryInit();
-      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tryInit);
+      else tryInit();
     })();
   </script>
 </body>

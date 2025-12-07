@@ -4,494 +4,304 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Create Forum - ChatSpheres</title>
-  <meta name="description" content="Create a new video chat community on ChatSpheres.">
+  <meta name="description" content="Create your own video chat community on ChatSpheres.">
   
-  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
-  </script>
+  <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
   <script src="/.netlify/functions/client-config"></script>
   
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Brand CSS -->
   <link rel="stylesheet" href="/assets/css/brand.css">
   
-  <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
   
   <style>
-    .create-hero {
-      text-align: center;
-      padding: var(--space-2xl) 0 var(--space-xl);
-    }
+    .page-wrapper { max-width: 600px; margin: 0 auto; padding: var(--space-lg); }
     
-    .create-title {
-      font-size: 2rem;
-      font-weight: var(--font-weight-extrabold);
-      color: var(--charcoal);
-      margin-bottom: var(--space-sm);
-    }
+    .create-hero { text-align: center; padding: var(--space-xl) 0 var(--space-lg); }
+    .create-title { font-size: 2rem; font-weight: var(--font-weight-extrabold); color: var(--charcoal); margin-bottom: var(--space-xs); }
+    .create-subtitle { color: var(--charcoal); opacity: 0.7; }
     
-    .create-subtitle {
-      color: var(--charcoal);
-      opacity: 0.7;
-    }
+    .form-card { background: white; border-radius: var(--radius-xl); padding: var(--space-xl); border: 3px solid var(--rose); box-shadow: var(--shadow-md); }
     
-    .create-form-container {
-      max-width: 600px;
-      margin: 0 auto;
-      padding: 0 var(--space-lg) var(--space-2xl);
-    }
+    .form-group { margin-bottom: var(--space-lg); }
+    .form-label { display: block; font-weight: var(--font-weight-bold); color: var(--charcoal); margin-bottom: var(--space-xs); }
+    .form-label-hint { font-weight: normal; opacity: 0.6; font-size: 0.85rem; }
     
-    .form-card {
-      background: white;
-      border-radius: var(--radius-xl);
-      padding: var(--space-xl);
-      border: 3px solid var(--rose);
-    }
+    .form-input, .form-textarea, .form-select { width: 100%; padding: var(--space-sm) var(--space-md); border: 2px solid var(--rose); border-radius: var(--radius-lg); font-family: var(--font-family); font-size: 1rem; transition: border-color var(--transition-fast); box-sizing: border-box; }
+    .form-input:focus, .form-textarea:focus, .form-select:focus { outline: none; border-color: var(--main-red); }
+    .form-textarea { min-height: 100px; resize: vertical; }
     
-    .form-group {
-      margin-bottom: var(--space-lg);
-    }
+    .slug-preview { margin-top: var(--space-xs); font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; }
+    .slug-preview code { background: var(--light-rose); padding: 2px 8px; border-radius: var(--radius-sm); }
     
-    .form-label {
-      display: block;
-      font-weight: var(--font-weight-bold);
-      color: var(--charcoal);
-      margin-bottom: var(--space-xs);
-    }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); }
+    @media (max-width: 500px) { .form-row { grid-template-columns: 1fr; } }
     
-    .form-label-hint {
-      font-weight: normal;
-      opacity: 0.6;
-      font-size: 0.85rem;
-    }
+    .toggle-group { display: flex; align-items: center; gap: var(--space-md); }
+    .toggle { position: relative; width: 50px; height: 28px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; inset: 0; background: var(--rose); border-radius: 28px; cursor: pointer; transition: background var(--transition-fast); }
+    .toggle-slider::before { content: ''; position: absolute; width: 22px; height: 22px; background: white; border-radius: 50%; top: 3px; left: 3px; transition: transform var(--transition-fast); }
+    .toggle input:checked + .toggle-slider { background: var(--main-red); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(22px); }
+    .toggle-label { font-weight: var(--font-weight-semibold); color: var(--charcoal); }
     
-    .form-input, .form-textarea, .form-select {
-      width: 100%;
-      padding: var(--space-sm) var(--space-md);
-      border: 2px solid var(--rose);
-      border-radius: var(--radius-lg);
-      font-family: var(--font-family);
-      font-size: 1rem;
-      transition: border-color var(--transition-fast);
-    }
+    .type-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); }
+    @media (max-width: 500px) { .type-options { grid-template-columns: 1fr; } }
+    .type-option { padding: var(--space-md); border: 3px solid var(--rose); border-radius: var(--radius-lg); background: white; cursor: pointer; transition: all var(--transition-fast); text-align: center; }
+    .type-option:hover { border-color: var(--main-red); }
+    .type-option.selected { border-color: var(--main-red); background: var(--light-rose); }
+    .type-option.disabled { opacity: 0.5; cursor: not-allowed; }
+    .type-option-icon { font-size: 2rem; margin-bottom: var(--space-xs); }
+    .type-option-name { font-weight: var(--font-weight-bold); color: var(--charcoal); }
+    .type-option-desc { font-size: 0.8rem; color: var(--charcoal); opacity: 0.7; margin-top: var(--space-xs); }
+    .pro-badge { display: inline-block; background: var(--gold); color: var(--charcoal); font-size: 0.65rem; padding: 2px 6px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); margin-left: var(--space-xs); }
     
-    .form-input:focus, .form-textarea:focus, .form-select:focus {
-      outline: none;
-      border-color: var(--main-red);
-    }
+    .submit-btn { width: 100%; padding: var(--space-md); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-size: 1.1rem; font-weight: var(--font-weight-bold); cursor: pointer; transition: all var(--transition-fast); }
+    .submit-btn:hover:not(:disabled) { background: var(--charcoal); transform: translateY(-2px); }
+    .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
     
-    .form-textarea {
-      min-height: 100px;
-      resize: vertical;
-    }
+    .error-message { background: #fef2f2; border: 2px solid #ef4444; color: #b91c1c; padding: var(--space-md); border-radius: var(--radius-lg); margin-bottom: var(--space-lg); display: none; }
     
-    .slug-preview {
-      margin-top: var(--space-xs);
-      font-size: 0.85rem;
-      color: var(--charcoal);
-      opacity: 0.7;
-    }
+    .auth-required { text-align: center; padding: var(--space-2xl); background: white; border-radius: var(--radius-xl); border: 3px solid var(--rose); }
+    .auth-required h2 { color: var(--charcoal); margin-bottom: var(--space-md); }
+    .auth-btn { display: inline-flex; align-items: center; gap: var(--space-sm); padding: var(--space-md) var(--space-xl); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; text-decoration: none; }
+    .auth-btn:hover { background: var(--charcoal); }
     
-    .slug-preview code {
-      background: var(--light-rose);
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
-    }
-    
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-md);
-    }
-    
-    @media (max-width: 500px) {
-      .form-row {
-        grid-template-columns: 1fr;
-      }
-    }
-    
-    .toggle-group {
-      display: flex;
-      align-items: center;
-      gap: var(--space-md);
-    }
-    
-    .toggle {
-      position: relative;
-      width: 50px;
-      height: 26px;
-    }
-    
-    .toggle input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    
-    .toggle-slider {
-      position: absolute;
-      inset: 0;
-      background: var(--rose);
-      border-radius: 26px;
-      cursor: pointer;
-      transition: background var(--transition-fast);
-    }
-    
-    .toggle-slider::before {
-      content: '';
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      background: white;
-      border-radius: 50%;
-      top: 3px;
-      left: 3px;
-      transition: transform var(--transition-fast);
-    }
-    
-    .toggle input:checked + .toggle-slider {
-      background: var(--main-red);
-    }
-    
-    .toggle input:checked + .toggle-slider::before {
-      transform: translateX(24px);
-    }
-    
-    .toggle-label {
-      font-weight: var(--font-weight-semibold);
-      color: var(--charcoal);
-    }
-    
-    .type-options {
-      display: flex;
-      gap: var(--space-sm);
-      flex-wrap: wrap;
-    }
-    
-    .type-option {
-      flex: 1;
-      min-width: 120px;
-      padding: var(--space-md);
-      border: 2px solid var(--rose);
-      border-radius: var(--radius-lg);
-      background: white;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      text-align: center;
-    }
-    
-    .type-option:hover {
-      border-color: var(--main-red);
-    }
-    
-    .type-option.selected {
-      border-color: var(--main-red);
-      background: var(--light-rose);
-    }
-    
-    .type-option.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    .type-option-icon {
-      font-size: 1.5rem;
-      margin-bottom: var(--space-xs);
-    }
-    
-    .type-option-name {
-      font-weight: var(--font-weight-bold);
-      color: var(--charcoal);
-    }
-    
-    .type-option-desc {
-      font-size: 0.8rem;
-      color: var(--charcoal);
-      opacity: 0.7;
-      margin-top: var(--space-xs);
-    }
-    
-    .pro-badge {
-      display: inline-block;
-      background: var(--gold);
-      color: var(--charcoal);
-      font-size: 0.7rem;
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
-      font-weight: var(--font-weight-bold);
-      margin-left: var(--space-xs);
-    }
-    
-    .submit-btn {
-      width: 100%;
-      padding: var(--space-md);
-      background: var(--main-red);
-      color: white;
-      border: none;
-      border-radius: var(--radius-lg);
-      font-family: var(--font-family);
-      font-size: 1.1rem;
-      font-weight: var(--font-weight-bold);
-      cursor: pointer;
-      transition: all var(--transition-fast);
-    }
-    
-    .submit-btn:hover:not(:disabled) {
-      background: var(--charcoal);
-      transform: translateY(-2px);
-    }
-    
-    .submit-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    
-    .error-message {
-      background: #fef2f2;
-      border: 2px solid #ef4444;
-      color: #b91c1c;
-      padding: var(--space-md);
-      border-radius: var(--radius-lg);
-      margin-bottom: var(--space-lg);
-      display: none;
-    }
-    
-    .auth-required {
-      text-align: center;
-      padding: var(--space-2xl);
-    }
-    
-    .auth-required h2 {
-      color: var(--charcoal);
-      margin-bottom: var(--space-md);
-    }
-    
-    .auth-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-md) var(--space-xl);
-      background: var(--main-red);
-      color: white;
-      border: none;
-      border-radius: var(--radius-lg);
-      font-family: var(--font-family);
-      font-weight: var(--font-weight-bold);
-      cursor: pointer;
-      text-decoration: none;
-    }
-    
-    .auth-btn:hover {
-      background: var(--charcoal);
-    }
+    .info-box { background: var(--light-rose); border-radius: var(--radius-lg); padding: var(--space-md); margin-bottom: var(--space-lg); }
+    .info-box h4 { color: var(--charcoal); margin-bottom: var(--space-xs); font-size: 0.9rem; }
+    .info-box p { color: var(--charcoal); opacity: 0.8; font-size: 0.85rem; line-height: 1.5; margin: 0; }
   </style>
 </head>
 <body>
-  <!-- Navigation -->
-  <nav class="main-nav">
-    <div class="nav-content">
-      <a href="/" class="nav-logo">
-        <svg class="nav-logo-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
-          <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         </svg>
-        <span>ChatSpheres</span>
+        <span class="site-logo-text">ChatSpheres</span>
       </a>
-      <div class="nav-links">
-        <a href="/" class="nav-link">Home</a>
-        <a href="/explore" class="nav-link">Explore</a>
-        <a href="/live" class="nav-link">Live</a>
-        <a href="/forums" class="nav-link active">Forums</a>
-        <a href="/matchmaking" class="nav-link">Match</a>
+      
+      <div class="header-actions">
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'">
+          <span>💎</span>
+          <span class="gem-count">0</span>
+        </div>
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
       </div>
+    </div>
+  </header>
+  
+  <div id="nav-overlay" class="nav-overlay"></div>
+  
+  <nav id="nav-menu" class="nav-menu">
+    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <ul class="nav-links">
+      <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
+      <li><a href="/live.html" class="nav-link"><span class="nav-link-icon">🔴</span> Live Rooms</a></li>
+      <li><a href="/matchmaking.html" class="nav-link"><span class="nav-link-icon">🎯</span> Find Match</a></li>
+      <li><a href="/forums" class="nav-link active"><span class="nav-link-icon">🌐</span> Forums</a></li>
+      <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
+      <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
+    </ul>
+    <div class="nav-divider"></div>
+    <ul class="nav-links">
+      <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+    </ul>
+    <div id="nav-guest-links" class="nav-user-section">
+      <a href="/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign In</a>
+    </div>
+    <div id="nav-user-section" class="nav-user-section" style="display: none;">
+      <div class="nav-user-info">
+        <div class="nav-user-avatar">👤</div>
+        <div class="nav-user-details">
+          <div id="nav-user-name" class="nav-user-name">User</div>
+          <div class="nav-user-gems">💎 <span id="nav-user-gems">0</span> gems</div>
+        </div>
+      </div>
+      <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
     </div>
   </nav>
 
-  <main class="page-container">
+  <div class="page-wrapper">
     <section class="create-hero">
-      <h1 class="create-title">🌐 Create a Forum</h1>
-      <p class="create-subtitle">Start your own video chat community</p>
+      <h1 class="create-title">🚀 Create a Forum</h1>
+      <p class="create-subtitle">Build your community and earn from tips</p>
     </section>
 
-    <div class="create-form-container">
-      <!-- Auth Required State -->
-      <div class="auth-required" id="authRequired" style="display:none;">
-        <h2>🔐 Sign in to create a forum</h2>
-        <p style="margin-bottom: var(--space-lg); color: var(--charcoal); opacity: 0.7;">You need an account to create and manage forums.</p>
-        <a href="/" class="auth-btn">Sign In with Google</a>
-      </div>
-
-      <!-- Create Form -->
-      <div class="form-card" id="createForm" style="display:none;">
-        <div class="error-message" id="errorMessage"></div>
-        
-        <div class="form-group">
-          <label class="form-label">Forum Name <span class="form-label-hint">(3-100 characters)</span></label>
-          <input type="text" class="form-input" id="forumName" placeholder="e.g., Gaming Lounge" maxlength="100">
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">URL Slug <span class="form-label-hint">(3-50 characters, letters, numbers, dashes)</span></label>
-          <input type="text" class="form-input" id="forumSlug" placeholder="e.g., gaming-lounge" maxlength="50">
-          <div class="slug-preview">Your forum URL: <code id="slugPreview">sphere.chatspheres.com/f/...</code></div>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Description <span class="form-label-hint">(optional)</span></label>
-          <textarea class="form-textarea" id="forumDescription" placeholder="What's your forum about?"></textarea>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Rules <span class="form-label-hint">(optional)</span></label>
-          <textarea class="form-textarea" id="forumRules" placeholder="Community guidelines..."></textarea>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Category</label>
-            <select class="form-select" id="forumCategory">
-              <option value="other">Other</option>
-              <option value="gaming">Gaming</option>
-              <option value="technology">Technology</option>
-              <option value="music">Music</option>
-              <option value="entertainment">Entertainment</option>
-              <option value="business">Business</option>
-              <option value="education">Education</option>
-              <option value="fitness">Fitness</option>
-              <option value="creative">Creative</option>
-              <option value="just_chatting">Just Chatting</option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Forum Type</label>
-          <div class="type-options">
-            <div class="type-option selected" data-type="public">
-              <div class="type-option-icon">🌍</div>
-              <div class="type-option-name">Public</div>
-              <div class="type-option-desc">Anyone can find and join</div>
-            </div>
-            <div class="type-option" data-type="unlisted">
-              <div class="type-option-icon">🔗</div>
-              <div class="type-option-name">Unlisted</div>
-              <div class="type-option-desc">Only with link</div>
-            </div>
-            <div class="type-option" data-type="private" id="privateOption">
-              <div class="type-option-icon">🔒</div>
-              <div class="type-option-name">Private <span class="pro-badge">PRO</span></div>
-              <div class="type-option-desc">Invite only</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <div class="toggle-group">
-            <label class="toggle">
-              <input type="checkbox" id="forumNsfw">
-              <span class="toggle-slider"></span>
-            </label>
-            <span class="toggle-label">🔞 NSFW Content (18+ only)</span>
-          </div>
-        </div>
-        
-        <button type="button" class="submit-btn" id="submitBtn">Create Forum</button>
-      </div>
+    <!-- Auth Required -->
+    <div class="auth-required" id="authRequired" style="display:none;">
+      <h2>🔐 Sign in to create</h2>
+      <p style="margin-bottom: var(--space-lg); color: var(--charcoal); opacity: 0.7;">You need an account to create and manage forums.</p>
+      <a href="/" class="auth-btn">Sign In with Google</a>
     </div>
-  </main>
 
+    <!-- Create Form -->
+    <div class="form-card" id="createForm" style="display:none;">
+      <div class="info-box">
+        <h4>💰 Earn from your community!</h4>
+        <p>As a forum creator, you earn <strong>10% of all tips</strong> made in rooms within your forum. Build your audience and watch your earnings grow!</p>
+      </div>
+      
+      <div class="error-message" id="errorMessage"></div>
+      
+      <div class="form-group">
+        <label class="form-label">Forum Name <span class="form-label-hint">(3-100 characters)</span></label>
+        <input type="text" class="form-input" id="forumName" placeholder="e.g., Gaming Lounge" maxlength="100">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">URL Slug <span class="form-label-hint">(letters, numbers, dashes)</span></label>
+        <input type="text" class="form-input" id="forumSlug" placeholder="e.g., gaming-lounge" maxlength="50">
+        <div class="slug-preview">Your forum: <code id="slugPreview">sphere.chatspheres.com/f/...</code></div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Description <span class="form-label-hint">(optional)</span></label>
+        <textarea class="form-textarea" id="forumDescription" placeholder="What's your forum about?"></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Rules <span class="form-label-hint">(optional)</span></label>
+        <textarea class="form-textarea" id="forumRules" placeholder="Community guidelines..." style="min-height: 80px;"></textarea>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select" id="forumCategory">
+            <option value="just_chatting">💬 Just Chatting</option>
+            <option value="gaming">🎮 Gaming</option>
+            <option value="technology">💻 Technology</option>
+            <option value="music">🎵 Music</option>
+            <option value="entertainment">🎬 Entertainment</option>
+            <option value="business">💼 Business</option>
+            <option value="education">📚 Education</option>
+            <option value="fitness">💪 Fitness</option>
+            <option value="creative">🎨 Creative</option>
+            <option value="other">📁 Other</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Forum Type</label>
+        <div class="type-options">
+          <div class="type-option selected" data-type="public">
+            <div class="type-option-icon">🌍</div>
+            <div class="type-option-name">Public</div>
+            <div class="type-option-desc">Anyone can find & join</div>
+          </div>
+          <div class="type-option" data-type="unlisted">
+            <div class="type-option-icon">🔗</div>
+            <div class="type-option-name">Unlisted</div>
+            <div class="type-option-desc">Only via direct link</div>
+          </div>
+          <div class="type-option" data-type="private" id="privateOption">
+            <div class="type-option-icon">🔒</div>
+            <div class="type-option-name">Private <span class="pro-badge">PRO</span></div>
+            <div class="type-option-desc">Invite only</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <div class="toggle-group">
+          <label class="toggle">
+            <input type="checkbox" id="forumNsfw">
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">🔞 NSFW Content (18+ only)</span>
+        </div>
+      </div>
+      
+      <button type="button" class="submit-btn" id="submitBtn">🚀 Create Forum</button>
+    </div>
+  </div>
+
+  <script src="/assets/js/navigation.js"></script>
   <script>
-    // Initialize
-    let currentUser = null;
-    let canCreatePrivate = false;
-    let selectedType = 'public';
-    
-    // Check auth state
-    async function checkAuth() {
-      const config = window.__CHATSPHERES_CONFIG__ || {};
-      if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
-        console.error('Config not loaded');
-        return;
-      }
+    let currentUser = null, canCreatePrivate = false, selectedType = 'public', supabaseClient = null;
+
+    async function initPage(supabase) {
+      supabaseClient = supabase;
       
-      const supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        document.getElementById('authRequired').style.display = 'block';
-        document.getElementById('createForm').style.display = 'none';
-        return;
-      }
-      
-      currentUser = user;
-      document.getElementById('authRequired').style.display = 'none';
-      document.getElementById('createForm').style.display = 'block';
-      
-      // Check subscription for private forums
       try {
-        const res = await fetch(`/.netlify/functions/get-subscription?userId=${user.id}`);
-        const data = await res.json();
-        canCreatePrivate = data.limits?.canCreatePrivateForums || false;
-        
-        if (!canCreatePrivate) {
-          document.getElementById('privateOption').classList.add('disabled');
-        }
-      } catch (e) {
-        console.error('Error checking subscription:', e);
-      }
-    }
-    
-    // Slug generation
-    document.getElementById('forumName').addEventListener('input', (e) => {
-      const slug = e.target.value
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .slice(0, 50);
-      document.getElementById('forumSlug').value = slug;
-      updateSlugPreview(slug);
-    });
-    
-    document.getElementById('forumSlug').addEventListener('input', (e) => {
-      const slug = e.target.value
-        .toLowerCase()
-        .replace(/[^a-z0-9-]/g, '-')
-        .replace(/-+/g, '-')
-        .slice(0, 50);
-      e.target.value = slug;
-      updateSlugPreview(slug);
-    });
-    
-    function updateSlugPreview(slug) {
-      document.getElementById('slugPreview').innerHTML = 
-        `sphere.chatspheres.com/f/<strong>${slug || '...'}</strong>`;
-    }
-    
-    // Type selection
-    document.querySelectorAll('.type-option').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const type = opt.dataset.type;
-        if (type === 'private' && !canCreatePrivate) {
-          alert('Private forums require a Pro subscription. Upgrade to unlock this feature!');
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) {
+          document.getElementById('authRequired').style.display = 'block';
+          document.getElementById('createForm').style.display = 'none';
           return;
         }
         
-        document.querySelectorAll('.type-option').forEach(o => o.classList.remove('selected'));
-        opt.classList.add('selected');
-        selectedType = type;
+        currentUser = user;
+        document.getElementById('authRequired').style.display = 'none';
+        document.getElementById('createForm').style.display = 'block';
+        updateHeaderForUser(user);
+        
+        // Check subscription
+        const res = await fetch(`/.netlify/functions/get-subscription?userId=${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          canCreatePrivate = data.limits?.canCreatePrivateForums || false;
+          if (!canCreatePrivate) document.getElementById('privateOption').classList.add('disabled');
+        }
+      } catch (e) { console.error('Auth error:', e); }
+      
+      setupEventListeners();
+    }
+
+    function setupEventListeners() {
+      // Slug generation
+      document.getElementById('forumName').addEventListener('input', (e) => {
+        const slug = e.target.value.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').slice(0, 50);
+        document.getElementById('forumSlug').value = slug;
+        updateSlugPreview(slug);
       });
-    });
-    
-    // Submit
-    document.getElementById('submitBtn').addEventListener('click', async () => {
+      
+      document.getElementById('forumSlug').addEventListener('input', (e) => {
+        const slug = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 50);
+        e.target.value = slug;
+        updateSlugPreview(slug);
+      });
+      
+      // Type selection
+      document.querySelectorAll('.type-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          const type = opt.dataset.type;
+          if (type === 'private' && !canCreatePrivate) {
+            alert('Private forums require a Pro subscription. Upgrade to unlock!');
+            return;
+          }
+          document.querySelectorAll('.type-option').forEach(o => o.classList.remove('selected'));
+          opt.classList.add('selected');
+          selectedType = type;
+        });
+      });
+      
+      // Submit
+      document.getElementById('submitBtn').addEventListener('click', submitForm);
+    }
+
+    function updateSlugPreview(slug) {
+      document.getElementById('slugPreview').innerHTML = `sphere.chatspheres.com/f/<strong>${slug || '...'}</strong>`;
+    }
+
+    async function submitForm() {
       const name = document.getElementById('forumName').value.trim();
       const slug = document.getElementById('forumSlug').value.trim();
       const description = document.getElementById('forumDescription').value.trim();
@@ -502,17 +312,8 @@
       const errorEl = document.getElementById('errorMessage');
       errorEl.style.display = 'none';
       
-      if (!name || name.length < 3) {
-        errorEl.textContent = 'Forum name must be at least 3 characters.';
-        errorEl.style.display = 'block';
-        return;
-      }
-      
-      if (!slug || slug.length < 3) {
-        errorEl.textContent = 'URL slug must be at least 3 characters.';
-        errorEl.style.display = 'block';
-        return;
-      }
+      if (!name || name.length < 3) { showError('Forum name must be at least 3 characters.'); return; }
+      if (!slug || slug.length < 3) { showError('URL slug must be at least 3 characters.'); return; }
       
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
@@ -522,36 +323,55 @@
         const res = await fetch('/.netlify/functions/create-forum', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: currentUser.id,
-            name,
-            slug,
-            description,
-            rules,
-            category,
-            forumType: selectedType,
-            isNsfw,
-          }),
+          body: JSON.stringify({ userId: currentUser.id, name, slug, description, rules, category, forumType: selectedType, isNsfw }),
         });
         
         const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to create forum');
         
-        if (!res.ok) {
-          throw new Error(data.error || 'Failed to create forum');
-        }
-        
-        // Success - redirect to forum
         window.location.href = data.url || `/f/${slug}`;
       } catch (err) {
-        errorEl.textContent = err.message;
-        errorEl.style.display = 'block';
+        showError(err.message);
         btn.disabled = false;
-        btn.textContent = 'Create Forum';
+        btn.textContent = '🚀 Create Forum';
       }
-    });
-    
-    // Init
-    checkAuth();
+    }
+
+    function showError(msg) {
+      const el = document.getElementById('errorMessage');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    function updateHeaderForUser(user) {
+      document.getElementById('nav-guest-links').style.display = 'none';
+      document.getElementById('nav-user-section').style.display = 'block';
+      document.getElementById('header-gem-badge').style.display = 'flex';
+      document.getElementById('nav-user-name').textContent = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      fetchGemBalance(user.id);
+    }
+
+    async function fetchGemBalance(userId) {
+      try {
+        const res = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+        if (res.ok) { const d = await res.json(); document.getElementById('nav-user-gems').textContent = (d.totalGems || 0).toLocaleString(); document.querySelector('.gem-count').textContent = (d.totalGems || 0).toLocaleString(); }
+      } catch (e) {}
+    }
+
+    window.handleLogout = async function() { if (supabaseClient) { await supabaseClient.auth.signOut(); window.location.reload(); } };
+
+    (function() {
+      let a = 0;
+      function tryInit() {
+        a++;
+        const c = window.__CHATSPHERES_CONFIG__ || {};
+        if (c.SUPABASE_URL && c.SUPABASE_ANON_KEY) initPage(window.supabase.createClient(c.SUPABASE_URL, c.SUPABASE_ANON_KEY));
+        else if (a < 20) setTimeout(tryInit, 250);
+        else document.getElementById('authRequired').style.display = 'block';
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tryInit);
+      else tryInit();
+    })();
   </script>
 </body>
 </html>

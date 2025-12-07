@@ -5810,6 +5810,9 @@ async function initializeApp() {
     async function handleJoinedMeeting(event = {}) {
       console.log('✅ Joined LiveKit room successfully');
       
+      // Update room counts in database
+      setTimeout(() => updateRoomCounts(), 1000);
+      
       // Track when THIS user joined (for accurate minute calculation)
       userJoinedAtTimestamp = getServerNow();
       latestSessionMinutesUsed = 0; // Reset minutes counter on join
@@ -5990,11 +5993,16 @@ async function initializeApp() {
           updatePotTargets();
           listenForPotUpdates();
         }
+        
+        // Update room counts
+        setTimeout(() => updateRoomCounts(), 500);
       } else {
         console.log('🔒 Ignoring spectator join event to prevent participant disruption');
       }
     } else {
       updateSpectatorParticipants();
+      // Update room counts for spectator join
+      setTimeout(() => updateRoomCounts(), 500);
     }
   }
 
@@ -6047,10 +6055,15 @@ async function initializeApp() {
             updateDebateScoreboard();
           }, 500);
         }
+        
+        // Update room counts
+        setTimeout(() => updateRoomCounts(), 500);
       } else {
         console.log('🔒 Ignoring spectator leave event to prevent participant disruption');
       }
     } else {
+      // Spectator left - update counts
+      setTimeout(() => updateRoomCounts(), 500);
       removeSpectatorParticipant(participantId);
       updateSpectatorParticipants();
       showToast(`👋 ${participantDisplayName} left the conversation`);
@@ -10746,7 +10759,16 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      const topic = urlParams.get('topic') || urlParams.get('matchedTopic') || 'General Discussion';
+      // Get topic from URL first, then from displayed topic element, then fallback
+      let topic = urlParams.get('topic') || urlParams.get('matchedTopic');
+      if (!topic) {
+        const topicEl = document.getElementById('topic-display');
+        if (topicEl && topicEl.textContent && topicEl.textContent !== 'Loading Topic...') {
+          topic = topicEl.textContent;
+        } else {
+          topic = 'General Discussion';
+        }
+      }
       
       const response = await fetch('/.netlify/functions/manage-room', {
         method: 'POST',
@@ -10772,6 +10794,53 @@ function ensureSpectatorTracksForParticipant(participant) {
       }
     } catch (error) {
       console.warn('⚠️ Could not register room:', error.message);
+    }
+  }
+  
+  // Update room participant/spectator counts
+  async function updateRoomCounts() {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) return;
+    
+    try {
+      // Count participants and spectators from LiveKit room
+      let participantCount = 0;
+      let spectatorCount = 0;
+      
+      if (livekitRoom) {
+        const remoteParticipants = Array.from(livekitRoom.remoteParticipants?.values() || []);
+        
+        // Include local participant if not a spectator
+        if (!isSpectator) {
+          participantCount = 1;
+        } else {
+          spectatorCount = 1;
+        }
+        
+        for (const p of remoteParticipants) {
+          const metadata = p.metadata ? JSON.parse(p.metadata) : {};
+          if (metadata.role === 'spectator' || p.identity?.startsWith('Viewer_')) {
+            spectatorCount++;
+          } else {
+            participantCount++;
+          }
+        }
+      }
+      
+      await fetch('/.netlify/functions/manage-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update-counts',
+          roomId: sphereId,
+          participantCount,
+          spectatorCount
+        })
+      });
+      
+      console.log(`📊 Room counts updated: ${participantCount} participants, ${spectatorCount} spectators`);
+    } catch (error) {
+      console.warn('⚠️ Could not update room counts:', error.message);
     }
   }
   

@@ -69,12 +69,15 @@ exports.handler = async function(event) {
         };
       }
 
-      // List rooms
+      // List rooms - filter out expired ones
+      const now = new Date().toISOString();
+      
       let query = supabase
         .from('active_rooms')
         .select('*')
         .eq('is_public', true)
         .in('status', ['live', 'voting'])
+        .gt('ends_at', now) // Only show non-expired rooms
         .order('started_at', { ascending: false })
         .limit(50);
 
@@ -83,6 +86,17 @@ exports.handler = async function(event) {
       }
 
       const { data, error } = await query;
+      
+      // Also clean up expired rooms in the background
+      supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .lt('ends_at', now)
+        .eq('status', 'live')
+        .then(({ error: cleanupError }) => {
+          if (cleanupError) console.warn('⚠️ Cleanup error:', cleanupError.message);
+          else console.log('🧹 Cleaned up expired rooms');
+        });
 
       // Handle case where table doesn't exist yet
       if (error) {
@@ -133,12 +147,70 @@ exports.handler = async function(event) {
           durationMinutes 
         } = body;
 
-        if (!roomId || !hostId || !topic) {
+        if (!roomId || !hostId) {
           return {
             statusCode: 400,
             headers,
             body: JSON.stringify({ 
               error: 'Missing required fields',
+              required: ['roomId', 'hostId']
+            }),
+          };
+        }
+
+        // Check if room already exists
+        let existingRoom = null;
+        try {
+          const { data, error: existingError } = await supabase
+            .from('active_rooms')
+            .select('*')
+            .eq('room_id', roomId)
+            .single();
+          
+          if (!existingError) {
+            existingRoom = data;
+          }
+        } catch (e) {
+          // Table might not exist yet
+        }
+        
+        // If room exists and is still live, just increment participant count
+        if (existingRoom && existingRoom.status === 'live') {
+          // Update participant count
+          const { data: updated, error: updateError } = await supabase
+            .from('active_rooms')
+            .update({ 
+              participant_count: (existingRoom.participant_count || 0) + 1
+            })
+            .eq('room_id', roomId)
+            .select()
+            .single();
+          
+          if (updateError) {
+            console.warn('⚠️ Could not update participant count:', updateError);
+          }
+          
+          console.log(`🏠 Participant joined existing room: ${roomId}`);
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              success: true,
+              room: updated || existingRoom,
+              inviteCode: existingRoom.invite_code,
+              inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${existingRoom.invite_code}`,
+              existingRoom: true
+            }),
+          };
+        }
+
+        // Room doesn't exist or is ended - create new one
+        if (!topic) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Topic is required to create a new room',
               required: ['roomId', 'hostId', 'topic']
             }),
           };

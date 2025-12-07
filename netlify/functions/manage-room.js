@@ -52,32 +52,59 @@ exports.handler = async function(event) {
             return {
               statusCode: 200,
               headers,
-              body: JSON.stringify({ rooms: [] }),
+              body: JSON.stringify({ room: null, status: 'not_found' }),
             };
           }
           return {
             statusCode: 404,
             headers,
-            body: JSON.stringify({ error: 'Room not found' }),
+            body: JSON.stringify({ room: null, error: 'Room not found' }),
+          };
+        }
+
+        // Check if room is actually still active
+        const now = Date.now();
+        const isEnded = data.status === 'ended';
+        const isExpired = data.ends_at && new Date(data.ends_at).getTime() < now;
+        const isEmpty = data.participant_count === 0 && data.room_type === 'red';
+        const startedAt = new Date(data.started_at).getTime();
+        const isStale = isEmpty && (now - startedAt) > 5 * 60 * 1000; // Empty for > 5 min
+        
+        if (isEnded || isExpired || isStale) {
+          // Mark as ended if not already
+          if (!isEnded) {
+            await supabase
+              .from('active_rooms')
+              .update({ status: 'ended', ended_at: new Date().toISOString() })
+              .eq('room_id', roomId);
+          }
+          
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ 
+              room: { ...data, status: 'ended' },
+              status: 'ended',
+              reason: isEnded ? 'manually_ended' : isExpired ? 'expired' : 'abandoned'
+            }),
           };
         }
 
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify(data),
+          body: JSON.stringify({ room: data, status: 'live' }),
         };
       }
 
       // List rooms - filter out expired ones
       const now = new Date().toISOString();
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
       
       console.log('🧹 Running expired room cleanup...');
-      console.log('📅 Now:', now);
-      console.log('📅 One hour ago:', oneHourAgo);
-      console.log('📅 Three hours ago:', threeHoursAgo);
       
       // Cleanup 1: Mark rooms past their ends_at as ended
       const cleanup1 = await supabase
@@ -113,18 +140,50 @@ exports.handler = async function(event) {
         .lt('started_at', oneHourAgo);
       console.log('🧹 Cleanup 4 (voting > 1hr):', cleanup4.error ? cleanup4.error.message : 'OK');
       
+      // Cleanup 5: CRITICAL - Mark rooms with 0 participants that are > 15 minutes old
+      // These are abandoned rooms where everyone left
+      const cleanup5 = await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .eq('participant_count', 0)
+        .lt('started_at', fifteenMinutesAgo);
+      console.log('🧹 Cleanup 5 (0 participants, > 15min):', cleanup5.error ? cleanup5.error.message : 'OK');
+      
+      // Cleanup 6: Mark rooms with only spectators (0 participants) older than 5 minutes
+      // A debate can't happen without debaters
+      const cleanup6 = await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .eq('room_type', 'red')
+        .eq('participant_count', 0)
+        .lt('started_at', fiveMinutesAgo);
+      console.log('🧹 Cleanup 6 (red room, 0 debaters, > 5min):', cleanup6.error ? cleanup6.error.message : 'OK');
+      
+      // Cleanup 7: Mark any room with 0 participants older than 2 hours as ended
+      // These are definitely abandoned rooms
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const cleanup7 = await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .eq('participant_count', 0)
+        .lt('started_at', twoHoursAgo);
+      console.log('🧹 Cleanup 7 (0 participants, > 2hr):', cleanup7.error ? cleanup7.error.message : 'OK');
+      
       console.log('🧹 Expired room cleanup completed');
       
       // Now fetch only active rooms that:
       // 1. Are public
       // 2. Have status 'live'
-      // 3. Have ends_at in the future OR started within the last hour (for rooms without ends_at)
+      // 3. Have ends_at in the future OR started within the last hour
+      // 4. Have at least some activity (participants or spectators) OR are very recent
       let query = supabase
         .from('active_rooms')
         .select('*')
         .eq('is_public', true)
         .eq('status', 'live')
-        .gt('ends_at', now) // Only rooms that haven't expired
         .order('started_at', { ascending: false })
         .limit(50);
 
@@ -132,9 +191,40 @@ exports.handler = async function(event) {
         query = query.eq('room_type', roomType);
       }
 
-      const { data, error } = await query;
+      const { data: allRooms, error } = await query;
       
-      console.log('📋 Found', data?.length || 0, 'active rooms');
+      // Additional client-side filtering for rooms that should be shown:
+      // - ends_at must be in the future, OR
+      // - Room must have participants OR be very recent (< 5 min)
+      const nowTime = Date.now();
+      const fiveMinutesMs = 5 * 60 * 1000;
+      
+      const data = (allRooms || []).filter(room => {
+        // If room has ends_at, check if it's still in the future
+        if (room.ends_at) {
+          const endsAtTime = new Date(room.ends_at).getTime();
+          if (endsAtTime < nowTime) {
+            console.log(`🚫 Filtering out expired room: ${room.room_id}`);
+            return false;
+          }
+        }
+        
+        // For red rooms, must have at least 1 participant OR be very recent
+        if (room.room_type === 'red') {
+          const startedAt = new Date(room.started_at).getTime();
+          const isRecent = (nowTime - startedAt) < fiveMinutesMs;
+          const hasParticipants = room.participant_count > 0;
+          
+          if (!hasParticipants && !isRecent) {
+            console.log(`🚫 Filtering out empty red room: ${room.room_id}`);
+            return false;
+          }
+        }
+        
+        return true;
+      });
+      
+      console.log('📋 Found', data?.length || 0, 'active rooms (after filtering)');
 
       // Handle case where table doesn't exist yet
       if (error) {

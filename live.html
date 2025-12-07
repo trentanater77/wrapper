@@ -1075,8 +1075,8 @@
     document.addEventListener('DOMContentLoaded', () => {
       console.log('📦 DOM loaded, initializing live rooms...');
       loadRooms();
-      // Refresh every 30 seconds
-      setInterval(loadRooms, 30000);
+      // Refresh every 15 seconds to keep list fresh
+      setInterval(loadRooms, 15000);
       
       // Check auth state for create room
       checkAuthForCreateRoom();
@@ -1240,10 +1240,61 @@
       // Hide loading
       loadingEl.classList.add('hidden');
       
-      // Filter rooms
-      let filteredRooms = allRooms;
+      const now = Date.now();
+      const fiveMinutesMs = 5 * 60 * 1000;
+      const fifteenMinutesMs = 15 * 60 * 1000;
+      const twoHoursMs = 2 * 60 * 60 * 1000;
+      
+      // Client-side filtering - remove any stale rooms that shouldn't show
+      let filteredRooms = allRooms.filter(room => {
+        const startedAt = new Date(room.started_at).getTime();
+        const ageMs = now - startedAt;
+        
+        // Must be live status
+        if (room.status !== 'live') {
+          console.log('🚫 Client filter: room not live', room.room_id);
+          return false;
+        }
+        
+        // Check if expired (ends_at in the past)
+        if (room.ends_at) {
+          const endsAt = new Date(room.ends_at).getTime();
+          if (endsAt < now) {
+            console.log('🚫 Client filter: room expired', room.room_id);
+            return false;
+          }
+        }
+        
+        // For red rooms with 0 participants that are older than 5 minutes, filter out
+        // A red room debate needs participants to be valid
+        if (room.room_type === 'red' && room.participant_count === 0) {
+          if (ageMs > fiveMinutesMs) {
+            console.log('🚫 Client filter: empty red room > 5min', room.room_id);
+            return false;
+          }
+        }
+        
+        // For any room with 0 participants AND 0 spectators older than 15 minutes, filter out
+        if (room.participant_count === 0 && (room.spectator_count || 0) === 0) {
+          if (ageMs > fifteenMinutesMs) {
+            console.log('🚫 Client filter: empty room > 15min', room.room_id);
+            return false;
+          }
+        }
+        
+        // Filter out any room older than 2 hours with 0 participants (regardless of spectators)
+        // This catches abandoned rooms that still have spectators watching nothing
+        if (room.participant_count === 0 && ageMs > twoHoursMs) {
+          console.log('🚫 Client filter: abandoned room > 2hr', room.room_id);
+          return false;
+        }
+        
+        return true;
+      });
+      
+      // Apply type filter
       if (currentFilter !== 'all') {
-        filteredRooms = allRooms.filter(room => room.room_type === currentFilter);
+        filteredRooms = filteredRooms.filter(room => room.room_type === currentFilter);
       }
       
       if (filteredRooms.length === 0) {
@@ -1352,8 +1403,23 @@
         const response = await fetch(`/.netlify/functions/manage-room?roomId=${roomId}`);
         const data = await response.json();
         
-        if (!data.room || data.room.status === 'ended') {
-          alert('This room has ended. Refreshing the page to show active rooms...');
+        console.log('🔍 Room status check:', data);
+        
+        // Check both the status field and room.status
+        const isEnded = data.status === 'ended' || 
+                        data.status === 'not_found' || 
+                        (data.room && data.room.status === 'ended') ||
+                        !data.room;
+        
+        if (isEnded) {
+          const reason = data.reason || 'ended';
+          let message = 'This room has ended.';
+          if (reason === 'expired') {
+            message = 'This room has expired.';
+          } else if (reason === 'abandoned') {
+            message = 'This room was abandoned (no participants).';
+          }
+          alert(`${message} Refreshing the page to show active rooms...`);
           loadRooms(); // Refresh the room list
           return;
         }

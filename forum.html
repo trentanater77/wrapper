@@ -25,10 +25,54 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
   
   <style>
+    /* Header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-md) var(--space-lg);
+      background: white;
+      border-bottom: 2px solid var(--rose);
+    }
+    
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      text-decoration: none;
+      color: var(--charcoal);
+      font-weight: var(--font-weight-bold);
+      font-size: 1.2rem;
+    }
+    
+    .header-logo svg {
+      width: 32px;
+      height: 32px;
+      color: var(--main-red);
+    }
+    
+    .header-nav {
+      display: flex;
+      gap: var(--space-md);
+    }
+    
+    .header-link {
+      color: var(--charcoal);
+      text-decoration: none;
+      font-weight: var(--font-weight-semibold);
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+    
+    .header-link:hover, .header-link.active {
+      opacity: 1;
+      color: var(--main-red);
+    }
+    
+    /* Forum Banner */
     .forum-banner {
-      height: 200px;
+      height: 150px;
       background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%);
-      position: relative;
     }
     
     .forum-banner img {
@@ -37,25 +81,25 @@
       object-fit: cover;
     }
     
+    /* Forum Header */
     .forum-header {
-      max-width: 1200px;
+      max-width: 1000px;
       margin: 0 auto;
-      padding: 0 var(--space-lg);
-      position: relative;
-      margin-top: -60px;
+      padding: 0 var(--space-md);
+      margin-top: -40px;
     }
     
     .forum-icon {
-      width: 120px;
-      height: 120px;
+      width: 80px;
+      height: 80px;
       border-radius: var(--radius-full);
       background: white;
-      border: 4px solid white;
-      box-shadow: var(--shadow-lg);
+      border: 3px solid white;
+      box-shadow: var(--shadow-md);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 3rem;
+      font-size: 2.5rem;
       overflow: hidden;
     }
     
@@ -67,52 +111,49 @@
     
     .forum-info {
       display: flex;
-      gap: var(--space-lg);
+      gap: var(--space-md);
       align-items: flex-start;
-      margin-top: var(--space-md);
+      margin-top: var(--space-sm);
+      flex-wrap: wrap;
     }
     
     .forum-meta {
       flex: 1;
+      min-width: 200px;
     }
     
     .forum-name {
-      font-size: 2rem;
+      font-size: 1.5rem;
       font-weight: var(--font-weight-extrabold);
       color: var(--charcoal);
-      margin-bottom: var(--space-xs);
+      margin-bottom: 2px;
       display: flex;
       align-items: center;
-      gap: var(--space-sm);
+      gap: var(--space-xs);
+      flex-wrap: wrap;
     }
     
-    .forum-name .badge {
-      font-size: 0.7rem;
-      padding: 4px 8px;
-      border-radius: var(--radius-sm);
+    .badge {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 3px;
       font-weight: var(--font-weight-bold);
     }
     
-    .forum-name .nsfw-badge {
-      background: #ef4444;
-      color: white;
-    }
-    
-    .forum-name .private-badge {
-      background: #8b5cf6;
-      color: white;
-    }
+    .nsfw-badge { background: #ef4444; color: white; }
+    .private-badge { background: #8b5cf6; color: white; }
     
     .forum-slug {
       color: var(--charcoal);
-      opacity: 0.6;
-      margin-bottom: var(--space-md);
+      opacity: 0.5;
+      font-size: 0.9rem;
+      margin-bottom: var(--space-sm);
     }
     
     .forum-stats {
       display: flex;
-      gap: var(--space-lg);
-      margin-bottom: var(--space-md);
+      gap: var(--space-md);
+      margin-bottom: var(--space-sm);
     }
     
     .forum-stat {
@@ -120,134 +161,93 @@
     }
     
     .forum-stat-value {
-      font-size: 1.5rem;
+      font-size: 1.2rem;
       font-weight: var(--font-weight-bold);
       color: var(--charcoal);
     }
     
     .forum-stat-label {
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       color: var(--charcoal);
-      opacity: 0.7;
+      opacity: 0.6;
     }
     
     .forum-actions {
       display: flex;
-      gap: var(--space-sm);
+      gap: var(--space-xs);
       flex-wrap: wrap;
     }
     
     .forum-btn {
-      padding: var(--space-sm) var(--space-lg);
-      border-radius: var(--radius-lg);
+      padding: var(--space-xs) var(--space-md);
+      border-radius: var(--radius-md);
       font-family: var(--font-family);
       font-weight: var(--font-weight-bold);
       cursor: pointer;
-      transition: all var(--transition-fast);
       border: none;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       gap: var(--space-xs);
+      font-size: 0.85rem;
     }
     
-    .forum-btn-primary {
-      background: var(--main-red);
-      color: white;
-    }
+    .forum-btn-primary { background: var(--main-red); color: white; }
+    .forum-btn-primary:hover { background: var(--charcoal); }
+    .forum-btn-secondary { background: var(--light-rose); color: var(--charcoal); }
+    .forum-btn-secondary:hover { background: var(--gold); }
+    .forum-btn-joined { background: #10b981; color: white; }
     
-    .forum-btn-primary:hover {
-      background: var(--charcoal);
-    }
-    
-    .forum-btn-secondary {
-      background: var(--light-rose);
-      color: var(--charcoal);
-    }
-    
-    .forum-btn-secondary:hover {
-      background: var(--gold);
-    }
-    
-    .forum-btn-joined {
-      background: #10b981;
-      color: white;
-    }
-    
-    /* Content Layout */
+    /* Content */
     .forum-content {
-      max-width: 1200px;
-      margin: var(--space-xl) auto;
-      padding: 0 var(--space-lg);
+      max-width: 1000px;
+      margin: var(--space-lg) auto;
+      padding: 0 var(--space-md);
       display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: var(--space-xl);
+      grid-template-columns: 1fr 280px;
+      gap: var(--space-lg);
     }
     
-    @media (max-width: 900px) {
+    @media (max-width: 800px) {
       .forum-content {
         grid-template-columns: 1fr;
       }
+      .forum-sidebar {
+        order: -1;
+      }
     }
     
-    /* Sidebar */
-    .forum-sidebar {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-md);
-    }
-    
+    /* Sidebar Cards */
     .sidebar-card {
       background: white;
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-lg);
       padding: var(--space-md);
       border: 2px solid var(--rose);
+      margin-bottom: var(--space-sm);
     }
     
     .sidebar-card-title {
       font-weight: var(--font-weight-bold);
       color: var(--charcoal);
-      margin-bottom: var(--space-sm);
-      font-size: 0.9rem;
+      margin-bottom: var(--space-xs);
+      font-size: 0.8rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      opacity: 0.7;
     }
     
-    .forum-description {
+    .forum-description, .forum-rules {
       color: var(--charcoal);
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
-    
-    .forum-rules {
-      color: var(--charcoal);
-      line-height: 1.6;
-      white-space: pre-wrap;
+      line-height: 1.5;
       font-size: 0.9rem;
+      white-space: pre-wrap;
     }
     
-    .moderators-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--space-xs);
-    }
-    
-    .mod-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      background: var(--light-rose);
-      border-radius: var(--radius-sm);
-      font-size: 0.8rem;
-      color: var(--charcoal);
-    }
-    
-    /* Rooms Section */
+    /* Rooms */
     .rooms-section {
       background: white;
-      border-radius: var(--radius-xl);
-      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
       border: 2px solid var(--rose);
     }
     
@@ -257,131 +257,71 @@
       margin-bottom: var(--space-md);
       display: flex;
       align-items: center;
-      gap: var(--space-sm);
-      font-size: 1.2rem;
+      gap: var(--space-xs);
     }
     
     .rooms-grid {
       display: grid;
-      gap: var(--space-md);
+      gap: var(--space-sm);
     }
     
     .room-card {
       background: var(--light-rose);
-      border-radius: var(--radius-lg);
-      padding: var(--space-md);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-md);
       text-decoration: none;
-      transition: all var(--transition-fast);
-      display: block;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .room-card:hover {
       background: var(--gold);
-      transform: translateY(-2px);
+    }
+    
+    .room-card-info {
+      flex: 1;
     }
     
     .room-card-title {
       font-weight: var(--font-weight-bold);
       color: var(--charcoal);
-      margin-bottom: var(--space-xs);
+      font-size: 0.95rem;
     }
     
     .room-card-host {
-      font-size: 0.85rem;
-      color: var(--main-red);
-      margin-bottom: var(--space-xs);
+      font-size: 0.8rem;
+      color: var(--charcoal);
+      opacity: 0.7;
     }
     
     .room-card-status {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       padding: 2px 8px;
       border-radius: var(--radius-sm);
       background: #10b981;
       color: white;
-      font-weight: var(--font-weight-semibold);
-    }
-    
-    /* Announcements */
-    .announcement {
-      background: var(--gold);
-      border-radius: var(--radius-md);
-      padding: var(--space-sm) var(--space-md);
-      margin-bottom: var(--space-sm);
-    }
-    
-    .announcement-title {
       font-weight: var(--font-weight-bold);
-      color: var(--charcoal);
-      font-size: 0.9rem;
     }
     
-    .announcement-content {
-      font-size: 0.85rem;
-      color: var(--charcoal);
-      opacity: 0.8;
-      margin-top: var(--space-xs);
-    }
-    
-    /* Empty / Error States */
+    /* Empty/Error States */
     .empty-state {
       text-align: center;
-      padding: var(--space-2xl);
+      padding: var(--space-xl);
       color: var(--charcoal);
       opacity: 0.7;
     }
     
     .error-state {
       text-align: center;
-      padding: var(--space-2xl);
+      padding: var(--space-2xl) var(--space-lg);
+      max-width: 500px;
+      margin: 0 auto;
     }
     
     .error-state h2 {
       color: var(--main-red);
-      margin-bottom: var(--space-md);
-    }
-    
-    /* Invite Modal */
-    .modal-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      display: none;
-    }
-    
-    .modal {
-      background: white;
-      border-radius: var(--radius-xl);
-      padding: var(--space-xl);
-      max-width: 400px;
-      width: 90%;
-    }
-    
-    .modal-title {
-      font-weight: var(--font-weight-bold);
-      font-size: 1.2rem;
-      margin-bottom: var(--space-md);
-    }
-    
-    .modal-input {
-      width: 100%;
-      padding: var(--space-sm);
-      border: 2px solid var(--rose);
-      border-radius: var(--radius-md);
-      font-family: var(--font-family);
-      margin-bottom: var(--space-md);
-    }
-    
-    .modal-actions {
-      display: flex;
-      gap: var(--space-sm);
-      justify-content: flex-end;
+      margin-bottom: var(--space-sm);
     }
     
     /* Loading */
@@ -392,9 +332,9 @@
     }
     
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid var(--light-rose);
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--light-rose);
       border-top-color: var(--main-red);
       border-radius: 50%;
       animation: spin 1s linear infinite;
@@ -404,43 +344,64 @@
       to { transform: rotate(360deg); }
     }
     
-    /* Banned state */
-    .banned-message {
-      background: #fef2f2;
-      border: 2px solid #ef4444;
-      border-radius: var(--radius-xl);
-      padding: var(--space-xl);
-      text-align: center;
-      max-width: 600px;
-      margin: var(--space-2xl) auto;
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
     }
     
-    .banned-message h2 {
-      color: #ef4444;
-      margin-bottom: var(--space-md);
+    .modal {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      max-width: 360px;
+      width: 90%;
+    }
+    
+    .modal-title {
+      font-weight: var(--font-weight-bold);
+      font-size: 1.1rem;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .modal-input {
+      width: 100%;
+      padding: var(--space-sm);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-md);
+      font-family: var(--font-family);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: var(--space-xs);
+      justify-content: flex-end;
     }
   </style>
 </head>
 <body>
-  <!-- Navigation -->
-  <nav class="main-nav">
-    <div class="nav-content">
-      <a href="/" class="nav-logo">
-        <svg class="nav-logo-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
-          <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
-        </svg>
-        <span>ChatSpheres</span>
-      </a>
-      <div class="nav-links">
-        <a href="/" class="nav-link">Home</a>
-        <a href="/explore" class="nav-link">Explore</a>
-        <a href="/live" class="nav-link">Live</a>
-        <a href="/forums" class="nav-link active">Forums</a>
-        <a href="/matchmaking" class="nav-link">Match</a>
-      </div>
-    </div>
-  </nav>
+  <!-- Header -->
+  <header class="page-header">
+    <a href="/" class="header-logo">
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+        <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+      </svg>
+      <span>ChatSpheres</span>
+    </a>
+    <nav class="header-nav">
+      <a href="/" class="header-link">Home</a>
+      <a href="/live" class="header-link">Live</a>
+      <a href="/forums" class="header-link active">Forums</a>
+      <a href="/matchmaking" class="header-link">Match</a>
+    </nav>
+  </header>
 
   <main id="forumMain">
     <div class="loading-spinner">
@@ -448,11 +409,11 @@
     </div>
   </main>
 
-  <!-- Invite Code Modal -->
+  <!-- Invite Modal -->
   <div class="modal-overlay" id="inviteModal">
     <div class="modal">
       <h3 class="modal-title">🔒 Private Forum</h3>
-      <p style="margin-bottom: var(--space-md); color: var(--charcoal);">Enter an invite code to join this forum:</p>
+      <p style="margin-bottom: var(--space-sm); color: var(--charcoal); font-size: 0.9rem;">Enter an invite code:</p>
       <input type="text" class="modal-input" id="inviteCodeInput" placeholder="Enter invite code...">
       <div class="modal-actions">
         <button class="forum-btn forum-btn-secondary" id="inviteCancelBtn">Cancel</button>
@@ -461,6 +422,345 @@
     </div>
   </div>
 
-  <script src="/assets/js/forum-single.js"></script>
+  <script>
+    let currentUser = null;
+    let forumData = null;
+    let userData = null;
+    let supabaseClient = null;
+
+    const categoryIcons = {
+      gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬',
+      business: '💼', education: '📚', fitness: '💪', creative: '🎨',
+      just_chatting: '💬', other: '📁'
+    };
+
+    function getForumSlug() {
+      const path = window.location.pathname;
+      const match = path.match(/^\/f\/([^\/]+)/);
+      return match ? match[1] : null;
+    }
+
+    async function init(supabase) {
+      supabaseClient = supabase;
+      
+      try {
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        currentUser = user;
+      } catch (e) {
+        console.error('Auth check error:', e);
+      }
+      
+      const slug = getForumSlug();
+      if (!slug) {
+        showError('Forum not found', 'No forum specified.');
+        return;
+      }
+      
+      loadForum(slug);
+      setupInviteModal();
+    }
+
+    async function loadForum(slug) {
+      try {
+        const params = new URLSearchParams({ slug });
+        if (currentUser) params.append('userId', currentUser.id);
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteCode = urlParams.get('invite');
+        
+        const res = await fetch(`/.netlify/functions/get-forum?${params}`);
+        const data = await res.json();
+        
+        if (!res.ok) {
+          if (data.requiresInvite && inviteCode) {
+            await joinWithInvite(slug, inviteCode);
+            return;
+          }
+          if (data.requiresInvite) {
+            showInviteRequired(slug);
+            return;
+          }
+          if (data.requiresAuth) {
+            showError('Private Forum', 'Sign in to access this forum.');
+            return;
+          }
+          throw new Error(data.error || 'Forum not found');
+        }
+        
+        forumData = data.forum;
+        userData = data.user;
+        
+        if (userData?.isBanned) {
+          showBanned();
+          return;
+        }
+        
+        renderForum(data);
+        document.title = `${forumData.name} - ChatSpheres`;
+      } catch (err) {
+        console.error('Error loading forum:', err);
+        showError('Error', err.message);
+      }
+    }
+
+    function renderForum(data) {
+      const { forum, user, moderators, announcements, activeRooms } = data;
+      const icon = forum.iconUrl ? `<img src="${forum.iconUrl}" alt="">` : (categoryIcons[forum.category] || '💬');
+      
+      document.getElementById('forumMain').innerHTML = `
+        <div class="forum-banner" ${forum.bannerUrl ? '' : `style="background: linear-gradient(135deg, ${forum.primaryColor || 'var(--main-red)'} 0%, var(--gold) 100%)"`}>
+          ${forum.bannerUrl ? `<img src="${forum.bannerUrl}" alt="">` : ''}
+        </div>
+        
+        <div class="forum-header">
+          <div class="forum-icon">${icon}</div>
+          
+          <div class="forum-info">
+            <div class="forum-meta">
+              <h1 class="forum-name">
+                ${escapeHtml(forum.name)}
+                ${forum.isNsfw ? '<span class="badge nsfw-badge">NSFW</span>' : ''}
+                ${forum.forumType === 'private' ? '<span class="badge private-badge">Private</span>' : ''}
+              </h1>
+              <div class="forum-slug">f/${forum.slug}</div>
+              
+              <div class="forum-stats">
+                <div class="forum-stat">
+                  <div class="forum-stat-value">${formatNumber(forum.memberCount || 0)}</div>
+                  <div class="forum-stat-label">Members</div>
+                </div>
+                <div class="forum-stat">
+                  <div class="forum-stat-value">${forum.activeRoomCount || 0}</div>
+                  <div class="forum-stat-label">Live</div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="forum-actions">
+              ${renderActionButtons(user, forum)}
+            </div>
+          </div>
+        </div>
+        
+        <div class="forum-content">
+          <div class="forum-main-area">
+            <div class="rooms-section">
+              <h2 class="rooms-section-title">
+                ${activeRooms?.length ? '🔴 Live Rooms' : '📺 Rooms'}
+              </h2>
+              <div class="rooms-grid">
+                ${renderRooms(activeRooms)}
+              </div>
+            </div>
+          </div>
+          
+          <aside class="forum-sidebar">
+            ${forum.description ? `
+              <div class="sidebar-card">
+                <h3 class="sidebar-card-title">About</h3>
+                <div class="forum-description">${escapeHtml(forum.description)}</div>
+              </div>
+            ` : ''}
+            
+            ${forum.rules ? `
+              <div class="sidebar-card">
+                <h3 class="sidebar-card-title">Rules</h3>
+                <div class="forum-rules">${escapeHtml(forum.rules)}</div>
+              </div>
+            ` : ''}
+            
+            <div class="sidebar-card">
+              <h3 class="sidebar-card-title">Category</h3>
+              <span style="font-size: 1.2rem;">${categoryIcons[forum.category] || '📁'}</span>
+              <span style="text-transform: capitalize;">${(forum.category || 'other').replace('_', ' ')}</span>
+            </div>
+          </aside>
+        </div>
+      `;
+    }
+
+    function renderActionButtons(user, forum) {
+      if (!currentUser) {
+        return `<a href="/" class="forum-btn forum-btn-primary">Sign in to Join</a>`;
+      }
+      
+      let buttons = [];
+      
+      if (user?.isMember) {
+        buttons.push(`<span class="forum-btn forum-btn-joined">✓ Joined</span>`);
+        if (user.role !== 'owner') {
+          buttons.push(`<button class="forum-btn forum-btn-secondary" onclick="leaveForum()">Leave</button>`);
+        }
+      } else {
+        buttons.push(`<button class="forum-btn forum-btn-primary" onclick="joinForum()">Join Forum</button>`);
+      }
+      
+      return buttons.join('');
+    }
+
+    function renderRooms(rooms) {
+      if (!rooms || !rooms.length) {
+        return `<div class="empty-state"><p>No active rooms. ${userData?.isMember ? 'Start one from the main page!' : 'Join to start a room.'}</p></div>`;
+      }
+      
+      return rooms.map(room => `
+        <a href="${room.room_url || `/?room=${room.room_id}`}" class="room-card">
+          <div class="room-card-info">
+            <div class="room-card-title">${escapeHtml(room.title || 'Untitled')}</div>
+            <div class="room-card-host">by ${escapeHtml(room.host_name || 'Anonymous')}</div>
+          </div>
+          <span class="room-card-status">🔴 Live</span>
+        </a>
+      `).join('');
+    }
+
+    window.joinForum = async function() {
+      if (!currentUser) { window.location.href = '/'; return; }
+      
+      try {
+        const res = await fetch('/.netlify/functions/join-forum', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, forumSlug: getForumSlug() }),
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          if (data.requiresInvite) {
+            document.getElementById('inviteModal').style.display = 'flex';
+            return;
+          }
+          throw new Error(data.error || 'Failed to join');
+        }
+        window.location.reload();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    };
+
+    window.leaveForum = async function() {
+      if (!confirm('Leave this forum?')) return;
+      
+      try {
+        const res = await fetch('/.netlify/functions/leave-forum', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser.id, forumSlug: getForumSlug() }),
+        });
+        if (!res.ok) throw new Error('Failed to leave');
+        window.location.reload();
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    };
+
+    async function joinWithInvite(slug, inviteCode) {
+      try {
+        const res = await fetch('/.netlify/functions/join-forum', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: currentUser?.id, forumSlug: slug, inviteCode }),
+        });
+        const data = await res.json();
+        
+        if (!res.ok) {
+          if (!currentUser) {
+            showError('Sign In Required', 'Please sign in to use this invite.');
+            return;
+          }
+          throw new Error(data.error || 'Invalid invite');
+        }
+        
+        window.history.replaceState({}, '', `/f/${slug}`);
+        window.location.reload();
+      } catch (err) {
+        showError('Invalid Invite', err.message);
+      }
+    }
+
+    function setupInviteModal() {
+      document.getElementById('inviteCancelBtn')?.addEventListener('click', () => {
+        document.getElementById('inviteModal').style.display = 'none';
+      });
+      
+      document.getElementById('inviteSubmitBtn')?.addEventListener('click', async () => {
+        const code = document.getElementById('inviteCodeInput')?.value.trim();
+        if (code) await joinWithInvite(getForumSlug(), code);
+      });
+    }
+
+    function showInviteRequired(slug) {
+      document.getElementById('forumMain').innerHTML = `
+        <div class="error-state">
+          <h2>🔒 Private Forum</h2>
+          <p style="color: var(--charcoal); margin-bottom: var(--space-md);">This forum requires an invite.</p>
+          ${currentUser ? `
+            <input type="text" class="modal-input" id="inviteInput" placeholder="Enter invite code..." style="max-width: 250px;">
+            <button class="forum-btn forum-btn-primary" onclick="submitInviteCode()" style="margin-top: var(--space-xs);">Join</button>
+          ` : `<a href="/" class="forum-btn forum-btn-primary">Sign In</a>`}
+          <p style="margin-top: var(--space-lg);"><a href="/forums" style="color: var(--main-red);">← Back to Forums</a></p>
+        </div>
+      `;
+    }
+
+    window.submitInviteCode = function() {
+      const code = document.getElementById('inviteInput')?.value.trim();
+      if (code) joinWithInvite(getForumSlug(), code);
+    };
+
+    function showBanned() {
+      document.getElementById('forumMain').innerHTML = `
+        <div class="error-state">
+          <h2>🚫 Banned</h2>
+          <p style="color: var(--charcoal);">You cannot access this forum.</p>
+          <p style="margin-top: var(--space-lg);"><a href="/forums" style="color: var(--main-red);">← Back to Forums</a></p>
+        </div>
+      `;
+    }
+
+    function showError(title, message) {
+      document.getElementById('forumMain').innerHTML = `
+        <div class="error-state">
+          <h2>${title}</h2>
+          <p style="color: var(--charcoal);">${message}</p>
+          <p style="margin-top: var(--space-lg);"><a href="/forums" style="color: var(--main-red);">← Back to Forums</a></p>
+        </div>
+      `;
+    }
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+      return num.toString();
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    // Initialize
+    (function() {
+      let attempts = 0;
+      function tryInit() {
+        attempts++;
+        const config = window.__CHATSPHERES_CONFIG__ || {};
+        if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
+          const supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+          init(supabase);
+        } else if (attempts < 20) {
+          setTimeout(tryInit, 250);
+        } else {
+          showError('Error', 'Failed to load. Please refresh.');
+        }
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryInit);
+      } else {
+        tryInit();
+      }
+    })();
+  </script>
 </body>
 </html>

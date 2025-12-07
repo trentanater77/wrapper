@@ -8,25 +8,27 @@ let currentCategory = 'all';
 let currentPage = 1;
 let currentUser = null;
 let supabaseClient = null;
+let initAttempts = 0;
+const MAX_INIT_ATTEMPTS = 10;
 
-// Initialize
-async function init() {
-  const config = window.__CHATSPHERES_CONFIG__ || {};
-  if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
-    console.error('Config not loaded');
-    setTimeout(init, 500);
-    return;
-  }
-  
-  supabaseClient = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+// Initialize - called from HTML after config is ready
+window.initForums = async function(supabase) {
+  supabaseClient = supabase;
   
   // Check auth
-  const { data: { user } } = await supabaseClient.auth.getUser();
-  if (user) {
-    currentUser = user;
-    document.getElementById('createForumBtn').style.display = 'flex';
-    document.getElementById('myForumsSection').style.display = 'block';
-    document.getElementById('joinedTab').style.display = 'block';
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+      currentUser = user;
+      const createBtn = document.getElementById('createForumBtn');
+      const myForumsSection = document.getElementById('myForumsSection');
+      const joinedTab = document.getElementById('joinedTab');
+      if (createBtn) createBtn.style.display = 'flex';
+      if (myForumsSection) myForumsSection.style.display = 'block';
+      if (joinedTab) joinedTab.style.display = 'inline-block';
+    }
+  } catch (e) {
+    console.error('Auth check error:', e);
   }
   
   // Setup event listeners
@@ -35,7 +37,9 @@ async function init() {
   // Load forums
   loadForums();
   loadLiveRooms();
-}
+  
+  console.log('✅ Forums initialized');
+};
 
 function setupEventListeners() {
   // Sidebar links
@@ -62,8 +66,10 @@ function setupEventListeners() {
   });
   
   // Search
-  document.getElementById('searchBtn').addEventListener('click', doSearch);
-  document.getElementById('searchInput').addEventListener('keypress', (e) => {
+  const searchBtn = document.getElementById('searchBtn');
+  const searchInput = document.getElementById('searchInput');
+  if (searchBtn) searchBtn.addEventListener('click', doSearch);
+  if (searchInput) searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') doSearch();
   });
 }
@@ -94,7 +100,7 @@ function setCategory(category) {
 }
 
 function doSearch() {
-  const query = document.getElementById('searchInput').value.trim();
+  const query = document.getElementById('searchInput')?.value.trim();
   if (!query) return;
   
   currentFilter = 'search';
@@ -104,6 +110,8 @@ function doSearch() {
 
 async function loadForums(search = null) {
   const container = document.getElementById('forumsContainer');
+  if (!container) return;
+  
   container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
   
   try {
@@ -127,8 +135,8 @@ async function loadForums(search = null) {
     console.error('Error loading forums:', err);
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">😕</div>
-        <p>Failed to load forums. Please try again.</p>
+        <div class="empty-state-icon">🌐</div>
+        <p>No forums yet. Be the first to <a href="/create-forum" style="color: var(--main-red);">create one</a>!</p>
       </div>
     `;
   }
@@ -136,12 +144,13 @@ async function loadForums(search = null) {
 
 function renderForums(forums, pagination) {
   const container = document.getElementById('forumsContainer');
+  if (!container) return;
   
   if (!forums || forums.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <div class="empty-state-icon">🔍</div>
-        <p>No forums found. ${currentUser ? '<a href="/create-forum">Create one!</a>' : ''}</p>
+        <div class="empty-state-icon">🌐</div>
+        <p>No forums found. ${currentUser ? '<a href="/create-forum" style="color: var(--main-red);">Create one!</a>' : '<a href="/" style="color: var(--main-red);">Sign in</a> to create a forum.'}</p>
       </div>
     `;
     return;
@@ -167,7 +176,7 @@ function renderForums(forums, pagination) {
         </div>
         <div class="forum-card-body">
           <div class="forum-card-name">
-            ${forum.name}
+            ${escapeHtml(forum.name)}
             ${forum.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}
           </div>
           <div class="forum-card-slug">f/${forum.slug}</div>
@@ -198,44 +207,48 @@ function renderForums(forums, pagination) {
 }
 
 async function loadLiveRooms() {
+  const liveSection = document.getElementById('liveSection');
+  if (!liveSection) return;
+  
   try {
     const res = await fetch('/.netlify/functions/list-forums?filter=live&limit=10');
     const data = await res.json();
     
     if (!data.forums || data.forums.length === 0) {
-      document.getElementById('liveSection').style.display = 'none';
+      liveSection.style.display = 'none';
       return;
     }
     
     // Get active rooms from forums with live rooms
     const liveForums = data.forums.filter(f => f.activeRoomCount > 0);
     if (liveForums.length === 0) {
-      document.getElementById('liveSection').style.display = 'none';
+      liveSection.style.display = 'none';
       return;
     }
     
-    document.getElementById('liveSection').style.display = 'block';
+    liveSection.style.display = 'block';
     
-    // For now, show forum cards with live indicator
     const scroll = document.getElementById('liveRoomsScroll');
-    scroll.innerHTML = liveForums.map(forum => `
-      <a href="/f/${forum.slug}" class="live-room-card">
-        <div class="live-room-title">${escapeHtml(forum.name)}</div>
-        <div class="live-room-forum">f/${forum.slug}</div>
-        <div class="live-room-host">🔴 ${forum.activeRoomCount} room${forum.activeRoomCount > 1 ? 's' : ''} live</div>
-      </a>
-    `).join('');
+    if (scroll) {
+      scroll.innerHTML = liveForums.map(forum => `
+        <a href="/f/${forum.slug}" class="live-room-card">
+          <div class="live-room-title">${escapeHtml(forum.name)}</div>
+          <div class="live-room-forum">f/${forum.slug}</div>
+          <div class="live-room-host">🔴 ${forum.activeRoomCount} room${forum.activeRoomCount > 1 ? 's' : ''} live</div>
+        </a>
+      `).join('');
+    }
   } catch (err) {
     console.error('Error loading live rooms:', err);
-    document.getElementById('liveSection').style.display = 'none';
+    if (liveSection) liveSection.style.display = 'none';
   }
 }
 
-function changePage(page) {
+window.changePage = function(page) {
   currentPage = page;
   loadForums();
   window.scrollTo({ top: 0, behavior: 'smooth' });
-}
+};
 
 function formatNumber(num) {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -245,13 +258,6 @@ function formatNumber(num) {
 
 function escapeHtml(text) {
   const div = document.createElement('div');
-  div.textContent = text;
+  div.textContent = text || '';
   return div.innerHTML;
-}
-
-// Initialize when DOM ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
 }

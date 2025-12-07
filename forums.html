@@ -32,34 +32,33 @@
   <style>
     .forums-hero {
       text-align: center;
-      padding: var(--space-2xl) 0 var(--space-xl);
+      padding: var(--space-xl) 0 var(--space-lg);
     }
     
     .forums-title {
-      font-size: 2.5rem;
+      font-size: 2rem;
       font-weight: var(--font-weight-extrabold);
       color: var(--charcoal);
-      margin-bottom: var(--space-sm);
+      margin-bottom: var(--space-xs);
     }
     
     .forums-subtitle {
-      font-size: 1.1rem;
+      font-size: 1rem;
       color: var(--charcoal);
       opacity: 0.7;
-      margin-bottom: var(--space-lg);
     }
     
     /* Layout */
     .forums-layout {
       display: grid;
-      grid-template-columns: 220px 1fr;
-      gap: var(--space-xl);
-      max-width: 1400px;
+      grid-template-columns: 200px 1fr;
+      gap: var(--space-lg);
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 0 var(--space-lg);
+      padding: 0 var(--space-md);
     }
     
-    @media (max-width: 900px) {
+    @media (max-width: 800px) {
       .forums-layout {
         grid-template-columns: 1fr;
       }
@@ -71,37 +70,40 @@
     /* Sidebar */
     .forums-sidebar {
       position: sticky;
-      top: var(--space-lg);
+      top: var(--space-md);
       height: fit-content;
     }
     
     .sidebar-section {
       background: white;
-      border-radius: var(--radius-xl);
-      padding: var(--space-md);
-      margin-bottom: var(--space-md);
+      border-radius: var(--radius-lg);
+      padding: var(--space-sm);
+      margin-bottom: var(--space-sm);
       border: 2px solid var(--rose);
     }
     
     .sidebar-title {
       font-weight: var(--font-weight-bold);
       color: var(--charcoal);
-      margin-bottom: var(--space-sm);
-      font-size: 0.85rem;
+      margin-bottom: var(--space-xs);
+      padding: var(--space-xs);
+      font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      opacity: 0.7;
     }
     
     .sidebar-link {
       display: flex;
       align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-sm);
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
       border-radius: var(--radius-md);
       color: var(--charcoal);
       text-decoration: none;
       transition: all var(--transition-fast);
       font-weight: var(--font-weight-semibold);
+      font-size: 0.9rem;
     }
     
     .sidebar-link:hover, .sidebar-link.active {
@@ -109,20 +111,16 @@
       color: var(--main-red);
     }
     
-    .sidebar-link .icon {
-      font-size: 1.2rem;
-    }
-    
     /* Tabs */
     .filter-tabs {
       display: flex;
-      gap: var(--space-sm);
-      margin-bottom: var(--space-lg);
+      gap: var(--space-xs);
+      margin-bottom: var(--space-md);
       flex-wrap: wrap;
     }
     
     .filter-tab {
-      padding: var(--space-sm) var(--space-md);
+      padding: var(--space-xs) var(--space-md);
       border-radius: var(--radius-full);
       font-weight: var(--font-weight-bold);
       font-family: var(--font-family);
@@ -131,7 +129,7 @@
       transition: all var(--transition-fast);
       background: var(--light-rose);
       color: var(--charcoal);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
     
     .filter-tab:hover {
@@ -141,25 +139,23 @@
     .filter-tab.active {
       background: var(--main-red);
       color: white;
-      border-color: var(--main-red);
     }
     
     /* Search */
     .search-bar {
       display: flex;
-      gap: var(--space-sm);
-      margin-bottom: var(--space-lg);
+      gap: var(--space-xs);
+      margin-bottom: var(--space-md);
     }
     
     .search-input {
       flex: 1;
-      padding: var(--space-sm) var(--space-md);
+      padding: var(--space-xs) var(--space-sm);
       border: 2px solid var(--rose);
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
       font-family: var(--font-family);
-      font-size: 1rem;
+      font-size: 0.9rem;
       outline: none;
-      transition: border-color var(--transition-fast);
     }
     
     .search-input:focus {
@@ -167,15 +163,15 @@
     }
     
     .search-btn {
-      padding: var(--space-sm) var(--space-lg);
+      padding: var(--space-xs) var(--space-md);
       background: var(--main-red);
       color: white;
       border: none;
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
       font-family: var(--font-family);
       font-weight: var(--font-weight-bold);
       cursor: pointer;
-      transition: all var(--transition-fast);
+      font-size: 0.85rem;
     }
     
     .search-btn:hover {
@@ -185,30 +181,30 @@
     /* Forums Grid */
     .forums-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: var(--space-lg);
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--space-md);
     }
     
     /* Forum Card */
     .forum-card {
       background: white;
-      border-radius: var(--radius-xl);
+      border-radius: var(--radius-lg);
       overflow: hidden;
-      box-shadow: var(--shadow-md);
+      box-shadow: var(--shadow-sm);
       transition: all var(--transition-fast);
-      border: 3px solid var(--rose);
+      border: 2px solid var(--rose);
       text-decoration: none;
       display: block;
     }
     
     .forum-card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-lg);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
       border-color: var(--main-red);
     }
     
     .forum-card-banner {
-      height: 80px;
+      height: 60px;
       background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%);
       position: relative;
     }
@@ -220,18 +216,18 @@
     }
     
     .forum-card-icon {
-      width: 60px;
-      height: 60px;
+      width: 48px;
+      height: 48px;
       border-radius: var(--radius-full);
       background: white;
-      border: 3px solid white;
+      border: 2px solid white;
       position: absolute;
-      bottom: -30px;
-      left: var(--space-md);
+      bottom: -24px;
+      left: var(--space-sm);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.8rem;
+      font-size: 1.5rem;
       box-shadow: var(--shadow-sm);
       overflow: hidden;
     }
@@ -243,42 +239,42 @@
     }
     
     .forum-card-body {
-      padding: var(--space-lg);
-      padding-top: calc(var(--space-lg) + 20px);
+      padding: var(--space-md);
+      padding-top: calc(var(--space-md) + 16px);
     }
     
     .forum-card-name {
       font-weight: var(--font-weight-bold);
       color: var(--charcoal);
-      font-size: 1.1rem;
-      margin-bottom: var(--space-xs);
+      font-size: 1rem;
+      margin-bottom: 2px;
       display: flex;
       align-items: center;
       gap: var(--space-xs);
     }
     
     .forum-card-name .nsfw-badge {
-      font-size: 0.65rem;
+      font-size: 0.6rem;
       background: #ef4444;
       color: white;
-      padding: 2px 6px;
-      border-radius: var(--radius-sm);
+      padding: 2px 4px;
+      border-radius: 3px;
       font-weight: var(--font-weight-bold);
     }
     
     .forum-card-slug {
       color: var(--charcoal);
-      opacity: 0.6;
-      font-size: 0.85rem;
-      margin-bottom: var(--space-sm);
+      opacity: 0.5;
+      font-size: 0.8rem;
+      margin-bottom: var(--space-xs);
     }
     
     .forum-card-desc {
       color: var(--charcoal);
-      opacity: 0.8;
-      font-size: 0.9rem;
-      line-height: 1.5;
-      margin-bottom: var(--space-md);
+      opacity: 0.7;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      margin-bottom: var(--space-sm);
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -287,105 +283,99 @@
     
     .forum-card-stats {
       display: flex;
-      gap: var(--space-md);
-      font-size: 0.85rem;
+      gap: var(--space-sm);
+      font-size: 0.8rem;
       color: var(--charcoal);
-      opacity: 0.7;
-    }
-    
-    .forum-card-stat {
-      display: flex;
-      align-items: center;
-      gap: 4px;
+      opacity: 0.6;
     }
     
     .forum-card-stat.live {
       color: #10b981;
       font-weight: var(--font-weight-bold);
+      opacity: 1;
     }
     
     /* Live Section */
     .live-section {
       background: white;
-      border-radius: var(--radius-xl);
-      padding: var(--space-lg);
-      margin-bottom: var(--space-xl);
-      border: 3px solid #10b981;
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      margin-bottom: var(--space-lg);
+      border: 2px solid #10b981;
     }
     
     .live-section-title {
       display: flex;
       align-items: center;
-      gap: var(--space-sm);
+      gap: var(--space-xs);
       font-weight: var(--font-weight-bold);
       color: var(--charcoal);
-      margin-bottom: var(--space-md);
-      font-size: 1.2rem;
+      margin-bottom: var(--space-sm);
+      font-size: 1rem;
     }
     
     .live-pulse {
-      width: 10px;
-      height: 10px;
+      width: 8px;
+      height: 8px;
       background: #ef4444;
       border-radius: 50%;
       animation: pulse 1.5s infinite;
     }
     
     @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.1); }
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
     }
     
     .live-rooms-scroll {
       display: flex;
-      gap: var(--space-md);
+      gap: var(--space-sm);
       overflow-x: auto;
-      padding-bottom: var(--space-sm);
+      padding-bottom: var(--space-xs);
     }
     
     .live-room-card {
       flex-shrink: 0;
-      width: 260px;
+      width: 200px;
       background: var(--light-rose);
-      border-radius: var(--radius-lg);
-      padding: var(--space-md);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm);
       text-decoration: none;
       transition: all var(--transition-fast);
     }
     
     .live-room-card:hover {
-      transform: translateY(-2px);
       background: var(--gold);
     }
     
     .live-room-title {
       font-weight: var(--font-weight-bold);
       color: var(--charcoal);
-      margin-bottom: var(--space-xs);
+      font-size: 0.9rem;
+      margin-bottom: 2px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     
     .live-room-forum {
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       color: var(--charcoal);
-      opacity: 0.7;
-      margin-bottom: var(--space-xs);
+      opacity: 0.6;
+      margin-bottom: 2px;
     }
     
     .live-room-host {
-      font-size: 0.8rem;
-      color: var(--main-red);
+      font-size: 0.75rem;
+      color: #10b981;
       font-weight: var(--font-weight-semibold);
     }
     
     /* Empty State */
     .empty-state {
       text-align: center;
-      padding: var(--space-2xl);
+      padding: var(--space-2xl) var(--space-lg);
       color: var(--charcoal);
-      opacity: 0.7;
     }
     
     .empty-state-icon {
@@ -393,38 +383,25 @@
       margin-bottom: var(--space-md);
     }
     
-    /* Category badges */
-    .category-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      background: var(--light-rose);
-      border-radius: var(--radius-sm);
-      font-size: 0.75rem;
-      color: var(--charcoal);
-      font-weight: var(--font-weight-semibold);
-      margin-right: var(--space-xs);
-    }
-    
     /* Create Forum Button */
     .create-forum-btn {
-      display: inline-flex;
+      display: none;
       align-items: center;
-      gap: var(--space-sm);
-      padding: var(--space-sm) var(--space-lg);
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-md);
       background: var(--main-red);
       color: white;
       border: none;
-      border-radius: var(--radius-lg);
+      border-radius: var(--radius-md);
       font-family: var(--font-family);
       font-weight: var(--font-weight-bold);
       cursor: pointer;
       text-decoration: none;
-      transition: all var(--transition-fast);
+      font-size: 0.85rem;
     }
     
     .create-forum-btn:hover {
       background: var(--charcoal);
-      transform: translateY(-2px);
     }
     
     /* Loading */
@@ -435,9 +412,9 @@
     }
     
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid var(--light-rose);
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--light-rose);
       border-top-color: var(--main-red);
       border-radius: 50%;
       animation: spin 1s linear infinite;
@@ -446,33 +423,77 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    
+    /* Header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-md) var(--space-lg);
+      background: white;
+      border-bottom: 2px solid var(--rose);
+    }
+    
+    .header-logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      text-decoration: none;
+      color: var(--charcoal);
+      font-weight: var(--font-weight-bold);
+      font-size: 1.2rem;
+    }
+    
+    .header-logo svg {
+      width: 32px;
+      height: 32px;
+      color: var(--main-red);
+    }
+    
+    .header-nav {
+      display: flex;
+      gap: var(--space-md);
+      align-items: center;
+    }
+    
+    .header-link {
+      color: var(--charcoal);
+      text-decoration: none;
+      font-weight: var(--font-weight-semibold);
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+    
+    .header-link:hover, .header-link.active {
+      opacity: 1;
+      color: var(--main-red);
+    }
+    
+    @media (max-width: 600px) {
+      .header-nav {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
-  <!-- Navigation -->
-  <nav class="main-nav">
-    <div class="nav-content">
-      <a href="/" class="nav-logo">
-        <svg class="nav-logo-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
-          <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
-        </svg>
-        <span>ChatSpheres</span>
-      </a>
-      <div class="nav-links">
-        <a href="/" class="nav-link">Home</a>
-        <a href="/explore" class="nav-link">Explore</a>
-        <a href="/live" class="nav-link">Live</a>
-        <a href="/forums" class="nav-link active">Forums</a>
-        <a href="/matchmaking" class="nav-link">Match</a>
-      </div>
-      <div class="nav-actions">
-        <a href="/create-forum" class="create-forum-btn" id="createForumBtn" style="display:none;">
-          <span>+</span> Create Forum
-        </a>
-      </div>
-    </div>
-  </nav>
+  <!-- Simple Header -->
+  <header class="page-header">
+    <a href="/" class="header-logo">
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+        <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+      </svg>
+      <span>ChatSpheres</span>
+    </a>
+    <nav class="header-nav">
+      <a href="/" class="header-link">Home</a>
+      <a href="/live" class="header-link">Live</a>
+      <a href="/forums" class="header-link active">Forums</a>
+      <a href="/matchmaking" class="header-link">Match</a>
+      <a href="/create-forum" class="create-forum-btn" id="createForumBtn">+ Create</a>
+    </nav>
+  </header>
 
   <main class="page-container">
     <section class="forums-hero">
@@ -485,59 +506,25 @@
       <aside class="forums-sidebar">
         <div class="sidebar-section">
           <div class="sidebar-title">Browse</div>
-          <a href="#" class="sidebar-link active" data-filter="top">
-            <span class="icon">🔥</span> Top Forums
-          </a>
-          <a href="#" class="sidebar-link" data-filter="live">
-            <span class="icon">📺</span> Live Now
-          </a>
-          <a href="#" class="sidebar-link" data-filter="trending">
-            <span class="icon">📈</span> Trending
-          </a>
-          <a href="#" class="sidebar-link" data-filter="new">
-            <span class="icon">✨</span> New
-          </a>
+          <a href="#" class="sidebar-link active" data-filter="top">🔥 Top</a>
+          <a href="#" class="sidebar-link" data-filter="live">📺 Live Now</a>
+          <a href="#" class="sidebar-link" data-filter="trending">📈 Trending</a>
+          <a href="#" class="sidebar-link" data-filter="new">✨ New</a>
         </div>
         
         <div class="sidebar-section" id="myForumsSection" style="display:none;">
           <div class="sidebar-title">My Forums</div>
-          <a href="#" class="sidebar-link" data-filter="joined">
-            <span class="icon">⭐</span> Joined
-          </a>
+          <a href="#" class="sidebar-link" data-filter="joined">⭐ Joined</a>
         </div>
         
         <div class="sidebar-section">
           <div class="sidebar-title">Categories</div>
-          <a href="#" class="sidebar-link" data-category="all">
-            <span class="icon">📁</span> All
-          </a>
-          <a href="#" class="sidebar-link" data-category="gaming">
-            <span class="icon">🎮</span> Gaming
-          </a>
-          <a href="#" class="sidebar-link" data-category="technology">
-            <span class="icon">💻</span> Technology
-          </a>
-          <a href="#" class="sidebar-link" data-category="music">
-            <span class="icon">🎵</span> Music
-          </a>
-          <a href="#" class="sidebar-link" data-category="entertainment">
-            <span class="icon">🎬</span> Entertainment
-          </a>
-          <a href="#" class="sidebar-link" data-category="business">
-            <span class="icon">💼</span> Business
-          </a>
-          <a href="#" class="sidebar-link" data-category="education">
-            <span class="icon">📚</span> Education
-          </a>
-          <a href="#" class="sidebar-link" data-category="fitness">
-            <span class="icon">💪</span> Fitness
-          </a>
-          <a href="#" class="sidebar-link" data-category="creative">
-            <span class="icon">🎨</span> Creative
-          </a>
-          <a href="#" class="sidebar-link" data-category="just_chatting">
-            <span class="icon">💬</span> Just Chatting
-          </a>
+          <a href="#" class="sidebar-link" data-category="all">📁 All</a>
+          <a href="#" class="sidebar-link" data-category="gaming">🎮 Gaming</a>
+          <a href="#" class="sidebar-link" data-category="technology">💻 Tech</a>
+          <a href="#" class="sidebar-link" data-category="music">🎵 Music</a>
+          <a href="#" class="sidebar-link" data-category="entertainment">🎬 Entertainment</a>
+          <a href="#" class="sidebar-link" data-category="just_chatting">💬 Just Chatting</a>
         </div>
       </aside>
 
@@ -553,7 +540,6 @@
         <div class="filter-tabs">
           <button class="filter-tab active" data-filter="top">🔥 Top</button>
           <button class="filter-tab" data-filter="live">📺 Live</button>
-          <button class="filter-tab" data-filter="trending">📈 Trending</button>
           <button class="filter-tab" data-filter="new">✨ New</button>
           <button class="filter-tab" data-filter="joined" id="joinedTab" style="display:none;">⭐ Joined</button>
         </div>
@@ -563,9 +549,7 @@
           <h2 class="live-section-title">
             <span class="live-pulse"></span> Live Now
           </h2>
-          <div class="live-rooms-scroll" id="liveRoomsScroll">
-            <!-- Live rooms injected here -->
-          </div>
+          <div class="live-rooms-scroll" id="liveRoomsScroll"></div>
         </section>
 
         <!-- Forums Grid -->
@@ -579,5 +563,48 @@
   </main>
 
   <script src="/assets/js/forums.js"></script>
+  <script>
+    // Initialize Supabase and forums
+    (function() {
+      let initAttempts = 0;
+      const maxAttempts = 20;
+      
+      function tryInit() {
+        initAttempts++;
+        const config = window.__CHATSPHERES_CONFIG__ || {};
+        
+        if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
+          try {
+            const supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+            if (window.initForums) {
+              window.initForums(supabase);
+            }
+          } catch (e) {
+            console.error('Supabase init error:', e);
+          }
+        } else if (initAttempts < maxAttempts) {
+          setTimeout(tryInit, 250);
+        } else {
+          console.error('Failed to load config after', maxAttempts, 'attempts');
+          // Still try to load forums without auth
+          const container = document.getElementById('forumsContainer');
+          if (container) {
+            container.innerHTML = `
+              <div class="empty-state">
+                <div class="empty-state-icon">🌐</div>
+                <p>No forums yet. <a href="/create-forum" style="color: var(--main-red);">Create the first one!</a></p>
+              </div>
+            `;
+          }
+        }
+      }
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryInit);
+      } else {
+        tryInit();
+      }
+    })();
+  </script>
 </body>
 </html>

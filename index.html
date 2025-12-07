@@ -7499,9 +7499,22 @@ async function initializeApp() {
     let participantName = getParticipantName(participantId);
     
     // Try to get the user ID from LiveKit participant metadata
+    // Note: remoteParticipants is keyed by identity, not SID, so we need to iterate
     let participantUserId = null;
     if (livekitRoom && livekitRoom.remoteParticipants) {
-      const lkParticipant = livekitRoom.remoteParticipants.get(participantId);
+      // First try direct lookup by participantId (in case it's the identity)
+      let lkParticipant = livekitRoom.remoteParticipants.get(participantId);
+      
+      // If not found, iterate to find by SID
+      if (!lkParticipant) {
+        for (const [identity, p] of livekitRoom.remoteParticipants) {
+          if (p.sid === participantId) {
+            lkParticipant = p;
+            break;
+          }
+        }
+      }
+      
       if (lkParticipant) {
         const metadata = parseLiveKitMetadata(lkParticipant.metadata);
         participantUserId = metadata?.userId || metadata?.user_id || null;
@@ -7511,7 +7524,9 @@ async function initializeApp() {
         } else if (metadata?.username) {
           participantName = metadata.username;
         }
-        console.log('🆔 Extracted userId from participant metadata:', participantUserId);
+        console.log('🆔 Extracted userId from participant metadata:', participantUserId, 'for SID:', participantId);
+      } else {
+        console.log('⚠️ Could not find LiveKit participant for SID:', participantId);
       }
     }
     
@@ -11107,13 +11122,30 @@ function ensureSpectatorTracksForParticipant(participant) {
       };
       
       // Helper to extract userId from LiveKit participant by SID
+      // Note: remoteParticipants is keyed by identity, not SID, so we iterate
       const getUserIdFromLiveKit = (participantSid) => {
         if (!livekitRoom || !livekitRoom.remoteParticipants) return null;
-        const lkP = livekitRoom.remoteParticipants.get(participantSid);
+        
+        // First try direct lookup (in case participantSid is actually identity)
+        let lkP = livekitRoom.remoteParticipants.get(participantSid);
+        
+        // If not found, iterate to find by SID
+        if (!lkP) {
+          for (const [identity, p] of livekitRoom.remoteParticipants) {
+            if (p.sid === participantSid) {
+              lkP = p;
+              break;
+            }
+          }
+        }
+        
         if (lkP) {
           const metadata = parseLiveKitMetadata(lkP.metadata);
-          return metadata?.userId || metadata?.user_id || null;
+          const foundUserId = metadata?.userId || metadata?.user_id || null;
+          console.log('🔍 getUserIdFromLiveKit found userId:', foundUserId, 'for SID:', participantSid);
+          return foundUserId;
         }
+        console.log('⚠️ getUserIdFromLiveKit could not find participant for SID:', participantSid);
         return null;
       };
       
@@ -11196,7 +11228,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       }
     }
     
-    console.log('🎯 Pot targets updated:', participants);
+    console.log('🎯 Pot targets updated:', participants.map(p => ({ id: p.id?.substring(0, 15), name: p.name, userId: p.userId?.substring(0, 15) || 'null' })));
     
     roomTypeState.participants = participants;
     
@@ -11299,8 +11331,17 @@ function ensureSpectatorTracksForParticipant(participant) {
     console.log('💎 Tip to pot details:', {
       selectedPotRecipient: roomTypeState.selectedPotRecipient,
       resolvedUserId: recipientUserId,
-      participantName: selectedParticipant?.name
+      participantName: selectedParticipant?.name,
+      allParticipants: roomTypeState.participants.map(p => ({ id: p.id, name: p.name, userId: p.userId }))
     });
+    
+    // Validate that we have a proper UUID for recipientUserId
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(recipientUserId)) {
+      console.error('❌ recipientUserId is not a valid UUID:', recipientUserId);
+      showToast('❌ Could not identify the debater. Please wait for them to fully connect.');
+      return;
+    }
     
     const sphereId = extractSphereId(roomUrl);
     const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
@@ -11319,6 +11360,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       });
       
       const data = await response.json();
+      console.log('💎 Tip to pot response:', { status: response.status, data });
       
       if (data.success) {
         updatePotDisplay(data.potTotal);

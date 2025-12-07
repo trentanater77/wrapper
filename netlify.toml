@@ -37,3 +37,19 @@
   from = "/branding"
   to = "/branding.html"
   status = 200
+
+# Forum routes
+[[redirects]]
+  from = "/forums"
+  to = "/forums.html"
+  status = 200
+
+[[redirects]]
+  from = "/create-forum"
+  to = "/create-forum.html"
+  status = 200
+
+[[redirects]]
+  from = "/f/*"
+  to = "/forum.html"
+  status = 200

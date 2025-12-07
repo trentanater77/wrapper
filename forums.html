@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatSpheres - Explore Forums</title>
+  <meta name="description" content="Discover video chat communities. Join forums and watch live conversations on ChatSpheres.">
+  
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Load config from Netlify function -->
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .forums-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .forums-title {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .forums-subtitle {
+      font-size: 1.1rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-lg);
+    }
+    
+    /* Layout */
+    .forums-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: var(--space-xl);
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 var(--space-lg);
+    }
+    
+    @media (max-width: 900px) {
+      .forums-layout {
+        grid-template-columns: 1fr;
+      }
+      .forums-sidebar {
+        display: none;
+      }
+    }
+    
+    /* Sidebar */
+    .forums-sidebar {
+      position: sticky;
+      top: var(--space-lg);
+      height: fit-content;
+    }
+    
+    .sidebar-section {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+      border: 2px solid var(--rose);
+    }
+    
+    .sidebar-title {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm);
+      border-radius: var(--radius-md);
+      color: var(--charcoal);
+      text-decoration: none;
+      transition: all var(--transition-fast);
+      font-weight: var(--font-weight-semibold);
+    }
+    
+    .sidebar-link:hover, .sidebar-link.active {
+      background: var(--light-rose);
+      color: var(--main-red);
+    }
+    
+    .sidebar-link .icon {
+      font-size: 1.2rem;
+    }
+    
+    /* Tabs */
+    .filter-tabs {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+      flex-wrap: wrap;
+    }
+    
+    .filter-tab {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      background: var(--light-rose);
+      color: var(--charcoal);
+      font-size: 0.9rem;
+    }
+    
+    .filter-tab:hover {
+      background: var(--gold);
+    }
+    
+    .filter-tab.active {
+      background: var(--main-red);
+      color: white;
+      border-color: var(--main-red);
+    }
+    
+    /* Search */
+    .search-bar {
+      display: flex;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .search-input {
+      flex: 1;
+      padding: var(--space-sm) var(--space-md);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color var(--transition-fast);
+    }
+    
+    .search-input:focus {
+      border-color: var(--main-red);
+    }
+    
+    .search-btn {
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--main-red);
+      color: white;
+      border: none;
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .search-btn:hover {
+      background: var(--charcoal);
+    }
+    
+    /* Forums Grid */
+    .forums-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: var(--space-lg);
+    }
+    
+    /* Forum Card */
+    .forum-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      transition: all var(--transition-fast);
+      border: 3px solid var(--rose);
+      text-decoration: none;
+      display: block;
+    }
+    
+    .forum-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--main-red);
+    }
+    
+    .forum-card-banner {
+      height: 80px;
+      background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%);
+      position: relative;
+    }
+    
+    .forum-card-banner img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .forum-card-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: var(--radius-full);
+      background: white;
+      border: 3px solid white;
+      position: absolute;
+      bottom: -30px;
+      left: var(--space-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    
+    .forum-card-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .forum-card-body {
+      padding: var(--space-lg);
+      padding-top: calc(var(--space-lg) + 20px);
+    }
+    
+    .forum-card-name {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      font-size: 1.1rem;
+      margin-bottom: var(--space-xs);
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+    
+    .forum-card-name .nsfw-badge {
+      font-size: 0.65rem;
+      background: #ef4444;
+      color: white;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .forum-card-slug {
+      color: var(--charcoal);
+      opacity: 0.6;
+      font-size: 0.85rem;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .forum-card-desc {
+      color: var(--charcoal);
+      opacity: 0.8;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin-bottom: var(--space-md);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
+    .forum-card-stats {
+      display: flex;
+      gap: var(--space-md);
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .forum-card-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .forum-card-stat.live {
+      color: #10b981;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    /* Live Section */
+    .live-section {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-xl);
+      border: 3px solid #10b981;
+    }
+    
+    .live-section-title {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-md);
+      font-size: 1.2rem;
+    }
+    
+    .live-pulse {
+      width: 10px;
+      height: 10px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.1); }
+    }
+    
+    .live-rooms-scroll {
+      display: flex;
+      gap: var(--space-md);
+      overflow-x: auto;
+      padding-bottom: var(--space-sm);
+    }
+    
+    .live-room-card {
+      flex-shrink: 0;
+      width: 260px;
+      background: var(--light-rose);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      text-decoration: none;
+      transition: all var(--transition-fast);
+    }
+    
+    .live-room-card:hover {
+      transform: translateY(-2px);
+      background: var(--gold);
+    }
+    
+    .live-room-title {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .live-room-forum {
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-bottom: var(--space-xs);
+    }
+    
+    .live-room-host {
+      font-size: 0.8rem;
+      color: var(--main-red);
+      font-weight: var(--font-weight-semibold);
+    }
+    
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: var(--space-2xl);
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: var(--space-md);
+    }
+    
+    /* Category badges */
+    .category-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      background: var(--light-rose);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      color: var(--charcoal);
+      font-weight: var(--font-weight-semibold);
+      margin-right: var(--space-xs);
+    }
+    
+    /* Create Forum Button */
+    .create-forum-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--main-red);
+      color: white;
+      border: none;
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all var(--transition-fast);
+    }
+    
+    .create-forum-btn:hover {
+      background: var(--charcoal);
+      transform: translateY(-2px);
+    }
+    
+    /* Loading */
+    .loading-spinner {
+      display: flex;
+      justify-content: center;
+      padding: var(--space-2xl);
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--light-rose);
+      border-top-color: var(--main-red);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="main-nav">
+    <div class="nav-content">
+      <a href="/" class="nav-logo">
+        <svg class="nav-logo-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+        </svg>
+        <span>ChatSpheres</span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/explore" class="nav-link">Explore</a>
+        <a href="/live" class="nav-link">Live</a>
+        <a href="/forums" class="nav-link active">Forums</a>
+        <a href="/matchmaking" class="nav-link">Match</a>
+      </div>
+      <div class="nav-actions">
+        <a href="/create-forum" class="create-forum-btn" id="createForumBtn" style="display:none;">
+          <span>+</span> Create Forum
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-container">
+    <section class="forums-hero">
+      <h1 class="forums-title">🌐 Explore Forums</h1>
+      <p class="forums-subtitle">Discover communities and watch live video conversations</p>
+    </section>
+
+    <div class="forums-layout">
+      <!-- Sidebar -->
+      <aside class="forums-sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-title">Browse</div>
+          <a href="#" class="sidebar-link active" data-filter="top">
+            <span class="icon">🔥</span> Top Forums
+          </a>
+          <a href="#" class="sidebar-link" data-filter="live">
+            <span class="icon">📺</span> Live Now
+          </a>
+          <a href="#" class="sidebar-link" data-filter="trending">
+            <span class="icon">📈</span> Trending
+          </a>
+          <a href="#" class="sidebar-link" data-filter="new">
+            <span class="icon">✨</span> New
+          </a>
+        </div>
+        
+        <div class="sidebar-section" id="myForumsSection" style="display:none;">
+          <div class="sidebar-title">My Forums</div>
+          <a href="#" class="sidebar-link" data-filter="joined">
+            <span class="icon">⭐</span> Joined
+          </a>
+        </div>
+        
+        <div class="sidebar-section">
+          <div class="sidebar-title">Categories</div>
+          <a href="#" class="sidebar-link" data-category="all">
+            <span class="icon">📁</span> All
+          </a>
+          <a href="#" class="sidebar-link" data-category="gaming">
+            <span class="icon">🎮</span> Gaming
+          </a>
+          <a href="#" class="sidebar-link" data-category="technology">
+            <span class="icon">💻</span> Technology
+          </a>
+          <a href="#" class="sidebar-link" data-category="music">
+            <span class="icon">🎵</span> Music
+          </a>
+          <a href="#" class="sidebar-link" data-category="entertainment">
+            <span class="icon">🎬</span> Entertainment
+          </a>
+          <a href="#" class="sidebar-link" data-category="business">
+            <span class="icon">💼</span> Business
+          </a>
+          <a href="#" class="sidebar-link" data-category="education">
+            <span class="icon">📚</span> Education
+          </a>
+          <a href="#" class="sidebar-link" data-category="fitness">
+            <span class="icon">💪</span> Fitness
+          </a>
+          <a href="#" class="sidebar-link" data-category="creative">
+            <span class="icon">🎨</span> Creative
+          </a>
+          <a href="#" class="sidebar-link" data-category="just_chatting">
+            <span class="icon">💬</span> Just Chatting
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content -->
+      <div class="forums-main">
+        <!-- Search -->
+        <div class="search-bar">
+          <input type="text" class="search-input" id="searchInput" placeholder="Search forums...">
+          <button class="search-btn" id="searchBtn">Search</button>
+        </div>
+
+        <!-- Mobile Tabs -->
+        <div class="filter-tabs">
+          <button class="filter-tab active" data-filter="top">🔥 Top</button>
+          <button class="filter-tab" data-filter="live">📺 Live</button>
+          <button class="filter-tab" data-filter="trending">📈 Trending</button>
+          <button class="filter-tab" data-filter="new">✨ New</button>
+          <button class="filter-tab" data-filter="joined" id="joinedTab" style="display:none;">⭐ Joined</button>
+        </div>
+
+        <!-- Live Section -->
+        <section class="live-section" id="liveSection" style="display:none;">
+          <h2 class="live-section-title">
+            <span class="live-pulse"></span> Live Now
+          </h2>
+          <div class="live-rooms-scroll" id="liveRoomsScroll">
+            <!-- Live rooms injected here -->
+          </div>
+        </section>
+
+        <!-- Forums Grid -->
+        <div id="forumsContainer">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="/assets/js/forums.js"></script>
+</body>
+</html>

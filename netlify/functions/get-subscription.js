@@ -245,6 +245,10 @@ function getPlanLimits(planType) {
         showAds: false, // No ads (has Ad-Free)
         watermark: 'custom', // Can upload own logo
         monthlyGems: 1200, // From Ad-Free Premium
+        // Forum limits
+        canCreatePrivateForums: true,
+        canCustomizeForumBranding: true,
+        forumCreatorRevenueShare: 0.10, // 10% of tips in their forum
       };
 
     case 'host_pro':
@@ -256,6 +260,10 @@ function getPlanLimits(planType) {
         showAds: true, // Still shows ads to non-paying viewers
         watermark: 'custom', // Can upload own logo
         monthlyGems: 0,
+        // Forum limits
+        canCreatePrivateForums: true,
+        canCustomizeForumBranding: true,
+        forumCreatorRevenueShare: 0.10, // 10% of tips in their forum
       };
 
     case 'ad_free_plus':
@@ -268,6 +276,10 @@ function getPlanLimits(planType) {
         showAds: false, // No ads for this user
         watermark: 'chatspheres',
         monthlyGems: planType === 'ad_free_premium' ? 1200 : 500,
+        // Forum limits
+        canCreatePrivateForums: false,
+        canCustomizeForumBranding: false,
+        forumCreatorRevenueShare: 0.10, // 10% of tips in their forum
       };
 
     case 'free':
@@ -280,6 +292,10 @@ function getPlanLimits(planType) {
         showAds: true,
         watermark: 'chatspheres',
         monthlyGems: 0,
+        // Forum limits
+        canCreatePrivateForums: false,
+        canCustomizeForumBranding: false,
+        forumCreatorRevenueShare: 0.10, // 10% of tips in their forum
       };
   }
 }

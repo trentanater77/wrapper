@@ -145,10 +145,19 @@
       const pagePath = currentPath.replace(/^\//, '').replace(/\.html$/, '');
 
       // Check for match
-      const isMatch = 
+      let isMatch = 
         linkPath === pagePath ||
         (linkPath === '' && (pagePath === '' || pagePath === 'index')) ||
         (linkPath === 'index' && pagePath === '');
+      
+      // Handle forum pages - /f/* and /forums, /create-forum should highlight Forums nav
+      if (linkPath === 'forums' && (
+        pagePath.startsWith('f/') || 
+        pagePath === 'forum' || 
+        pagePath === 'create-forum'
+      )) {
+        isMatch = true;
+      }
 
       if (isMatch) {
         link.classList.add('active');

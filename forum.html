@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forum - ChatSpheres</title>
+  <meta name="description" content="Watch live video conversations in this community on ChatSpheres.">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .forum-banner {
+      height: 200px;
+      background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%);
+      position: relative;
+    }
+    
+    .forum-banner img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .forum-header {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 var(--space-lg);
+      position: relative;
+      margin-top: -60px;
+    }
+    
+    .forum-icon {
+      width: 120px;
+      height: 120px;
+      border-radius: var(--radius-full);
+      background: white;
+      border: 4px solid white;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3rem;
+      overflow: hidden;
+    }
+    
+    .forum-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .forum-info {
+      display: flex;
+      gap: var(--space-lg);
+      align-items: flex-start;
+      margin-top: var(--space-md);
+    }
+    
+    .forum-meta {
+      flex: 1;
+    }
+    
+    .forum-name {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .forum-name .badge {
+      font-size: 0.7rem;
+      padding: 4px 8px;
+      border-radius: var(--radius-sm);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .forum-name .nsfw-badge {
+      background: #ef4444;
+      color: white;
+    }
+    
+    .forum-name .private-badge {
+      background: #8b5cf6;
+      color: white;
+    }
+    
+    .forum-slug {
+      color: var(--charcoal);
+      opacity: 0.6;
+      margin-bottom: var(--space-md);
+    }
+    
+    .forum-stats {
+      display: flex;
+      gap: var(--space-lg);
+      margin-bottom: var(--space-md);
+    }
+    
+    .forum-stat {
+      text-align: center;
+    }
+    
+    .forum-stat-value {
+      font-size: 1.5rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+    }
+    
+    .forum-stat-label {
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .forum-actions {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+    
+    .forum-btn {
+      padding: var(--space-sm) var(--space-lg);
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: none;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+    }
+    
+    .forum-btn-primary {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .forum-btn-primary:hover {
+      background: var(--charcoal);
+    }
+    
+    .forum-btn-secondary {
+      background: var(--light-rose);
+      color: var(--charcoal);
+    }
+    
+    .forum-btn-secondary:hover {
+      background: var(--gold);
+    }
+    
+    .forum-btn-joined {
+      background: #10b981;
+      color: white;
+    }
+    
+    /* Content Layout */
+    .forum-content {
+      max-width: 1200px;
+      margin: var(--space-xl) auto;
+      padding: 0 var(--space-lg);
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: var(--space-xl);
+    }
+    
+    @media (max-width: 900px) {
+      .forum-content {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Sidebar */
+    .forum-sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .sidebar-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-md);
+      border: 2px solid var(--rose);
+    }
+    
+    .sidebar-card-title {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    .forum-description {
+      color: var(--charcoal);
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    
+    .forum-rules {
+      color: var(--charcoal);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      font-size: 0.9rem;
+    }
+    
+    .moderators-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-xs);
+    }
+    
+    .mod-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: var(--light-rose);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      color: var(--charcoal);
+    }
+    
+    /* Rooms Section */
+    .rooms-section {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+      border: 2px solid var(--rose);
+    }
+    
+    .rooms-section-title {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-md);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 1.2rem;
+    }
+    
+    .rooms-grid {
+      display: grid;
+      gap: var(--space-md);
+    }
+    
+    .room-card {
+      background: var(--light-rose);
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      text-decoration: none;
+      transition: all var(--transition-fast);
+      display: block;
+    }
+    
+    .room-card:hover {
+      background: var(--gold);
+      transform: translateY(-2px);
+    }
+    
+    .room-card-title {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .room-card-host {
+      font-size: 0.85rem;
+      color: var(--main-red);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .room-card-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.8rem;
+      padding: 2px 8px;
+      border-radius: var(--radius-sm);
+      background: #10b981;
+      color: white;
+      font-weight: var(--font-weight-semibold);
+    }
+    
+    /* Announcements */
+    .announcement {
+      background: var(--gold);
+      border-radius: var(--radius-md);
+      padding: var(--space-sm) var(--space-md);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .announcement-title {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      font-size: 0.9rem;
+    }
+    
+    .announcement-content {
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+      margin-top: var(--space-xs);
+    }
+    
+    /* Empty / Error States */
+    .empty-state {
+      text-align: center;
+      padding: var(--space-2xl);
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .error-state {
+      text-align: center;
+      padding: var(--space-2xl);
+    }
+    
+    .error-state h2 {
+      color: var(--main-red);
+      margin-bottom: var(--space-md);
+    }
+    
+    /* Invite Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      display: none;
+    }
+    
+    .modal {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      max-width: 400px;
+      width: 90%;
+    }
+    
+    .modal-title {
+      font-weight: var(--font-weight-bold);
+      font-size: 1.2rem;
+      margin-bottom: var(--space-md);
+    }
+    
+    .modal-input {
+      width: 100%;
+      padding: var(--space-sm);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-md);
+      font-family: var(--font-family);
+      margin-bottom: var(--space-md);
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: var(--space-sm);
+      justify-content: flex-end;
+    }
+    
+    /* Loading */
+    .loading-spinner {
+      display: flex;
+      justify-content: center;
+      padding: var(--space-2xl);
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid var(--light-rose);
+      border-top-color: var(--main-red);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Banned state */
+    .banned-message {
+      background: #fef2f2;
+      border: 2px solid #ef4444;
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      text-align: center;
+      max-width: 600px;
+      margin: var(--space-2xl) auto;
+    }
+    
+    .banned-message h2 {
+      color: #ef4444;
+      margin-bottom: var(--space-md);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="main-nav">
+    <div class="nav-content">
+      <a href="/" class="nav-logo">
+        <svg class="nav-logo-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+        </svg>
+        <span>ChatSpheres</span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/explore" class="nav-link">Explore</a>
+        <a href="/live" class="nav-link">Live</a>
+        <a href="/forums" class="nav-link active">Forums</a>
+        <a href="/matchmaking" class="nav-link">Match</a>
+      </div>
+    </div>
+  </nav>
+
+  <main id="forumMain">
+    <div class="loading-spinner">
+      <div class="spinner"></div>
+    </div>
+  </main>
+
+  <!-- Invite Code Modal -->
+  <div class="modal-overlay" id="inviteModal">
+    <div class="modal">
+      <h3 class="modal-title">🔒 Private Forum</h3>
+      <p style="margin-bottom: var(--space-md); color: var(--charcoal);">Enter an invite code to join this forum:</p>
+      <input type="text" class="modal-input" id="inviteCodeInput" placeholder="Enter invite code...">
+      <div class="modal-actions">
+        <button class="forum-btn forum-btn-secondary" id="inviteCancelBtn">Cancel</button>
+        <button class="forum-btn forum-btn-primary" id="inviteSubmitBtn">Join</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/forum-single.js"></script>
+</body>
+</html>

@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Forum - ChatSpheres</title>
+  <meta name="description" content="Create a new video chat community on ChatSpheres.">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .create-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .create-title {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .create-subtitle {
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .create-form-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 var(--space-lg) var(--space-2xl);
+    }
+    
+    .form-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-xl);
+      border: 3px solid var(--rose);
+    }
+    
+    .form-group {
+      margin-bottom: var(--space-lg);
+    }
+    
+    .form-label {
+      display: block;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .form-label-hint {
+      font-weight: normal;
+      opacity: 0.6;
+      font-size: 0.85rem;
+    }
+    
+    .form-input, .form-textarea, .form-select {
+      width: 100%;
+      padding: var(--space-sm) var(--space-md);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      transition: border-color var(--transition-fast);
+    }
+    
+    .form-input:focus, .form-textarea:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--main-red);
+    }
+    
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    .slug-preview {
+      margin-top: var(--space-xs);
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .slug-preview code {
+      background: var(--light-rose);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-md);
+    }
+    
+    @media (max-width: 500px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+    
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 26px;
+    }
+    
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--rose);
+      border-radius: 26px;
+      cursor: pointer;
+      transition: background var(--transition-fast);
+    }
+    
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      transition: transform var(--transition-fast);
+    }
+    
+    .toggle input:checked + .toggle-slider {
+      background: var(--main-red);
+    }
+    
+    .toggle input:checked + .toggle-slider::before {
+      transform: translateX(24px);
+    }
+    
+    .toggle-label {
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+    }
+    
+    .type-options {
+      display: flex;
+      gap: var(--space-sm);
+      flex-wrap: wrap;
+    }
+    
+    .type-option {
+      flex: 1;
+      min-width: 120px;
+      padding: var(--space-md);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      background: white;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-align: center;
+    }
+    
+    .type-option:hover {
+      border-color: var(--main-red);
+    }
+    
+    .type-option.selected {
+      border-color: var(--main-red);
+      background: var(--light-rose);
+    }
+    
+    .type-option.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .type-option-icon {
+      font-size: 1.5rem;
+      margin-bottom: var(--space-xs);
+    }
+    
+    .type-option-name {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+    }
+    
+    .type-option-desc {
+      font-size: 0.8rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-top: var(--space-xs);
+    }
+    
+    .pro-badge {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--charcoal);
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-weight: var(--font-weight-bold);
+      margin-left: var(--space-xs);
+    }
+    
+    .submit-btn {
+      width: 100%;
+      padding: var(--space-md);
+      background: var(--main-red);
+      color: white;
+      border: none;
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .submit-btn:hover:not(:disabled) {
+      background: var(--charcoal);
+      transform: translateY(-2px);
+    }
+    
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .error-message {
+      background: #fef2f2;
+      border: 2px solid #ef4444;
+      color: #b91c1c;
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      margin-bottom: var(--space-lg);
+      display: none;
+    }
+    
+    .auth-required {
+      text-align: center;
+      padding: var(--space-2xl);
+    }
+    
+    .auth-required h2 {
+      color: var(--charcoal);
+      margin-bottom: var(--space-md);
+    }
+    
+    .auth-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-md) var(--space-xl);
+      background: var(--main-red);
+      color: white;
+      border: none;
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .auth-btn:hover {
+      background: var(--charcoal);
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="main-nav">
+    <div class="nav-content">
+      <a href="/" class="nav-logo">
+        <svg class="nav-logo-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="currentColor" stroke-width="4" fill="none"/>
+        </svg>
+        <span>ChatSpheres</span>
+      </a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/explore" class="nav-link">Explore</a>
+        <a href="/live" class="nav-link">Live</a>
+        <a href="/forums" class="nav-link active">Forums</a>
+        <a href="/matchmaking" class="nav-link">Match</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="page-container">
+    <section class="create-hero">
+      <h1 class="create-title">🌐 Create a Forum</h1>
+      <p class="create-subtitle">Start your own video chat community</p>
+    </section>
+
+    <div class="create-form-container">
+      <!-- Auth Required State -->
+      <div class="auth-required" id="authRequired" style="display:none;">
+        <h2>🔐 Sign in to create a forum</h2>
+        <p style="margin-bottom: var(--space-lg); color: var(--charcoal); opacity: 0.7;">You need an account to create and manage forums.</p>
+        <a href="/" class="auth-btn">Sign In with Google</a>
+      </div>
+
+      <!-- Create Form -->
+      <div class="form-card" id="createForm" style="display:none;">
+        <div class="error-message" id="errorMessage"></div>
+        
+        <div class="form-group">
+          <label class="form-label">Forum Name <span class="form-label-hint">(3-100 characters)</span></label>
+          <input type="text" class="form-input" id="forumName" placeholder="e.g., Gaming Lounge" maxlength="100">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">URL Slug <span class="form-label-hint">(3-50 characters, letters, numbers, dashes)</span></label>
+          <input type="text" class="form-input" id="forumSlug" placeholder="e.g., gaming-lounge" maxlength="50">
+          <div class="slug-preview">Your forum URL: <code id="slugPreview">sphere.chatspheres.com/f/...</code></div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Description <span class="form-label-hint">(optional)</span></label>
+          <textarea class="form-textarea" id="forumDescription" placeholder="What's your forum about?"></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Rules <span class="form-label-hint">(optional)</span></label>
+          <textarea class="form-textarea" id="forumRules" placeholder="Community guidelines..."></textarea>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="forumCategory">
+              <option value="other">Other</option>
+              <option value="gaming">Gaming</option>
+              <option value="technology">Technology</option>
+              <option value="music">Music</option>
+              <option value="entertainment">Entertainment</option>
+              <option value="business">Business</option>
+              <option value="education">Education</option>
+              <option value="fitness">Fitness</option>
+              <option value="creative">Creative</option>
+              <option value="just_chatting">Just Chatting</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Forum Type</label>
+          <div class="type-options">
+            <div class="type-option selected" data-type="public">
+              <div class="type-option-icon">🌍</div>
+              <div class="type-option-name">Public</div>
+              <div class="type-option-desc">Anyone can find and join</div>
+            </div>
+            <div class="type-option" data-type="unlisted">
+              <div class="type-option-icon">🔗</div>
+              <div class="type-option-name">Unlisted</div>
+              <div class="type-option-desc">Only with link</div>
+            </div>
+            <div class="type-option" data-type="private" id="privateOption">
+              <div class="type-option-icon">🔒</div>
+              <div class="type-option-name">Private <span class="pro-badge">PRO</span></div>
+              <div class="type-option-desc">Invite only</div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <div class="toggle-group">
+            <label class="toggle">
+              <input type="checkbox" id="forumNsfw">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">🔞 NSFW Content (18+ only)</span>
+          </div>
+        </div>
+        
+        <button type="button" class="submit-btn" id="submitBtn">Create Forum</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Initialize
+    let currentUser = null;
+    let canCreatePrivate = false;
+    let selectedType = 'public';
+    
+    // Check auth state
+    async function checkAuth() {
+      const config = window.__CHATSPHERES_CONFIG__ || {};
+      if (!config.SUPABASE_URL || !config.SUPABASE_ANON_KEY) {
+        console.error('Config not loaded');
+        return;
+      }
+      
+      const supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        document.getElementById('authRequired').style.display = 'block';
+        document.getElementById('createForm').style.display = 'none';
+        return;
+      }
+      
+      currentUser = user;
+      document.getElementById('authRequired').style.display = 'none';
+      document.getElementById('createForm').style.display = 'block';
+      
+      // Check subscription for private forums
+      try {
+        const res = await fetch(`/.netlify/functions/get-subscription?userId=${user.id}`);
+        const data = await res.json();
+        canCreatePrivate = data.limits?.canCreatePrivateForums || false;
+        
+        if (!canCreatePrivate) {
+          document.getElementById('privateOption').classList.add('disabled');
+        }
+      } catch (e) {
+        console.error('Error checking subscription:', e);
+      }
+    }
+    
+    // Slug generation
+    document.getElementById('forumName').addEventListener('input', (e) => {
+      const slug = e.target.value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .slice(0, 50);
+      document.getElementById('forumSlug').value = slug;
+      updateSlugPreview(slug);
+    });
+    
+    document.getElementById('forumSlug').addEventListener('input', (e) => {
+      const slug = e.target.value
+        .toLowerCase()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .slice(0, 50);
+      e.target.value = slug;
+      updateSlugPreview(slug);
+    });
+    
+    function updateSlugPreview(slug) {
+      document.getElementById('slugPreview').innerHTML = 
+        `sphere.chatspheres.com/f/<strong>${slug || '...'}</strong>`;
+    }
+    
+    // Type selection
+    document.querySelectorAll('.type-option').forEach(opt => {
+      opt.addEventListener('click', () => {
+        const type = opt.dataset.type;
+        if (type === 'private' && !canCreatePrivate) {
+          alert('Private forums require a Pro subscription. Upgrade to unlock this feature!');
+          return;
+        }
+        
+        document.querySelectorAll('.type-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        selectedType = type;
+      });
+    });
+    
+    // Submit
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const name = document.getElementById('forumName').value.trim();
+      const slug = document.getElementById('forumSlug').value.trim();
+      const description = document.getElementById('forumDescription').value.trim();
+      const rules = document.getElementById('forumRules').value.trim();
+      const category = document.getElementById('forumCategory').value;
+      const isNsfw = document.getElementById('forumNsfw').checked;
+      
+      const errorEl = document.getElementById('errorMessage');
+      errorEl.style.display = 'none';
+      
+      if (!name || name.length < 3) {
+        errorEl.textContent = 'Forum name must be at least 3 characters.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      
+      if (!slug || slug.length < 3) {
+        errorEl.textContent = 'URL slug must be at least 3 characters.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      
+      const btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      
+      try {
+        const res = await fetch('/.netlify/functions/create-forum', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            name,
+            slug,
+            description,
+            rules,
+            category,
+            forumType: selectedType,
+            isNsfw,
+          }),
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to create forum');
+        }
+        
+        // Success - redirect to forum
+        window.location.href = data.url || `/f/${slug}`;
+      } catch (err) {
+        errorEl.textContent = err.message;
+        errorEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Create Forum';
+      }
+    });
+    
+    // Init
+    checkAuth();
+  </script>
+</body>
+</html>

@@ -5,8 +5,11 @@
  * 
  * Processes a tip from viewer to host.
  * Deducts from sender's spendable gems.
- * Credits 50% to host's cashable gems.
- * ChatSpheres keeps 50%.
+ * 
+ * REVENUE SPLIT:
+ * - Standard (non-forum): 50% host, 50% platform
+ * - Forum tip: 45% host, 10% forum creator, 45% platform
+ *   (If host IS the forum creator: 55% host, 45% platform)
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -16,8 +19,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Commission rate (50% to host, 50% to platform)
-const HOST_SHARE = 0.5;
+// Commission rates
+const STANDARD_HOST_SHARE = 0.50;      // Standard: 50% host, 50% platform
+const FORUM_HOST_SHARE = 0.45;         // Forum: 45% host
+const FORUM_CREATOR_SHARE = 0.10;      // Forum: 10% forum creator
+const FORUM_HOST_CREATOR_SHARE = 0.55; // Forum (host is creator): 55% host
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -41,7 +47,7 @@ exports.handler = async function(event) {
 
   try {
     const body = JSON.parse(event.body || '{}');
-    const { senderId, hostId, amount, roomId, senderName } = body;
+    const { senderId, hostId, amount, roomId, senderName, forumId } = body;
 
     // Validate required fields
     if (!senderId || !hostId || !amount) {
@@ -91,8 +97,37 @@ exports.handler = async function(event) {
       };
     }
 
-    // Calculate host share (50%)
-    const hostShare = Math.floor(tipAmount * HOST_SHARE);
+    // Check if this is a forum tip and determine revenue split
+    let hostShare, forumCreatorShare = 0, forumOwnerId = null;
+    
+    if (forumId) {
+      // Forum tip - check forum ownership
+      const { data: forum } = await supabase
+        .from('forums')
+        .select('owner_id')
+        .eq('id', forumId)
+        .single();
+      
+      if (forum && forum.owner_id) {
+        forumOwnerId = forum.owner_id;
+        
+        if (forumOwnerId === hostId) {
+          // Host IS the forum creator - they get 55%
+          hostShare = Math.floor(tipAmount * FORUM_HOST_CREATOR_SHARE);
+          forumCreatorShare = 0; // Already included in host share
+        } else {
+          // Different host and creator - split: 45% host, 10% creator
+          hostShare = Math.floor(tipAmount * FORUM_HOST_SHARE);
+          forumCreatorShare = Math.floor(tipAmount * FORUM_CREATOR_SHARE);
+        }
+      } else {
+        // Forum not found or no owner - use standard split
+        hostShare = Math.floor(tipAmount * STANDARD_HOST_SHARE);
+      }
+    } else {
+      // Standard tip (non-forum) - 50% to host
+      hostShare = Math.floor(tipAmount * STANDARD_HOST_SHARE);
+    }
     
     // Deduct from sender's spendable gems
     const newSenderBalance = senderBalance.spendable_gems - tipAmount;
@@ -152,6 +187,10 @@ exports.handler = async function(event) {
       });
 
     // Log transaction for host (tip received)
+    const hostDescription = forumId 
+      ? `Received tip: ${hostShare} gems (${tipAmount} total, forum tip)`
+      : `Received tip: ${hostShare} gems (${tipAmount} total, 50% commission)`;
+    
     await supabase
       .from('gem_transactions')
       .insert({
@@ -161,22 +200,86 @@ exports.handler = async function(event) {
         wallet_type: 'cashable',
         related_user_id: senderId,
         room_id: roomId || null,
-        description: `Received tip: ${hostShare} gems (${tipAmount} total, 50% commission)`,
+        description: hostDescription,
       });
 
-    console.log(`💸 Tip processed: ${senderId} -> ${hostId}, amount: ${tipAmount}, host receives: ${hostShare}`);
+    // If forum tip with separate creator, credit forum creator and log
+    if (forumCreatorShare > 0 && forumOwnerId && forumOwnerId !== hostId) {
+      // Credit forum creator's cashable gems
+      const { data: creatorBalance } = await supabase
+        .from('gem_balances')
+        .select('cashable_gems')
+        .eq('user_id', forumOwnerId)
+        .single();
+
+      if (!creatorBalance) {
+        await supabase
+          .from('gem_balances')
+          .insert({ 
+            user_id: forumOwnerId, 
+            spendable_gems: 0, 
+            cashable_gems: forumCreatorShare,
+            promo_gems: 0
+          });
+      } else {
+        await supabase
+          .from('gem_balances')
+          .update({ 
+            cashable_gems: (creatorBalance.cashable_gems || 0) + forumCreatorShare,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', forumOwnerId);
+      }
+
+      // Log transaction for forum creator
+      await supabase
+        .from('gem_transactions')
+        .insert({
+          user_id: forumOwnerId,
+          transaction_type: 'forum_revenue',
+          amount: forumCreatorShare,
+          wallet_type: 'cashable',
+          related_user_id: hostId,
+          room_id: roomId || null,
+          description: `Forum revenue: ${forumCreatorShare} gems (10% of ${tipAmount} tip)`,
+        });
+
+      // Log to forum_earnings table
+      await supabase
+        .from('forum_earnings')
+        .insert({
+          forum_id: forumId,
+          owner_id: forumOwnerId,
+          room_id: roomId || null,
+          total_tip_amount: tipAmount,
+          creator_share: forumCreatorShare,
+          tipper_id: senderId,
+          host_id: hostId,
+        });
+    }
+
+    const logMsg = forumCreatorShare > 0 
+      ? `💸 Forum tip: ${senderId} -> ${hostId} (${hostShare}) + creator (${forumCreatorShare}), total: ${tipAmount}`
+      : `💸 Tip processed: ${senderId} -> ${hostId}, amount: ${tipAmount}, host receives: ${hostShare}`;
+    console.log(logMsg);
+
+    const response = {
+      success: true,
+      tipAmount,
+      hostReceived: hostShare,
+      platformFee: tipAmount - hostShare - forumCreatorShare,
+      senderNewBalance: newSenderBalance,
+      message: `Successfully tipped ${tipAmount} gems!`
+    };
+    
+    if (forumCreatorShare > 0) {
+      response.forumCreatorReceived = forumCreatorShare;
+    }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        success: true,
-        tipAmount,
-        hostReceived: hostShare,
-        platformFee: tipAmount - hostShare,
-        senderNewBalance: newSenderBalance,
-        message: `Successfully tipped ${tipAmount} gems!`
-      }),
+      body: JSON.stringify(response),
     };
 
   } catch (error) {

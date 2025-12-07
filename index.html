@@ -4891,6 +4891,22 @@
     window.addEventListener('beforeunload', (event) => {
       console.log('🚪 Page unloading - executing cleanup');
       
+      // Warn Red Room hosts before leaving if debate is still active
+      if (typeof roomTypeState !== 'undefined' && 
+          roomTypeState.type === 'red' && 
+          !roomTypeState.debateEnded && 
+          !isSpectator) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isHost = urlParams.get('host') === 'true';
+        
+        if (isHost && roomTypeState.potTotal > 0) {
+          // Show browser's native "are you sure?" dialog
+          event.preventDefault();
+          event.returnValue = 'You have an active Red Room debate with gems in the pot. The debate will auto-close if you leave.';
+          return event.returnValue;
+        }
+      }
+      
       // CRITICAL: Save pending rating to localStorage before page unloads
       // This ensures the rating modal shows when user returns
       if (otherParticipantId && !isSpectator && window.currentUserData?.userId && !window.currentUserData?.isGuest) {
@@ -6254,6 +6270,10 @@ async function initializeApp() {
         if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
           updatePotTargets();
           listenForPotUpdates();
+          // Cancel any pending auto-end timer since a participant returned
+          if (typeof cancelAutoEndTimer === 'function') {
+            cancelAutoEndTimer();
+          }
         }
         
         // Update room counts
@@ -6315,6 +6335,8 @@ async function initializeApp() {
           setTimeout(() => {
             updatePotTargets();
             updateDebateScoreboard();
+            // Check if we should auto-end the debate
+            checkAutoEndDebate();
           }, 500);
         }
         
@@ -11992,6 +12014,12 @@ function ensureSpectatorTracksForParticipant(participant) {
   function handleDebateEnded(data) {
     console.log('🏁 Debate ended notification received:', data);
     
+    // Cancel any pending auto-end timer
+    cancelAutoEndTimer();
+    
+    // Mark debate as ended to prevent further auto-end attempts
+    roomTypeState.debateEnded = true;
+    
     // Show a toast notification
     if (data.result === 'void') {
       showToast('🔄 Debate voided - all gems refunded!');
@@ -12010,6 +12038,150 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Refresh gem balance in case user was refunded
     if (typeof fetchAndDisplayGemBalance === 'function') {
       fetchAndDisplayGemBalance();
+    }
+  }
+  
+  // ============================================
+  // AUTO-END DEBATE WHEN PARTICIPANTS LEAVE
+  // ============================================
+  
+  let autoEndTimerId = null;
+  const AUTO_END_DELAY_MS = 60000; // 60 seconds after both participants leave
+  
+  // Check if we should auto-end the debate (called when participants leave)
+  function checkAutoEndDebate() {
+    // Only auto-end for Red Rooms
+    if (roomTypeState.type !== 'red') return;
+    
+    // Don't auto-end if already ended
+    if (roomTypeState.debateEnded) return;
+    
+    // Count active participants (non-spectators) in LiveKit
+    const activeParticipantCount = countActiveDebaters();
+    
+    console.log('🔍 Checking auto-end: active debaters =', activeParticipantCount);
+    
+    if (activeParticipantCount === 0) {
+      // No debaters left - start auto-end timer
+      startAutoEndTimer();
+    } else if (activeParticipantCount === 1) {
+      // One debater left - show warning but don't auto-end yet
+      // The remaining debater might be waiting for opponent to return
+      showToast('⚠️ Your opponent left. Debate will auto-close in 60s if they don\'t return.');
+      startAutoEndTimer();
+    } else {
+      // Both debaters present - cancel any pending auto-end
+      cancelAutoEndTimer();
+    }
+  }
+  
+  // Count active debaters (non-spectators) in the room
+  function countActiveDebaters() {
+    if (!livekitRoom || !livekitRoom.remoteParticipants) return 0;
+    
+    let count = 0;
+    
+    // Count self if we're a participant (not spectator)
+    if (!isSpectator) {
+      count = 1;
+    }
+    
+    // Count remote participants who are NOT spectators
+    for (const [sid, participant] of livekitRoom.remoteParticipants) {
+      const normalizedP = normalizeLiveKitParticipant(participant, { local: false });
+      const role = getParticipantRole(normalizedP);
+      if (role !== 'spectator') {
+        count++;
+      }
+    }
+    
+    return count;
+  }
+  
+  // Start the auto-end countdown timer
+  function startAutoEndTimer() {
+    // Cancel any existing timer
+    cancelAutoEndTimer();
+    
+    // Only the host should auto-end the debate
+    const urlParams = new URLSearchParams(window.location.search);
+    const isHost = urlParams.get('host') === 'true';
+    
+    if (!isHost || isSpectator) {
+      console.log('⏱️ Not starting auto-end timer (not host or is spectator)');
+      return;
+    }
+    
+    console.log(`⏱️ Starting auto-end timer (${AUTO_END_DELAY_MS / 1000}s)`);
+    
+    autoEndTimerId = setTimeout(async () => {
+      // Double-check before ending
+      const activeCount = countActiveDebaters();
+      
+      if (activeCount <= 1 && !roomTypeState.debateEnded) {
+        console.log('⏱️ Auto-end timer expired, ending debate...');
+        await autoEndDebate();
+      } else {
+        console.log('⏱️ Auto-end cancelled - participants returned');
+      }
+    }, AUTO_END_DELAY_MS);
+  }
+  
+  // Cancel the auto-end timer
+  function cancelAutoEndTimer() {
+    if (autoEndTimerId) {
+      console.log('⏱️ Cancelled auto-end timer');
+      clearTimeout(autoEndTimerId);
+      autoEndTimerId = null;
+    }
+  }
+  
+  // Auto-end the debate (called by timer)
+  async function autoEndDebate() {
+    if (roomTypeState.debateEnded) return;
+    
+    roomTypeState.debateEnded = true;
+    
+    const sphereId = extractSphereId(roomUrl);
+    const hostId = window.currentUserData?.userId || userId;
+    
+    try {
+      console.log('🤖 Auto-ending debate due to participants leaving...');
+      
+      const response = await fetch('/.netlify/functions/end-red-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: sphereId,
+          hostId: hostId
+        })
+      });
+      
+      const data = await response.json();
+      console.log('🤖 Auto-end response:', data);
+      
+      if (data.success) {
+        // Broadcast to any remaining spectators
+        broadcastDebateEnded(data);
+        
+        // Show result to the host
+        if (data.result === 'void') {
+          showToast('🔄 Debate auto-closed: All gems refunded (pot under 100)');
+        } else if (data.result === 'draw') {
+          showToast('🤝 Debate auto-closed: Draw - gems distributed equally');
+        } else {
+          showToast(`🏆 Debate auto-closed: ${data.winnerName || 'Winner'} takes the pot!`);
+        }
+        
+        // Hide pot panels
+        ['red-room-pot-panel', 'spectator-red-room-pot-panel'].forEach(id => {
+          const panel = document.getElementById(id);
+          if (panel) panel.classList.add('hidden');
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error auto-ending debate:', error);
+      roomTypeState.debateEnded = false; // Allow retry
     }
   }
   

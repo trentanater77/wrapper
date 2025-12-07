@@ -11470,7 +11470,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       }
     });
     
-    const participantTipsRef = db.ref(`rooms/${sphereId}/participantTips`);
+    const participantTipsRef = db.ref(`chats/${sphereId}/participantTips`);
     participantTipsRef.on('value', (snapshot) => {
       const tips = snapshot.val() || {};
       roomTypeState.participantTips = tips;

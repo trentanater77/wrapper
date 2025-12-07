@@ -71,42 +71,60 @@ exports.handler = async function(event) {
 
       // List rooms - filter out expired ones
       const now = new Date().toISOString();
-      
-      // Also clean up ALL expired rooms first (including ones with null ends_at that are old)
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
       
-      // Cleanup: Mark expired rooms as ended
-      await supabase
+      console.log('🧹 Running expired room cleanup...');
+      console.log('📅 Now:', now);
+      console.log('📅 One hour ago:', oneHourAgo);
+      console.log('📅 Three hours ago:', threeHoursAgo);
+      
+      // Cleanup 1: Mark rooms past their ends_at as ended
+      const cleanup1 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
-        .lt('ends_at', now)
-        .not('ends_at', 'is', null);
+        .not('ends_at', 'is', null)
+        .lt('ends_at', now);
+      console.log('🧹 Cleanup 1 (past ends_at):', cleanup1.error ? cleanup1.error.message : 'OK');
       
-      // Cleanup: Mark old rooms without ends_at as ended (fallback for legacy data)
-      await supabase
+      // Cleanup 2: Mark old rooms without ends_at as ended (> 1 hour old)
+      const cleanup2 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .is('ends_at', null)
         .lt('started_at', oneHourAgo);
+      console.log('🧹 Cleanup 2 (null ends_at, > 1hr):', cleanup2.error ? cleanup2.error.message : 'OK');
       
-      // Cleanup: Also mark old rooms (started > 3 hours ago) as ended regardless
-      const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-      await supabase
+      // Cleanup 3: Mark any room started > 3 hours ago as ended (safety net)
+      const cleanup3 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .lt('started_at', threeHoursAgo);
+      console.log('🧹 Cleanup 3 (> 3hrs old):', cleanup3.error ? cleanup3.error.message : 'OK');
+      
+      // Cleanup 4: Also mark 'voting' rooms older than 1 hour as ended
+      const cleanup4 = await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'voting')
+        .lt('started_at', oneHourAgo);
+      console.log('🧹 Cleanup 4 (voting > 1hr):', cleanup4.error ? cleanup4.error.message : 'OK');
       
       console.log('🧹 Expired room cleanup completed');
       
-      // Now fetch only active rooms that haven't expired
+      // Now fetch only active rooms that:
+      // 1. Are public
+      // 2. Have status 'live'
+      // 3. Have ends_at in the future OR started within the last hour (for rooms without ends_at)
       let query = supabase
         .from('active_rooms')
         .select('*')
         .eq('is_public', true)
-        .eq('status', 'live') // Only live status (not 'voting' or 'ended')
+        .eq('status', 'live')
+        .gt('ends_at', now) // Only rooms that haven't expired
         .order('started_at', { ascending: false })
         .limit(50);
 
@@ -115,6 +133,8 @@ exports.handler = async function(event) {
       }
 
       const { data, error } = await query;
+      
+      console.log('📋 Found', data?.length || 0, 'active rooms');
 
       // Handle case where table doesn't exist yet
       if (error) {

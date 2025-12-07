@@ -935,6 +935,67 @@
   </div>
 </div>
 
+<!-- End Debate Modal (Host Only - for closing Red Room debates) -->
+<div id="end-debate-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4" style="background: rgba(34, 34, 59, 0.95); backdrop-filter: blur(8px);">
+  <div class="bg-gradient-to-br from-red-900 to-red-800 rounded-3xl p-6 max-w-md w-full shadow-2xl border-4 border-red-400 relative">
+    <!-- Close button -->
+    <button onclick="hideEndDebateModal()" class="absolute top-3 right-3 text-white hover:text-red-200 transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    </button>
+    
+    <!-- Confirmation View (shown initially) -->
+    <div id="end-debate-confirm" class="text-center">
+      <div class="text-5xl mb-4">🏁</div>
+      <h3 class="text-2xl font-extrabold text-white mb-3">End This Debate?</h3>
+      
+      <div class="bg-black bg-opacity-30 rounded-xl p-4 mb-4">
+        <div class="text-sm text-red-200 mb-2">Current Pot Status:</div>
+        <div id="end-debate-pot-status" class="text-2xl font-bold text-white">💎 0</div>
+        <div id="end-debate-void-warning" class="hidden text-xs text-yellow-300 mt-2">
+          ⚠️ Under 100 gems - everyone will be refunded
+        </div>
+      </div>
+      
+      <div class="text-sm text-red-200 mb-4">
+        The winner (debater with most tips) will receive 50% of the pot.<br>
+        This room will be closed and removed from /live.
+      </div>
+      
+      <div class="flex gap-3">
+        <button onclick="hideEndDebateModal()" class="flex-1 py-3 bg-gray-600 hover:bg-gray-500 text-white font-bold rounded-xl transition">
+          Cancel
+        </button>
+        <button onclick="confirmEndDebate()" id="confirm-end-debate-btn" class="flex-1 py-3 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white font-bold rounded-xl transition">
+          🏁 End Debate
+        </button>
+      </div>
+    </div>
+    
+    <!-- Loading View -->
+    <div id="end-debate-loading" class="hidden text-center py-8">
+      <div class="text-5xl mb-4 animate-spin">⏳</div>
+      <div class="text-xl font-bold text-white">Ending debate...</div>
+      <div class="text-sm text-red-200 mt-2">Distributing pot to winner</div>
+    </div>
+    
+    <!-- Results View (shown after API call) -->
+    <div id="end-debate-results" class="hidden text-center">
+      <div id="end-debate-result-icon" class="text-5xl mb-4">🏆</div>
+      <h3 id="end-debate-result-title" class="text-2xl font-extrabold text-white mb-3">Debate Ended!</h3>
+      
+      <div id="end-debate-result-details" class="bg-black bg-opacity-30 rounded-xl p-4 mb-4">
+        <!-- Populated by JS -->
+      </div>
+      
+      <button onclick="closeEndDebateAndLeave()" class="w-full py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 text-white font-bold rounded-xl transition">
+        ✓ Got It
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Floating Tip Button (shown to non-hosts) -->
 <button id="floating-tip-btn" onclick="openTipModal()" 
   class="hidden fixed bottom-24 right-6 z-50 bg-gold hover:bg-main-red text-charcoal hover:text-white p-4 rounded-full shadow-lg transition-all transform hover:scale-110"
@@ -1558,6 +1619,17 @@
             <div class="text-xs text-red-300">
               ⚠️ Void Rule: Pot under 100💎 = full refund
             </div>
+          </div>
+          
+          <!-- End Debate Button (Host Only) -->
+          <div id="end-debate-section" class="p-3 bg-black bg-opacity-30 hidden">
+            <button 
+              id="end-debate-btn"
+              onclick="showEndDebateConfirm()"
+              class="w-full py-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-bold rounded-lg text-sm transition transform hover:scale-102 border border-gray-500"
+            >
+              🏁 End Debate & Distribute Pot
+            </button>
           </div>
         </div>
         
@@ -6714,6 +6786,12 @@ async function initializeApp() {
       if (typeof handlePotUpdate === 'function') {
         handlePotUpdate(event.data);
       }
+    } else if (event.data.type === 'debate-ended') {
+      // Host ended the debate - show notification to all users
+      console.log('🏁 Debate ended notification received via LiveKit:', event.data);
+      if (typeof handleDebateEnded === 'function') {
+        handleDebateEnded(event.data);
+      }
     }
   }
 
@@ -11031,6 +11109,8 @@ function ensureSpectatorTracksForParticipant(participant) {
         updatePotTargets();
         updateDebateScoreboard();
         listenForPotUpdates();
+        // Show End Debate button if user is the host
+        showEndDebateButtonIfHost();
       }, 1000);
     } else {
       // Green room - hide all red room panels
@@ -11719,6 +11799,218 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Update both participant and spectator panels
     updatePanel(''); // Participant panel (debater-1-name, etc.)
     updatePanel('spectator-'); // Spectator panel (spectator-debater-1-name, etc.)
+  }
+  
+  // ============================================
+  // END DEBATE FUNCTIONS (Host Only)
+  // ============================================
+  
+  // Show the End Debate button to the host
+  function showEndDebateButtonIfHost() {
+    const endDebateSection = document.getElementById('end-debate-section');
+    if (!endDebateSection) return;
+    
+    // Only show if: Red Room + Host + Participant (not spectator)
+    const isRedRoom = roomTypeState.type === 'red';
+    const urlParams = new URLSearchParams(window.location.search);
+    const isHost = urlParams.get('host') === 'true';
+    
+    if (isRedRoom && isHost && !isSpectator) {
+      endDebateSection.classList.remove('hidden');
+      console.log('🏁 End Debate button shown (you are the host)');
+    } else {
+      endDebateSection.classList.add('hidden');
+    }
+  }
+  
+  // Show confirmation modal before ending debate
+  function showEndDebateConfirm() {
+    const modal = document.getElementById('end-debate-modal');
+    const confirmView = document.getElementById('end-debate-confirm');
+    const loadingView = document.getElementById('end-debate-loading');
+    const resultsView = document.getElementById('end-debate-results');
+    const potStatus = document.getElementById('end-debate-pot-status');
+    const voidWarning = document.getElementById('end-debate-void-warning');
+    
+    // Reset views
+    confirmView.classList.remove('hidden');
+    loadingView.classList.add('hidden');
+    resultsView.classList.add('hidden');
+    
+    // Show current pot status
+    const currentPot = roomTypeState.potTotal || 0;
+    potStatus.textContent = `💎 ${currentPot.toLocaleString()}`;
+    
+    // Show void warning if under 100 gems
+    if (currentPot < 100) {
+      voidWarning.classList.remove('hidden');
+    } else {
+      voidWarning.classList.add('hidden');
+    }
+    
+    modal.classList.remove('hidden');
+  }
+  window.showEndDebateConfirm = showEndDebateConfirm;
+  
+  // Hide the End Debate modal
+  function hideEndDebateModal() {
+    const modal = document.getElementById('end-debate-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+  window.hideEndDebateModal = hideEndDebateModal;
+  
+  // Actually end the debate (call API)
+  async function confirmEndDebate() {
+    const confirmView = document.getElementById('end-debate-confirm');
+    const loadingView = document.getElementById('end-debate-loading');
+    const resultsView = document.getElementById('end-debate-results');
+    const confirmBtn = document.getElementById('confirm-end-debate-btn');
+    
+    // Show loading
+    confirmView.classList.add('hidden');
+    loadingView.classList.remove('hidden');
+    confirmBtn.disabled = true;
+    
+    const sphereId = extractSphereId(roomUrl);
+    const hostId = window.currentUserData?.userId || userId;
+    
+    try {
+      const response = await fetch('/.netlify/functions/end-red-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomId: sphereId,
+          hostId: hostId
+        })
+      });
+      
+      const data = await response.json();
+      console.log('🏁 End debate response:', data);
+      
+      // Show results
+      loadingView.classList.add('hidden');
+      resultsView.classList.remove('hidden');
+      
+      const resultIcon = document.getElementById('end-debate-result-icon');
+      const resultTitle = document.getElementById('end-debate-result-title');
+      const resultDetails = document.getElementById('end-debate-result-details');
+      
+      if (data.success) {
+        if (data.result === 'void') {
+          // Pot was voided (under 100 gems)
+          resultIcon.textContent = '🔄';
+          resultTitle.textContent = 'Debate Voided';
+          resultDetails.innerHTML = `
+            <div class="text-yellow-300 font-bold mb-2">Pot was under 100 gems</div>
+            <div class="text-white text-sm">All ${data.totalPot || 0} gems have been refunded to their senders.</div>
+          `;
+        } else if (data.result === 'draw') {
+          // It's a draw
+          resultIcon.textContent = '🤝';
+          resultTitle.textContent = 'It\'s a Draw!';
+          resultDetails.innerHTML = `
+            <div class="text-blue-300 font-bold mb-2">Tips were equal</div>
+            <div class="text-white text-sm">Total pot: 💎 ${data.totalPot?.toLocaleString() || 0}</div>
+            <div class="text-gray-300 text-xs mt-2">Each debater keeps their respective tips.</div>
+          `;
+        } else {
+          // We have a winner!
+          const winnerName = data.winnerName || 'Winner';
+          const winnerAmount = data.winnerAmount || 0;
+          resultIcon.textContent = '🏆';
+          resultTitle.textContent = `${winnerName} Wins!`;
+          resultDetails.innerHTML = `
+            <div class="text-green-300 font-bold mb-2">Winner takes the pot!</div>
+            <div class="text-white text-lg mb-2">💎 ${winnerAmount.toLocaleString()} credited</div>
+            <div class="text-gray-300 text-sm">Total pot was: 💎 ${data.totalPot?.toLocaleString() || 0}</div>
+            <div class="text-xs text-gray-400 mt-2">(50% winner share + platform fee deducted)</div>
+          `;
+        }
+        
+        // Broadcast to other users that debate ended
+        broadcastDebateEnded(data);
+        
+      } else {
+        // Error occurred
+        resultIcon.textContent = '❌';
+        resultTitle.textContent = 'Error';
+        resultDetails.innerHTML = `
+          <div class="text-red-300 font-bold mb-2">Could not end debate</div>
+          <div class="text-white text-sm">${data.error || 'Unknown error'}</div>
+        `;
+      }
+      
+    } catch (error) {
+      console.error('❌ Error ending debate:', error);
+      loadingView.classList.add('hidden');
+      resultsView.classList.remove('hidden');
+      
+      document.getElementById('end-debate-result-icon').textContent = '❌';
+      document.getElementById('end-debate-result-title').textContent = 'Error';
+      document.getElementById('end-debate-result-details').innerHTML = `
+        <div class="text-red-300">${error.message}</div>
+      `;
+    }
+  }
+  window.confirmEndDebate = confirmEndDebate;
+  
+  // Close modal and optionally leave the room
+  function closeEndDebateAndLeave() {
+    hideEndDebateModal();
+    // Optionally redirect to /live.html or show "Debate Ended" state
+    showToast('🏁 Debate ended! Room will close shortly.');
+    
+    // Hide the pot panel and show a "Debate Ended" message
+    ['red-room-pot-panel', 'spectator-red-room-pot-panel'].forEach(id => {
+      const panel = document.getElementById(id);
+      if (panel) panel.classList.add('hidden');
+    });
+  }
+  window.closeEndDebateAndLeave = closeEndDebateAndLeave;
+  
+  // Broadcast to other users that the debate has ended
+  function broadcastDebateEnded(data) {
+    if (livekitRoom && livekitRoom.localParticipant) {
+      try {
+        const endMessage = {
+          type: 'debate-ended',
+          result: data.result,
+          winnerName: data.winnerName,
+          winnerAmount: data.winnerAmount,
+          totalPot: data.totalPot,
+          timestamp: Date.now()
+        };
+        publishLiveKitDataMessage(endMessage);
+        console.log('📢 Broadcast debate-ended to all participants');
+      } catch (err) {
+        console.warn('Could not broadcast debate-ended:', err);
+      }
+    }
+  }
+  
+  // Handle received debate-ended message (for non-hosts)
+  function handleDebateEnded(data) {
+    console.log('🏁 Debate ended notification received:', data);
+    
+    // Show a toast notification
+    if (data.result === 'void') {
+      showToast('🔄 Debate voided - all gems refunded!');
+    } else if (data.result === 'draw') {
+      showToast('🤝 Debate ended in a draw!');
+    } else {
+      showToast(`🏆 ${data.winnerName || 'Winner'} won the debate!`);
+    }
+    
+    // Hide pot panels
+    ['red-room-pot-panel', 'spectator-red-room-pot-panel'].forEach(id => {
+      const panel = document.getElementById(id);
+      if (panel) panel.classList.add('hidden');
+    });
+    
+    // Refresh gem balance in case user was refunded
+    if (typeof fetchAndDisplayGemBalance === 'function') {
+      fetchAndDisplayGemBalance();
+    }
   }
   
   // Start voting phase

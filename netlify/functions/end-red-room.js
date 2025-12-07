@@ -166,7 +166,13 @@ exports.handler = async function(event) {
       throw voteError;
     }
 
-    // Count votes
+    // Count tips per recipient (this is the scoreboard data)
+    const tipCounts = {};
+    for (const tx of potTransactions || []) {
+      tipCounts[tx.recipient_id] = (tipCounts[tx.recipient_id] || 0) + tx.amount;
+    }
+
+    // Count votes (if any)
     const voteCounts = {};
     let drawVotes = 0;
 
@@ -178,10 +184,12 @@ exports.handler = async function(event) {
       }
     }
 
-    // Determine winner
+    // Determine winner - prefer votes, but if no votes, use tips received
     let winners = [];
     let maxVotes = 0;
+    let isDraw = false;
 
+    // First try votes
     for (const [participantId, count] of Object.entries(voteCounts)) {
       if (count > maxVotes) {
         maxVotes = count;
@@ -192,12 +200,33 @@ exports.handler = async function(event) {
     }
 
     // If draw votes are highest, treat as a draw
-    const isDraw = drawVotes >= maxVotes || winners.length > 1;
+    if (drawVotes >= maxVotes && drawVotes > 0) {
+      isDraw = true;
+      winners = Object.keys(tipCounts);
+    }
     
-    // If no votes, split between participants who received tips
+    // If no votes at all, determine winner by tips received
+    if (winners.length === 0 && Object.keys(tipCounts).length > 0) {
+      let maxTips = 0;
+      for (const [recipientId, tipAmount] of Object.entries(tipCounts)) {
+        if (tipAmount > maxTips) {
+          maxTips = tipAmount;
+          winners = [recipientId];
+        } else if (tipAmount === maxTips) {
+          winners.push(recipientId);
+        }
+      }
+      // If tips are equal, it's a draw
+      if (winners.length > 1) {
+        isDraw = true;
+      }
+    }
+    
+    // If still no winners, get all recipients
     if (winners.length === 0) {
       const recipientIds = [...new Set(potTransactions.map(t => t.recipient_id))];
       winners = recipientIds;
+      isDraw = winners.length > 1;
     }
 
     // Calculate share per winner
@@ -268,6 +297,20 @@ exports.handler = async function(event) {
       })
       .eq('room_id', roomId);
 
+    // Get winner's name for display
+    let winnerName = null;
+    if (!isDraw && winners.length === 1) {
+      const { data: winnerProfile } = await supabase
+        .from('user_profiles')
+        .select('username, display_name')
+        .eq('id', winners[0])
+        .single();
+      
+      winnerName = winnerProfile?.display_name || winnerProfile?.username || 'Winner';
+    }
+
+    console.log(`🏆 Red Room ${roomId} ended: ${isDraw ? 'DRAW' : 'WINNER'} - ${winnerName || 'Multiple winners'}`);
+
     return {
       statusCode: 200,
       headers,
@@ -275,8 +318,10 @@ exports.handler = async function(event) {
         success: true,
         result: isDraw ? 'draw' : 'winner',
         totalPot,
+        winnerAmount: sharePerWinner,
         winnerShare: sharePerWinner,
         winners: winners,
+        winnerName: winnerName,
         platformFee: totalPot - (sharePerWinner * winners.length),
       }),
     };

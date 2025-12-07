@@ -176,8 +176,20 @@
 
   <script src="/assets/js/navigation.js"></script>
   <script>
-    let currentUser = null, supabaseClient = null, forumData = null;
+    let currentUser = null, supabaseClient = null, forumData = null, forumSlug = null;
     const categoryIcons = { gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬', business: '💼', education: '📚', fitness: '💪', creative: '🎨', just_chatting: '💬', other: '📁' };
+    
+    // Parse slug from URL - handles /f/slug and /forum.html?slug=xxx
+    function getSlugFromUrl() {
+      const path = window.location.pathname;
+      // Handle /f/my-forum-slug format
+      if (path.startsWith('/f/')) {
+        return path.substring(3).split('/')[0].split('?')[0];
+      }
+      // Handle query param format
+      const params = new URLSearchParams(window.location.search);
+      return params.get('slug') || params.get('s') || null;
+    }
 
     function initSupabase() {
       const config = window.__CHATSPHERES_CONFIG__ || {};
@@ -251,40 +263,54 @@
     }
 
     async function loadForum() {
-      const path = window.location.pathname;
-      const slug = path.startsWith('/f/') ? path.substring(3) : path.split('/').pop();
-      if (!slug) { showError('Forum not found'); return; }
+      forumSlug = getSlugFromUrl();
+      console.log('Loading forum with slug:', forumSlug);
+      
+      if (!forumSlug) { 
+        showError('Forum not found'); 
+        return; 
+      }
       
       try {
-        const params = new URLSearchParams({ slug });
+        const params = new URLSearchParams({ slug: forumSlug });
         if (currentUser) params.append('userId', currentUser.id);
         
         const res = await fetch(`/.netlify/functions/get-forum?${params}`);
         const data = await res.json();
         
+        console.log('Forum API response:', data);
+        
         if (!res.ok) {
           if (res.status === 403 && data.requiresInvite) {
-            showPrivatePrompt(slug, data.forum);
+            showPrivatePrompt(forumSlug, data.forum || { name: 'Private Forum' });
           } else {
             showError(data.error || 'Forum not found');
           }
           return;
         }
         
-        forumData = data;
-        document.title = `${data.name} - ChatSpheres`;
-        renderForum(data);
+        // API returns { forum: {...}, user: {...}, moderators: [...], announcements: [...], activeRooms: [...] }
+        forumData = {
+          ...data.forum,
+          userStatus: data.user || {},
+          moderators: data.moderators || [],
+          announcements: data.announcements || [],
+          rooms: data.activeRooms || []
+        };
+        
+        document.title = `${forumData.name} - ChatSpheres`;
+        renderForum(forumData);
       } catch (err) {
-        console.error('Error:', err);
+        console.error('Error loading forum:', err);
         showError('Failed to load forum');
       }
     }
 
     function renderForum(forum) {
       const userStatus = forum.userStatus || {};
-      const isMember = userStatus.isMember;
-      const isOwner = userStatus.isOwner;
-      const isMod = userStatus.isModerator;
+      const isMember = userStatus.isMember || userStatus.role;
+      const isOwner = userStatus.role === 'owner' || forum.ownerId === currentUser?.id;
+      const isMod = userStatus.role === 'moderator' || userStatus.canModerate;
       const isBanned = userStatus.isBanned;
       
       if (isBanned) {
@@ -375,7 +401,7 @@
               <div class="sidebar-section">
                 <h3>👮 Moderators</h3>
                 <div class="mods-list">
-                  ${forum.moderators.map(m => `<span class="mod-badge">👤 ${escapeHtml(m.displayName || 'Mod')}</span>`).join('')}
+                  ${forum.moderators.map(m => `<span class="mod-badge">👤 Moderator</span>`).join('')}
                 </div>
               </div>
             ` : ''}
@@ -389,17 +415,21 @@
         return `<a href="/matchmaking.html" class="btn-join">Sign In to Join</a>`;
       }
       
+      const isMember = status?.isMember || status?.role;
+      const isOwner = status?.role === 'owner' || forum.ownerId === currentUser?.id;
+      const isMod = status?.role === 'moderator' || status?.canModerate;
+      
       let html = '';
-      if (status.isMember) {
-        if (!status.isOwner) {
+      if (isMember) {
+        if (!isOwner) {
           html += `<button class="btn-leave" onclick="leaveForum()">Leave Forum</button>`;
         }
         html += `<a href="/matchmaking.html?forum=${forum.id}&forumSlug=${forum.slug}" class="btn-start-room">🎬 Start Room</a>`;
       } else {
-        html += `<button class="btn-join" onclick="joinForum()">Join Forum</button>`;
+        html += `<button class="btn-join" onclick="joinForum()">+ Join Forum</button>`;
       }
       
-      if (status.isOwner || status.isModerator) {
+      if (isOwner || isMod) {
         html += `<button class="btn-leave" onclick="showModPanel()" style="margin-left: auto;">⚙️ Manage</button>`;
       }
       
@@ -467,20 +497,44 @@
     }
 
     window.joinForum = async function() {
-      if (!currentUser || !forumData) return;
+      if (!currentUser) {
+        alert('Please sign in to join');
+        window.location.href = '/matchmaking.html';
+        return;
+      }
+      if (!forumData?.id && !forumSlug) {
+        alert('Forum not found');
+        return;
+      }
+      
       try {
+        const body = { userId: currentUser.id };
+        if (forumData?.id) body.forumId = forumData.id;
+        else body.forumSlug = forumSlug;
+        
+        console.log('Joining forum with:', body);
+        
         const res = await fetch('/.netlify/functions/join-forum', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ forumId: forumData.id, userId: currentUser.id })
+          body: JSON.stringify(body)
         });
-        if (res.ok) { loadForum(); }
-        else { const d = await res.json(); alert(d.error || 'Failed to join'); }
-      } catch (e) { alert('Error joining forum'); }
+        const d = await res.json();
+        console.log('Join response:', d);
+        
+        if (res.ok) { 
+          loadForum(); // Reload to show updated state
+        } else { 
+          alert(d.error || 'Failed to join'); 
+        }
+      } catch (e) { 
+        console.error('Join error:', e);
+        alert('Error joining forum'); 
+      }
     };
 
     window.leaveForum = async function() {
-      if (!currentUser || !forumData) return;
+      if (!currentUser || !forumData?.id) return;
       if (!confirm('Leave this forum?')) return;
       try {
         const res = await fetch('/.netlify/functions/leave-forum', {
@@ -493,14 +547,22 @@
       } catch (e) { alert('Error leaving forum'); }
     };
 
-    window.submitInvite = async function(slug) {
+    window.submitInvite = async function(slugParam) {
       const code = document.getElementById('inviteCode')?.value.trim();
-      if (!code || !currentUser) return;
+      if (!code) {
+        alert('Please enter an invite code');
+        return;
+      }
+      if (!currentUser) {
+        alert('Please sign in first');
+        window.location.href = '/matchmaking.html';
+        return;
+      }
       try {
         const res = await fetch('/.netlify/functions/join-forum', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ forumSlug: slug, userId: currentUser.id, inviteCode: code })
+          body: JSON.stringify({ forumSlug: slugParam || forumSlug, userId: currentUser.id, inviteCode: code })
         });
         if (res.ok) { loadForum(); }
         else { const d = await res.json(); alert(d.error || 'Invalid invite code'); }

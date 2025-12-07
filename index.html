@@ -1655,13 +1655,22 @@
           
           <!-- End Debate Button (Host Only - Red Rooms) -->
           <div id="end-debate-section" class="p-3 bg-black bg-opacity-30 hidden">
+            <div class="text-center mb-2">
+              <span class="text-lg">👑</span>
+              <span class="text-white font-bold text-xs">You are the Host</span>
+            </div>
             <button 
               id="end-debate-btn"
               onclick="showEndDebateConfirm()"
-              class="w-full py-2 bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white font-bold rounded-lg text-sm transition transform hover:scale-102 border border-gray-500"
+              class="w-full py-2 bg-gradient-to-r from-red-700 to-red-800 hover:from-red-600 hover:to-red-700 text-white font-bold rounded-lg text-sm transition transform hover:scale-102 border border-red-400"
             >
               🏁 End Debate & Distribute Pot
             </button>
+            <div class="bg-black bg-opacity-40 rounded-lg p-2 mt-2">
+              <p class="text-xs text-yellow-300 text-center">
+                ⚠️ If you leave, the debate will auto-end and pot will be distributed.
+              </p>
+            </div>
           </div>
         </div>
         
@@ -5084,27 +5093,40 @@
       }
     });
     
-    // Handle actual page unload - end green room if host is leaving
+    // Handle actual page unload - end room if host is leaving
     window.addEventListener('unload', () => {
-      // End Green Room when host actually leaves (not just on refresh warning)
+      const urlParams = new URLSearchParams(window.location.search);
+      const isHost = urlParams.get('host') === 'true';
+      const sphereId = extractSphereId(roomUrl);
+      
+      // End Green Room when host actually leaves
       if (typeof roomTypeState !== 'undefined' && 
           roomTypeState.type === 'green' && 
           !roomTypeState.roomEnded && 
-          !isSpectator) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const isHost = urlParams.get('host') === 'true';
-        
-        if (isHost) {
-          console.log('🟢 Host is leaving Green Room - ending session');
-          // Use sendBeacon for reliability during page close
-          const sphereId = extractSphereId(roomUrl);
-          if (sphereId) {
-            const payload = JSON.stringify({
-              action: 'end',
-              roomId: sphereId
-            });
-            navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([payload], { type: 'application/json' }));
-          }
+          !isSpectator && isHost) {
+        console.log('🟢 Host is leaving Green Room - ending session');
+        if (sphereId) {
+          const payload = JSON.stringify({
+            action: 'end',
+            roomId: sphereId
+          });
+          navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([payload], { type: 'application/json' }));
+        }
+      }
+      
+      // End Red Room (debate) when host leaves - auto-end and distribute pot
+      if (typeof roomTypeState !== 'undefined' && 
+          roomTypeState.type === 'red' && 
+          !roomTypeState.debateEnded && 
+          !isSpectator && isHost) {
+        console.log('🔴 Host is leaving Red Room - auto-ending debate');
+        if (sphereId) {
+          const hostId = window.currentUserData?.userId || userId;
+          const payload = JSON.stringify({
+            roomId: sphereId,
+            hostId: hostId
+          });
+          navigator.sendBeacon('/.netlify/functions/end-red-room', new Blob([payload], { type: 'application/json' }));
         }
       }
     });

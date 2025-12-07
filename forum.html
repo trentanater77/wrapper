@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Forum - ChatSpheres</title>
-  <meta name="description" content="Watch live video conversations in this community on ChatSpheres.">
+  <meta name="description" content="Join the community on ChatSpheres.">
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
@@ -18,73 +18,94 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
   
   <style>
-    .forum-banner { height: 180px; background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); }
+    .main-content { padding-top: 60px; }
+    
+    .forum-banner { height: 200px; background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); position: relative; overflow: hidden; }
     .forum-banner img { width: 100%; height: 100%; object-fit: cover; }
+    .forum-banner-overlay { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(transparent, rgba(0,0,0,0.5)); }
     
-    .forum-header-wrapper { max-width: 1000px; margin: 0 auto; padding: 0 var(--space-lg); margin-top: -50px; position: relative; }
-    .forum-header-card { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); box-shadow: var(--shadow-lg); border: 3px solid var(--rose); }
-    
-    .forum-header-top { display: flex; gap: var(--space-lg); align-items: flex-start; }
-    .forum-icon { width: 80px; height: 80px; border-radius: var(--radius-xl); background: var(--light-rose); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; flex-shrink: 0; overflow: hidden; border: 3px solid var(--rose); }
+    .forum-header { max-width: 1000px; margin: -60px auto 0; padding: 0 var(--space-lg); position: relative; z-index: 10; }
+    .forum-header-card { background: white; border-radius: var(--radius-xl); padding: var(--space-xl); box-shadow: var(--shadow-lg); border: 3px solid var(--rose); }
+    .forum-header-top { display: flex; gap: var(--space-lg); align-items: flex-start; flex-wrap: wrap; }
+    .forum-icon { width: 100px; height: 100px; border-radius: var(--radius-xl); background: var(--light-rose); display: flex; align-items: center; justify-content: center; font-size: 3.5rem; flex-shrink: 0; border: 4px solid white; box-shadow: var(--shadow-md); overflow: hidden; }
     .forum-icon img { width: 100%; height: 100%; object-fit: cover; }
-    
-    .forum-info { flex: 1; min-width: 0; }
-    .forum-name { font-size: 1.5rem; font-weight: var(--font-weight-extrabold); color: var(--charcoal); margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
-    .badge { font-size: 0.65rem; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); }
-    .nsfw-badge { background: #ef4444; color: white; }
-    .private-badge { background: #8b5cf6; color: white; }
-    .forum-slug { color: var(--charcoal); opacity: 0.5; font-size: 0.9rem; margin-bottom: var(--space-sm); }
-    
-    .forum-stats { display: flex; gap: var(--space-lg); margin-bottom: var(--space-md); }
+    .forum-info { flex: 1; min-width: 200px; }
+    .forum-name { font-size: 2rem; font-weight: var(--font-weight-extrabold); color: var(--charcoal); display: flex; align-items: center; gap: var(--space-sm); flex-wrap: wrap; }
+    .nsfw-badge { font-size: 0.7rem; background: #ef4444; color: white; padding: 4px 10px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); }
+    .private-badge { font-size: 0.7rem; background: #7c3aed; color: white; padding: 4px 10px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); }
+    .forum-slug { color: var(--charcoal); opacity: 0.5; margin-bottom: var(--space-sm); }
+    .forum-desc { color: var(--charcoal); opacity: 0.8; line-height: 1.6; margin-bottom: var(--space-md); }
+    .forum-stats { display: flex; gap: var(--space-xl); }
     .forum-stat { text-align: center; }
-    .forum-stat-value { font-size: 1.3rem; font-weight: var(--font-weight-bold); color: var(--charcoal); }
-    .forum-stat-label { font-size: 0.75rem; color: var(--charcoal); opacity: 0.6; }
+    .forum-stat-value { font-size: 1.5rem; font-weight: var(--font-weight-bold); color: var(--main-red); }
+    .forum-stat-label { font-size: 0.85rem; color: var(--charcoal); opacity: 0.6; }
+    .forum-actions { display: flex; gap: var(--space-sm); margin-top: var(--space-lg); flex-wrap: wrap; }
     
-    .forum-actions { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
-    .forum-btn { padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; border: none; text-decoration: none; display: inline-flex; align-items: center; gap: var(--space-xs); transition: all var(--transition-fast); }
-    .forum-btn-primary { background: var(--main-red); color: white; }
-    .forum-btn-primary:hover { background: var(--charcoal); }
-    .forum-btn-secondary { background: var(--light-rose); color: var(--charcoal); }
-    .forum-btn-secondary:hover { background: var(--gold); }
-    .forum-btn-joined { background: #10b981; color: white; }
+    .btn-join { background: var(--main-red); color: white; padding: var(--space-sm) var(--space-xl); border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1rem; cursor: pointer; transition: all var(--transition-fast); }
+    .btn-join:hover { background: var(--charcoal); transform: translateY(-2px); }
+    .btn-leave { background: white; color: var(--charcoal); padding: var(--space-sm) var(--space-xl); border: 3px solid var(--rose); border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1rem; cursor: pointer; }
+    .btn-leave:hover { border-color: var(--main-red); color: var(--main-red); }
+    .btn-start-room { background: var(--gold); color: var(--charcoal); padding: var(--space-sm) var(--space-xl); border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: var(--space-xs); }
+    .btn-start-room:hover { filter: brightness(1.1); }
     
-    .forum-content { max-width: 1000px; margin: var(--space-xl) auto; padding: 0 var(--space-lg); display: grid; grid-template-columns: 1fr 300px; gap: var(--space-xl); }
-    @media (max-width: 800px) { .forum-content { grid-template-columns: 1fr; } .forum-sidebar { order: -1; } }
+    .forum-content { max-width: 1000px; margin: var(--space-xl) auto; padding: 0 var(--space-lg); display: grid; grid-template-columns: 1fr 320px; gap: var(--space-lg); }
+    @media (max-width: 800px) { .forum-content { grid-template-columns: 1fr; } }
     
-    .sidebar-card { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); border: 3px solid var(--rose); margin-bottom: var(--space-md); }
-    .sidebar-card-title { font-weight: var(--font-weight-bold); color: var(--charcoal); margin-bottom: var(--space-sm); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
-    .forum-description, .forum-rules { color: var(--charcoal); line-height: 1.6; font-size: 0.9rem; white-space: pre-wrap; }
+    .rooms-section h2 { color: var(--charcoal); margin-bottom: var(--space-lg); display: flex; align-items: center; gap: var(--space-sm); }
+    .rooms-list { display: flex; flex-direction: column; gap: var(--space-md); }
     
-    .rooms-section { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); border: 3px solid var(--rose); }
-    .rooms-section-title { font-weight: var(--font-weight-bold); color: var(--charcoal); margin-bottom: var(--space-md); display: flex; align-items: center; gap: var(--space-xs); font-size: 1.1rem; }
-    .rooms-grid { display: grid; gap: var(--space-sm); }
+    .room-card { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); border: 3px solid var(--rose); transition: all var(--transition-fast); text-decoration: none; display: block; }
+    .room-card:hover { border-color: var(--main-red); box-shadow: var(--shadow-md); transform: translateY(-3px); }
+    .room-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-sm); }
+    .room-card-title { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 1.1rem; }
+    .live-badge { display: inline-flex; align-items: center; gap: 4px; background: #10b981; color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.8rem; font-weight: var(--font-weight-bold); }
+    .live-badge::before { content: ''; width: 8px; height: 8px; background: white; border-radius: 50%; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    .room-card-host { color: var(--charcoal); opacity: 0.7; font-size: 0.9rem; margin-bottom: var(--space-sm); }
+    .room-card-stats { display: flex; gap: var(--space-md); font-size: 0.85rem; color: var(--charcoal); opacity: 0.6; }
     
-    .room-card { background: var(--light-rose); border-radius: var(--radius-lg); padding: var(--space-md); text-decoration: none; display: flex; justify-content: space-between; align-items: center; transition: all var(--transition-fast); }
-    .room-card:hover { background: var(--gold); transform: translateX(4px); }
-    .room-card-info { flex: 1; }
-    .room-card-title { font-weight: var(--font-weight-bold); color: var(--charcoal); margin-bottom: 2px; }
-    .room-card-host { font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; }
-    .room-card-status { font-size: 0.75rem; padding: 4px 10px; border-radius: var(--radius-full); background: #10b981; color: white; font-weight: var(--font-weight-bold); }
+    .sidebar-section { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); border: 3px solid var(--rose); margin-bottom: var(--space-lg); }
+    .sidebar-section h3 { color: var(--charcoal); margin-bottom: var(--space-md); font-size: 1.1rem; display: flex; align-items: center; gap: var(--space-sm); }
+    .sidebar-section ul { list-style: none; padding: 0; margin: 0; }
+    .sidebar-section li { padding: var(--space-xs) 0; color: var(--charcoal); opacity: 0.8; font-size: 0.95rem; }
+    .sidebar-section li::before { content: '•'; color: var(--main-red); margin-right: var(--space-sm); }
     
-    .empty-state { text-align: center; padding: var(--space-xl); color: var(--charcoal); opacity: 0.7; }
-    .error-state { text-align: center; padding: var(--space-2xl) var(--space-lg); max-width: 500px; margin: var(--space-2xl) auto; }
-    .error-state h2 { color: var(--main-red); margin-bottom: var(--space-md); }
+    .announcements { background: linear-gradient(135deg, #fffbeb, #fef3c7); border-color: var(--gold); }
+    .announcement-item { padding: var(--space-md); background: white; border-radius: var(--radius-lg); margin-bottom: var(--space-sm); border-left: 4px solid var(--gold); }
+    .announcement-item:last-child { margin-bottom: 0; }
+    .announcement-title { font-weight: var(--font-weight-bold); color: var(--charcoal); margin-bottom: var(--space-xs); }
+    .announcement-content { color: var(--charcoal); opacity: 0.8; font-size: 0.9rem; }
     
-    .loading-spinner { display: flex; justify-content: center; padding: var(--space-2xl); }
-    .spinner { width: 40px; height: 40px; border: 4px solid var(--light-rose); border-top-color: var(--main-red); border-radius: 50%; animation: spin 1s linear infinite; }
+    .mods-list { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+    .mod-badge { display: inline-flex; align-items: center; gap: var(--space-xs); background: var(--light-rose); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-lg); font-size: 0.85rem; color: var(--charcoal); }
+    
+    .private-prompt { text-align: center; padding: var(--space-2xl); }
+    .private-prompt h2 { color: var(--charcoal); margin-bottom: var(--space-md); }
+    .private-prompt p { color: var(--charcoal); opacity: 0.7; margin-bottom: var(--space-lg); }
+    .invite-form { display: flex; gap: var(--space-sm); max-width: 400px; margin: 0 auto; }
+    .invite-form input { flex: 1; padding: var(--space-sm) var(--space-md); border: 3px solid var(--rose); border-radius: var(--radius-lg); font-family: var(--font-family); }
+    .invite-form input:focus { border-color: var(--main-red); outline: none; }
+    .invite-form button { padding: var(--space-sm) var(--space-lg); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; }
+    
+    .empty-rooms { text-align: center; padding: var(--space-2xl); background: var(--light-rose); border-radius: var(--radius-xl); }
+    .empty-rooms-icon { font-size: 4rem; margin-bottom: var(--space-md); }
+    .empty-rooms h3 { color: var(--charcoal); margin-bottom: var(--space-sm); }
+    .empty-rooms p { color: var(--charcoal); opacity: 0.7; }
+    
+    .banned-notice { text-align: center; padding: var(--space-2xl); background: #fef2f2; border-radius: var(--radius-xl); border: 3px solid #fecaca; }
+    .banned-notice h2 { color: #dc2626; margin-bottom: var(--space-md); }
+    
+    .loading-state { text-align: center; padding: var(--space-2xl); }
+    .spinner { width: 48px; height: 48px; border: 5px solid var(--light-rose); border-top-color: var(--main-red); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto var(--space-md); }
     @keyframes spin { to { transform: rotate(360deg); } }
     
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 1000; }
-    .modal { background: white; border-radius: var(--radius-xl); padding: var(--space-xl); max-width: 400px; width: 90%; }
-    .modal-title { font-weight: var(--font-weight-bold); font-size: 1.2rem; margin-bottom: var(--space-md); }
-    .modal-input { width: 100%; padding: var(--space-sm); border: 2px solid var(--rose); border-radius: var(--radius-md); font-family: var(--font-family); margin-bottom: var(--space-md); }
-    .modal-actions { display: flex; gap: var(--space-sm); justify-content: flex-end; }
+    footer { text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl); max-width: 1000px; margin-left: auto; margin-right: auto; }
+    footer a { color: var(--main-red); }
   </style>
 </head>
 <body>
   <div class="bg-pattern"></div>
   
-  <!-- Header -->
   <header class="site-header">
     <div class="header-container">
       <a href="/explore.html" class="site-logo">
@@ -96,16 +117,12 @@
         </svg>
         <span class="site-logo-text">ChatSpheres</span>
       </a>
-      
       <div class="header-actions">
         <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'">
-          <span>💎</span>
-          <span class="gem-count">0</span>
+          <span>💎</span><span class="gem-count">0</span>
         </div>
         <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
-          <span class="menu-bar"></span>
-          <span class="menu-bar"></span>
-          <span class="menu-bar"></span>
+          <span class="menu-bar"></span><span class="menu-bar"></span><span class="menu-bar"></span>
         </button>
       </div>
     </div>
@@ -114,7 +131,7 @@
   <div id="nav-overlay" class="nav-overlay"></div>
   
   <nav id="nav-menu" class="nav-menu">
-    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <button id="nav-close" class="nav-close">×</button>
     <ul class="nav-links">
       <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
       <li><a href="/live.html" class="nav-link"><span class="nav-link-icon">🔴</span> Live Rooms</a></li>
@@ -126,9 +143,10 @@
     <div class="nav-divider"></div>
     <ul class="nav-links">
       <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
+      <li><a href="/branding.html" class="nav-link"><span class="nav-link-icon">🎨</span> Branding</a></li>
     </ul>
     <div id="nav-guest-links" class="nav-user-section">
-      <a href="/" class="btn btn-primary btn-full" style="text-decoration: none;">Sign In</a>
+      <a href="/matchmaking.html" class="btn btn-primary btn-full" style="text-decoration: none;">Sign In</a>
     </div>
     <div id="nav-user-section" class="nav-user-section" style="display: none;">
       <div class="nav-user-info">
@@ -142,224 +160,401 @@
     </div>
   </nav>
 
-  <main id="forumMain">
-    <div class="loading-spinner"><div class="spinner"></div></div>
-  </main>
-
-  <div class="modal-overlay" id="inviteModal">
-    <div class="modal">
-      <h3 class="modal-title">🔒 Private Forum</h3>
-      <p style="margin-bottom: var(--space-md); color: var(--charcoal);">Enter an invite code:</p>
-      <input type="text" class="modal-input" id="inviteCodeInput" placeholder="Enter invite code...">
-      <div class="modal-actions">
-        <button class="forum-btn forum-btn-secondary" id="inviteCancelBtn">Cancel</button>
-        <button class="forum-btn forum-btn-primary" id="inviteSubmitBtn">Join</button>
+  <main class="main-content">
+    <div id="pageContent">
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p>Loading forum...</p>
       </div>
     </div>
-  </div>
+    
+    <footer>
+      <p><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/community-guidelines.html">Guidelines</a></p>
+      <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres</p>
+    </footer>
+  </main>
 
   <script src="/assets/js/navigation.js"></script>
   <script>
-    let currentUser = null, forumData = null, userData = null, supabaseClient = null;
+    let currentUser = null, supabaseClient = null, forumData = null;
     const categoryIcons = { gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬', business: '💼', education: '📚', fitness: '💪', creative: '🎨', just_chatting: '💬', other: '📁' };
 
-    function getForumSlug() {
-      const match = window.location.pathname.match(/^\/f\/([^\/]+)/);
-      return match ? match[1] : null;
-    }
-
-    async function initPage(supabase) {
-      supabaseClient = supabase;
-      try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (user) { currentUser = user; updateHeaderForUser(user); }
-      } catch (e) { console.error('Auth error:', e); }
+    function initSupabase() {
+      const config = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = config.supabase || {};
+      const authConfig = config.auth || {};
       
-      const slug = getForumSlug();
-      if (!slug) { showError('Forum not found', 'No forum specified.'); return; }
-      loadForum(slug);
-      setupInviteModal();
+      const SUPABASE_URL = supabaseConfig.url || config.SUPABASE_URL || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || config.SUPABASE_ANON_KEY || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+      
+      return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          storage: {
+            getItem: (key) => {
+              const cookies = document.cookie.split(';');
+              for (const cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === key) return decodeURIComponent(value);
+              }
+              try { return localStorage.getItem(key); } catch(e) { return null; }
+            },
+            setItem: (key, value) => {
+              const maxAge = 60 * 60 * 24 * 365;
+              let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+              if (window.location.protocol === 'https:') cookieStr += '; Secure';
+              if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+              document.cookie = cookieStr;
+              try { localStorage.setItem(key, value); } catch(e) {}
+            },
+            removeItem: (key) => {
+              let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+              if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+              document.cookie = cookieStr;
+              try { localStorage.removeItem(key); } catch(e) {}
+            }
+          }
+        }
+      });
     }
 
-    async function loadForum(slug) {
+    async function initPage() {
+      supabaseClient = initSupabase();
+      
+      if (supabaseClient) {
+        try {
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session?.user) {
+            currentUser = session.user;
+            updateHeaderForUser(session.user);
+          }
+        } catch (e) { console.error('Auth error:', e); }
+        
+        supabaseClient.auth.onAuthStateChange((event, session) => {
+          if (session?.user) {
+            currentUser = session.user;
+            updateHeaderForUser(session.user);
+          } else {
+            currentUser = null;
+            updateHeaderForGuest();
+          }
+        });
+      }
+      
+      loadForum();
+    }
+
+    async function loadForum() {
+      const path = window.location.pathname;
+      const slug = path.startsWith('/f/') ? path.substring(3) : path.split('/').pop();
+      if (!slug) { showError('Forum not found'); return; }
+      
       try {
         const params = new URLSearchParams({ slug });
         if (currentUser) params.append('userId', currentUser.id);
         
-        const inviteCode = new URLSearchParams(window.location.search).get('invite');
         const res = await fetch(`/.netlify/functions/get-forum?${params}`);
         const data = await res.json();
         
         if (!res.ok) {
-          if (data.requiresInvite && inviteCode) { await joinWithInvite(slug, inviteCode); return; }
-          if (data.requiresInvite) { showInviteRequired(slug); return; }
-          if (data.requiresAuth) { showError('Private Forum', 'Sign in to access this forum.'); return; }
-          throw new Error(data.error || 'Forum not found');
+          if (res.status === 403 && data.requiresInvite) {
+            showPrivatePrompt(slug, data.forum);
+          } else {
+            showError(data.error || 'Forum not found');
+          }
+          return;
         }
         
-        forumData = data.forum; userData = data.user;
-        if (userData?.isBanned) { showBanned(); return; }
+        forumData = data;
+        document.title = `${data.name} - ChatSpheres`;
         renderForum(data);
-        document.title = `${forumData.name} - ChatSpheres`;
-      } catch (err) { console.error('Error:', err); showError('Error', err.message); }
+      } catch (err) {
+        console.error('Error:', err);
+        showError('Failed to load forum');
+      }
     }
 
-    function renderForum(data) {
-      const { forum, user, activeRooms } = data;
-      const icon = forum.iconUrl ? `<img src="${forum.iconUrl}" alt="">` : (categoryIcons[forum.category] || '💬');
+    function renderForum(forum) {
+      const userStatus = forum.userStatus || {};
+      const isMember = userStatus.isMember;
+      const isOwner = userStatus.isOwner;
+      const isMod = userStatus.isModerator;
+      const isBanned = userStatus.isBanned;
       
-      document.getElementById('forumMain').innerHTML = `
-        <div class="forum-banner" ${forum.bannerUrl ? '' : `style="background: linear-gradient(135deg, ${forum.primaryColor || 'var(--main-red)'} 0%, var(--gold) 100%)"`}>
-          ${forum.bannerUrl ? `<img src="${forum.bannerUrl}" alt="">` : ''}
+      if (isBanned) {
+        document.getElementById('pageContent').innerHTML = `
+          <div class="forum-banner" ${forum.primaryColor ? `style="background:${forum.primaryColor}"` : ''}>
+            ${forum.bannerUrl ? `<img src="${forum.bannerUrl}">` : ''}
+          </div>
+          <div class="forum-header">
+            <div class="banned-notice">
+              <h2>🚫 You are banned from this forum</h2>
+              <p>You cannot view or participate in this community.</p>
+              <a href="/forums" class="btn-join" style="text-decoration: none; display: inline-block; margin-top: var(--space-md);">Browse Other Forums</a>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      const icon = forum.iconUrl ? `<img src="${forum.iconUrl}">` : (categoryIcons[forum.category] || '💬');
+      
+      document.getElementById('pageContent').innerHTML = `
+        <div class="forum-banner" ${forum.primaryColor ? `style="background:${forum.primaryColor}"` : ''}>
+          ${forum.bannerUrl ? `<img src="${forum.bannerUrl}">` : ''}
+          <div class="forum-banner-overlay"></div>
         </div>
         
-        <div class="forum-header-wrapper">
+        <div class="forum-header">
           <div class="forum-header-card">
             <div class="forum-header-top">
               <div class="forum-icon">${icon}</div>
               <div class="forum-info">
                 <h1 class="forum-name">
                   ${escapeHtml(forum.name)}
-                  ${forum.isNsfw ? '<span class="badge nsfw-badge">NSFW</span>' : ''}
-                  ${forum.forumType === 'private' ? '<span class="badge private-badge">Private</span>' : ''}
+                  ${forum.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}
+                  ${forum.forumType === 'private' ? '<span class="private-badge">🔒 Private</span>' : ''}
                 </h1>
-                <div class="forum-slug">f/${forum.slug}</div>
+                <p class="forum-slug">f/${forum.slug}</p>
+                <p class="forum-desc">${escapeHtml(forum.description || 'A community on ChatSpheres')}</p>
                 <div class="forum-stats">
-                  <div class="forum-stat"><div class="forum-stat-value">${formatNumber(forum.memberCount || 0)}</div><div class="forum-stat-label">Members</div></div>
-                  <div class="forum-stat"><div class="forum-stat-value">${forum.activeRoomCount || 0}</div><div class="forum-stat-label">Live</div></div>
-                  <div class="forum-stat"><div class="forum-stat-value">${forum.roomCount || 0}</div><div class="forum-stat-label">Total Rooms</div></div>
+                  <div class="forum-stat">
+                    <div class="forum-stat-value">${formatNumber(forum.memberCount || 0)}</div>
+                    <div class="forum-stat-label">members</div>
+                  </div>
+                  <div class="forum-stat">
+                    <div class="forum-stat-value">${forum.activeRoomCount || 0}</div>
+                    <div class="forum-stat-label">live now</div>
+                  </div>
                 </div>
               </div>
             </div>
-            <div class="forum-actions" style="margin-top: var(--space-md);">
-              ${renderActionButtons(user, forum)}
+            <div class="forum-actions" id="forumActions">
+              ${renderActions(forum, userStatus)}
             </div>
           </div>
         </div>
         
         <div class="forum-content">
-          <div class="forum-main-area">
-            <div class="rooms-section">
-              <h2 class="rooms-section-title">${activeRooms?.length ? '🔴 Live Rooms' : '📺 Rooms'}</h2>
-              <div class="rooms-grid">${renderRooms(activeRooms)}</div>
+          <section class="rooms-section">
+            <h2>🎬 Rooms</h2>
+            <div class="rooms-list" id="roomsList">
+              ${renderRooms(forum.rooms)}
             </div>
-          </div>
-          <aside class="forum-sidebar">
-            ${forum.description ? `<div class="sidebar-card"><h3 class="sidebar-card-title">About</h3><div class="forum-description">${escapeHtml(forum.description)}</div></div>` : ''}
-            ${forum.rules ? `<div class="sidebar-card"><h3 class="sidebar-card-title">Rules</h3><div class="forum-rules">${escapeHtml(forum.rules)}</div></div>` : ''}
-            <div class="sidebar-card"><h3 class="sidebar-card-title">Category</h3><span style="font-size: 1.5rem;">${categoryIcons[forum.category] || '📁'}</span> <span style="text-transform: capitalize;">${(forum.category || 'other').replace('_', ' ')}</span></div>
+          </section>
+          
+          <aside>
+            ${forum.announcements?.length ? `
+              <div class="sidebar-section announcements">
+                <h3>📢 Announcements</h3>
+                ${forum.announcements.map(a => `
+                  <div class="announcement-item">
+                    <div class="announcement-title">${escapeHtml(a.title)}</div>
+                    <div class="announcement-content">${escapeHtml(a.content)}</div>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+            
+            ${forum.rules ? `
+              <div class="sidebar-section">
+                <h3>📋 Rules</h3>
+                <ul>
+                  ${forum.rules.split('\n').filter(r => r.trim()).map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+            
+            ${forum.moderators?.length ? `
+              <div class="sidebar-section">
+                <h3>👮 Moderators</h3>
+                <div class="mods-list">
+                  ${forum.moderators.map(m => `<span class="mod-badge">👤 ${escapeHtml(m.displayName || 'Mod')}</span>`).join('')}
+                </div>
+              </div>
+            ` : ''}
           </aside>
         </div>
       `;
     }
 
-    function renderActionButtons(user, forum) {
-      if (!currentUser) return `<a href="/" class="forum-btn forum-btn-primary">Sign in to Join</a>`;
-      let buttons = [];
-      if (user?.isMember) {
-        buttons.push(`<span class="forum-btn forum-btn-joined">✓ Joined</span>`);
-        if (user.role !== 'owner') buttons.push(`<button class="forum-btn forum-btn-secondary" onclick="leaveForum()">Leave</button>`);
-      } else {
-        buttons.push(`<button class="forum-btn forum-btn-primary" onclick="joinForum()">+ Join Forum</button>`);
+    function renderActions(forum, status) {
+      if (!currentUser) {
+        return `<a href="/matchmaking.html" class="btn-join">Sign In to Join</a>`;
       }
-      return buttons.join('');
+      
+      let html = '';
+      if (status.isMember) {
+        if (!status.isOwner) {
+          html += `<button class="btn-leave" onclick="leaveForum()">Leave Forum</button>`;
+        }
+        html += `<a href="/matchmaking.html?forum=${forum.id}&forumSlug=${forum.slug}" class="btn-start-room">🎬 Start Room</a>`;
+      } else {
+        html += `<button class="btn-join" onclick="joinForum()">Join Forum</button>`;
+      }
+      
+      if (status.isOwner || status.isModerator) {
+        html += `<button class="btn-leave" onclick="showModPanel()" style="margin-left: auto;">⚙️ Manage</button>`;
+      }
+      
+      return html;
     }
 
     function renderRooms(rooms) {
-      if (!rooms || !rooms.length) return `<div class="empty-state"><p>No active rooms right now. ${userData?.isMember ? 'Be the first to start one!' : 'Join to participate.'}</p></div>`;
-      return rooms.map(room => `
-        <a href="${room.room_url || `/?room=${room.room_id}`}" class="room-card">
-          <div class="room-card-info">
-            <div class="room-card-title">${escapeHtml(room.title || 'Untitled')}</div>
-            <div class="room-card-host">by ${escapeHtml(room.host_name || 'Anonymous')}</div>
+      if (!rooms?.length) {
+        return `
+          <div class="empty-rooms">
+            <div class="empty-rooms-icon">📺</div>
+            <h3>No Active Rooms</h3>
+            <p>Be the first to start a conversation!</p>
           </div>
-          <span class="room-card-status">🔴 Live</span>
+        `;
+      }
+      
+      return rooms.map(r => `
+        <a href="/matchmaking.html?room=${r.roomName}" class="room-card">
+          <div class="room-card-header">
+            <span class="room-card-title">${escapeHtml(r.title || 'Untitled Room')}</span>
+            ${r.status === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
+          </div>
+          <div class="room-card-host">Hosted by ${escapeHtml(r.hostName || 'Anonymous')}</div>
+          <div class="room-card-stats">
+            <span>👥 ${r.participantCount || 0} watching</span>
+            <span>⏱️ ${formatDuration(r.startedAt)}</span>
+          </div>
         </a>
       `).join('');
     }
 
+    function showPrivatePrompt(slug, forum) {
+      document.getElementById('pageContent').innerHTML = `
+        <div class="forum-banner"></div>
+        <div class="forum-header">
+          <div class="forum-header-card">
+            <div class="private-prompt">
+              <h2>🔒 ${forum?.name || 'Private Forum'}</h2>
+              <p>This forum is private. You need an invite code to join.</p>
+              ${currentUser ? `
+                <div class="invite-form">
+                  <input type="text" id="inviteCode" placeholder="Enter invite code...">
+                  <button onclick="submitInvite('${slug}')">Join</button>
+                </div>
+              ` : `
+                <a href="/matchmaking.html" class="btn-join">Sign In to Join</a>
+              `}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function showError(msg) {
+      document.getElementById('pageContent').innerHTML = `
+        <div class="forum-header" style="margin-top: 100px;">
+          <div class="forum-header-card" style="text-align: center;">
+            <h2 style="color: var(--charcoal);">😕 ${escapeHtml(msg)}</h2>
+            <p style="color: var(--charcoal); opacity: 0.7; margin: var(--space-md) 0;">The forum you're looking for doesn't exist or has been removed.</p>
+            <a href="/forums" class="btn-join" style="text-decoration: none; display: inline-block;">Browse Forums</a>
+          </div>
+        </div>
+      `;
+    }
+
     window.joinForum = async function() {
-      if (!currentUser) { window.location.href = '/'; return; }
+      if (!currentUser || !forumData) return;
       try {
         const res = await fetch('/.netlify/functions/join-forum', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id, forumSlug: getForumSlug() }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ forumId: forumData.id, userId: currentUser.id })
         });
-        const data = await res.json();
-        if (!res.ok) {
-          if (data.requiresInvite) { document.getElementById('inviteModal').style.display = 'flex'; return; }
-          throw new Error(data.error);
-        }
-        window.location.reload();
-      } catch (err) { alert('Error: ' + err.message); }
+        if (res.ok) { loadForum(); }
+        else { const d = await res.json(); alert(d.error || 'Failed to join'); }
+      } catch (e) { alert('Error joining forum'); }
     };
 
     window.leaveForum = async function() {
+      if (!currentUser || !forumData) return;
       if (!confirm('Leave this forum?')) return;
       try {
-        await fetch('/.netlify/functions/leave-forum', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id, forumSlug: getForumSlug() }),
+        const res = await fetch('/.netlify/functions/leave-forum', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ forumId: forumData.id, userId: currentUser.id })
         });
-        window.location.reload();
-      } catch (err) { alert('Error: ' + err.message); }
+        if (res.ok) { loadForum(); }
+        else { const d = await res.json(); alert(d.error || 'Failed to leave'); }
+      } catch (e) { alert('Error leaving forum'); }
     };
 
-    async function joinWithInvite(slug, inviteCode) {
+    window.submitInvite = async function(slug) {
+      const code = document.getElementById('inviteCode')?.value.trim();
+      if (!code || !currentUser) return;
       try {
         const res = await fetch('/.netlify/functions/join-forum', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser?.id, forumSlug: slug, inviteCode }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ forumSlug: slug, userId: currentUser.id, inviteCode: code })
         });
-        if (!res.ok) { if (!currentUser) { showError('Sign In Required', 'Please sign in to use this invite.'); return; } throw new Error((await res.json()).error); }
-        window.history.replaceState({}, '', `/f/${slug}`);
-        window.location.reload();
-      } catch (err) { showError('Invalid Invite', err.message); }
-    }
+        if (res.ok) { loadForum(); }
+        else { const d = await res.json(); alert(d.error || 'Invalid invite code'); }
+      } catch (e) { alert('Error joining forum'); }
+    };
 
-    function setupInviteModal() {
-      document.getElementById('inviteCancelBtn')?.addEventListener('click', () => document.getElementById('inviteModal').style.display = 'none');
-      document.getElementById('inviteSubmitBtn')?.addEventListener('click', async () => {
-        const code = document.getElementById('inviteCodeInput')?.value.trim();
-        if (code) await joinWithInvite(getForumSlug(), code);
-      });
-    }
-
-    function showInviteRequired(slug) {
-      document.getElementById('forumMain').innerHTML = `<div class="error-state"><h2>🔒 Private Forum</h2><p style="color: var(--charcoal); margin-bottom: var(--space-md);">This forum requires an invite.</p>${currentUser ? `<input type="text" class="modal-input" id="inviteInput" placeholder="Enter invite code..." style="max-width: 280px;"><br><button class="forum-btn forum-btn-primary" onclick="submitInviteCode()" style="margin-top: var(--space-sm);">Join with Code</button>` : `<a href="/" class="forum-btn forum-btn-primary">Sign In</a>`}<p style="margin-top: var(--space-lg);"><a href="/forums" style="color: var(--main-red);">← Back to Forums</a></p></div>`;
-    }
-
-    window.submitInviteCode = function() { const code = document.getElementById('inviteInput')?.value.trim(); if (code) joinWithInvite(getForumSlug(), code); };
-    function showBanned() { document.getElementById('forumMain').innerHTML = `<div class="error-state"><h2>🚫 Banned</h2><p>You cannot access this forum.</p><p style="margin-top: var(--space-lg);"><a href="/forums" style="color: var(--main-red);">← Back</a></p></div>`; }
-    function showError(title, msg) { document.getElementById('forumMain').innerHTML = `<div class="error-state"><h2>${title}</h2><p style="color: var(--charcoal);">${msg}</p><p style="margin-top: var(--space-lg);"><a href="/forums" style="color: var(--main-red);">← Back to Forums</a></p></div>`; }
+    window.showModPanel = function() { alert('Moderation panel coming soon!'); };
 
     function updateHeaderForUser(user) {
       document.getElementById('nav-guest-links').style.display = 'none';
       document.getElementById('nav-user-section').style.display = 'block';
       document.getElementById('header-gem-badge').style.display = 'flex';
-      document.getElementById('nav-user-name').textContent = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
+      document.getElementById('nav-user-name').textContent = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
       fetchGemBalance(user.id);
+    }
+
+    function updateHeaderForGuest() {
+      document.getElementById('nav-guest-links').style.display = 'block';
+      document.getElementById('nav-user-section').style.display = 'none';
+      document.getElementById('header-gem-badge').style.display = 'none';
     }
 
     async function fetchGemBalance(userId) {
       try {
         const res = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
-        if (res.ok) { const d = await res.json(); document.getElementById('nav-user-gems').textContent = (d.totalGems || 0).toLocaleString(); document.querySelector('.gem-count').textContent = (d.totalGems || 0).toLocaleString(); }
+        if (res.ok) {
+          const d = await res.json();
+          document.getElementById('nav-user-gems').textContent = (d.totalGems || 0).toLocaleString();
+          document.querySelector('.gem-count').textContent = (d.totalGems || 0).toLocaleString();
+        }
       } catch (e) {}
     }
 
-    window.handleLogout = async function() { if (supabaseClient) { await supabaseClient.auth.signOut(); window.location.reload(); } };
-    function formatNumber(n) { if (n >= 1e6) return (n/1e6).toFixed(1)+'M'; if (n >= 1e3) return (n/1e3).toFixed(1)+'K'; return n.toString(); }
+    window.handleLogout = async function() {
+      if (supabaseClient) { await supabaseClient.auth.signOut(); window.location.reload(); }
+    };
+
+    function formatNumber(n) { return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : n.toString(); }
+    function formatDuration(ts) { if (!ts) return 'Just started'; const m = Math.floor((Date.now() - new Date(ts)) / 60000); return m < 60 ? `${m}m` : `${Math.floor(m/60)}h ${m%60}m`; }
     function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
 
+    // Init with retry
     (function() {
       let a = 0;
       function tryInit() {
         a++;
         const c = window.__CHATSPHERES_CONFIG__ || {};
-        if (c.SUPABASE_URL && c.SUPABASE_ANON_KEY) initPage(window.supabase.createClient(c.SUPABASE_URL, c.SUPABASE_ANON_KEY));
-        else if (a < 20) setTimeout(tryInit, 250);
-        else showError('Error', 'Failed to load. Please refresh.');
+        if ((c.supabase?.url || c.SUPABASE_URL) && (c.supabase?.anonKey || c.SUPABASE_ANON_KEY)) {
+          initPage();
+        } else if (a < 15) {
+          setTimeout(tryInit, 300);
+        } else {
+          loadForum();
+        }
       }
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tryInit);
       else tryInit();

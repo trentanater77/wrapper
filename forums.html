@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ChatSpheres - Explore Forums</title>
-  <meta name="description" content="Discover video chat communities. Join forums and watch live conversations on ChatSpheres.">
-  
-  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  <meta name="description" content="Discover video chat communities on ChatSpheres.">
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
@@ -20,62 +18,67 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
   
   <style>
-    .page-wrapper { max-width: 1200px; margin: 0 auto; padding: var(--space-lg); }
+    .main-content { padding-top: 80px; max-width: 1200px; margin: 0 auto; padding-left: var(--space-lg); padding-right: var(--space-lg); }
     
     .forums-hero { text-align: center; padding: var(--space-lg) 0; }
-    .forums-title { font-size: 2rem; font-weight: var(--font-weight-extrabold); color: var(--charcoal); margin-bottom: var(--space-xs); }
-    .forums-subtitle { color: var(--charcoal); opacity: 0.7; margin-bottom: var(--space-md); }
+    .forums-title { font-size: 2.5rem; font-weight: var(--font-weight-extrabold); color: var(--charcoal); margin-bottom: var(--space-xs); }
+    .forums-subtitle { color: var(--charcoal); opacity: 0.7; font-size: 1.1rem; }
     
-    .create-cta { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); border: 3px solid var(--gold); margin-bottom: var(--space-lg); text-align: center; }
-    .create-cta h3 { color: var(--charcoal); margin-bottom: var(--space-xs); }
-    .create-cta p { color: var(--charcoal); opacity: 0.7; margin-bottom: var(--space-md); font-size: 0.9rem; }
-    .create-btn { display: inline-flex; align-items: center; gap: var(--space-xs); padding: var(--space-sm) var(--space-lg); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; text-decoration: none; transition: all var(--transition-fast); }
-    .create-btn:hover { background: var(--charcoal); transform: translateY(-2px); }
+    .create-cta { background: white; border-radius: var(--radius-xl); padding: var(--space-xl); border: 4px solid var(--gold); margin-bottom: var(--space-xl); display: flex; align-items: center; justify-content: space-between; gap: var(--space-lg); flex-wrap: wrap; }
+    .create-cta-text h3 { color: var(--charcoal); margin-bottom: var(--space-xs); font-size: 1.3rem; }
+    .create-cta-text p { color: var(--charcoal); opacity: 0.7; margin: 0; }
+    .create-btn { display: inline-flex; align-items: center; gap: var(--space-sm); padding: var(--space-md) var(--space-xl); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1.1rem; cursor: pointer; text-decoration: none; transition: all var(--transition-fast); white-space: nowrap; }
+    .create-btn:hover { background: var(--charcoal); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
     
-    .filter-tabs { display: flex; gap: var(--space-xs); margin-bottom: var(--space-lg); flex-wrap: wrap; justify-content: center; }
-    .filter-tab { padding: var(--space-xs) var(--space-md); border-radius: var(--radius-full); font-weight: var(--font-weight-bold); font-family: var(--font-family); border: 2px solid transparent; cursor: pointer; transition: all var(--transition-fast); background: var(--light-rose); color: var(--charcoal); font-size: 0.9rem; }
-    .filter-tab:hover { background: var(--gold); }
-    .filter-tab.active { background: var(--main-red); color: white; }
-    
-    .search-bar { display: flex; gap: var(--space-xs); margin-bottom: var(--space-lg); max-width: 500px; margin-left: auto; margin-right: auto; }
-    .search-input { flex: 1; padding: var(--space-sm) var(--space-md); border: 2px solid var(--rose); border-radius: var(--radius-lg); font-family: var(--font-family); font-size: 1rem; outline: none; }
+    .controls-row { display: flex; gap: var(--space-md); margin-bottom: var(--space-lg); flex-wrap: wrap; align-items: center; }
+    .search-bar { display: flex; gap: var(--space-xs); flex: 1; min-width: 250px; max-width: 400px; }
+    .search-input { flex: 1; padding: var(--space-sm) var(--space-md); border: 3px solid var(--rose); border-radius: var(--radius-lg); font-family: var(--font-family); font-size: 1rem; outline: none; }
     .search-input:focus { border-color: var(--main-red); }
     .search-btn { padding: var(--space-sm) var(--space-lg); background: var(--main-red); color: white; border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); cursor: pointer; }
     .search-btn:hover { background: var(--charcoal); }
     
-    .forums-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-lg); }
+    .filter-tabs { display: flex; gap: var(--space-xs); flex-wrap: wrap; }
+    .filter-tab { padding: var(--space-sm) var(--space-md); border-radius: var(--radius-full); font-weight: var(--font-weight-bold); font-family: var(--font-family); border: 3px solid transparent; cursor: pointer; transition: all var(--transition-fast); background: white; color: var(--charcoal); }
+    .filter-tab:hover { background: var(--light-rose); }
+    .filter-tab.active { background: var(--main-red); color: white; border-color: var(--main-red); }
+    
+    .category-row { display: flex; gap: var(--space-xs); flex-wrap: wrap; margin-bottom: var(--space-xl); justify-content: center; }
+    .category-btn { padding: var(--space-xs) var(--space-md); border-radius: var(--radius-lg); font-size: 0.9rem; background: white; border: 2px solid var(--rose); color: var(--charcoal); cursor: pointer; transition: all var(--transition-fast); text-decoration: none; font-weight: var(--font-weight-semibold); }
+    .category-btn:hover, .category-btn.active { border-color: var(--main-red); background: var(--light-rose); color: var(--main-red); }
+    
+    .forums-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--space-lg); }
     
     .forum-card { background: white; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-md); transition: all var(--transition-fast); border: 3px solid var(--rose); text-decoration: none; display: block; }
-    .forum-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); border-color: var(--main-red); }
-    .forum-card-banner { height: 80px; background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); position: relative; }
+    .forum-card:hover { transform: translateY(-6px); box-shadow: var(--shadow-xl); border-color: var(--main-red); }
+    .forum-card-banner { height: 100px; background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); position: relative; }
     .forum-card-banner img { width: 100%; height: 100%; object-fit: cover; }
-    .forum-card-icon { width: 56px; height: 56px; border-radius: var(--radius-full); background: white; border: 3px solid white; position: absolute; bottom: -28px; left: var(--space-md); display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: var(--shadow-sm); overflow: hidden; }
+    .forum-card-icon { width: 64px; height: 64px; border-radius: var(--radius-xl); background: white; border: 4px solid white; position: absolute; bottom: -32px; left: var(--space-lg); display: flex; align-items: center; justify-content: center; font-size: 2rem; box-shadow: var(--shadow-md); overflow: hidden; }
     .forum-card-icon img { width: 100%; height: 100%; object-fit: cover; }
-    .forum-card-body { padding: var(--space-lg); padding-top: calc(var(--space-lg) + 20px); }
-    .forum-card-name { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 1.1rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); }
-    .nsfw-badge { font-size: 0.6rem; background: #ef4444; color: white; padding: 2px 6px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); }
-    .forum-card-slug { color: var(--charcoal); opacity: 0.5; font-size: 0.85rem; margin-bottom: var(--space-sm); }
-    .forum-card-desc { color: var(--charcoal); opacity: 0.7; font-size: 0.9rem; line-height: 1.5; margin-bottom: var(--space-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .forum-card-stats { display: flex; gap: var(--space-md); font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; }
-    .forum-card-stat.live { color: #10b981; font-weight: var(--font-weight-bold); opacity: 1; }
+    .forum-card-body { padding: var(--space-lg); padding-top: calc(var(--space-lg) + 24px); }
+    .forum-card-name { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 1.2rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
+    .nsfw-badge { font-size: 0.65rem; background: #ef4444; color: white; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); }
+    .forum-card-slug { color: var(--charcoal); opacity: 0.5; font-size: 0.9rem; margin-bottom: var(--space-sm); }
+    .forum-card-desc { color: var(--charcoal); opacity: 0.7; font-size: 0.95rem; line-height: 1.5; margin-bottom: var(--space-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em; }
+    .forum-card-stats { display: flex; gap: var(--space-lg); font-size: 0.9rem; color: var(--charcoal); }
+    .forum-card-stat { display: flex; align-items: center; gap: var(--space-xs); }
+    .forum-card-stat.live { color: #10b981; font-weight: var(--font-weight-bold); }
     
-    .empty-state { text-align: center; padding: var(--space-2xl); color: var(--charcoal); }
-    .empty-state-icon { font-size: 4rem; margin-bottom: var(--space-md); }
-    .empty-state p { opacity: 0.7; margin-bottom: var(--space-lg); }
+    .empty-state { text-align: center; padding: var(--space-2xl); background: white; border-radius: var(--radius-xl); border: 3px solid var(--rose); }
+    .empty-state-icon { font-size: 5rem; margin-bottom: var(--space-md); }
+    .empty-state h2 { color: var(--charcoal); margin-bottom: var(--space-sm); }
+    .empty-state p { color: var(--charcoal); opacity: 0.7; margin-bottom: var(--space-lg); }
     
-    .loading-spinner { display: flex; justify-content: center; padding: var(--space-2xl); }
-    .spinner { width: 40px; height: 40px; border: 4px solid var(--light-rose); border-top-color: var(--main-red); border-radius: 50%; animation: spin 1s linear infinite; }
+    .loading-spinner { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-2xl); gap: var(--space-md); }
+    .spinner { width: 48px; height: 48px; border: 5px solid var(--light-rose); border-top-color: var(--main-red); border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     
-    .category-tabs { display: flex; gap: var(--space-xs); flex-wrap: wrap; justify-content: center; margin-bottom: var(--space-lg); }
-    .category-tab { padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-md); font-size: 0.85rem; background: white; border: 2px solid var(--rose); color: var(--charcoal); cursor: pointer; transition: all var(--transition-fast); text-decoration: none; }
-    .category-tab:hover, .category-tab.active { border-color: var(--main-red); background: var(--light-rose); }
+    footer { text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl); }
+    footer a { color: var(--main-red); }
   </style>
 </head>
 <body>
   <div class="bg-pattern"></div>
   
-  <!-- Header -->
   <header class="site-header">
     <div class="header-container">
       <a href="/explore.html" class="site-logo">
@@ -87,28 +90,21 @@
         </svg>
         <span class="site-logo-text">ChatSpheres</span>
       </a>
-      
       <div class="header-actions">
-        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
-          <span>💎</span>
-          <span class="gem-count">0</span>
+        <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'">
+          <span>💎</span><span class="gem-count">0</span>
         </div>
-        
         <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
-          <span class="menu-bar"></span>
-          <span class="menu-bar"></span>
-          <span class="menu-bar"></span>
+          <span class="menu-bar"></span><span class="menu-bar"></span><span class="menu-bar"></span>
         </button>
       </div>
     </div>
   </header>
   
-  <!-- Navigation Overlay -->
   <div id="nav-overlay" class="nav-overlay"></div>
   
-  <!-- Navigation Menu -->
   <nav id="nav-menu" class="nav-menu">
-    <button id="nav-close" class="nav-close" aria-label="Close menu">×</button>
+    <button id="nav-close" class="nav-close">×</button>
     <ul class="nav-links">
       <li><a href="/explore.html" class="nav-link"><span class="nav-link-icon">🏠</span> Home</a></li>
       <li><a href="/live.html" class="nav-link"><span class="nav-link-icon">🔴</span> Live Rooms</a></li>
@@ -117,21 +113,14 @@
       <li><a href="/recordings.html" class="nav-link"><span class="nav-link-icon">📹</span> Recordings</a></li>
       <li><a href="/pricing.html" class="nav-link"><span class="nav-link-icon">💎</span> Pricing</a></li>
     </ul>
-    
     <div class="nav-divider"></div>
-    
     <ul class="nav-links">
       <li><a href="/about.html" class="nav-link"><span class="nav-link-icon">ℹ️</span> About</a></li>
       <li><a href="/branding.html" class="nav-link"><span class="nav-link-icon">🎨</span> Branding</a></li>
-      <li><a href="/affiliate.html" class="nav-link"><span class="nav-link-icon">🔗</span> Affiliate</a></li>
     </ul>
-    
-    <!-- Guest Links -->
     <div id="nav-guest-links" class="nav-user-section">
-      <a href="/" class="btn btn-primary btn-full" style="text-decoration: none; margin-bottom: var(--space-sm);">Sign In</a>
+      <a href="/matchmaking.html" class="btn btn-primary btn-full" style="text-decoration: none;">Sign In</a>
     </div>
-    
-    <!-- User Section -->
     <div id="nav-user-section" class="nav-user-section" style="display: none;">
       <div class="nav-user-info">
         <div class="nav-user-avatar">👤</div>
@@ -143,82 +132,128 @@
       <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
     </div>
   </nav>
-  
-  <div class="page-wrapper">
+
+  <main class="main-content">
     <section class="forums-hero">
       <h1 class="forums-title">🌐 Explore Forums</h1>
-      <p class="forums-subtitle">Discover communities and watch live video conversations</p>
+      <p class="forums-subtitle">Discover communities and join live video conversations</p>
     </section>
     
-    <!-- Create CTA -->
     <div class="create-cta" id="createCTA" style="display: none;">
-      <h3>🚀 Start Your Community</h3>
-      <p>Create a forum and build your audience. Earn 10% of all tips in your forum!</p>
+      <div class="create-cta-text">
+        <h3>🚀 Start Your Community</h3>
+        <p>Create a forum and earn 10% of all tips from rooms in your community!</p>
+      </div>
       <a href="/create-forum" class="create-btn">+ Create Forum</a>
     </div>
     
-    <!-- Search -->
-    <div class="search-bar">
-      <input type="text" class="search-input" id="searchInput" placeholder="Search forums...">
-      <button class="search-btn" id="searchBtn">Search</button>
+    <div class="controls-row">
+      <div class="search-bar">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search forums...">
+        <button class="search-btn" id="searchBtn">🔍</button>
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="top">🔥 Top</button>
+        <button class="filter-tab" data-filter="live">📺 Live</button>
+        <button class="filter-tab" data-filter="new">✨ New</button>
+        <button class="filter-tab" data-filter="joined" id="joinedTab" style="display:none;">⭐ My Forums</button>
+      </div>
     </div>
     
-    <!-- Filter Tabs -->
-    <div class="filter-tabs">
-      <button class="filter-tab active" data-filter="top">🔥 Top</button>
-      <button class="filter-tab" data-filter="live">📺 Live Now</button>
-      <button class="filter-tab" data-filter="trending">📈 Trending</button>
-      <button class="filter-tab" data-filter="new">✨ New</button>
-      <button class="filter-tab" data-filter="joined" id="joinedTab" style="display:none;">⭐ Joined</button>
+    <div class="category-row">
+      <a href="#" class="category-btn active" data-category="all">All</a>
+      <a href="#" class="category-btn" data-category="gaming">🎮 Gaming</a>
+      <a href="#" class="category-btn" data-category="technology">💻 Tech</a>
+      <a href="#" class="category-btn" data-category="music">🎵 Music</a>
+      <a href="#" class="category-btn" data-category="entertainment">🎬 Entertainment</a>
+      <a href="#" class="category-btn" data-category="just_chatting">💬 Just Chatting</a>
     </div>
     
-    <!-- Categories -->
-    <div class="category-tabs">
-      <a href="#" class="category-tab active" data-category="all">All</a>
-      <a href="#" class="category-tab" data-category="gaming">🎮 Gaming</a>
-      <a href="#" class="category-tab" data-category="technology">💻 Tech</a>
-      <a href="#" class="category-tab" data-category="music">🎵 Music</a>
-      <a href="#" class="category-tab" data-category="entertainment">🎬 Entertainment</a>
-      <a href="#" class="category-tab" data-category="just_chatting">💬 Just Chatting</a>
-    </div>
-    
-    <!-- Forums Grid -->
     <div id="forumsContainer">
-      <div class="loading-spinner"><div class="spinner"></div></div>
+      <div class="loading-spinner"><div class="spinner"></div><p>Loading forums...</p></div>
     </div>
     
-    <!-- Footer -->
-    <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl);">
-      <p>
-        <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
-        <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
-        <a href="/community-guidelines.html" style="color: var(--main-red);">Guidelines</a>
-      </p>
-      <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+    <footer>
+      <p><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/community-guidelines.html">Guidelines</a></p>
+      <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres</p>
     </footer>
-  </div>
+  </main>
 
   <script src="/assets/js/navigation.js"></script>
   <script>
-    let currentFilter = 'top';
-    let currentCategory = 'all';
-    let currentUser = null;
-    let supabaseClient = null;
-
+    let currentFilter = 'top', currentCategory = 'all', currentUser = null, supabaseClient = null;
     const categoryIcons = { gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬', business: '💼', education: '📚', fitness: '💪', creative: '🎨', just_chatting: '💬', other: '📁' };
 
-    async function initPage(supabase) {
-      supabaseClient = supabase;
+    function initSupabase() {
+      const config = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = config.supabase || {};
+      const authConfig = config.auth || {};
+      
+      const SUPABASE_URL = supabaseConfig.url || config.SUPABASE_URL || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || config.SUPABASE_ANON_KEY || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+      
+      return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          storage: {
+            getItem: (key) => {
+              const cookies = document.cookie.split(';');
+              for (const cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === key) return decodeURIComponent(value);
+              }
+              try { return localStorage.getItem(key); } catch(e) { return null; }
+            },
+            setItem: (key, value) => {
+              const maxAge = 60 * 60 * 24 * 365;
+              let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+              if (window.location.protocol === 'https:') cookieStr += '; Secure';
+              if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+              document.cookie = cookieStr;
+              try { localStorage.setItem(key, value); } catch(e) {}
+            },
+            removeItem: (key) => {
+              let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+              if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+              document.cookie = cookieStr;
+              try { localStorage.removeItem(key); } catch(e) {}
+            }
+          }
+        }
+      });
+    }
+
+    async function initPage() {
+      supabaseClient = initSupabase();
+      if (!supabaseClient) {
+        console.error('Failed to init Supabase');
+        loadForums();
+        return;
+      }
       
       try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
-        if (user) {
-          currentUser = user;
-          document.getElementById('createCTA').style.display = 'block';
-          document.getElementById('joinedTab').style.display = 'inline-block';
-          updateHeaderForUser(user);
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.user) {
+          currentUser = session.user;
+          updateHeaderForUser(session.user);
         }
       } catch (e) { console.error('Auth error:', e); }
+      
+      supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (session?.user) {
+          currentUser = session.user;
+          updateHeaderForUser(session.user);
+        } else {
+          currentUser = null;
+          updateHeaderForGuest();
+        }
+      });
       
       setupEventListeners();
       loadForums();
@@ -234,139 +269,127 @@
         });
       });
       
-      document.querySelectorAll('.category-tab').forEach(tab => {
-        tab.addEventListener('click', (e) => {
+      document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
           e.preventDefault();
-          document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          currentCategory = tab.dataset.category;
+          document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          currentCategory = btn.dataset.category;
           loadForums();
         });
       });
       
-      document.getElementById('searchBtn').addEventListener('click', () => {
-        currentFilter = 'search';
-        loadForums(document.getElementById('searchInput').value.trim());
-      });
-      
-      document.getElementById('searchInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          currentFilter = 'search';
-          loadForums(document.getElementById('searchInput').value.trim());
-        }
-      });
+      document.getElementById('searchBtn').addEventListener('click', doSearch);
+      document.getElementById('searchInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') doSearch(); });
+    }
+
+    function doSearch() {
+      const q = document.getElementById('searchInput').value.trim();
+      if (q) { currentFilter = 'search'; loadForums(q); }
     }
 
     async function loadForums(search = null) {
       const container = document.getElementById('forumsContainer');
-      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading forums...</p></div>';
       
       try {
-        const params = new URLSearchParams({ filter: currentFilter, limit: 20 });
+        const params = new URLSearchParams({ filter: currentFilter, limit: 24 });
         if (currentUser) params.append('userId', currentUser.id);
         if (currentCategory !== 'all') params.append('category', currentCategory);
         if (search) params.append('search', search);
         
         const res = await fetch(`/.netlify/functions/list-forums?${params}`);
         const data = await res.json();
-        
         if (!res.ok) throw new Error(data.error);
         renderForums(data.forums);
       } catch (err) {
         console.error('Error:', err);
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🌐</div><p>No forums yet!</p><a href="/create-forum" class="create-btn">+ Create First Forum</a></div>`;
+        showEmptyState();
       }
     }
 
     function renderForums(forums) {
       const container = document.getElementById('forumsContainer');
+      if (!forums?.length) { showEmptyState(); return; }
       
-      if (!forums || !forums.length) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🌐</div><p>No forums found. ${currentUser ? '' : 'Sign in to create one!'}</p>${currentUser ? '<a href="/create-forum" class="create-btn">+ Create Forum</a>' : ''}</div>`;
-        return;
-      }
-      
-      container.innerHTML = '<div class="forums-grid">' + forums.map(forum => {
-        const icon = forum.iconUrl ? `<img src="${forum.iconUrl}" alt="">` : (categoryIcons[forum.category] || '💬');
-        return `
-          <a href="/f/${forum.slug}" class="forum-card">
-            <div class="forum-card-banner" ${forum.primaryColor ? `style="background:${forum.primaryColor}"` : ''}>
-              ${forum.bannerUrl ? `<img src="${forum.bannerUrl}" alt="">` : ''}
-              <div class="forum-card-icon">${icon}</div>
+      container.innerHTML = '<div class="forums-grid">' + forums.map(f => `
+        <a href="/f/${f.slug}" class="forum-card">
+          <div class="forum-card-banner" ${f.primaryColor ? `style="background:${f.primaryColor}"` : ''}>
+            ${f.bannerUrl ? `<img src="${f.bannerUrl}">` : ''}
+            <div class="forum-card-icon">${f.iconUrl ? `<img src="${f.iconUrl}">` : (categoryIcons[f.category] || '💬')}</div>
+          </div>
+          <div class="forum-card-body">
+            <div class="forum-card-name">${escapeHtml(f.name)}${f.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}</div>
+            <div class="forum-card-slug">f/${f.slug}</div>
+            <div class="forum-card-desc">${escapeHtml(f.description || 'A community on ChatSpheres')}</div>
+            <div class="forum-card-stats">
+              <span class="forum-card-stat">👥 ${formatNumber(f.memberCount || 0)}</span>
+              ${f.activeRoomCount > 0 ? `<span class="forum-card-stat live">🔴 ${f.activeRoomCount} live</span>` : ''}
             </div>
-            <div class="forum-card-body">
-              <div class="forum-card-name">${escapeHtml(forum.name)}${forum.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}</div>
-              <div class="forum-card-slug">f/${forum.slug}</div>
-              ${forum.description ? `<div class="forum-card-desc">${escapeHtml(forum.description)}</div>` : ''}
-              <div class="forum-card-stats">
-                <span class="forum-card-stat">👥 ${formatNumber(forum.memberCount || 0)}</span>
-                ${forum.activeRoomCount > 0 ? `<span class="forum-card-stat live">🔴 ${forum.activeRoomCount} live</span>` : ''}
-              </div>
-            </div>
-          </a>
-        `;
-      }).join('') + '</div>';
+          </div>
+        </a>
+      `).join('') + '</div>';
+    }
+
+    function showEmptyState() {
+      document.getElementById('forumsContainer').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🌐</div>
+          <h2>No Forums Yet!</h2>
+          <p>Be the first to create a community on ChatSpheres</p>
+          ${currentUser ? '<a href="/create-forum" class="create-btn">+ Create Forum</a>' : '<a href="/matchmaking.html" class="create-btn">Sign In to Create</a>'}
+        </div>
+      `;
     }
 
     function updateHeaderForUser(user) {
-      const guestLinks = document.getElementById('nav-guest-links');
-      const userSection = document.getElementById('nav-user-section');
-      const userName = document.getElementById('nav-user-name');
-      const headerGemBadge = document.getElementById('header-gem-badge');
-      
-      if (guestLinks) guestLinks.style.display = 'none';
-      if (userSection) userSection.style.display = 'block';
-      if (headerGemBadge) headerGemBadge.style.display = 'flex';
-      if (userName) userName.textContent = user.user_metadata?.name || user.email?.split('@')[0] || 'User';
-      
+      document.getElementById('nav-guest-links').style.display = 'none';
+      document.getElementById('nav-user-section').style.display = 'block';
+      document.getElementById('header-gem-badge').style.display = 'flex';
+      document.getElementById('nav-user-name').textContent = user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+      document.getElementById('createCTA').style.display = 'flex';
+      document.getElementById('joinedTab').style.display = 'inline-block';
       fetchGemBalance(user.id);
+    }
+
+    function updateHeaderForGuest() {
+      document.getElementById('nav-guest-links').style.display = 'block';
+      document.getElementById('nav-user-section').style.display = 'none';
+      document.getElementById('header-gem-badge').style.display = 'none';
+      document.getElementById('createCTA').style.display = 'none';
+      document.getElementById('joinedTab').style.display = 'none';
     }
 
     async function fetchGemBalance(userId) {
       try {
         const res = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
         if (res.ok) {
-          const data = await res.json();
-          const gems = data.totalGems || 0;
-          const navGems = document.getElementById('nav-user-gems');
-          const headerGemCount = document.querySelector('.gem-count');
-          if (navGems) navGems.textContent = gems.toLocaleString();
-          if (headerGemCount) headerGemCount.textContent = gems.toLocaleString();
+          const d = await res.json();
+          document.getElementById('nav-user-gems').textContent = (d.totalGems || 0).toLocaleString();
+          document.querySelector('.gem-count').textContent = (d.totalGems || 0).toLocaleString();
         }
-      } catch (e) { console.error('Gem fetch error:', e); }
+      } catch (e) {}
     }
 
     window.handleLogout = async function() {
-      if (supabaseClient) {
-        await supabaseClient.auth.signOut();
-        window.location.reload();
-      }
+      if (supabaseClient) { await supabaseClient.auth.signOut(); window.location.reload(); }
     };
 
-    function formatNumber(num) {
-      if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-      if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-      return num.toString();
-    }
+    function formatNumber(n) { return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : n.toString(); }
+    function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text || '';
-      return div.innerHTML;
-    }
-
-    // Init
+    // Init with retry
     (function() {
-      let attempts = 0;
+      let a = 0;
       function tryInit() {
-        attempts++;
-        const config = window.__CHATSPHERES_CONFIG__ || {};
-        if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
-          initPage(window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY));
-        } else if (attempts < 20) {
-          setTimeout(tryInit, 250);
+        a++;
+        const c = window.__CHATSPHERES_CONFIG__ || {};
+        if ((c.supabase?.url || c.SUPABASE_URL) && (c.supabase?.anonKey || c.SUPABASE_ANON_KEY)) {
+          initPage();
+        } else if (a < 15) {
+          setTimeout(tryInit, 300);
         } else {
-          document.getElementById('forumsContainer').innerHTML = '<div class="empty-state"><div class="empty-state-icon">🌐</div><p>No forums yet!</p></div>';
+          loadForums();
         }
       }
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', tryInit);

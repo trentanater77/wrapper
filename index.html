@@ -11556,38 +11556,39 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   // Load pot state from Supabase on page load
+  // Uses get_pot_breakdown RPC function which bypasses RLS to show ALL pot transactions
   async function loadPotStateFromSupabase() {
     const sphereId = extractSphereId(roomUrl);
     if (!sphereId) return;
     
     try {
-      // Get pot transactions for this room
-      const { data: transactions, error } = await supabaseClient
-        .from('pot_transactions')
-        .select('recipient_id, amount')
-        .eq('room_id', sphereId)
-        .eq('status', 'held');
+      // Use RPC function that bypasses RLS to get full pot breakdown
+      // This ensures ALL users see the same data (not just their own transactions)
+      const { data: breakdown, error: rpcError } = await supabaseClient
+        .rpc('get_pot_breakdown', { p_room_id: sphereId });
       
-      if (error) {
-        console.warn('⚠️ Could not load pot state:', error.message);
+      if (rpcError) {
+        console.warn('⚠️ Could not load pot breakdown via RPC, falling back to direct query:', rpcError.message);
+        // Fallback to direct query (may be restricted by RLS)
+        await loadPotStateFromSupabaseFallback(sphereId);
         return;
       }
       
-      if (transactions && transactions.length > 0) {
-        // Calculate totals per recipient (using userId)
+      if (breakdown && breakdown.length > 0) {
+        // Build tips by recipient from RPC response
         const tipsByUser = {};
         let totalPot = 0;
         
-        transactions.forEach(tx => {
-          tipsByUser[tx.recipient_id] = (tipsByUser[tx.recipient_id] || 0) + tx.amount;
-          totalPot += tx.amount;
+        breakdown.forEach(row => {
+          tipsByUser[row.recipient_id] = parseInt(row.total_amount, 10) || 0;
+          totalPot += tipsByUser[row.recipient_id];
         });
         
         // Store tips by userId (not participantId)
         roomTypeState.participantTips = tipsByUser;
         roomTypeState.potTotal = totalPot;
         
-        console.log('💾 Loaded pot state from Supabase:', { tipsByUser, totalPot });
+        console.log('💾 Loaded pot state from Supabase (RPC):', { tipsByUser, totalPot });
         
         updatePotDisplay(totalPot);
         updateDebateScoreboard();
@@ -11601,9 +11602,53 @@ function ensureSpectatorTracksForParticipant(participant) {
         updatePotDisplay(roomTypeState.potTotal);
         updateDebateScoreboard();
         rerenderPotTargetButtons();
+        console.log('💾 No pot transactions found for room:', sphereId);
       }
     } catch (err) {
       console.warn('⚠️ Error loading pot state:', err);
+    }
+  }
+  
+  // Fallback function if RPC is not available (e.g., function not yet deployed)
+  async function loadPotStateFromSupabaseFallback(sphereId) {
+    try {
+      const { data: transactions, error } = await supabaseClient
+        .from('pot_transactions')
+        .select('recipient_id, amount')
+        .eq('room_id', sphereId)
+        .eq('status', 'held');
+      
+      if (error) {
+        console.warn('⚠️ Fallback query also failed:', error.message);
+        return;
+      }
+      
+      if (transactions && transactions.length > 0) {
+        const tipsByUser = {};
+        let totalPot = 0;
+        
+        transactions.forEach(tx => {
+          tipsByUser[tx.recipient_id] = (tipsByUser[tx.recipient_id] || 0) + tx.amount;
+          totalPot += tx.amount;
+        });
+        
+        roomTypeState.participantTips = tipsByUser;
+        roomTypeState.potTotal = totalPot;
+        
+        console.log('💾 Loaded pot state from Supabase (fallback):', { tipsByUser, totalPot });
+        
+        updatePotDisplay(totalPot);
+        updateDebateScoreboard();
+        rerenderPotTargetButtons();
+      } else {
+        roomTypeState.participantTips = roomTypeState.participantTips || {};
+        roomTypeState.potTotal = roomTypeState.potTotal || 0;
+        updatePotDisplay(roomTypeState.potTotal);
+        updateDebateScoreboard();
+        rerenderPotTargetButtons();
+      }
+    } catch (err) {
+      console.warn('⚠️ Error in fallback pot state load:', err);
     }
   }
   
@@ -11622,6 +11667,8 @@ function ensureSpectatorTracksForParticipant(participant) {
       updatePotDisplay(data.totalPot);
     }
     updateDebateScoreboard();
+    // Also update the tip target buttons to show new amounts
+    rerenderPotTargetButtons();
   }
   
   // Update the debate scoreboard (both participant and spectator panels)

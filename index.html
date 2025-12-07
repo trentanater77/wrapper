@@ -6691,6 +6691,12 @@ async function initializeApp() {
           console.log('🔔 Skipping our own tip celebration (already played locally)');
         }
       }
+    } else if (event.data.type === 'pot-update') {
+      // Received a pot update from another spectator's tip
+      console.log('🔴 Pot update received via LiveKit:', event.data);
+      if (typeof handlePotUpdate === 'function') {
+        handlePotUpdate(event.data);
+      }
     }
   }
 
@@ -10279,21 +10285,31 @@ function ensureSpectatorTracksForParticipant(participant) {
         
         // If in Red Room, also update the debate scoreboard with this tip
         if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
-          const sphereId = extractSphereId(roomUrl);
-          if (sphereId && db) {
-            // Find the participant ID that matches this recipient
-            const participant = roomTypeState.participants.find(p => 
-              p.userId === recipientId || p.name === recipientName
-            );
-            if (participant) {
-              const participantTipsRef = db.ref(`chats/${sphereId}/participantTips/${participant.id}`);
-              participantTipsRef.transaction((currentTips) => {
-                return (currentTips || 0) + tipAmountToSend;
-              }).then(() => {
-                console.log('📊 Debate scoreboard updated with regular tip');
-              }).catch(err => {
-                console.warn('⚠️ Could not update debate scoreboard:', err);
-              });
+          // Find the participant ID that matches this recipient
+          const participant = roomTypeState.participants.find(p => 
+            p.userId === recipientId || p.name === recipientName
+          );
+          if (participant) {
+            // Update local state
+            roomTypeState.participantTips = roomTypeState.participantTips || {};
+            roomTypeState.participantTips[participant.id] = (roomTypeState.participantTips[participant.id] || 0) + tipAmountToSend;
+            updateDebateScoreboard();
+            
+            // Broadcast via LiveKit to all viewers
+            if (livekitRoom && livekitRoom.localParticipant) {
+              try {
+                const potUpdateMessage = {
+                  type: 'pot-update',
+                  recipientId: participant.id,
+                  tipAmount: tipAmountToSend,
+                  totalPot: roomTypeState.potTotal || 0,
+                  timestamp: Date.now()
+                };
+                publishLiveKitDataMessage(potUpdateMessage);
+                console.log('📊 Debate scoreboard updated with regular tip via LiveKit');
+              } catch (err) {
+                console.warn('⚠️ Could not broadcast scoreboard update:', err);
+              }
             }
           }
         }
@@ -11429,55 +11445,63 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   window.tipToPot = tipToPot;
   
-  // Broadcast pot update to all viewers
+  // Broadcast pot update to all viewers via LiveKit
   function broadcastPotUpdate(tipAmount, totalPot) {
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId || !db) return;
+    const recipientId = roomTypeState.selectedPotRecipient;
     
-    try {
-      const recipientId = roomTypeState.selectedPotRecipient;
-      
-      const potRef = db.ref(`chats/${sphereId}/pot`);
-      potRef.update({
-        amount: totalPot,
-        lastTip: tipAmount,
-        updatedAt: firebase.database.ServerValue.TIMESTAMP
-      }).catch(err => console.warn('Could not broadcast pot update:', err));
-      
-      if (recipientId) {
-        const participantTipsRef = db.ref(`chats/${sphereId}/participantTips/${recipientId}`);
-        participantTipsRef.transaction((currentTips) => {
-          return (currentTips || 0) + tipAmount;
-        });
+    // Update local state immediately
+    if (recipientId) {
+      roomTypeState.participantTips[recipientId] = (roomTypeState.participantTips[recipientId] || 0) + tipAmount;
+    }
+    roomTypeState.potTotal = totalPot;
+    updatePotDisplay(totalPot);
+    updateDebateScoreboard();
+    
+    // Broadcast via LiveKit to all other viewers
+    if (livekitRoom && livekitRoom.localParticipant) {
+      try {
+        const potUpdateMessage = {
+          type: 'pot-update',
+          recipientId: recipientId,
+          tipAmount: tipAmount,
+          totalPot: totalPot,
+          timestamp: Date.now()
+        };
+        const sent = publishLiveKitDataMessage(potUpdateMessage);
+        if (sent) {
+          console.log('✅ Pot update broadcast via LiveKit!');
+        }
+      } catch (err) {
+        console.warn('Could not broadcast pot update via LiveKit:', err);
       }
-    } catch (err) {
-      console.warn('Pot broadcast error:', err);
     }
   }
   
-  // Listen for pot updates
+  // Listen for pot updates (via LiveKit data messages)
   function listenForPotUpdates() {
     if (roomTypeState.type !== 'red') return;
     
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId || !db) return;
+    // Initialize pot state
+    roomTypeState.participantTips = roomTypeState.participantTips || {};
+    roomTypeState.potTotal = roomTypeState.potTotal || 0;
     
-    const potRef = db.ref(`chats/${sphereId}/pot`);
-    potRef.on('value', (snapshot) => {
-      const pot = snapshot.val();
-      if (pot && pot.amount !== undefined) {
-        updatePotDisplay(pot.amount);
-      }
-    });
+    // Pot updates are received via LiveKit data messages
+    // See handleAppMessage() for the 'pot-update' type handler
+    console.log('🔴 Listening for pot updates via LiveKit');
+  }
+  
+  // Handle incoming pot update from LiveKit
+  function handlePotUpdate(data) {
+    console.log('🔴 Pot update received:', data);
     
-    const participantTipsRef = db.ref(`chats/${sphereId}/participantTips`);
-    participantTipsRef.on('value', (snapshot) => {
-      const tips = snapshot.val() || {};
-      roomTypeState.participantTips = tips;
-      updateDebateScoreboard();
-    });
-    
-    console.log('🔴 Listening for pot updates');
+    if (data.recipientId) {
+      roomTypeState.participantTips[data.recipientId] = (roomTypeState.participantTips[data.recipientId] || 0) + data.tipAmount;
+    }
+    if (data.totalPot !== undefined) {
+      roomTypeState.potTotal = data.totalPot;
+      updatePotDisplay(data.totalPot);
+    }
+    updateDebateScoreboard();
   }
   
   // Update the debate scoreboard (both participant and spectator panels)

@@ -164,6 +164,11 @@
     .upload-btn { cursor: pointer; }
     .upload-btn:hover { background: var(--light-rose); border-color: var(--main-red); }
     .color-input { width: 60px; height: 40px; border: 2px solid var(--rose); border-radius: var(--radius-lg); cursor: pointer; }
+    .btn-delete-forum { background: #fee2e2; color: #dc2626; border: 2px solid #fecaca; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-semibold); transition: all var(--transition-fast); }
+    .btn-delete-forum:hover { background: #dc2626; color: white; border-color: #dc2626; }
+    .btn-delete-confirm { background: #dc2626; color: white; border: none; padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-bold); }
+    .btn-delete-confirm:hover { background: #b91c1c; }
+    .btn-delete-confirm:disabled { background: #ccc; cursor: not-allowed; }
     .mods-list-panel { display: flex; flex-direction: column; gap: var(--space-sm); }
     .mod-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm); background: var(--light-rose); border-radius: var(--radius-lg); }
     .mod-remove-btn { background: #ef4444; color: white; border: none; padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-sm); cursor: pointer; font-size: 0.8rem; }
@@ -360,8 +365,26 @@
         <div id="announceList" class="announce-list">Loading...</div>
       </div>
       
-      <div class="modal-actions">
+      <div class="modal-actions" style="justify-content: space-between;">
+        <button class="btn-delete-forum" onclick="confirmDeleteForum()">🗑️ Delete Forum</button>
         <button class="btn-modal-cancel" onclick="closeModPanel()">Close</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Delete Forum Confirmation Modal -->
+  <div class="modal-overlay" id="deleteForumModal">
+    <div class="modal" style="max-width: 400px; text-align: center;">
+      <h2>⚠️ Delete Forum?</h2>
+      <p style="color: #666; margin: var(--space-lg) 0;">This will permanently delete <strong id="deleteForumName"></strong> and all its rooms, members, and data.</p>
+      <p style="color: #e63946; font-weight: bold;">This action cannot be undone!</p>
+      <div class="form-group" style="margin-top: var(--space-lg);">
+        <label class="form-label">Type the forum name to confirm:</label>
+        <input type="text" class="form-input" id="deleteForumConfirm" placeholder="Enter forum name...">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="closeDeleteModal()">Cancel</button>
+        <button class="btn-delete-confirm" onclick="deleteForum()">🗑️ Delete Forever</button>
       </div>
     </div>
   </div>
@@ -788,12 +811,14 @@
         if (!isOwner) {
           html += `<button class="btn-leave" onclick="leaveForum()">Leave Forum</button>`;
         }
+        // Only members can start rooms
         html += `<button class="btn-start-room" onclick="openCreateRoomModal()">🎬 Start Room</button>`;
       } else {
         html += `<button class="btn-join" onclick="joinForum()">+ Join Forum</button>`;
       }
       
-      if (isOwner || isMod) {
+      // Only owners see Manage button
+      if (isOwner) {
         html += `<button class="btn-leave" onclick="showModPanel()" style="margin-left: auto;">⚙️ Manage</button>`;
       }
       
@@ -1054,6 +1079,50 @@
     
     window.closeModPanel = function() {
       document.getElementById('modPanel').classList.remove('active');
+    };
+    
+    // Delete Forum
+    window.confirmDeleteForum = function() {
+      if (!forumData) return;
+      document.getElementById('deleteForumName').textContent = forumData.name;
+      document.getElementById('deleteForumConfirm').value = '';
+      document.getElementById('deleteForumModal').classList.add('active');
+    };
+    
+    window.closeDeleteModal = function() {
+      document.getElementById('deleteForumModal').classList.remove('active');
+    };
+    
+    window.deleteForum = async function() {
+      if (!currentUser || !forumData) return;
+      
+      const confirmInput = document.getElementById('deleteForumConfirm').value.trim();
+      if (confirmInput !== forumData.name) {
+        alert('Forum name does not match. Please type the exact forum name to confirm deletion.');
+        return;
+      }
+      
+      try {
+        const res = await fetch('/.netlify/functions/forum-moderation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'deleteForum',
+            userId: currentUser.id,
+            forumId: forumData.id
+          })
+        });
+        
+        if (res.ok) {
+          alert('Forum deleted successfully');
+          window.location.href = '/forums';
+        } else {
+          const d = await res.json();
+          alert(d.error || 'Failed to delete forum');
+        }
+      } catch (e) {
+        alert('Error deleting forum: ' + e.message);
+      }
     };
     
     window.showModTab = function(tab) {

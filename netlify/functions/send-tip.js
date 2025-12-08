@@ -258,10 +258,20 @@ exports.handler = async function(event) {
         });
     }
 
-    const logMsg = forumCreatorShare > 0 
-      ? `💸 Forum tip: ${senderId} -> ${hostId} (${hostShare}) + creator (${forumCreatorShare}), total: ${tipAmount}`
-      : `💸 Tip processed: ${senderId} -> ${hostId}, amount: ${tipAmount}, host receives: ${hostShare}`;
-    console.log(logMsg);
+    // Detailed logging for testing revenue split
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('💸 TIP PROCESSED - REVENUE SPLIT:');
+    console.log(`   Total: ${tipAmount} gems`);
+    console.log(`   Host (${hostId.substring(0,8)}...): ${hostShare} gems (${Math.round(hostShare/tipAmount*100)}%)`);
+    if (forumCreatorShare > 0) {
+      console.log(`   Forum Creator (${forumOwnerId.substring(0,8)}...): ${forumCreatorShare} gems (${Math.round(forumCreatorShare/tipAmount*100)}%)`);
+    }
+    console.log(`   Platform: ${tipAmount - hostShare - forumCreatorShare} gems (${Math.round((tipAmount - hostShare - forumCreatorShare)/tipAmount*100)}%)`);
+    if (forumId) {
+      console.log(`   Forum ID: ${forumId}`);
+      console.log(`   Host is creator: ${forumOwnerId === hostId}`);
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     const response = {
       success: true,

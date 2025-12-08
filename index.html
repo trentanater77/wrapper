@@ -10586,24 +10586,51 @@ function ensureSpectatorTracksForParticipant(participant) {
     const currentUserName = window.currentUserData?.displayName || userName || 'Someone';
     const sphereId = extractSphereId(roomUrl);
     
-    console.log('💎 Sending tip:', { senderId: currentUserId, recipientId, recipientName, amount: tipAmountToSend });
+    // Check if this is a forum room (for revenue split)
+    const urlParams = new URLSearchParams(window.location.search);
+    const forumParam = urlParams.get('forum');
+    
+    console.log('💎 Sending tip:', { 
+      senderId: currentUserId, 
+      recipientId, 
+      recipientName, 
+      amount: tipAmountToSend,
+      forumId: forumParam || 'none (standard 50/50 split)'
+    });
     
     try {
+      const tipPayload = {
+        senderId: currentUserId,
+        hostId: recipientId, // Using recipient ID (backend still calls it hostId)
+        amount: tipAmountToSend,
+        roomId: sphereId,
+        senderName: currentUserName
+      };
+      
+      // Add forumId for forum revenue split (45% host, 10% creator, 45% platform)
+      if (forumParam) {
+        tipPayload.forumId = forumParam;
+        console.log('🏛️ Forum tip - 10% will go to forum creator');
+      }
+      
       const response = await fetch('/.netlify/functions/send-tip', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          senderId: currentUserId,
-          hostId: recipientId, // Using recipient ID (backend still calls it hostId)
-          amount: tipAmountToSend,
-          roomId: sphereId,
-          senderName: currentUserName
-        })
+        body: JSON.stringify(tipPayload)
       });
       
       const data = await response.json();
       
       if (data.success) {
+        // Log the revenue split for testing/verification
+        console.log('✅ Tip successful! Revenue split:');
+        console.log(`   💰 Total tip: ${data.tipAmount} gems`);
+        console.log(`   🎤 Host received: ${data.hostReceived} gems (${Math.round(data.hostReceived/data.tipAmount*100)}%)`);
+        if (data.forumCreatorReceived) {
+          console.log(`   🏛️ Forum creator received: ${data.forumCreatorReceived} gems (${Math.round(data.forumCreatorReceived/data.tipAmount*100)}%)`);
+        }
+        console.log(`   🏢 Platform fee: ${data.platformFee} gems (${Math.round(data.platformFee/data.tipAmount*100)}%)`);
+        
         closeTipModal();
         
         // Notify everyone via LiveKit (includes animation + message + recipient)

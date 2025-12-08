@@ -85,7 +85,7 @@ exports.handler = async function(event) {
       const roomIds = forumRooms.map(r => r.room_id);
       const { data: activeRoomData } = await supabase
         .from('active_rooms')
-        .select('room_id, participant_count, spectator_count, status, ends_at')
+        .select('room_id, participant_count, spectator_count, status, ends_at, room_type, pot_amount, started_at')
         .in('room_id', roomIds);
       
       // Create a map and check for expired rooms
@@ -161,7 +161,10 @@ exports.handler = async function(event) {
             ...fr,
             participant_count: participantCount,
             spectator_count: spectatorCount,
-            is_truly_live: participantCount >= 2
+            is_truly_live: participantCount >= 2,
+            // Include room type from active_rooms (red/green) for debate/help distinction
+            active_room_type: ar.room_type || 'green',
+            pot_amount: ar.pot_amount || 0
           };
         });
     }

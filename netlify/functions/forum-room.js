@@ -49,7 +49,7 @@ exports.handler = async function(event) {
         const { data: membership } = await supabase.from('forum_members').select('role').eq('forum_id', forum.id).eq('user_id', userId).single();
         if (!membership) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Must be member to create room', requiresMembership: true }) };
 
-        const validRoomType = ['live', 'scheduled', 'lounge'].includes(roomType) ? roomType : 'live';
+        const validRoomType = ['live', 'scheduled', 'lounge', 'debate', 'help'].includes(roomType) ? roomType : 'live';
         if (validRoomType === 'lounge' && forum.owner_id !== userId) {
           return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only owner can create lounge' }) };
         }

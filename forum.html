@@ -218,6 +218,40 @@
     .banner-item { aspect-ratio: 4/1; border-radius: var(--radius-lg); background-size: cover; background-position: center; cursor: pointer; border: 3px solid var(--rose); transition: all 0.2s ease; min-height: 80px; }
     .banner-item:hover { border-color: var(--main-red); transform: scale(1.02); box-shadow: var(--shadow-lg); }
     .banner-item.gradient-banner { background-size: 100% 100%; }
+    
+    /* Room Type Selector for Create Room Modal */
+    .room-type-selector { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-sm); }
+    .room-type-btn { padding: var(--space-md); border-radius: var(--radius-lg); border: 2px solid var(--rose); background: white; text-align: center; cursor: pointer; transition: all var(--transition-fast); }
+    .room-type-btn:hover { box-shadow: var(--shadow-md); }
+    .room-type-btn.selected { border-width: 3px; }
+    .room-type-btn.selected.red { border-color: var(--main-red); }
+    .room-type-btn.selected.green { border-color: #10b981; }
+    .room-type-btn.disabled { opacity: 0.5; cursor: not-allowed; }
+    .room-type-icon { font-size: 1.5rem; margin-bottom: var(--space-xs); }
+    .room-type-name { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 0.9rem; }
+    .room-type-desc { font-size: 0.75rem; color: var(--charcoal); opacity: 0.7; }
+    
+    /* Plan warning boxes */
+    .plan-warning { padding: var(--space-sm) var(--space-md); border-radius: var(--radius-lg); margin-bottom: var(--space-md); }
+    .plan-warning.gold { background: var(--gold); border: 2px solid var(--charcoal); }
+    .plan-warning.red { background: var(--main-red); color: white; }
+    .plan-warning-header { display: flex; align-items: center; gap: var(--space-xs); margin-bottom: var(--space-xs); }
+    .plan-warning-title { font-size: 0.875rem; font-weight: var(--font-weight-bold); }
+    .plan-warning ul { font-size: 0.75rem; padding-left: 0; list-style: none; margin: 0; }
+    .plan-warning li { margin-bottom: 2px; }
+    .plan-warning a { display: inline-block; margin-top: var(--space-xs); font-size: 0.75rem; font-weight: var(--font-weight-bold); text-decoration: underline; }
+    .plan-warning.gold a { color: var(--main-red); }
+    .plan-warning.red a { color: var(--gold); }
+    
+    /* Room card types for debates/help */
+    .room-card.debate { border-color: var(--main-red); }
+    .room-card.debate .room-card-action { background: var(--main-red); }
+    .room-card.help { border-color: #10b981; }
+    .room-card.help .room-card-action { background: #10b981; }
+    .room-type-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: var(--font-weight-bold); margin-left: var(--space-xs); }
+    .room-type-badge.debate { background: var(--main-red); color: white; }
+    .room-type-badge.help { background: #10b981; color: white; }
+    .room-pot-display { background: var(--gold); color: var(--charcoal); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-lg); font-weight: var(--font-weight-bold); font-size: 0.85rem; margin-top: var(--space-sm); display: inline-block; }
   </style>
 </head>
 <body>
@@ -492,15 +526,56 @@
     <div class="modal">
       <h2>🎬 Start a Room</h2>
       <form id="createRoomForm" onsubmit="submitCreateRoom(event)">
+        <!-- Room Type Selection -->
+        <div class="form-group">
+          <label class="form-label">Room Type</label>
+          <div class="room-type-selector">
+            <button type="button" id="forum-type-red" onclick="selectForumRoomType('red')" class="room-type-btn selected red">
+              <div class="room-type-icon">🔴</div>
+              <div class="room-type-name">Debate Room</div>
+              <div class="room-type-desc">Winner takes pot</div>
+            </button>
+            <button type="button" id="forum-type-green" onclick="selectForumRoomType('green')" class="room-type-btn">
+              <div class="room-type-icon">🟢</div>
+              <div class="room-type-name">Help Room</div>
+              <div class="room-type-desc">Tips for advice</div>
+            </button>
+          </div>
+        </div>
+        
         <div class="form-group">
           <label class="form-label">Room Title *</label>
-          <input type="text" class="form-input" id="roomTitle" placeholder="What are you chatting about?" required maxlength="200">
+          <input type="text" class="form-input" id="roomTitle" placeholder="What do you want to discuss?" required maxlength="200">
           <p class="form-hint">Give your room a catchy title</p>
         </div>
         <div class="form-group">
           <label class="form-label">Description (optional)</label>
           <input type="text" class="form-input" id="roomDescription" placeholder="Brief description..." maxlength="500">
         </div>
+        
+        <!-- Plan Warning for Free Users -->
+        <div id="forum-plan-warning" class="plan-warning gold" style="display:none;">
+          <div class="plan-warning-header">
+            <span>⏱️</span>
+            <span class="plan-warning-title">Free Plan Limits</span>
+          </div>
+          <ul>
+            <li>• Room duration: <strong>60 minutes max</strong></li>
+            <li>• Help Rooms require Host Pro</li>
+          </ul>
+          <a href="/pricing.html">Upgrade to Host Pro for 3 hours →</a>
+        </div>
+        
+        <!-- Green Room Pro Warning -->
+        <div id="forum-green-warning" class="plan-warning red" style="display:none;">
+          <div class="plan-warning-header">
+            <span>🔒</span>
+            <span class="plan-warning-title">Help Rooms require Host Pro</span>
+          </div>
+          <p style="font-size: 0.75rem; margin-top: 4px; opacity: 0.9;">Upgrade to create paid advice rooms.</p>
+          <a href="/pricing.html" style="color: var(--gold);">Upgrade Now →</a>
+        </div>
+        
         <div class="modal-actions">
           <button type="button" class="btn-modal-cancel" onclick="closeCreateRoomModal()">Cancel</button>
           <button type="submit" class="btn-modal-submit" id="createRoomBtn">🚀 Go Live</button>
@@ -526,7 +601,76 @@
   <script src="/assets/js/navigation.js"></script>
   <script>
     let currentUser = null, supabaseClient = null, forumData = null, forumSlug = null;
+    let selectedForumRoomType = 'red'; // Default to debate room
+    let userPlan = 'free'; // User's subscription plan
     const categoryIcons = { gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬', business: '💼', education: '📚', fitness: '💪', creative: '🎨', just_chatting: '💬', other: '📁' };
+    
+    // Plan limits configuration (matches live.html and pricing)
+    const PLAN_LIMITS = {
+      free: { durationMinutes: 60, greenRoomEnabled: false },
+      host_pro: { durationMinutes: 180, greenRoomEnabled: true },
+      ad_free_premium: { durationMinutes: 60, greenRoomEnabled: false },
+      ad_free_plus: { durationMinutes: 60, greenRoomEnabled: false },
+      pro_bundle: { durationMinutes: 180, greenRoomEnabled: true }
+    };
+    
+    // Room type selection for forum
+    window.selectForumRoomType = function(type) {
+      selectedForumRoomType = type;
+      
+      const redBtn = document.getElementById('forum-type-red');
+      const greenBtn = document.getElementById('forum-type-green');
+      const greenWarning = document.getElementById('forum-green-warning');
+      const createBtn = document.getElementById('createRoomBtn');
+      
+      if (type === 'red') {
+        // Update button styles
+        if (redBtn) {
+          redBtn.classList.add('selected', 'red');
+          redBtn.style.borderColor = '#e63946';
+          redBtn.style.borderWidth = '3px';
+        }
+        if (greenBtn) {
+          greenBtn.classList.remove('selected', 'green');
+          greenBtn.style.borderColor = '#FFB6B9';
+          greenBtn.style.borderWidth = '2px';
+        }
+        // Hide green room warning
+        if (greenWarning) greenWarning.style.display = 'none';
+        if (createBtn) {
+          createBtn.disabled = false;
+          createBtn.style.opacity = '1';
+        }
+      } else {
+        // Green room selected
+        if (greenBtn) {
+          greenBtn.classList.add('selected', 'green');
+          greenBtn.style.borderColor = '#10b981';
+          greenBtn.style.borderWidth = '3px';
+        }
+        if (redBtn) {
+          redBtn.classList.remove('selected', 'red');
+          redBtn.style.borderColor = '#FFB6B9';
+          redBtn.style.borderWidth = '2px';
+        }
+        
+        // Check if user has pro plan for green rooms
+        const planLimits = PLAN_LIMITS[userPlan] || PLAN_LIMITS.free;
+        if (!planLimits.greenRoomEnabled) {
+          if (greenWarning) greenWarning.style.display = 'block';
+          if (createBtn) {
+            createBtn.disabled = true;
+            createBtn.style.opacity = '0.5';
+          }
+        } else {
+          if (greenWarning) greenWarning.style.display = 'none';
+          if (createBtn) {
+            createBtn.disabled = false;
+            createBtn.style.opacity = '1';
+          }
+        }
+      }
+    };
     
     // Parse slug from URL - handles /f/slug and /forum.html?slug=xxx
     function getSlugFromUrl() {
@@ -867,26 +1011,50 @@
         // Only show LIVE badge if 2 participants are actively in the room
         const isTrulyLive = r.is_truly_live || participantCount >= 2;
         
+        // Determine room type - check active_rooms room_type or forum_rooms room_type
+        // forum_rooms uses 'debate'/'help'/'live', active_rooms uses 'red'/'green'
+        const activeRoomType = r.active_room_type || r.room_type || 'green';
+        const isDebate = activeRoomType === 'red' || r.room_type === 'debate';
+        const isHelp = activeRoomType === 'green' || r.room_type === 'help' || r.room_type === 'live';
+        const roomTypeParam = isDebate ? 'red' : 'green';
+        const potAmount = r.pot_amount || 0;
+        
         // Build URL with all necessary params
         // Use forum ID (UUID) for revenue split, not slug
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=green&topic=${encodedTopic}&forum=${forumData.id}&mode=${mode}`;
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=${roomTypeParam}&topic=${encodedTopic}&forum=${forumData.id}&mode=${mode}`;
         
-        // Different button text based on state
-        const actionText = isTrulyLive ? '👁️ Watch Live' : '🎤 Join Room';
+        // Different button text based on state and type
+        let actionText = isTrulyLive ? '👁️ Watch Live' : '🎤 Join Room';
+        if (isDebate && isTrulyLive) actionText = '👁️ Watch Debate';
+        if (isHelp && isTrulyLive) actionText = '👁️ Watch Session';
+        
+        // Room type badge
+        const typeBadge = isDebate 
+          ? '<span class="room-type-badge debate">🔴 Debate</span>' 
+          : '<span class="room-type-badge help">🟢 Help</span>';
+        
+        // Pot display for debate rooms
+        const potDisplay = isDebate && potAmount > 0 
+          ? `<div class="room-pot-display">💎 Pot: ${potAmount.toLocaleString()} gems</div>` 
+          : '';
+        
+        // Card class based on room type
+        const cardClass = isDebate ? 'debate' : 'help';
         
         return `
           <div class="room-card-wrapper">
-            <a href="${roomUrl}" class="room-card" target="_blank">
+            <a href="${roomUrl}" class="room-card ${cardClass}" target="_blank">
               <div class="room-card-header">
-                <span class="room-card-title">${escapeHtml(title)}</span>
+                <span class="room-card-title">${escapeHtml(title)}${typeBadge}</span>
                 ${isTrulyLive ? '<span class="live-badge">LIVE</span>' : '<span class="waiting-badge">Waiting</span>'}
               </div>
               <div class="room-card-host">Hosted by ${escapeHtml(r.host_name || r.hostName || 'Anonymous')}</div>
               <div class="room-card-stats">
-                <span>🎤 ${participantCount}/2 speakers</span>
+                <span>🎤 ${participantCount}/2 ${isDebate ? 'debaters' : 'speakers'}</span>
                 ${spectatorCount > 0 ? `<span>👁️ ${spectatorCount} watching</span>` : ''}
                 <span>⏱️ ${formatDuration(r.started_at || r.startedAt)}</span>
               </div>
+              ${potDisplay}
               <div class="room-card-action">${actionText}</div>
             </a>
             ${canEndRoom ? `<button class="end-room-btn" onclick="endRoom('${roomId}', event)" title="End this room">✕ End Room</button>` : ''}
@@ -2013,6 +2181,29 @@
         alert('You must be a member to start a room');
         return;
       }
+      
+      // Reset room type selection to debate (red)
+      selectedForumRoomType = 'red';
+      selectForumRoomType('red');
+      
+      // Show plan warning for free users
+      const planWarning = document.getElementById('forum-plan-warning');
+      const planLimits = PLAN_LIMITS[userPlan] || PLAN_LIMITS.free;
+      if (planWarning) {
+        planWarning.style.display = (userPlan === 'free') ? 'block' : 'none';
+      }
+      
+      // Ensure green warning is hidden initially (since we default to red)
+      const greenWarning = document.getElementById('forum-green-warning');
+      if (greenWarning) greenWarning.style.display = 'none';
+      
+      // Enable create button (since we start with red room which is allowed for all)
+      const createBtn = document.getElementById('createRoomBtn');
+      if (createBtn) {
+        createBtn.disabled = false;
+        createBtn.style.opacity = '1';
+      }
+      
       document.getElementById('createRoomModal').classList.add('active');
       document.getElementById('roomTitle').focus();
     };
@@ -2034,6 +2225,15 @@
         return;
       }
       
+      // Plan-based validation
+      const planLimits = PLAN_LIMITS[userPlan] || PLAN_LIMITS.free;
+      
+      // Check if Green Room is allowed
+      if (selectedForumRoomType === 'green' && !planLimits.greenRoomEnabled) {
+        alert('Help Rooms require Host Pro subscription. Please upgrade to create paid advice rooms.');
+        return;
+      }
+      
       btn.disabled = true;
       btn.textContent = 'Creating...';
       
@@ -2051,11 +2251,11 @@
             roomId: roomId,
             hostId: currentUser.id,
             hostName: userName,
-            roomType: 'green', // Green room for forums (2 participants + spectators)
+            roomType: selectedForumRoomType, // Use selected room type (red/green)
             topic: title,
             description: description,
             isPublic: forumData.forumType !== 'private',
-            durationMinutes: 120 // 2 hour default
+            durationMinutes: planLimits.durationMinutes // Apply plan limit
           })
         });
         
@@ -2079,7 +2279,7 @@
             title: title,
             description: description,
             hostName: userName,
-            roomType: 'live'
+            roomType: selectedForumRoomType === 'red' ? 'debate' : 'help' // Store as debate/help in forum_rooms
           })
         });
         
@@ -2095,11 +2295,11 @@
         
         // Redirect to the room
         // The room URL goes to the main app with all necessary params
-        // mode=participant since we're the host, roomType=green for forum rooms (no debate UI)
+        // mode=participant since we're the host, use selected room type
         const encodedTopic = encodeURIComponent(title);
         const encodedDesc = description ? encodeURIComponent(description) : '';
         // Use forum ID (UUID) for revenue split, not slug
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=green&forum=${forumData.id}&topic=${encodedTopic}`;
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=${selectedForumRoomType}&forum=${forumData.id}&topic=${encodedTopic}&host=true&duration=${planLimits.durationMinutes}`;
         if (encodedDesc) roomUrl += `&description=${encodedDesc}`;
         if (createData.inviteCode) roomUrl += `&invite=${createData.inviteCode}`;
         
@@ -2184,8 +2384,20 @@
           const d = await res.json();
           document.getElementById('nav-user-gems').textContent = (d.totalGems || 0).toLocaleString();
           document.querySelector('.gem-count').textContent = (d.totalGems || 0).toLocaleString();
+          
+          // Also get user's plan for room creation limits
+          if (d.plan) {
+            userPlan = d.plan;
+            console.log('✅ User plan:', userPlan);
+          } else {
+            userPlan = 'free';
+            console.log('ℹ️ No active subscription, using free plan');
+          }
         }
-      } catch (e) {}
+      } catch (e) {
+        userPlan = 'free';
+        console.log('ℹ️ Could not fetch plan, defaulting to free');
+      }
     }
 
     window.handleLogout = async function() {

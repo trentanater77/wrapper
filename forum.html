@@ -637,6 +637,7 @@
       const isBanned = userStatus.isBanned;
       
       // Apply page background if set (stored in secondaryColor)
+      console.log('🎨 Forum secondaryColor:', forum.secondaryColor);
       if (forum.secondaryColor) {
         applyBackground(forum.secondaryColor);
       } else {

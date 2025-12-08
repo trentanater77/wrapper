@@ -983,10 +983,11 @@
       else if (type === 'photos') loadBgCategory('nature');
     };
     
-    // Generate SVG pattern from emoji - larger and more visible
+    // Generate SVG pattern from emoji - using base64 for better browser support
     function createEmojiPattern(emoji, color, bgColor) {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect fill="${bgColor}" width="80" height="80"/><text x="40" y="48" font-size="40" text-anchor="middle" dominant-baseline="middle">${emoji}</text></svg>`;
-      return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect fill="${bgColor}" width="80" height="80"/><text x="40" y="50" font-size="40" text-anchor="middle">${emoji}</text></svg>`;
+      const base64 = btoa(unescape(encodeURIComponent(svg)));
+      return `url("data:image/svg+xml;base64,${base64}")`;
     }
     
     window.loadPatternCategory = function(category) {
@@ -1000,7 +1001,7 @@
       
       gallery.innerHTML = emojiList.map(emoji => {
         const pattern = createEmojiPattern(emoji, color, bgColor);
-        return `<div class="bg-gallery-item pattern" style="background: ${bgColor} ${pattern} repeat; background-size: 40px 40px;" onclick="selectPattern('${emoji}')" title="${emoji}"></div>`;
+        return `<div class="bg-gallery-item pattern" style="background-color: ${bgColor}; background-image: ${pattern}; background-size: 40px 40px; background-repeat: repeat;" onclick="selectPattern('${emoji}')" title="${emoji}"></div>`;
       }).join('');
     };
     

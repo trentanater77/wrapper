@@ -129,8 +129,27 @@
     footer { text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl); max-width: 1000px; margin-left: auto; margin-right: auto; }
     footer a { color: var(--main-red); }
     
-    /* Custom Background */
-    .forum-bg-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-size: cover; background-position: center; background-attachment: fixed; z-index: -1; opacity: 0.15; }
+    /* Custom Background - covers entire page */
+    .forum-bg-overlay { 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      right: 0; 
+      bottom: 0; 
+      background-size: cover; 
+      background-position: center; 
+      background-attachment: fixed; 
+      z-index: -2; 
+    }
+    .forum-bg-overlay::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.85);
+      z-index: -1;
+    }
+    body.has-custom-bg .bg-pattern { display: none; }
+    body.has-custom-bg { background: transparent; }
     
     /* Mod Panel Styles */
     .mod-tabs { display: flex; gap: var(--space-xs); margin-bottom: var(--space-lg); flex-wrap: wrap; }
@@ -478,22 +497,15 @@
       const isBanned = userStatus.isBanned;
       
       // Apply custom background if set
-      let bgOverlay = document.getElementById('forumBgOverlay');
-      if (!bgOverlay) {
-        bgOverlay = document.createElement('div');
-        bgOverlay.id = 'forumBgOverlay';
-        bgOverlay.className = 'forum-bg-overlay';
-        document.body.prepend(bgOverlay);
-      }
       if (forum.bannerUrl) {
-        bgOverlay.style.backgroundImage = `url(${forum.bannerUrl})`;
-        bgOverlay.style.display = 'block';
+        applyBackground(forum.bannerUrl);
       } else {
-        bgOverlay.style.display = 'none';
+        removeBackground();
       }
       
       // Apply theme color if set
       if (forum.primaryColor) {
+        document.documentElement.style.setProperty('--main-red', forum.primaryColor);
         document.documentElement.style.setProperty('--forum-theme', forum.primaryColor);
       }
       
@@ -843,6 +855,50 @@
     // Background Selection
     let selectedBgUrl = null;
     
+    // Predefined high-quality background images (reliable, no API needed)
+    const bgCategories = {
+      nature: [
+        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1920',
+        'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1920',
+        'https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=1920',
+        'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1920',
+        'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920',
+        'https://images.unsplash.com/photo-1518173946687-a4c036bc3c95?w=1920'
+      ],
+      abstract: [
+        'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=1920',
+        'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1920',
+        'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=1920',
+        'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=1920',
+        'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1920',
+        'https://images.unsplash.com/photo-1604076913837-52ab5629fba9?w=1920'
+      ],
+      space: [
+        'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920',
+        'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920',
+        'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920',
+        'https://images.unsplash.com/photo-1507400492013-162706c8c05e?w=1920',
+        'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=1920',
+        'https://images.unsplash.com/photo-1465101162946-4377e57745c3?w=1920'
+      ],
+      city: [
+        'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920',
+        'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=1920',
+        'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=1920',
+        'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1920',
+        'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920',
+        'https://images.unsplash.com/photo-1444723121867-7a241cacace9?w=1920'
+      ],
+      minimal: [
+        'https://images.unsplash.com/photo-1557683316-973673baf926?w=1920',
+        'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920',
+        'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=1920',
+        'https://images.unsplash.com/photo-1517999144091-3d9dca6d1e43?w=1920',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1920',
+        'https://images.unsplash.com/photo-1483232539664-d89822fb5d3e?w=1920'
+      ]
+    };
+    
     window.showBgPicker = function() {
       document.getElementById('bgPickerModal').classList.add('active');
       loadBgCategory('nature');
@@ -856,14 +912,8 @@
       document.querySelectorAll('.bg-cat-btn').forEach(b => b.classList.remove('active'));
       event.target.classList.add('active');
       const gallery = document.getElementById('bgGallery');
-      gallery.innerHTML = '<p>Loading...</p>';
       
-      // Use Unsplash Source API (free, no auth needed)
-      const images = [];
-      for (let i = 0; i < 9; i++) {
-        images.push(`https://source.unsplash.com/800x450/?${category}&sig=${Date.now() + i}`);
-      }
-      
+      const images = bgCategories[category] || bgCategories.nature;
       gallery.innerHTML = images.map(url => `
         <div class="bg-gallery-item" style="background-image: url(${url})" onclick="selectBackground('${url}')"></div>
       `).join('');
@@ -872,23 +922,48 @@
     window.selectBackground = function(url) {
       selectedBgUrl = url;
       document.getElementById('bgPreview').style.backgroundImage = `url(${url})`;
+      // Preview immediately on the page
+      applyBackground(url);
       closeBgPicker();
     };
     
     window.promptCustomBgUrl = function() {
-      const url = prompt('Enter image URL:');
-      if (url) {
+      const url = prompt('Enter image URL (must be https):');
+      if (url && url.startsWith('http')) {
         selectedBgUrl = url;
         document.getElementById('bgPreview').style.backgroundImage = `url(${url})`;
+        applyBackground(url);
       }
     };
     
     window.clearBackground = function() {
       selectedBgUrl = '';
       document.getElementById('bgPreview').style.backgroundImage = '';
+      removeBackground();
     };
     
+    function applyBackground(url) {
+      let bgOverlay = document.getElementById('forumBgOverlay');
+      if (!bgOverlay) {
+        bgOverlay = document.createElement('div');
+        bgOverlay.id = 'forumBgOverlay';
+        bgOverlay.className = 'forum-bg-overlay';
+        document.body.prepend(bgOverlay);
+      }
+      bgOverlay.style.backgroundImage = `url(${url})`;
+      document.body.classList.add('has-custom-bg');
+    }
+    
+    function removeBackground() {
+      const bgOverlay = document.getElementById('forumBgOverlay');
+      if (bgOverlay) {
+        bgOverlay.style.backgroundImage = '';
+      }
+      document.body.classList.remove('has-custom-bg');
+    }
+    
     window.previewThemeColor = function(color) {
+      document.documentElement.style.setProperty('--main-red', color);
       document.documentElement.style.setProperty('--forum-theme', color);
     };
     

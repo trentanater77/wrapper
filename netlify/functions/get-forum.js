@@ -84,27 +84,80 @@ exports.handler = async function(event) {
       const roomIds = forumRooms.map(r => r.room_id);
       const { data: activeRoomData } = await supabase
         .from('active_rooms')
-        .select('room_id, participant_count, spectator_count, status')
+        .select('room_id, participant_count, spectator_count, status, started_at, ended_at')
         .in('room_id', roomIds);
       
       // Create a map for quick lookup
       const activeRoomMap = {};
+      const now = Date.now();
+      const emptyStaleThreshold = 5 * 60 * 1000; // 5 minutes - empty rooms are stale quickly
+      const oldRoomThreshold = 3 * 60 * 60 * 1000; // 3 hours - any room older than this is probably stale
+      const roomsToEnd = [];
+      
       if (activeRoomData) {
         activeRoomData.forEach(ar => {
           activeRoomMap[ar.room_id] = ar;
+          
+          // Check if room is stale
+          const startedAt = new Date(ar.started_at).getTime();
+          const age = now - startedAt;
+          const isEnded = ar.status === 'ended';
+          const isEmpty = (ar.participant_count || 0) === 0;
+          const isEmptyAndStale = isEmpty && age > emptyStaleThreshold;
+          const isVeryOld = age > oldRoomThreshold;
+          
+          // Room should be ended if:
+          // 1. It's already marked as ended in active_rooms
+          // 2. It's empty for more than 5 minutes
+          // 3. It's older than 3 hours (safety net)
+          if (isEnded || isEmptyAndStale || isVeryOld) {
+            roomsToEnd.push(ar.room_id);
+            console.log(`🧹 Room ${ar.room_id} marked for cleanup: ended=${isEnded}, empty=${isEmpty}, age=${Math.floor(age/60000)}min`);
+          }
         });
       }
       
-      // Merge forum room data with active room counts
-      activeRooms = forumRooms.map(fr => {
-        const ar = activeRoomMap[fr.room_id] || {};
-        return {
-          ...fr,
-          participant_count: ar.participant_count || 0,
-          spectator_count: ar.spectator_count || 0,
-          is_truly_live: ar.status === 'live' && (ar.participant_count || 0) >= 2
-        };
+      // Also check for forum rooms that don't have a matching active_room entry
+      forumRooms.forEach(fr => {
+        if (!activeRoomMap[fr.room_id]) {
+          // No active_room entry - this forum room is orphaned
+          roomsToEnd.push(fr.room_id);
+          console.log(`🧹 Orphaned forum room ${fr.room_id} marked for cleanup`);
+        }
       });
+      
+      // Clean up stale rooms - mark them as ended
+      if (roomsToEnd.length > 0) {
+        console.log(`🧹 Cleaning up ${roomsToEnd.length} stale forum rooms`);
+        const endedAt = new Date().toISOString();
+        
+        // End in active_rooms
+        await supabase
+          .from('active_rooms')
+          .update({ status: 'ended', ended_at: endedAt })
+          .in('room_id', roomsToEnd)
+          .eq('status', 'live');
+        
+        // End in forum_rooms
+        await supabase
+          .from('forum_rooms')
+          .update({ status: 'ended', ended_at: endedAt })
+          .in('room_id', roomsToEnd)
+          .eq('status', 'live');
+      }
+      
+      // Merge forum room data with active room counts, filtering out ended rooms
+      activeRooms = forumRooms
+        .filter(fr => !roomsToEnd.includes(fr.room_id))
+        .map(fr => {
+          const ar = activeRoomMap[fr.room_id] || {};
+          return {
+            ...fr,
+            participant_count: ar.participant_count || 0,
+            spectator_count: ar.spectator_count || 0,
+            is_truly_live: ar.status === 'live' && (ar.participant_count || 0) >= 2
+          };
+        });
     }
 
     return {

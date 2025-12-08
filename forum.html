@@ -20,9 +20,9 @@
   <style>
     .main-content { padding-top: 60px; }
     
-    .forum-banner { height: 200px; background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); position: relative; overflow: hidden; }
-    .forum-banner img { width: 100%; height: 100%; object-fit: cover; }
-    .forum-banner-overlay { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(transparent, rgba(0,0,0,0.5)); }
+    .forum-banner { height: 200px; background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); position: relative; overflow: hidden; background-size: cover; background-position: center; }
+    .forum-banner img { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; }
+    .forum-banner-overlay { position: absolute; bottom: 0; left: 0; right: 0; height: 100px; background: linear-gradient(transparent, rgba(0,0,0,0.4)); }
     
     .forum-header { max-width: 1000px; margin: -60px auto 0; padding: 0 var(--space-lg); position: relative; z-index: 10; }
     .forum-header-card { background: white; border-radius: var(--radius-xl); padding: var(--space-xl); box-shadow: var(--shadow-lg); border: 3px solid var(--rose); }
@@ -149,10 +149,15 @@
     .mod-tab { padding: var(--space-sm) var(--space-md); background: var(--light-rose); border: none; border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-semibold); transition: all var(--transition-fast); }
     .mod-tab:hover, .mod-tab.active { background: var(--main-red); color: white; }
     .mod-tab-content { min-height: 200px; }
-    .bg-options { display: flex; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md); }
-    .bg-option-btn { padding: var(--space-sm) var(--space-md); background: white; border: 2px solid var(--rose); border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-semibold); transition: all var(--transition-fast); }
+    .bg-options { display: flex; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-sm); margin-top: var(--space-sm); }
+    .bg-option-btn { padding: var(--space-sm) var(--space-md); background: white; border: 2px solid var(--rose); border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-semibold); transition: all var(--transition-fast); font-size: 0.85rem; }
     .bg-option-btn:hover { border-color: var(--main-red); background: var(--light-rose); }
-    .bg-preview { width: 100%; height: 80px; border-radius: var(--radius-lg); background-size: cover; background-position: center; border: 2px solid var(--rose); margin-top: var(--space-sm); }
+    .bg-preview { width: 100%; height: 60px; border-radius: var(--radius-lg); background-size: cover; background-position: center; border: 2px solid var(--rose); margin-top: var(--space-sm); }
+    .logo-preview-row { display: flex; align-items: center; gap: var(--space-md); }
+    .logo-preview { width: 80px; height: 80px; border-radius: var(--radius-xl); background: var(--light-rose); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 3px solid var(--rose); overflow: hidden; flex-shrink: 0; }
+    .logo-preview img { width: 100%; height: 100%; object-fit: cover; }
+    .logo-options { display: flex; flex-direction: column; gap: var(--space-xs); }
+    .banner-preview { width: 100%; height: 100px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); background-size: cover; background-position: center; border: 2px solid var(--rose); margin-bottom: var(--space-sm); }
     .color-input { width: 60px; height: 40px; border: 2px solid var(--rose); border-radius: var(--radius-lg); cursor: pointer; }
     .mods-list-panel { display: flex; flex-direction: column; gap: var(--space-sm); }
     .mod-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm); background: var(--light-rose); border-radius: var(--radius-lg); }
@@ -188,6 +193,21 @@
     #bgPickerModal .modal-actions { border-top: 1px solid rgba(255,255,255,0.1); padding-top: var(--space-md); margin-top: var(--space-md); }
     #bgPickerModal .btn-modal-cancel { background: rgba(255,255,255,0.1); color: white; border: 2px solid rgba(255,255,255,0.3); }
     #bgPickerModal .btn-modal-cancel:hover { background: rgba(255,255,255,0.2); }
+    
+    /* Logo Picker */
+    .logo-categories { display: flex; gap: var(--space-xs); margin-bottom: var(--space-md); flex-wrap: wrap; }
+    .logo-cat-btn { padding: var(--space-xs) var(--space-md); background: var(--light-rose); border: 2px solid var(--rose); border-radius: var(--radius-full); cursor: pointer; font-family: var(--font-family); font-size: 0.85rem; transition: all var(--transition-fast); }
+    .logo-cat-btn:hover, .logo-cat-btn.active { background: var(--main-red); color: white; border-color: var(--main-red); }
+    .logo-gallery { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--space-md); max-height: 300px; overflow-y: auto; padding: var(--space-sm); background: var(--light-rose); border-radius: var(--radius-lg); }
+    .logo-item { aspect-ratio: 1; border-radius: var(--radius-xl); background: white; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; border: 3px solid var(--rose); transition: all 0.2s ease; }
+    .logo-item:hover { border-color: var(--main-red); transform: scale(1.1); box-shadow: var(--shadow-lg); }
+    .logo-item img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-lg); }
+    
+    /* Banner Picker */
+    .banner-gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-md); max-height: 350px; overflow-y: auto; padding: var(--space-sm); }
+    .banner-item { aspect-ratio: 4/1; border-radius: var(--radius-lg); background-size: cover; background-position: center; cursor: pointer; border: 3px solid var(--rose); transition: all 0.2s ease; min-height: 80px; }
+    .banner-item:hover { border-color: var(--main-red); transform: scale(1.02); box-shadow: var(--shadow-lg); }
+    .banner-item.gradient-banner { background-size: 100% 100%; }
   </style>
 </head>
 <body>
@@ -260,7 +280,27 @@
       <!-- Appearance Tab -->
       <div id="mod-tab-settings" class="mod-tab-content">
         <div class="form-group">
-          <label class="form-label">Background Image</label>
+          <label class="form-label">🎭 Forum Logo</label>
+          <div class="logo-preview-row">
+            <div id="logoPreview" class="logo-preview">💬</div>
+            <div class="logo-options">
+              <button class="bg-option-btn" onclick="showLogoPicker()">🎨 Choose Logo</button>
+              <button class="bg-option-btn" onclick="promptCustomLogoUrl()">🔗 Custom URL</button>
+              <button class="bg-option-btn" onclick="clearLogo()">❌ Remove</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🖼️ Banner Image (YouTube-style header)</label>
+          <div id="bannerPreview" class="banner-preview"></div>
+          <div class="bg-options">
+            <button class="bg-option-btn" onclick="showBannerPicker()">🖼️ Choose Banner</button>
+            <button class="bg-option-btn" onclick="promptCustomBannerUrl()">🔗 Custom URL</button>
+            <button class="bg-option-btn" onclick="clearBanner()">❌ Remove</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🎨 Page Background</label>
           <div class="bg-options">
             <button class="bg-option-btn" onclick="showBgPicker()">🖼️ Choose from Gallery</button>
             <button class="bg-option-btn" onclick="promptCustomBgUrl()">🔗 Custom URL</button>
@@ -269,15 +309,15 @@
           <div id="bgPreview" class="bg-preview"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Theme Color</label>
+          <label class="form-label">🎨 Theme Color</label>
           <input type="color" id="themeColor" class="color-input" value="#e63946" onchange="previewThemeColor(this.value)">
         </div>
         <div class="form-group">
-          <label class="form-label">Description</label>
+          <label class="form-label">📝 Description</label>
           <textarea class="form-input" id="forumDescEdit" rows="3" placeholder="Forum description..."></textarea>
         </div>
         <div class="form-group">
-          <label class="form-label">Rules</label>
+          <label class="form-label">📋 Rules</label>
           <textarea class="form-input" id="forumRulesEdit" rows="3" placeholder="One rule per line..."></textarea>
         </div>
         <button class="btn-modal-submit" onclick="saveForumSettings()" style="width: 100%;">💾 Save Changes</button>
@@ -362,6 +402,53 @@
       
       <div class="modal-actions">
         <button class="btn-modal-cancel" onclick="closeBgPicker()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Logo Picker Modal -->
+  <div class="modal-overlay" id="logoPickerModal">
+    <div class="modal" style="max-width: 600px;">
+      <h2>🎭 Choose Forum Logo</h2>
+      <p style="color: #666; margin-bottom: var(--space-md);">Pick an icon that represents your community</p>
+      
+      <div class="logo-categories">
+        <button class="logo-cat-btn active" onclick="loadLogoCategory('popular')">⭐ Popular</button>
+        <button class="logo-cat-btn" onclick="loadLogoCategory('education')">📚 Education</button>
+        <button class="logo-cat-btn" onclick="loadLogoCategory('gaming')">🎮 Gaming</button>
+        <button class="logo-cat-btn" onclick="loadLogoCategory('animals')">🐱 Animals</button>
+        <button class="logo-cat-btn" onclick="loadLogoCategory('tech')">💻 Tech</button>
+        <button class="logo-cat-btn" onclick="loadLogoCategory('creative')">🎨 Creative</button>
+        <button class="logo-cat-btn" onclick="loadLogoCategory('sports')">⚽ Sports</button>
+        <button class="logo-cat-btn" onclick="loadLogoCategory('food')">🍕 Food</button>
+      </div>
+      
+      <div id="logoGallery" class="logo-gallery"></div>
+      
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="closeLogoPicker()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Banner Picker Modal -->
+  <div class="modal-overlay" id="bannerPickerModal">
+    <div class="modal" style="max-width: 700px;">
+      <h2>🖼️ Choose Banner Image</h2>
+      <p style="color: #666; margin-bottom: var(--space-md);">This appears at the top of your forum like a YouTube channel banner</p>
+      
+      <div class="bg-categories">
+        <button class="bg-cat-btn active" onclick="loadBannerCategory('abstract')">🎨 Abstract</button>
+        <button class="bg-cat-btn" onclick="loadBannerCategory('nature')">🌿 Nature</button>
+        <button class="bg-cat-btn" onclick="loadBannerCategory('gradient')">🌈 Gradients</button>
+        <button class="bg-cat-btn" onclick="loadBannerCategory('dark')">🌙 Dark</button>
+        <button class="bg-cat-btn" onclick="loadBannerCategory('colorful')">🎉 Colorful</button>
+      </div>
+      
+      <div id="bannerGallery" class="banner-gallery"></div>
+      
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="closeBannerPicker()">Cancel</button>
       </div>
     </div>
   </div>
@@ -541,9 +628,9 @@
       const isMod = userStatus.role === 'moderator' || userStatus.canModerate;
       const isBanned = userStatus.isBanned;
       
-      // Apply custom background if set
-      if (forum.bannerUrl) {
-        applyBackground(forum.bannerUrl);
+      // Apply page background if set (stored in secondaryColor)
+      if (forum.secondaryColor) {
+        applyBackground(forum.secondaryColor);
       } else {
         removeBackground();
       }
@@ -554,10 +641,17 @@
         document.documentElement.style.setProperty('--forum-theme', forum.primaryColor);
       }
       
+      // Determine banner style
+      const bannerStyle = forum.bannerUrl?.startsWith('linear-gradient') 
+        ? `background: ${forum.bannerUrl};` 
+        : (forum.primaryColor ? `background: ${forum.primaryColor};` : '');
+      const bannerImg = forum.bannerUrl && !forum.bannerUrl.startsWith('linear-gradient') 
+        ? `<img src="${forum.bannerUrl}">` : '';
+      
       if (isBanned) {
         document.getElementById('pageContent').innerHTML = `
-          <div class="forum-banner" ${forum.primaryColor ? `style="background:${forum.primaryColor}"` : ''}>
-            ${forum.bannerUrl ? `<img src="${forum.bannerUrl}">` : ''}
+          <div class="forum-banner" style="${bannerStyle}">
+            ${bannerImg}
           </div>
           <div class="forum-header">
             <div class="banned-notice">
@@ -570,18 +664,28 @@
         return;
       }
       
-      const icon = forum.iconUrl ? `<img src="${forum.iconUrl}">` : (categoryIcons[forum.category] || '💬');
+      // Logo - can be emoji, URL, or default
+      let iconHtml;
+      if (forum.iconUrl) {
+        if (forum.iconUrl.startsWith('http')) {
+          iconHtml = `<img src="${forum.iconUrl}">`;
+        } else {
+          iconHtml = forum.iconUrl; // It's an emoji
+        }
+      } else {
+        iconHtml = categoryIcons[forum.category] || '💬';
+      }
       
       document.getElementById('pageContent').innerHTML = `
-        <div class="forum-banner" ${forum.primaryColor ? `style="background:${forum.primaryColor}"` : ''}>
-          ${forum.bannerUrl ? `<img src="${forum.bannerUrl}">` : ''}
+        <div class="forum-banner" style="${bannerStyle}">
+          ${bannerImg}
           <div class="forum-banner-overlay"></div>
         </div>
         
         <div class="forum-header">
           <div class="forum-header-card">
             <div class="forum-header-top">
-              <div class="forum-icon">${icon}</div>
+              <div class="forum-icon">${iconHtml}</div>
               <div class="forum-info">
                 <h1 class="forum-name">
                   ${escapeHtml(forum.name)}
@@ -845,13 +949,58 @@
     // Moderation Panel
     window.showModPanel = function() {
       if (!currentUser || !forumData) return;
+      // Reset selections
+      selectedLogoUrl = null;
+      selectedBannerUrl = null;
+      selectedBgUrl = null;
+      
       // Load current values
       document.getElementById('forumDescEdit').value = forumData.description || '';
       document.getElementById('forumRulesEdit').value = forumData.rules || '';
       document.getElementById('themeColor').value = forumData.primaryColor || '#e63946';
-      if (forumData.bannerUrl) {
-        document.getElementById('bgPreview').style.backgroundImage = `url(${forumData.bannerUrl})`;
+      
+      // Load current logo
+      const logoPreview = document.getElementById('logoPreview');
+      if (forumData.iconUrl) {
+        if (forumData.iconUrl.startsWith('http')) {
+          logoPreview.innerHTML = `<img src="${forumData.iconUrl}">`;
+        } else {
+          logoPreview.innerHTML = forumData.iconUrl;
+        }
+      } else {
+        logoPreview.innerHTML = categoryIcons[forumData.category] || '💬';
       }
+      
+      // Load current banner
+      const bannerPreview = document.getElementById('bannerPreview');
+      if (forumData.bannerUrl) {
+        if (forumData.bannerUrl.startsWith('linear-gradient')) {
+          bannerPreview.style.background = forumData.bannerUrl;
+          bannerPreview.style.backgroundImage = '';
+        } else {
+          bannerPreview.style.background = '';
+          bannerPreview.style.backgroundImage = `url(${forumData.bannerUrl})`;
+        }
+      } else {
+        bannerPreview.style.background = 'linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%)';
+        bannerPreview.style.backgroundImage = '';
+      }
+      
+      // Load current page background
+      const bgPreview = document.getElementById('bgPreview');
+      if (forumData.secondaryColor) {
+        if (forumData.secondaryColor.startsWith('pattern:')) {
+          bgPreview.style.background = '#ffe8ec';
+        } else if (forumData.secondaryColor.startsWith('gradient:')) {
+          bgPreview.style.background = gradients[parseInt(forumData.secondaryColor.split(':')[1])] || '';
+        } else {
+          bgPreview.style.backgroundImage = `url(${forumData.secondaryColor})`;
+        }
+      } else {
+        bgPreview.style.background = '';
+        bgPreview.style.backgroundImage = '';
+      }
+      
       loadModsList();
       loadAnnouncements();
       document.getElementById('modPanel').classList.add('active');
@@ -871,6 +1020,27 @@
     window.saveForumSettings = async function() {
       if (!currentUser || !forumData) return;
       try {
+        const updateData = {
+          description: document.getElementById('forumDescEdit').value,
+          rules: document.getElementById('forumRulesEdit').value,
+          primary_color: document.getElementById('themeColor').value
+        };
+        
+        // Logo (icon_url) - can be emoji or URL
+        if (selectedLogoUrl !== null) {
+          updateData.icon_url = selectedLogoUrl;
+        }
+        
+        // Banner (banner_url) - YouTube-style header
+        if (selectedBannerUrl !== null) {
+          updateData.banner_url = selectedBannerUrl;
+        }
+        
+        // Page background (secondary_color field for now, stores bg URL/pattern)
+        if (selectedBgUrl !== null) {
+          updateData.secondary_color = selectedBgUrl;
+        }
+        
         const res = await fetch('/.netlify/functions/forum-moderation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -878,12 +1048,7 @@
             action: 'updateForum',
             userId: currentUser.id,
             forumId: forumData.id,
-            forumData: {
-              description: document.getElementById('forumDescEdit').value,
-              rules: document.getElementById('forumRulesEdit').value,
-              primary_color: document.getElementById('themeColor').value,
-              banner_url: selectedBgUrl || forumData.bannerUrl
-            }
+            forumData: updateData
           })
         });
         if (res.ok) {
@@ -1173,6 +1338,162 @@
     window.previewThemeColor = function(color) {
       document.documentElement.style.setProperty('--main-red', color);
       document.documentElement.style.setProperty('--forum-theme', color);
+    };
+    
+    // Logo Selection
+    let selectedLogoUrl = null;
+    
+    const logoCategories = {
+      popular: ['💬', '🎯', '⭐', '🔥', '💡', '🚀', '💎', '👑', '🌟', '✨', '💫', '🎪'],
+      education: ['📚', '📖', '🎓', '📝', '✏️', '🔬', '🔭', '📐', '🧮', '🎒', '📕', '📗'],
+      gaming: ['🎮', '🕹️', '👾', '🎲', '🃏', '♟️', '🏆', '⚔️', '🛡️', '🎯', '🏅', '🎰'],
+      animals: ['🐱', '🐶', '🦊', '🐼', '🦁', '🐯', '🐸', '🦋', '🐝', '🦄', '🐙', '🐨'],
+      tech: ['💻', '📱', '🖥️', '⌨️', '🖱️', '💾', '📀', '🔌', '💡', '🤖', '🔧', '⚙️'],
+      creative: ['🎨', '🎭', '🎬', '🎤', '🎸', '🎹', '📷', '🎥', '✍️', '🖌️', '🎪', '🎠'],
+      sports: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏓', '🥊', '🏋️', '🚴', '🏊', '⛷️'],
+      food: ['🍕', '🍔', '🍟', '🌮', '🍩', '🍪', '🧁', '🍦', '☕', '🍵', '🥤', '🍿']
+    };
+    
+    window.showLogoPicker = function() {
+      document.getElementById('logoPickerModal').classList.add('active');
+      loadLogoCategory('popular');
+    };
+    
+    window.closeLogoPicker = function() {
+      document.getElementById('logoPickerModal').classList.remove('active');
+    };
+    
+    window.loadLogoCategory = function(category) {
+      document.querySelectorAll('.logo-cat-btn').forEach(b => b.classList.remove('active'));
+      if (event?.target) event.target.classList.add('active');
+      
+      const gallery = document.getElementById('logoGallery');
+      const emojis = logoCategories[category] || logoCategories.popular;
+      
+      gallery.innerHTML = emojis.map(emoji => 
+        `<div class="logo-item" onclick="selectLogo('${emoji}')">${emoji}</div>`
+      ).join('');
+    };
+    
+    window.selectLogo = function(emoji) {
+      selectedLogoUrl = emoji;
+      const preview = document.getElementById('logoPreview');
+      preview.innerHTML = emoji;
+      closeLogoPicker();
+    };
+    
+    window.promptCustomLogoUrl = function() {
+      const url = prompt('Enter logo image URL (square image works best):');
+      if (url && url.startsWith('http')) {
+        selectedLogoUrl = url;
+        const preview = document.getElementById('logoPreview');
+        preview.innerHTML = `<img src="${url}" alt="Logo">`;
+      }
+    };
+    
+    window.clearLogo = function() {
+      selectedLogoUrl = '';
+      document.getElementById('logoPreview').innerHTML = '💬';
+    };
+    
+    // Banner Selection
+    let selectedBannerUrl = null;
+    
+    const bannerCategories = {
+      abstract: [
+        'https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1600',
+        'https://images.unsplash.com/photo-1557683316-973673baf926?w=1600',
+        'https://images.unsplash.com/photo-1557683311-eac922347aa1?w=1600',
+        'https://images.unsplash.com/photo-1558591710-4b4a1ae0f04d?w=1600',
+        'https://images.unsplash.com/photo-1550684376-efcbd6e3f031?w=1600',
+        'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1600'
+      ],
+      nature: [
+        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1600',
+        'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1600',
+        'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1600',
+        'https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=1600',
+        'https://images.unsplash.com/photo-1518173946687-a4c036bc3c95?w=1600',
+        'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1600'
+      ],
+      gradient: [
+        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+        'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+        'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
+      ],
+      dark: [
+        'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1600',
+        'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1600',
+        'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=1600',
+        'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600',
+        'https://images.unsplash.com/photo-1465101162946-4377e57745c3?w=1600',
+        'https://images.unsplash.com/photo-1507400492013-162706c8c05e?w=1600'
+      ],
+      colorful: [
+        'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=1600',
+        'https://images.unsplash.com/photo-1567095761054-7a02e69e5c43?w=1600',
+        'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?w=1600',
+        'https://images.unsplash.com/photo-1604076913837-52ab5629fba9?w=1600',
+        'https://images.unsplash.com/photo-1557683316-973673baf926?w=1600',
+        'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600'
+      ]
+    };
+    
+    window.showBannerPicker = function() {
+      document.getElementById('bannerPickerModal').classList.add('active');
+      loadBannerCategory('abstract');
+    };
+    
+    window.closeBannerPicker = function() {
+      document.getElementById('bannerPickerModal').classList.remove('active');
+    };
+    
+    window.loadBannerCategory = function(category) {
+      document.querySelectorAll('#bannerPickerModal .bg-cat-btn').forEach(b => b.classList.remove('active'));
+      if (event?.target) event.target.classList.add('active');
+      
+      const gallery = document.getElementById('bannerGallery');
+      const banners = bannerCategories[category] || bannerCategories.abstract;
+      
+      gallery.innerHTML = banners.map(banner => {
+        if (banner.startsWith('linear-gradient')) {
+          return `<div class="banner-item gradient-banner" style="background: ${banner};" onclick="selectBanner('${banner}')"></div>`;
+        } else {
+          const thumbUrl = banner.replace('w=1600', 'w=600');
+          return `<div class="banner-item" style="background-image: url('${thumbUrl}');" onclick="selectBanner('${banner}')"></div>`;
+        }
+      }).join('');
+    };
+    
+    window.selectBanner = function(url) {
+      selectedBannerUrl = url;
+      const preview = document.getElementById('bannerPreview');
+      if (url.startsWith('linear-gradient')) {
+        preview.style.background = url;
+        preview.style.backgroundImage = '';
+      } else {
+        preview.style.background = '';
+        preview.style.backgroundImage = `url(${url})`;
+      }
+      closeBannerPicker();
+    };
+    
+    window.promptCustomBannerUrl = function() {
+      const url = prompt('Enter banner image URL (wide/landscape image works best):');
+      if (url && url.startsWith('http')) {
+        selectedBannerUrl = url;
+        document.getElementById('bannerPreview').style.backgroundImage = `url(${url})`;
+      }
+    };
+    
+    window.clearBanner = function() {
+      selectedBannerUrl = '';
+      const preview = document.getElementById('bannerPreview');
+      preview.style.backgroundImage = '';
+      preview.style.background = 'linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%)';
     };
     
     // Moderators Management

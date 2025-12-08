@@ -183,7 +183,8 @@
     .bg-gallery-item:hover { border-color: var(--main-red); transform: scale(1.08); box-shadow: 0 8px 25px rgba(0,0,0,0.4); z-index: 2; }
     .bg-gallery-item.photo { background-size: cover !important; background-position: center !important; }
     .bg-gallery-item.gradient { background-size: 100% 100% !important; }
-    .bg-gallery-item.pattern { background-repeat: repeat !important; }
+    .bg-gallery-item.pattern-tile { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px; padding: 4px; overflow: hidden; }
+    .pattern-emoji { font-size: 20px; line-height: 1; }
     #bgPickerModal .modal-actions { border-top: 1px solid rgba(255,255,255,0.1); padding-top: var(--space-md); margin-top: var(--space-md); }
     #bgPickerModal .btn-modal-cancel { background: rgba(255,255,255,0.1); color: white; border: 2px solid rgba(255,255,255,0.3); }
     #bgPickerModal .btn-modal-cancel:hover { background: rgba(255,255,255,0.2); }
@@ -1000,8 +1001,17 @@
       const bgColor = document.getElementById('patternBgColor')?.value || '#ffe8ec';
       
       gallery.innerHTML = emojiList.map(emoji => {
-        const pattern = createEmojiPattern(emoji, color, bgColor);
-        return `<div class="bg-gallery-item pattern" style="background-color: ${bgColor}; background-image: ${pattern}; background-size: 40px 40px; background-repeat: repeat;" onclick="selectPattern('${emoji}')" title="${emoji}"></div>`;
+        return `<div class="bg-gallery-item pattern-tile" style="background-color: ${bgColor};" onclick="selectPattern('${emoji}')" title="${emoji}">
+          <span class="pattern-emoji">${emoji}</span>
+          <span class="pattern-emoji">${emoji}</span>
+          <span class="pattern-emoji">${emoji}</span>
+          <span class="pattern-emoji">${emoji}</span>
+          <span class="pattern-emoji">${emoji}</span>
+          <span class="pattern-emoji">${emoji}</span>
+          <span class="pattern-emoji">${emoji}</span>
+          <span class="pattern-emoji">${emoji}</span>
+          <span class="pattern-emoji">${emoji}</span>
+        </div>`;
       }).join('');
     };
     

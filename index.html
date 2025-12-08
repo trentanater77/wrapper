@@ -4973,9 +4973,8 @@
         }
       }
       
-      // Warn Green Room / Forum Room hosts before leaving
+      // Warn Green Room hosts before leaving (NOT forum rooms - they persist)
       // Note: Modern browsers show generic "Leave site?" message for security
-      // The actual room ending happens via the unload event, not here
       if (typeof roomTypeState !== 'undefined' && 
           roomTypeState.type === 'green' && 
           !roomTypeState.roomEnded && 
@@ -4985,10 +4984,9 @@
         const isForumRoom = urlParams.get('forum');
         const isRoomCreator = roomHostData?.isHost || isHost;
         
-        // For forum rooms, check if this user is the host/creator
-        if (isRoomCreator || isForumRoom) {
-          // Show browser's native confirmation dialog
-          // (The actual room ending happens in the 'unload' event below)
+        // Forum rooms don't end when host leaves - no warning needed
+        // Regular green rooms DO end when host leaves - show warning
+        if (isRoomCreator && !isForumRoom) {
           event.preventDefault();
           event.returnValue = 'If you leave, this room will be terminated for all participants. Are you sure?';
           return event.returnValue;
@@ -5105,13 +5103,14 @@
       const isHost = urlParams.get('host') === 'true';
       const sphereId = extractSphereId(roomUrl);
       
-      // End Green Room / Forum Room when host actually leaves
+      // For FORUM rooms: Don't end when host leaves - room stays until timer expires
+      // For regular green rooms: End when host leaves
       const forumParam = urlParams.get('forum');
       const isRoomCreator = roomHostData?.isHost || isHost;
       
-      // For forum rooms, any participant leaving who is the creator ends the room
-      // For regular green rooms, only the host ends it
-      const shouldEndRoom = (isRoomCreator || (forumParam && !isSpectator)) && 
+      // Only end non-forum green rooms when host leaves
+      const shouldEndRoom = !forumParam && // NOT a forum room
+                            isRoomCreator && 
                             typeof roomTypeState !== 'undefined' && 
                             roomTypeState.type === 'green' && 
                             !roomTypeState.roomEnded;
@@ -5137,25 +5136,18 @@
             }
           }
           
-          // End in active_rooms (this also ends forum_rooms)
+          // End in active_rooms
           const payload = JSON.stringify({
             action: 'end',
             roomId: sphereId
           });
           navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([payload], { type: 'application/json' }));
-          
-          // Also explicitly end forum room if this is a forum room
-          if (forumParam) {
-            const forumPayload = JSON.stringify({
-              action: 'end',
-              userId: window.currentUserData?.userId || userId,
-              forumSlug: forumParam,
-              roomId: sphereId
-            });
-            navigator.sendBeacon('/.netlify/functions/forum-room', new Blob([forumPayload], { type: 'application/json' }));
-            console.log('🌐 Forum room end beacon sent');
-          }
         }
+      }
+      
+      // Forum rooms: Just log that host left, don't end the room
+      if (forumParam && isRoomCreator) {
+        console.log('🌐 Host leaving forum room - room stays active until timer expires');
       }
       
       // End Red Room (debate) when host leaves - auto-end and distribute pot

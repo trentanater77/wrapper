@@ -92,25 +92,39 @@ exports.handler = async function(event) {
       const activeRoomMap = {};
       const expiredRoomIds = [];
       const now = new Date();
+      const nowMs = now.getTime();
+      const inactiveThreshold = 30 * 60 * 1000; // 30 minutes of inactivity (0 participants)
       
       if (activeRoomData) {
         activeRoomData.forEach(ar => {
           activeRoomMap[ar.room_id] = ar;
           
-          // Check if room timer has expired
+          // Check if room timer has expired (ends_at)
           if (ar.ends_at) {
             const endsAt = new Date(ar.ends_at);
             if (endsAt < now) {
               expiredRoomIds.push(ar.room_id);
               console.log(`⏰ Room ${ar.room_id} timer expired at ${ar.ends_at}`);
+              return;
             }
           }
           
-          // Also check if already ended
+          // Check if already ended
           if (ar.status === 'ended') {
             if (!expiredRoomIds.includes(ar.room_id)) {
               expiredRoomIds.push(ar.room_id);
             }
+            return;
+          }
+          
+          // Check if room has been empty (0 participants) for 30+ minutes
+          const participantCount = ar.participant_count || 0;
+          const startedAt = new Date(ar.started_at).getTime();
+          const roomAge = nowMs - startedAt;
+          
+          if (participantCount === 0 && roomAge > inactiveThreshold) {
+            expiredRoomIds.push(ar.room_id);
+            console.log(`💤 Room ${ar.room_id} inactive: 0 participants for ${Math.floor(roomAge/60000)} minutes`);
           }
         });
       }

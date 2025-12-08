@@ -1006,17 +1006,40 @@
       // Load current page background
       const bgPreview = document.getElementById('bgPreview');
       if (bgPreview) {
+        bgPreview.style.background = '';
+        bgPreview.style.backgroundImage = '';
+        
         if (forumData.secondaryColor) {
-          if (forumData.secondaryColor.startsWith('pattern:')) {
-            bgPreview.style.background = '#ffe8ec';
-          } else if (forumData.secondaryColor.startsWith('gradient:')) {
-            bgPreview.style.background = gradients[parseInt(forumData.secondaryColor.split(':')[1])] || '';
-          } else {
-            bgPreview.style.backgroundImage = `url(${forumData.secondaryColor})`;
+          const bg = forumData.secondaryColor;
+          // New pattern format
+          if (bg.startsWith('pattern|')) {
+            const parts = bg.split('|');
+            const emoji = parts[1];
+            const color = '#' + (parts[2] || 'e63946');
+            const bgColor = '#' + (parts[3] || 'ffe8ec');
+            const pattern = createEmojiPattern(emoji, color, bgColor);
+            bgPreview.style.background = bgColor;
+            bgPreview.style.backgroundImage = pattern;
           }
-        } else {
-          bgPreview.style.background = '';
-          bgPreview.style.backgroundImage = '';
+          // Old pattern format
+          else if (bg.startsWith('pattern:')) {
+            try {
+              const decoded = decodeURIComponent(bg);
+              const parts = decoded.split(':');
+              const emoji = parts[1];
+              const color = parts[2] || '#e63946';
+              const bgColor = parts[3] || '#ffe8ec';
+              const pattern = createEmojiPattern(emoji, color, bgColor);
+              bgPreview.style.background = bgColor;
+              bgPreview.style.backgroundImage = pattern;
+            } catch (e) {
+              bgPreview.style.background = '#ffe8ec';
+            }
+          } else if (bg.startsWith('gradient:')) {
+            bgPreview.style.background = gradients[parseInt(bg.split(':')[1])] || '';
+          } else if (bg.startsWith('http') || bg.startsWith('data:')) {
+            bgPreview.style.backgroundImage = `url(${bg})`;
+          }
         }
       }
       
@@ -1242,12 +1265,17 @@
       const color = document.getElementById('patternColor')?.value || '#e63946';
       const bgColor = document.getElementById('patternBgColor')?.value || '#ffffff';
       const pattern = createEmojiPattern(emoji, color, bgColor);
-      selectedBgUrl = `pattern:${emoji}:${color}:${bgColor}`;
+      // Use | as separator to avoid issues with : in colors
+      selectedBgUrl = `pattern|${emoji}|${color.replace('#','')}|${bgColor.replace('#','')}`;
       selectedBgType = 'pattern';
       applyPatternBackground(emoji, color, bgColor);
-      document.getElementById('bgPreview').style.background = bgColor;
-      document.getElementById('bgPreview').style.backgroundImage = pattern;
+      const preview = document.getElementById('bgPreview');
+      if (preview) {
+        preview.style.background = bgColor;
+        preview.style.backgroundImage = pattern;
+      }
       closeBgPicker();
+      console.log('🎨 Pattern selected:', selectedBgUrl);
     };
     
     window.loadGradients = function() {
@@ -1368,7 +1396,18 @@
         // Already decoded or invalid, continue
       }
       
-      if (bgString.startsWith('pattern:')) {
+      console.log('🖼️ Applying background:', bgString);
+      
+      // New format: pattern|emoji|color|bgColor (without # in colors)
+      if (bgString.startsWith('pattern|')) {
+        const parts = bgString.split('|');
+        const emoji = parts[1];
+        const color = '#' + (parts[2] || 'e63946');
+        const bgColor = '#' + (parts[3] || 'ffffff');
+        applyPatternBackground(emoji, color, bgColor);
+      }
+      // Old format: pattern:emoji:color:bgColor (with # in colors)
+      else if (bgString.startsWith('pattern:')) {
         const parts = bgString.split(':');
         const emoji = parts[1];
         const color = parts[2] || '#e63946';

@@ -100,16 +100,21 @@ exports.handler = async function(event) {
     // Check if this is a forum tip and determine revenue split
     let hostShare, forumCreatorShare = 0, forumOwnerId = null;
     
+    console.log('🏛️ Forum tip check - forumId:', forumId);
+    
     if (forumId) {
       // Forum tip - check forum ownership
-      const { data: forum } = await supabase
+      const { data: forum, error: forumError } = await supabase
         .from('forums')
         .select('owner_id')
         .eq('id', forumId)
         .single();
       
+      console.log('🔍 Forum lookup result:', { forum, error: forumError?.message });
+      
       if (forum && forum.owner_id) {
         forumOwnerId = forum.owner_id;
+        console.log('✅ Forum found! Owner:', forumOwnerId, 'Host:', hostId, 'Same?', forumOwnerId === hostId);
         
         if (forumOwnerId === hostId) {
           // Host IS the forum creator - they get 55%
@@ -122,12 +127,16 @@ exports.handler = async function(event) {
         }
       } else {
         // Forum not found or no owner - use standard split
+        console.log('⚠️ Forum not found or no owner - using standard 50/50 split');
         hostShare = Math.floor(tipAmount * STANDARD_HOST_SHARE);
       }
     } else {
       // Standard tip (non-forum) - 50% to host
+      console.log('ℹ️ No forumId provided - using standard 50/50 split');
       hostShare = Math.floor(tipAmount * STANDARD_HOST_SHARE);
     }
+    
+    console.log('💰 Final split calculated:', { hostShare, forumCreatorShare, platformFee: tipAmount - hostShare - forumCreatorShare });
     
     // Deduct from sender's spendable gems
     const newSenderBalance = senderBalance.spendable_gems - tipAmount;

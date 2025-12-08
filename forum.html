@@ -868,7 +868,8 @@
         const isTrulyLive = r.is_truly_live || participantCount >= 2;
         
         // Build URL with all necessary params
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=green&topic=${encodedTopic}&forum=${forumSlug}&mode=${mode}`;
+        // Use forum ID (UUID) for revenue split, not slug
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=green&topic=${encodedTopic}&forum=${forumData.id}&mode=${mode}`;
         
         // Different button text based on state
         const actionText = isTrulyLive ? '👁️ Watch Live' : '🎤 Join Room';
@@ -2097,7 +2098,8 @@
         // mode=participant since we're the host, roomType=green for forum rooms (no debate UI)
         const encodedTopic = encodeURIComponent(title);
         const encodedDesc = description ? encodeURIComponent(description) : '';
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=green&forum=${forumData.slug}&topic=${encodedTopic}`;
+        // Use forum ID (UUID) for revenue split, not slug
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=green&forum=${forumData.id}&topic=${encodedTopic}`;
         if (encodedDesc) roomUrl += `&description=${encodedDesc}`;
         if (createData.inviteCode) roomUrl += `&invite=${createData.inviteCode}`;
         

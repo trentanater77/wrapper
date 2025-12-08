@@ -157,7 +157,12 @@
     .logo-preview { width: 80px; height: 80px; border-radius: var(--radius-xl); background: var(--light-rose); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 3px solid var(--rose); overflow: hidden; flex-shrink: 0; }
     .logo-preview img { width: 100%; height: 100%; object-fit: cover; }
     .logo-options { display: flex; flex-direction: column; gap: var(--space-xs); }
-    .banner-preview { width: 100%; height: 100px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); background-size: cover; background-position: center; border: 2px solid var(--rose); margin-bottom: var(--space-sm); }
+    .banner-preview { width: 100%; height: 100px; border-radius: var(--radius-lg); background: linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%); background-size: cover; background-position: center; }
+    .drop-zone { position: relative; border: 2px dashed var(--rose); border-radius: var(--radius-lg); margin-bottom: var(--space-sm); transition: all 0.2s ease; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--main-red); background: rgba(230, 57, 70, 0.05); }
+    .drop-hint { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); font-size: 0.75rem; color: #888; background: rgba(255,255,255,0.9); padding: 2px 8px; border-radius: var(--radius-sm); pointer-events: none; }
+    .upload-btn { cursor: pointer; }
+    .upload-btn:hover { background: var(--light-rose); border-color: var(--main-red); }
     .color-input { width: 60px; height: 40px; border: 2px solid var(--rose); border-radius: var(--radius-lg); cursor: pointer; }
     .mods-list-panel { display: flex; flex-direction: column; gap: var(--space-sm); }
     .mod-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm); background: var(--light-rose); border-radius: var(--radius-lg); }
@@ -284,18 +289,21 @@
           <div class="logo-preview-row">
             <div id="logoPreview" class="logo-preview">💬</div>
             <div class="logo-options">
-              <button class="bg-option-btn" onclick="showLogoPicker()">🎨 Choose Logo</button>
-              <button class="bg-option-btn" onclick="promptCustomLogoUrl()">🔗 Custom URL</button>
+              <button class="bg-option-btn" onclick="showLogoPicker()">🎨 Choose Emoji</button>
+              <label class="bg-option-btn upload-btn">📤 Upload Image<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="uploadLogo(this)" hidden></label>
               <button class="bg-option-btn" onclick="clearLogo()">❌ Remove</button>
             </div>
           </div>
         </div>
         <div class="form-group">
           <label class="form-label">🖼️ Banner Image (YouTube-style header)</label>
-          <div id="bannerPreview" class="banner-preview"></div>
+          <div id="bannerDropZone" class="drop-zone" ondrop="dropBanner(event)" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')"
+            <div id="bannerPreview" class="banner-preview"></div>
+            <div class="drop-hint">📤 Drag & drop image here</div>
+          </div>
           <div class="bg-options">
-            <button class="bg-option-btn" onclick="showBannerPicker()">🖼️ Choose Banner</button>
-            <button class="bg-option-btn" onclick="promptCustomBannerUrl()">🔗 Custom URL</button>
+            <button class="bg-option-btn" onclick="showBannerPicker()">🖼️ Choose from Gallery</button>
+            <label class="bg-option-btn upload-btn">📤 Upload Image<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="uploadBanner(this)" hidden></label>
             <button class="bg-option-btn" onclick="clearBanner()">❌ Remove</button>
           </div>
         </div>
@@ -642,11 +650,18 @@
       }
       
       // Determine banner style
-      const bannerStyle = forum.bannerUrl?.startsWith('linear-gradient') 
-        ? `background: ${forum.bannerUrl};` 
-        : (forum.primaryColor ? `background: ${forum.primaryColor};` : '');
-      const bannerImg = forum.bannerUrl && !forum.bannerUrl.startsWith('linear-gradient') 
-        ? `<img src="${forum.bannerUrl}">` : '';
+      let bannerStyle = '';
+      let bannerImg = '';
+      if (forum.bannerUrl) {
+        if (forum.bannerUrl.startsWith('linear-gradient')) {
+          bannerStyle = `background: ${forum.bannerUrl};`;
+        } else if (forum.bannerUrl.startsWith('http') || forum.bannerUrl.startsWith('data:')) {
+          bannerImg = `<img src="${forum.bannerUrl}">`;
+        }
+      }
+      if (!bannerStyle && !bannerImg && forum.primaryColor) {
+        bannerStyle = `background: ${forum.primaryColor};`;
+      }
       
       if (isBanned) {
         document.getElementById('pageContent').innerHTML = `
@@ -664,10 +679,10 @@
         return;
       }
       
-      // Logo - can be emoji, URL, or default
+      // Logo - can be emoji, URL, data URL, or default
       let iconHtml;
       if (forum.iconUrl) {
-        if (forum.iconUrl.startsWith('http')) {
+        if (forum.iconUrl.startsWith('http') || forum.iconUrl.startsWith('data:')) {
           iconHtml = `<img src="${forum.iconUrl}">`;
         } else {
           iconHtml = forum.iconUrl; // It's an emoji
@@ -962,7 +977,7 @@
       // Load current logo
       const logoPreview = document.getElementById('logoPreview');
       if (forumData.iconUrl) {
-        if (forumData.iconUrl.startsWith('http')) {
+        if (forumData.iconUrl.startsWith('http') || forumData.iconUrl.startsWith('data:')) {
           logoPreview.innerHTML = `<img src="${forumData.iconUrl}">`;
         } else {
           logoPreview.innerHTML = forumData.iconUrl;
@@ -977,7 +992,7 @@
         if (forumData.bannerUrl.startsWith('linear-gradient')) {
           bannerPreview.style.background = forumData.bannerUrl;
           bannerPreview.style.backgroundImage = '';
-        } else {
+        } else if (forumData.bannerUrl.startsWith('http') || forumData.bannerUrl.startsWith('data:')) {
           bannerPreview.style.background = '';
           bannerPreview.style.backgroundImage = `url(${forumData.bannerUrl})`;
         }
@@ -1315,14 +1330,27 @@
     function applyBackground(bgString) {
       if (!bgString) { removeBackground(); return; }
       
+      // Decode URL-encoded strings
+      try {
+        bgString = decodeURIComponent(bgString);
+      } catch (e) {
+        // Already decoded or invalid, continue
+      }
+      
       if (bgString.startsWith('pattern:')) {
-        const [, emoji, color, bgColor] = bgString.split(':');
+        const parts = bgString.split(':');
+        const emoji = parts[1];
+        const color = parts[2] || '#e63946';
+        const bgColor = parts[3] || '#ffffff';
         applyPatternBackground(emoji, color, bgColor);
       } else if (bgString.startsWith('gradient:')) {
         const index = parseInt(bgString.split(':')[1]);
         applyGradientBackground(gradients[index]);
-      } else {
+      } else if (bgString.startsWith('http') || bgString.startsWith('data:')) {
         applyPhotoBackground(bgString);
+      } else {
+        // Unknown format, ignore
+        console.log('Unknown background format:', bgString);
       }
     }
     
@@ -1382,13 +1410,31 @@
       closeLogoPicker();
     };
     
-    window.promptCustomLogoUrl = function() {
-      const url = prompt('Enter logo image URL (square image works best):');
-      if (url && url.startsWith('http')) {
-        selectedLogoUrl = url;
-        const preview = document.getElementById('logoPreview');
-        preview.innerHTML = `<img src="${url}" alt="Logo">`;
+    // File to base64 converter
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+    
+    window.uploadLogo = async function(input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Image too large! Max 2MB');
+        return;
       }
+      try {
+        const base64 = await fileToBase64(file);
+        selectedLogoUrl = base64;
+        document.getElementById('logoPreview').innerHTML = `<img src="${base64}" alt="Logo">`;
+      } catch (e) {
+        alert('Failed to load image');
+      }
+      input.value = '';
     };
     
     window.clearLogo = function() {
@@ -1481,11 +1527,42 @@
       closeBannerPicker();
     };
     
-    window.promptCustomBannerUrl = function() {
-      const url = prompt('Enter banner image URL (wide/landscape image works best):');
-      if (url && url.startsWith('http')) {
-        selectedBannerUrl = url;
-        document.getElementById('bannerPreview').style.backgroundImage = `url(${url})`;
+    window.uploadBanner = async function(input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image too large! Max 5MB');
+        return;
+      }
+      try {
+        const base64 = await fileToBase64(file);
+        selectedBannerUrl = base64;
+        const preview = document.getElementById('bannerPreview');
+        preview.style.background = '';
+        preview.style.backgroundImage = `url(${base64})`;
+      } catch (e) {
+        alert('Failed to load image');
+      }
+      input.value = '';
+    };
+    
+    window.dropBanner = async function(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      const file = e.dataTransfer?.files[0];
+      if (!file || !file.type.startsWith('image/')) return;
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image too large! Max 5MB');
+        return;
+      }
+      try {
+        const base64 = await fileToBase64(file);
+        selectedBannerUrl = base64;
+        const preview = document.getElementById('bannerPreview');
+        preview.style.background = '';
+        preview.style.backgroundImage = `url(${base64})`;
+      } catch (e) {
+        alert('Failed to load image');
       }
     };
     

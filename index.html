@@ -5173,10 +5173,33 @@
           navigator.sendBeacon('/.netlify/functions/end-red-room', new Blob([payload], { type: 'application/json' }));
         }
       }
+      
+      // Always send leave beacon to decrement count (for any user leaving)
+      if (sphereId) {
+        const leavePayload = JSON.stringify({
+          action: 'leave',
+          roomId: sphereId,
+          isSpectator: isSpectator
+        });
+        navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([leavePayload], { type: 'application/json' }));
+        console.log(`👋 Leave beacon sent on unload (spectator: ${isSpectator})`);
+      }
     });
 
     window.addEventListener('pagehide', () => {
       executeComprehensiveCleanup('pagehide');
+      
+      // Send leave beacon to decrement participant/spectator count
+      const sphereId = extractSphereId(roomUrl);
+      if (sphereId) {
+        const leavePayload = JSON.stringify({
+          action: 'leave',
+          roomId: sphereId,
+          isSpectator: isSpectator
+        });
+        navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([leavePayload], { type: 'application/json' }));
+        console.log(`👋 Leave beacon sent (spectator: ${isSpectator})`);
+      }
     });
     
     // CRITICAL: Save pending rating when tab becomes hidden (user switches tabs)

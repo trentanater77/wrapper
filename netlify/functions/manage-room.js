@@ -433,6 +433,60 @@ exports.handler = async function(event) {
         };
       }
 
+      case 'leave': {
+        // User is leaving the room - decrement appropriate count
+        const { roomId, isSpectator } = body;
+
+        if (!roomId) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Room ID is required' }),
+          };
+        }
+
+        // Get current room data
+        const { data: room, error: fetchError } = await supabase
+          .from('active_rooms')
+          .select('participant_count, spectator_count, status')
+          .eq('room_id', roomId)
+          .single();
+
+        if (fetchError || !room || room.status === 'ended') {
+          // Room doesn't exist or already ended - that's fine
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ success: true, message: 'Room not found or ended' }),
+          };
+        }
+
+        // Decrement the appropriate count
+        const updates = {};
+        if (isSpectator) {
+          updates.spectator_count = Math.max(0, (room.spectator_count || 0) - 1);
+        } else {
+          updates.participant_count = Math.max(0, (room.participant_count || 0) - 1);
+        }
+
+        const { error } = await supabase
+          .from('active_rooms')
+          .update(updates)
+          .eq('room_id', roomId);
+
+        if (error) {
+          console.error('Error updating count on leave:', error);
+        }
+
+        console.log(`👋 User left room ${roomId} (spectator: ${isSpectator}). New counts: participant=${updates.participant_count ?? room.participant_count}, spectator=${updates.spectator_count ?? room.spectator_count}`);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true }),
+        };
+      }
+
       case 'start-voting': {
         const { roomId, hostId } = body;
 

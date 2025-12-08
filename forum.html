@@ -162,21 +162,31 @@
     .announce-item-content { flex: 1; }
     .announce-item-title { font-weight: var(--font-weight-bold); }
     
-    /* Background Gallery */
+    /* Background Gallery - Dark themed for better visibility */
+    #bgPickerModal .modal { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; }
+    #bgPickerModal .modal h2 { color: white; }
     .bg-type-tabs { display: flex; gap: var(--space-sm); margin-bottom: var(--space-lg); }
-    .bg-type-tab { flex: 1; padding: var(--space-md); background: var(--light-rose); border: none; border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1rem; transition: all var(--transition-fast); }
-    .bg-type-tab:hover, .bg-type-tab.active { background: var(--main-red); color: white; }
-    .bg-type-content { min-height: 250px; }
+    .bg-type-tab { flex: 1; padding: var(--space-md); background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); color: white; border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1rem; transition: all var(--transition-fast); }
+    .bg-type-tab:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); }
+    .bg-type-tab.active { background: var(--main-red); border-color: var(--main-red); }
+    .bg-type-content { min-height: 280px; padding: var(--space-sm); }
     .bg-categories { display: flex; gap: var(--space-xs); margin-bottom: var(--space-md); flex-wrap: wrap; }
-    .bg-cat-btn { padding: var(--space-xs) var(--space-md); background: white; border: 2px solid var(--rose); border-radius: var(--radius-full); cursor: pointer; font-family: var(--font-family); font-size: 0.9rem; transition: all var(--transition-fast); }
-    .bg-cat-btn:hover, .bg-cat-btn.active { background: var(--main-red); color: white; border-color: var(--main-red); }
-    .pattern-color-row { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); flex-wrap: wrap; font-size: 0.9rem; }
-    .pattern-color-row input[type="color"] { width: 40px; height: 32px; border: 2px solid var(--rose); border-radius: var(--radius-sm); cursor: pointer; }
-    .bg-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); max-height: 280px; overflow-y: auto; padding: var(--space-xs); }
-    .bg-gallery-item { aspect-ratio: 4/3; border-radius: var(--radius-lg); background-size: 60px; cursor: pointer; border: 3px solid var(--rose); transition: all var(--transition-fast); }
-    .bg-gallery-item:hover { border-color: var(--main-red); transform: scale(1.03); box-shadow: var(--shadow-lg); }
-    .bg-gallery-item.photo { background-size: cover; background-position: center; }
-    .bg-gallery-item.gradient { background-size: 100% 100%; }
+    .bg-cat-btn { padding: var(--space-xs) var(--space-md); background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); color: white; border-radius: var(--radius-full); cursor: pointer; font-family: var(--font-family); font-size: 0.9rem; transition: all var(--transition-fast); }
+    .bg-cat-btn:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.5); }
+    .bg-cat-btn.active { background: var(--main-red); color: white; border-color: var(--main-red); }
+    .pattern-color-row { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); flex-wrap: wrap; font-size: 0.9rem; color: rgba(255,255,255,0.9); }
+    .pattern-color-row label { font-weight: 600; }
+    .pattern-color-row input[type="color"] { width: 50px; height: 36px; border: 3px solid rgba(255,255,255,0.3); border-radius: var(--radius-md); cursor: pointer; background: transparent; }
+    .pattern-color-row input[type="color"]:hover { border-color: var(--main-red); }
+    .bg-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-md); max-height: 320px; overflow-y: auto; padding: var(--space-sm); background: rgba(0,0,0,0.2); border-radius: var(--radius-lg); }
+    .bg-gallery-item { aspect-ratio: 1; border-radius: var(--radius-lg); cursor: pointer; border: 3px solid rgba(255,255,255,0.2); transition: all 0.2s ease; position: relative; overflow: hidden; min-height: 80px; }
+    .bg-gallery-item:hover { border-color: var(--main-red); transform: scale(1.08); box-shadow: 0 8px 25px rgba(0,0,0,0.4); z-index: 2; }
+    .bg-gallery-item.photo { background-size: cover !important; background-position: center !important; }
+    .bg-gallery-item.gradient { background-size: 100% 100% !important; }
+    .bg-gallery-item.pattern { background-repeat: repeat !important; }
+    #bgPickerModal .modal-actions { border-top: 1px solid rgba(255,255,255,0.1); padding-top: var(--space-md); margin-top: var(--space-md); }
+    #bgPickerModal .btn-modal-cancel { background: rgba(255,255,255,0.1); color: white; border: 2px solid rgba(255,255,255,0.3); }
+    #bgPickerModal .btn-modal-cancel:hover { background: rgba(255,255,255,0.2); }
   </style>
 </head>
 <body>
@@ -990,7 +1000,7 @@
       
       gallery.innerHTML = emojiList.map(emoji => {
         const pattern = createEmojiPattern(emoji, color, bgColor);
-        return `<div class="bg-gallery-item" style="background: ${bgColor}; background-image: ${pattern};" onclick="selectPattern('${emoji}')"></div>`;
+        return `<div class="bg-gallery-item pattern" style="background-color: ${bgColor}; background-image: ${pattern}; background-size: 50px 50px; background-repeat: repeat;" onclick="selectPattern('${emoji}')" title="${emoji}"></div>`;
       }).join('');
     };
     
@@ -1021,7 +1031,7 @@
     window.loadGradients = function() {
       const gallery = document.getElementById('gradientGallery');
       gallery.innerHTML = gradients.map((grad, i) => 
-        `<div class="bg-gallery-item gradient" style="background: ${grad};" onclick="selectGradient(${i})"></div>`
+        `<div class="bg-gallery-item gradient" style="background: ${grad} !important;" onclick="selectGradient(${i})"></div>`
       ).join('');
     };
     
@@ -1039,10 +1049,14 @@
       if (event?.target) event.target.classList.add('active');
       
       const gallery = document.getElementById('bgGallery');
+      gallery.innerHTML = '<div style="color: rgba(255,255,255,0.6); text-align: center; grid-column: 1/-1; padding: 20px;">Loading photos...</div>';
+      
       const images = photoCategories[category] || photoCategories.nature;
-      gallery.innerHTML = images.map(url => 
-        `<div class="bg-gallery-item photo" style="background-image: url(${url})" onclick="selectPhoto('${url}')"></div>`
-      ).join('');
+      // Use smaller thumbnail versions for gallery
+      gallery.innerHTML = images.map(url => {
+        const thumbUrl = url.replace('w=1920', 'w=400');
+        return `<div class="bg-gallery-item photo" style="background-image: url('${thumbUrl}');" onclick="selectPhoto('${url}')"></div>`;
+      }).join('');
     };
     
     window.selectPhoto = function(url) {
@@ -1083,8 +1097,9 @@
       const pattern = createEmojiPattern(emoji, color, bgColor);
       bgOverlay.style.background = bgColor;
       bgOverlay.style.backgroundImage = pattern;
-      bgOverlay.style.backgroundSize = '60px 60px';
-      bgOverlay.style.opacity = '1';
+      bgOverlay.style.backgroundSize = '80px 80px';
+      bgOverlay.style.backgroundRepeat = 'repeat';
+      bgOverlay.style.opacity = '0.6';
       document.body.classList.add('has-custom-bg');
     }
     
@@ -1098,7 +1113,9 @@
       }
       bgOverlay.style.background = grad;
       bgOverlay.style.backgroundImage = '';
-      bgOverlay.style.opacity = '0.3';
+      bgOverlay.style.backgroundSize = '';
+      bgOverlay.style.backgroundRepeat = '';
+      bgOverlay.style.opacity = '0.5';
       document.body.classList.add('has-custom-bg');
     }
     
@@ -1114,7 +1131,8 @@
       bgOverlay.style.backgroundImage = `url(${url})`;
       bgOverlay.style.backgroundSize = 'cover';
       bgOverlay.style.backgroundPosition = 'center';
-      bgOverlay.style.opacity = '0.15';
+      bgOverlay.style.backgroundRepeat = 'no-repeat';
+      bgOverlay.style.opacity = '0.25';
       document.body.classList.add('has-custom-bg');
     }
     

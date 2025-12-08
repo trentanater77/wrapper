@@ -489,19 +489,29 @@
         `;
       }
       
-      return rooms.map(r => `
-        <a href="/matchmaking.html?room=${r.roomName}" class="room-card">
-          <div class="room-card-header">
-            <span class="room-card-title">${escapeHtml(r.title || 'Untitled Room')}</span>
-            ${r.status === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
-          </div>
-          <div class="room-card-host">Hosted by ${escapeHtml(r.hostName || 'Anonymous')}</div>
-          <div class="room-card-stats">
-            <span>👥 ${r.participantCount || 0} watching</span>
-            <span>⏱️ ${formatDuration(r.startedAt)}</span>
-          </div>
-        </a>
-      `).join('');
+      // forum_rooms table fields: room_id, title, host_name, host_id, status, started_at, participant_count, peak_viewers, room_url
+      return rooms.map(r => {
+        // Build room URL - go directly to sphere.chatspheres.com with forum room params
+        const roomId = r.room_id || r.roomId;
+        const participantCount = r.participant_count || r.participantCount || 0;
+        // Auto spectator if 2+ participants already
+        const mode = participantCount >= 2 ? 'spectator' : 'auto';
+        const roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=${mode}&roomType=green&forum=${forumSlug}`;
+        
+        return `
+          <a href="${roomUrl}" class="room-card" target="_blank">
+            <div class="room-card-header">
+              <span class="room-card-title">${escapeHtml(r.title || r.topic || 'Untitled Room')}</span>
+              ${r.status === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
+            </div>
+            <div class="room-card-host">Hosted by ${escapeHtml(r.host_name || r.hostName || 'Anonymous')}</div>
+            <div class="room-card-stats">
+              <span>👥 ${participantCount} in room</span>
+              <span>⏱️ ${formatDuration(r.started_at || r.startedAt)}</span>
+            </div>
+          </a>
+        `;
+      }).join('');
     }
 
     function showPrivatePrompt(slug, forum) {
@@ -704,8 +714,14 @@
         closeCreateRoomModal();
         
         // Redirect to the room
-        // The room URL goes to the main app with the room ID
-        const roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${createData.inviteCode || ''}&forum=${forumData.slug}`;
+        // The room URL goes to the main app with all necessary params
+        // mode=participant since we're the host, roomType=green for forum rooms (no debate UI)
+        const encodedTopic = encodeURIComponent(title);
+        const encodedDesc = description ? encodeURIComponent(description) : '';
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=green&forum=${forumData.slug}&topic=${encodedTopic}`;
+        if (encodedDesc) roomUrl += `&description=${encodedDesc}`;
+        if (createData.inviteCode) roomUrl += `&invite=${createData.inviteCode}`;
+        
         console.log('Redirecting to room:', roomUrl);
         window.location.href = roomUrl;
         

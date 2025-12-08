@@ -113,11 +113,22 @@
    * Track referral click
    */
   function trackReferralClick(refCode) {
+    if (!refCode) return;
+    
+    console.log('👆 Tracking referral click for code:', refCode);
+    
     fetch('/.netlify/functions/track-referral', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'click', referralCode: refCode })
-    }).catch(err => console.log('Referral click tracking:', err.message));
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('✅ Referral click tracked:', data);
+    })
+    .catch(err => {
+      console.log('⚠️ Referral click tracking failed:', err.message);
+    });
   }
 
   /**
@@ -125,9 +136,16 @@
    */
   function trackReferralSignup(userId) {
     const refCode = getReferralCode();
-    if (!refCode || !userId) return Promise.resolve();
+    if (!refCode) {
+      console.log('📎 No referral code found - skipping tracking');
+      return Promise.resolve({ success: false, reason: 'no_code' });
+    }
+    if (!userId) {
+      console.log('📎 No user ID provided - skipping tracking');
+      return Promise.resolve({ success: false, reason: 'no_user' });
+    }
     
-    console.log('🔗 Tracking referral signup for code:', refCode);
+    console.log('🔗 Tracking referral signup:', { refCode, userId });
     
     return fetch('/.netlify/functions/track-referral', {
       method: 'POST',
@@ -137,10 +155,18 @@
         referralCode: refCode,
         referredUserId: userId
       })
-    }).then(() => {
-      clearReferralCode();
-    }).catch(err => {
-      console.log('Referral signup tracking failed:', err);
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log('✅ Referral signup tracked:', data);
+      if (data.success) {
+        clearReferralCode();
+      }
+      return data;
+    })
+    .catch(err => {
+      console.error('❌ Referral signup tracking failed:', err);
+      return { success: false, error: err.message };
     });
   }
 

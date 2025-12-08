@@ -13,6 +13,9 @@
   <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
   <script src="/.netlify/functions/client-config"></script>
   
+  <!-- Cross-Domain Referral Tracking (load early so it's available for login) -->
+  <script src="/assets/js/referral.js"></script>
+  
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -423,17 +426,30 @@
       setLoading(true);
       
       try {
+        // Build redirect URL, preserving referral code if present
+        let redirectUrl = AUTH_REDIRECT_URL;
+        const refCode = window.ChatSpheresReferral?.getReferralCode?.();
+        if (refCode) {
+          // Append ref code to redirect URL so it's preserved after OAuth
+          const url = new URL(redirectUrl);
+          url.searchParams.set('ref', refCode);
+          redirectUrl = url.toString();
+          console.log('🔗 Including referral code in OAuth redirect:', refCode);
+        }
+        
         const { error } = await supabaseClient.auth.signInWithOAuth({
           provider: 'google',
-          options: { redirectTo: AUTH_REDIRECT_URL }
+          options: { redirectTo: redirectUrl }
         });
         
         if (error) {
+          console.error('❌ Google OAuth error:', error);
           showMessage(error.message);
           setLoading(false);
         }
         // Redirect happens automatically
       } catch (e) {
+        console.error('❌ Google sign in exception:', e);
         showMessage('Google sign in failed. Please try again.');
         setLoading(false);
       }
@@ -609,8 +625,5 @@
       }
     })();
   </script>
-  
-  <!-- Cross-Domain Referral Tracking -->
-  <script src="/assets/js/referral.js"></script>
 </body>
 </html>

@@ -297,7 +297,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">🖼️ Banner Image (YouTube-style header)</label>
-          <div id="bannerDropZone" class="drop-zone" ondrop="dropBanner(event)" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')"
+          <div id="bannerDropZone" class="drop-zone" ondrop="dropBanner(event)" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
             <div id="bannerPreview" class="banner-preview"></div>
             <div class="drop-hint">📤 Drag & drop image here</div>
           </div>
@@ -988,32 +988,36 @@
       
       // Load current banner
       const bannerPreview = document.getElementById('bannerPreview');
-      if (forumData.bannerUrl) {
-        if (forumData.bannerUrl.startsWith('linear-gradient')) {
-          bannerPreview.style.background = forumData.bannerUrl;
+      if (bannerPreview) {
+        if (forumData.bannerUrl) {
+          if (forumData.bannerUrl.startsWith('linear-gradient')) {
+            bannerPreview.style.background = forumData.bannerUrl;
+            bannerPreview.style.backgroundImage = '';
+          } else if (forumData.bannerUrl.startsWith('http') || forumData.bannerUrl.startsWith('data:')) {
+            bannerPreview.style.background = '';
+            bannerPreview.style.backgroundImage = `url(${forumData.bannerUrl})`;
+          }
+        } else {
+          bannerPreview.style.background = 'linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%)';
           bannerPreview.style.backgroundImage = '';
-        } else if (forumData.bannerUrl.startsWith('http') || forumData.bannerUrl.startsWith('data:')) {
-          bannerPreview.style.background = '';
-          bannerPreview.style.backgroundImage = `url(${forumData.bannerUrl})`;
         }
-      } else {
-        bannerPreview.style.background = 'linear-gradient(135deg, var(--main-red) 0%, var(--gold) 100%)';
-        bannerPreview.style.backgroundImage = '';
       }
       
       // Load current page background
       const bgPreview = document.getElementById('bgPreview');
-      if (forumData.secondaryColor) {
-        if (forumData.secondaryColor.startsWith('pattern:')) {
-          bgPreview.style.background = '#ffe8ec';
-        } else if (forumData.secondaryColor.startsWith('gradient:')) {
-          bgPreview.style.background = gradients[parseInt(forumData.secondaryColor.split(':')[1])] || '';
+      if (bgPreview) {
+        if (forumData.secondaryColor) {
+          if (forumData.secondaryColor.startsWith('pattern:')) {
+            bgPreview.style.background = '#ffe8ec';
+          } else if (forumData.secondaryColor.startsWith('gradient:')) {
+            bgPreview.style.background = gradients[parseInt(forumData.secondaryColor.split(':')[1])] || '';
+          } else {
+            bgPreview.style.backgroundImage = `url(${forumData.secondaryColor})`;
+          }
         } else {
-          bgPreview.style.backgroundImage = `url(${forumData.secondaryColor})`;
+          bgPreview.style.background = '';
+          bgPreview.style.backgroundImage = '';
         }
-      } else {
-        bgPreview.style.background = '';
-        bgPreview.style.backgroundImage = '';
       }
       
       loadModsList();

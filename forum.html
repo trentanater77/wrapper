@@ -128,6 +128,35 @@
     
     footer { text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl); max-width: 1000px; margin-left: auto; margin-right: auto; }
     footer a { color: var(--main-red); }
+    
+    /* Custom Background */
+    .forum-bg-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-size: cover; background-position: center; background-attachment: fixed; z-index: -1; opacity: 0.15; }
+    
+    /* Mod Panel Styles */
+    .mod-tabs { display: flex; gap: var(--space-xs); margin-bottom: var(--space-lg); flex-wrap: wrap; }
+    .mod-tab { padding: var(--space-sm) var(--space-md); background: var(--light-rose); border: none; border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-semibold); transition: all var(--transition-fast); }
+    .mod-tab:hover, .mod-tab.active { background: var(--main-red); color: white; }
+    .mod-tab-content { min-height: 200px; }
+    .bg-options { display: flex; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md); }
+    .bg-option-btn { padding: var(--space-sm) var(--space-md); background: white; border: 2px solid var(--rose); border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-semibold); transition: all var(--transition-fast); }
+    .bg-option-btn:hover { border-color: var(--main-red); background: var(--light-rose); }
+    .bg-preview { width: 100%; height: 80px; border-radius: var(--radius-lg); background-size: cover; background-position: center; border: 2px solid var(--rose); margin-top: var(--space-sm); }
+    .color-input { width: 60px; height: 40px; border: 2px solid var(--rose); border-radius: var(--radius-lg); cursor: pointer; }
+    .mods-list-panel { display: flex; flex-direction: column; gap: var(--space-sm); }
+    .mod-item { display: flex; justify-content: space-between; align-items: center; padding: var(--space-sm); background: var(--light-rose); border-radius: var(--radius-lg); }
+    .mod-remove-btn { background: #ef4444; color: white; border: none; padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-sm); cursor: pointer; font-size: 0.8rem; }
+    .announce-list { display: flex; flex-direction: column; gap: var(--space-sm); margin-top: var(--space-md); }
+    .announce-item { padding: var(--space-sm); background: var(--light-rose); border-radius: var(--radius-lg); display: flex; justify-content: space-between; align-items: flex-start; }
+    .announce-item-content { flex: 1; }
+    .announce-item-title { font-weight: var(--font-weight-bold); }
+    
+    /* Background Gallery */
+    .bg-categories { display: flex; gap: var(--space-xs); margin-bottom: var(--space-md); flex-wrap: wrap; }
+    .bg-cat-btn { padding: var(--space-xs) var(--space-md); background: white; border: 2px solid var(--rose); border-radius: var(--radius-full); cursor: pointer; font-family: var(--font-family); font-size: 0.9rem; transition: all var(--transition-fast); }
+    .bg-cat-btn:hover, .bg-cat-btn.active { background: var(--main-red); color: white; border-color: var(--main-red); }
+    .bg-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); max-height: 300px; overflow-y: auto; }
+    .bg-gallery-item { aspect-ratio: 16/9; border-radius: var(--radius-lg); background-size: cover; background-position: center; cursor: pointer; border: 3px solid transparent; transition: all var(--transition-fast); }
+    .bg-gallery-item:hover { border-color: var(--main-red); transform: scale(1.02); }
   </style>
 </head>
 <body>
@@ -186,6 +215,92 @@
       <button onclick="handleLogout()" class="btn btn-ghost btn-full">Sign Out</button>
     </div>
   </nav>
+
+  <!-- Moderation Panel Modal -->
+  <div class="modal-overlay" id="modPanel">
+    <div class="modal" style="max-width: 600px;">
+      <h2>⚙️ Forum Settings</h2>
+      <div class="mod-tabs">
+        <button class="mod-tab active" onclick="showModTab('settings')">🎨 Appearance</button>
+        <button class="mod-tab" onclick="showModTab('mods')">👮 Moderators</button>
+        <button class="mod-tab" onclick="showModTab('announce')">📢 Announcements</button>
+      </div>
+      
+      <!-- Appearance Tab -->
+      <div id="mod-tab-settings" class="mod-tab-content">
+        <div class="form-group">
+          <label class="form-label">Background Image</label>
+          <div class="bg-options">
+            <button class="bg-option-btn" onclick="showBgPicker()">🖼️ Choose from Gallery</button>
+            <button class="bg-option-btn" onclick="promptCustomBgUrl()">🔗 Custom URL</button>
+            <button class="bg-option-btn" onclick="clearBackground()">❌ Remove</button>
+          </div>
+          <div id="bgPreview" class="bg-preview"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Theme Color</label>
+          <input type="color" id="themeColor" class="color-input" value="#e63946" onchange="previewThemeColor(this.value)">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <textarea class="form-input" id="forumDescEdit" rows="3" placeholder="Forum description..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rules</label>
+          <textarea class="form-input" id="forumRulesEdit" rows="3" placeholder="One rule per line..."></textarea>
+        </div>
+        <button class="btn-modal-submit" onclick="saveForumSettings()" style="width: 100%;">💾 Save Changes</button>
+      </div>
+      
+      <!-- Moderators Tab -->
+      <div id="mod-tab-mods" class="mod-tab-content" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Add Moderator (User ID)</label>
+          <div style="display: flex; gap: var(--space-sm);">
+            <input type="text" class="form-input" id="newModId" placeholder="User ID...">
+            <button class="btn-modal-submit" onclick="addModerator()">Add</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Current Moderators</label>
+          <div id="modsList" class="mods-list-panel">Loading...</div>
+        </div>
+      </div>
+      
+      <!-- Announcements Tab -->
+      <div id="mod-tab-announce" class="mod-tab-content" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">New Announcement</label>
+          <input type="text" class="form-input" id="announceTitle" placeholder="Title" style="margin-bottom: var(--space-sm);">
+          <textarea class="form-input" id="announceContent" rows="2" placeholder="Content..."></textarea>
+          <button class="btn-modal-submit" onclick="postAnnouncement()" style="width: 100%; margin-top: var(--space-sm);">📢 Post</button>
+        </div>
+        <div id="announceList" class="announce-list">Loading...</div>
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="closeModPanel()">Close</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Background Picker Modal -->
+  <div class="modal-overlay" id="bgPickerModal">
+    <div class="modal" style="max-width: 700px;">
+      <h2>🖼️ Choose Background</h2>
+      <div class="bg-categories">
+        <button class="bg-cat-btn active" onclick="loadBgCategory('nature')">🌿 Nature</button>
+        <button class="bg-cat-btn" onclick="loadBgCategory('abstract')">🎨 Abstract</button>
+        <button class="bg-cat-btn" onclick="loadBgCategory('space')">🌌 Space</button>
+        <button class="bg-cat-btn" onclick="loadBgCategory('city')">🏙️ City</button>
+        <button class="bg-cat-btn" onclick="loadBgCategory('minimal')">⬜ Minimal</button>
+      </div>
+      <div id="bgGallery" class="bg-gallery">Loading...</div>
+      <div class="modal-actions">
+        <button class="btn-modal-cancel" onclick="closeBgPicker()">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Create Room Modal -->
   <div class="modal-overlay" id="createRoomModal">
@@ -361,6 +476,26 @@
       const isOwner = userStatus.role === 'owner' || forum.ownerId === currentUser?.id;
       const isMod = userStatus.role === 'moderator' || userStatus.canModerate;
       const isBanned = userStatus.isBanned;
+      
+      // Apply custom background if set
+      let bgOverlay = document.getElementById('forumBgOverlay');
+      if (!bgOverlay) {
+        bgOverlay = document.createElement('div');
+        bgOverlay.id = 'forumBgOverlay';
+        bgOverlay.className = 'forum-bg-overlay';
+        document.body.prepend(bgOverlay);
+      }
+      if (forum.bannerUrl) {
+        bgOverlay.style.backgroundImage = `url(${forum.bannerUrl})`;
+        bgOverlay.style.display = 'block';
+      } else {
+        bgOverlay.style.display = 'none';
+      }
+      
+      // Apply theme color if set
+      if (forum.primaryColor) {
+        document.documentElement.style.setProperty('--forum-theme', forum.primaryColor);
+      }
       
       if (isBanned) {
         document.getElementById('pageContent').innerHTML = `
@@ -650,7 +785,199 @@
       } catch (e) { alert('Error joining forum'); }
     };
 
-    window.showModPanel = function() { alert('Moderation panel coming soon!'); };
+    // Moderation Panel
+    window.showModPanel = function() {
+      if (!currentUser || !forumData) return;
+      // Load current values
+      document.getElementById('forumDescEdit').value = forumData.description || '';
+      document.getElementById('forumRulesEdit').value = forumData.rules || '';
+      document.getElementById('themeColor').value = forumData.primaryColor || '#e63946';
+      if (forumData.bannerUrl) {
+        document.getElementById('bgPreview').style.backgroundImage = `url(${forumData.bannerUrl})`;
+      }
+      loadModsList();
+      loadAnnouncements();
+      document.getElementById('modPanel').classList.add('active');
+    };
+    
+    window.closeModPanel = function() {
+      document.getElementById('modPanel').classList.remove('active');
+    };
+    
+    window.showModTab = function(tab) {
+      document.querySelectorAll('.mod-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.mod-tab-content').forEach(c => c.style.display = 'none');
+      event.target.classList.add('active');
+      document.getElementById('mod-tab-' + tab).style.display = 'block';
+    };
+    
+    window.saveForumSettings = async function() {
+      if (!currentUser || !forumData) return;
+      try {
+        const res = await fetch('/.netlify/functions/forum-moderation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateForum',
+            userId: currentUser.id,
+            forumId: forumData.id,
+            forumData: {
+              description: document.getElementById('forumDescEdit').value,
+              rules: document.getElementById('forumRulesEdit').value,
+              primary_color: document.getElementById('themeColor').value,
+              banner_url: selectedBgUrl || forumData.bannerUrl
+            }
+          })
+        });
+        if (res.ok) {
+          alert('Settings saved!');
+          loadForum();
+          closeModPanel();
+        } else {
+          const d = await res.json();
+          alert(d.error || 'Failed to save');
+        }
+      } catch (e) { alert('Error saving settings'); }
+    };
+    
+    // Background Selection
+    let selectedBgUrl = null;
+    
+    window.showBgPicker = function() {
+      document.getElementById('bgPickerModal').classList.add('active');
+      loadBgCategory('nature');
+    };
+    
+    window.closeBgPicker = function() {
+      document.getElementById('bgPickerModal').classList.remove('active');
+    };
+    
+    window.loadBgCategory = function(category) {
+      document.querySelectorAll('.bg-cat-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      const gallery = document.getElementById('bgGallery');
+      gallery.innerHTML = '<p>Loading...</p>';
+      
+      // Use Unsplash Source API (free, no auth needed)
+      const images = [];
+      for (let i = 0; i < 9; i++) {
+        images.push(`https://source.unsplash.com/800x450/?${category}&sig=${Date.now() + i}`);
+      }
+      
+      gallery.innerHTML = images.map(url => `
+        <div class="bg-gallery-item" style="background-image: url(${url})" onclick="selectBackground('${url}')"></div>
+      `).join('');
+    };
+    
+    window.selectBackground = function(url) {
+      selectedBgUrl = url;
+      document.getElementById('bgPreview').style.backgroundImage = `url(${url})`;
+      closeBgPicker();
+    };
+    
+    window.promptCustomBgUrl = function() {
+      const url = prompt('Enter image URL:');
+      if (url) {
+        selectedBgUrl = url;
+        document.getElementById('bgPreview').style.backgroundImage = `url(${url})`;
+      }
+    };
+    
+    window.clearBackground = function() {
+      selectedBgUrl = '';
+      document.getElementById('bgPreview').style.backgroundImage = '';
+    };
+    
+    window.previewThemeColor = function(color) {
+      document.documentElement.style.setProperty('--forum-theme', color);
+    };
+    
+    // Moderators Management
+    async function loadModsList() {
+      const container = document.getElementById('modsList');
+      if (!forumData?.moderators?.length) {
+        container.innerHTML = '<p style="opacity: 0.6;">No moderators yet</p>';
+        return;
+      }
+      container.innerHTML = forumData.moderators.map(modId => `
+        <div class="mod-item">
+          <span>👤 ${modId.substring(0, 8)}...</span>
+          <button class="mod-remove-btn" onclick="removeMod('${modId}')">Remove</button>
+        </div>
+      `).join('');
+    }
+    
+    window.addModerator = async function() {
+      const modId = document.getElementById('newModId').value.trim();
+      if (!modId) { alert('Enter a user ID'); return; }
+      try {
+        const res = await fetch('/.netlify/functions/forum-moderation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'addMod', userId: currentUser.id, forumId: forumData.id, targetUserId: modId })
+        });
+        if (res.ok) { alert('Moderator added!'); loadForum(); loadModsList(); document.getElementById('newModId').value = ''; }
+        else { const d = await res.json(); alert(d.error || 'Failed'); }
+      } catch (e) { alert('Error'); }
+    };
+    
+    window.removeMod = async function(modId) {
+      if (!confirm('Remove this moderator?')) return;
+      try {
+        const res = await fetch('/.netlify/functions/forum-moderation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'removeMod', userId: currentUser.id, forumId: forumData.id, targetUserId: modId })
+        });
+        if (res.ok) { loadForum(); loadModsList(); }
+        else { const d = await res.json(); alert(d.error || 'Failed'); }
+      } catch (e) { alert('Error'); }
+    };
+    
+    // Announcements
+    async function loadAnnouncements() {
+      const container = document.getElementById('announceList');
+      if (!forumData?.announcements?.length) {
+        container.innerHTML = '<p style="opacity: 0.6;">No announcements</p>';
+        return;
+      }
+      container.innerHTML = forumData.announcements.map(a => `
+        <div class="announce-item">
+          <div class="announce-item-content">
+            <div class="announce-item-title">${escapeHtml(a.title)}</div>
+            <div style="font-size: 0.85rem; opacity: 0.7;">${escapeHtml(a.content || '')}</div>
+          </div>
+          <button class="mod-remove-btn" onclick="removeAnnounce('${a.id}')">✕</button>
+        </div>
+      `).join('');
+    }
+    
+    window.postAnnouncement = async function() {
+      const title = document.getElementById('announceTitle').value.trim();
+      const content = document.getElementById('announceContent').value.trim();
+      if (!title) { alert('Title required'); return; }
+      try {
+        const res = await fetch('/.netlify/functions/forum-moderation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'pin', userId: currentUser.id, forumId: forumData.id, title, content })
+        });
+        if (res.ok) { alert('Posted!'); loadForum(); loadAnnouncements(); document.getElementById('announceTitle').value = ''; document.getElementById('announceContent').value = ''; }
+        else { const d = await res.json(); alert(d.error || 'Failed'); }
+      } catch (e) { alert('Error'); }
+    };
+    
+    window.removeAnnounce = async function(id) {
+      if (!confirm('Remove this announcement?')) return;
+      try {
+        const res = await fetch('/.netlify/functions/forum-moderation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'unpin', userId: currentUser.id, forumId: forumData.id, announcementId: id })
+        });
+        if (res.ok) { loadForum(); loadAnnouncements(); }
+      } catch (e) { alert('Error'); }
+    };
 
     // End a room (for hosts and forum owners)
     window.endRoom = async function(roomId, event) {

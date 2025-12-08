@@ -338,7 +338,7 @@
           <label>Pattern Color:</label>
           <input type="color" id="patternColor" value="#e63946" onchange="updatePatternColors()">
           <label style="margin-left: var(--space-md);">Background:</label>
-          <input type="color" id="patternBgColor" value="#ffffff" onchange="updatePatternColors()">
+          <input type="color" id="patternBgColor" value="#ffe8ec" onchange="updatePatternColors()">
         </div>
         <div id="patternGallery" class="bg-gallery"></div>
       </div>
@@ -983,9 +983,9 @@
       else if (type === 'photos') loadBgCategory('nature');
     };
     
-    // Generate SVG pattern from emoji
+    // Generate SVG pattern from emoji - larger and more visible
     function createEmojiPattern(emoji, color, bgColor) {
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect fill="${bgColor}" width="60" height="60"/><text x="30" y="35" font-size="24" text-anchor="middle" dominant-baseline="middle">${emoji}</text></svg>`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect fill="${bgColor}" width="80" height="80"/><text x="40" y="48" font-size="40" text-anchor="middle" dominant-baseline="middle">${emoji}</text></svg>`;
       return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
     }
     
@@ -996,11 +996,11 @@
       const gallery = document.getElementById('patternGallery');
       const emojiList = patterns[category] || patterns.fun;
       const color = document.getElementById('patternColor')?.value || '#e63946';
-      const bgColor = document.getElementById('patternBgColor')?.value || '#ffffff';
+      const bgColor = document.getElementById('patternBgColor')?.value || '#ffe8ec';
       
       gallery.innerHTML = emojiList.map(emoji => {
         const pattern = createEmojiPattern(emoji, color, bgColor);
-        return `<div class="bg-gallery-item pattern" style="background-color: ${bgColor}; background-image: ${pattern}; background-size: 50px 50px; background-repeat: repeat;" onclick="selectPattern('${emoji}')" title="${emoji}"></div>`;
+        return `<div class="bg-gallery-item pattern" style="background: ${bgColor} ${pattern} repeat; background-size: 40px 40px;" onclick="selectPattern('${emoji}')" title="${emoji}"></div>`;
       }).join('');
     };
     
@@ -1099,7 +1099,7 @@
       bgOverlay.style.backgroundImage = pattern;
       bgOverlay.style.backgroundSize = '80px 80px';
       bgOverlay.style.backgroundRepeat = 'repeat';
-      bgOverlay.style.opacity = '0.6';
+      bgOverlay.style.opacity = '1';
       document.body.classList.add('has-custom-bg');
     }
     
@@ -1115,7 +1115,7 @@
       bgOverlay.style.backgroundImage = '';
       bgOverlay.style.backgroundSize = '';
       bgOverlay.style.backgroundRepeat = '';
-      bgOverlay.style.opacity = '0.5';
+      bgOverlay.style.opacity = '1';
       document.body.classList.add('has-custom-bg');
     }
     
@@ -1132,7 +1132,7 @@
       bgOverlay.style.backgroundSize = 'cover';
       bgOverlay.style.backgroundPosition = 'center';
       bgOverlay.style.backgroundRepeat = 'no-repeat';
-      bgOverlay.style.opacity = '0.25';
+      bgOverlay.style.opacity = '1';
       document.body.classList.add('has-custom-bg');
     }
     

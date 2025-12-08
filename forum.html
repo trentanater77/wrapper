@@ -129,27 +129,20 @@
     footer { text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl); max-width: 1000px; margin-left: auto; margin-right: auto; }
     footer a { color: var(--main-red); }
     
-    /* Custom Background - covers entire page */
+    /* Custom Background - covers entire page (patterns, gradients, photos) */
     .forum-bg-overlay { 
       position: fixed; 
       top: 0; 
       left: 0; 
       right: 0; 
       bottom: 0; 
-      background-size: cover; 
-      background-position: center; 
       background-attachment: fixed; 
-      z-index: -2; 
-    }
-    .forum-bg-overlay::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255, 255, 255, 0.85);
-      z-index: -1;
+      z-index: -2;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
     }
     body.has-custom-bg .bg-pattern { display: none; }
-    body.has-custom-bg { background: transparent; }
+    body.has-custom-bg { background: #f8f9fa; }
     
     /* Mod Panel Styles */
     .mod-tabs { display: flex; gap: var(--space-xs); margin-bottom: var(--space-lg); flex-wrap: wrap; }
@@ -170,12 +163,20 @@
     .announce-item-title { font-weight: var(--font-weight-bold); }
     
     /* Background Gallery */
+    .bg-type-tabs { display: flex; gap: var(--space-sm); margin-bottom: var(--space-lg); }
+    .bg-type-tab { flex: 1; padding: var(--space-md); background: var(--light-rose); border: none; border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1rem; transition: all var(--transition-fast); }
+    .bg-type-tab:hover, .bg-type-tab.active { background: var(--main-red); color: white; }
+    .bg-type-content { min-height: 250px; }
     .bg-categories { display: flex; gap: var(--space-xs); margin-bottom: var(--space-md); flex-wrap: wrap; }
     .bg-cat-btn { padding: var(--space-xs) var(--space-md); background: white; border: 2px solid var(--rose); border-radius: var(--radius-full); cursor: pointer; font-family: var(--font-family); font-size: 0.9rem; transition: all var(--transition-fast); }
     .bg-cat-btn:hover, .bg-cat-btn.active { background: var(--main-red); color: white; border-color: var(--main-red); }
-    .bg-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); max-height: 300px; overflow-y: auto; }
-    .bg-gallery-item { aspect-ratio: 16/9; border-radius: var(--radius-lg); background-size: cover; background-position: center; cursor: pointer; border: 3px solid transparent; transition: all var(--transition-fast); }
-    .bg-gallery-item:hover { border-color: var(--main-red); transform: scale(1.02); }
+    .pattern-color-row { display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-md); flex-wrap: wrap; font-size: 0.9rem; }
+    .pattern-color-row input[type="color"] { width: 40px; height: 32px; border: 2px solid var(--rose); border-radius: var(--radius-sm); cursor: pointer; }
+    .bg-gallery { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-sm); max-height: 280px; overflow-y: auto; padding: var(--space-xs); }
+    .bg-gallery-item { aspect-ratio: 4/3; border-radius: var(--radius-lg); background-size: 60px; cursor: pointer; border: 3px solid var(--rose); transition: all var(--transition-fast); }
+    .bg-gallery-item:hover { border-color: var(--main-red); transform: scale(1.03); box-shadow: var(--shadow-lg); }
+    .bg-gallery-item.photo { background-size: cover; background-position: center; }
+    .bg-gallery-item.gradient { background-size: 100% 100%; }
   </style>
 </head>
 <body>
@@ -305,16 +306,49 @@
   
   <!-- Background Picker Modal -->
   <div class="modal-overlay" id="bgPickerModal">
-    <div class="modal" style="max-width: 700px;">
-      <h2>🖼️ Choose Background</h2>
-      <div class="bg-categories">
-        <button class="bg-cat-btn active" onclick="loadBgCategory('nature')">🌿 Nature</button>
-        <button class="bg-cat-btn" onclick="loadBgCategory('abstract')">🎨 Abstract</button>
-        <button class="bg-cat-btn" onclick="loadBgCategory('space')">🌌 Space</button>
-        <button class="bg-cat-btn" onclick="loadBgCategory('city')">🏙️ City</button>
-        <button class="bg-cat-btn" onclick="loadBgCategory('minimal')">⬜ Minimal</button>
+    <div class="modal" style="max-width: 800px;">
+      <h2>🎨 Choose Background</h2>
+      
+      <div class="bg-type-tabs">
+        <button class="bg-type-tab active" onclick="showBgType('patterns')">✨ Patterns</button>
+        <button class="bg-type-tab" onclick="showBgType('gradients')">🌈 Gradients</button>
+        <button class="bg-type-tab" onclick="showBgType('photos')">📷 Photos</button>
       </div>
-      <div id="bgGallery" class="bg-gallery">Loading...</div>
+      
+      <!-- Patterns Section -->
+      <div id="bg-type-patterns" class="bg-type-content">
+        <div class="bg-categories">
+          <button class="bg-cat-btn active" onclick="loadPatternCategory('fun')">🎉 Fun</button>
+          <button class="bg-cat-btn" onclick="loadPatternCategory('food')">🍕 Food</button>
+          <button class="bg-cat-btn" onclick="loadPatternCategory('animals')">🐱 Animals</button>
+          <button class="bg-cat-btn" onclick="loadPatternCategory('geometric')">📐 Geometric</button>
+          <button class="bg-cat-btn" onclick="loadPatternCategory('nature')">🌿 Nature</button>
+        </div>
+        <div class="pattern-color-row">
+          <label>Pattern Color:</label>
+          <input type="color" id="patternColor" value="#e63946" onchange="updatePatternColors()">
+          <label style="margin-left: var(--space-md);">Background:</label>
+          <input type="color" id="patternBgColor" value="#ffffff" onchange="updatePatternColors()">
+        </div>
+        <div id="patternGallery" class="bg-gallery"></div>
+      </div>
+      
+      <!-- Gradients Section -->
+      <div id="bg-type-gradients" class="bg-type-content" style="display:none;">
+        <div id="gradientGallery" class="bg-gallery"></div>
+      </div>
+      
+      <!-- Photos Section -->
+      <div id="bg-type-photos" class="bg-type-content" style="display:none;">
+        <div class="bg-categories">
+          <button class="bg-cat-btn active" onclick="loadBgCategory('nature')">🌿 Nature</button>
+          <button class="bg-cat-btn" onclick="loadBgCategory('abstract')">🎨 Abstract</button>
+          <button class="bg-cat-btn" onclick="loadBgCategory('space')">🌌 Space</button>
+          <button class="bg-cat-btn" onclick="loadBgCategory('city')">🏙️ City</button>
+        </div>
+        <div id="bgGallery" class="bg-gallery"></div>
+      </div>
+      
       <div class="modal-actions">
         <button class="btn-modal-cancel" onclick="closeBgPicker()">Cancel</button>
       </div>
@@ -854,16 +888,44 @@
     
     // Background Selection
     let selectedBgUrl = null;
+    let selectedBgType = 'pattern'; // 'pattern', 'gradient', 'photo'
+    let currentPatternColor = '#e63946';
+    let currentPatternBg = '#ffffff';
     
-    // Predefined high-quality background images (reliable, no API needed)
-    const bgCategories = {
+    // Fun emoji/SVG patterns (scales infinitely, no API needed!)
+    const patterns = {
+      fun: ['🎉', '⭐', '✨', '💫', '🎈', '🎁', '🎀', '💖', '🌟', '🔥', '💯', '🎯'],
+      food: ['🍕', '🍔', '🌮', '🍩', '🍪', '🧁', '🍦', '🍿', '🥑', '🍍', '🍓', '🍋'],
+      animals: ['🐱', '🐶', '🦊', '🐼', '🐨', '🦁', '🐯', '🐸', '🦋', '🐝', '🦄', '🐙'],
+      geometric: ['◆', '●', '▲', '◇', '○', '△', '⬡', '⬢', '✦', '✧', '⬟', '⬠'],
+      nature: ['🌿', '🌸', '🌺', '🍀', '🌻', '🌹', '🌴', '🌵', '🍃', '🌾', '🌼', '🪻']
+    };
+    
+    // Beautiful gradients
+    const gradients = [
+      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+      'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+      'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+      'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+      'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+      'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+      'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+      'linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)',
+      'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)',
+      'linear-gradient(135deg, #cd9cf2 0%, #f6f3ff 100%)',
+      'linear-gradient(135deg, #fddb92 0%, #d1fdff 100%)'
+    ];
+    
+    // Photo backgrounds
+    const photoCategories = {
       nature: [
         'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1920',
         'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1920',
-        'https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=1920',
         'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1920',
         'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=1920',
-        'https://images.unsplash.com/photo-1518173946687-a4c036bc3c95?w=1920'
+        'https://images.unsplash.com/photo-1518173946687-a4c036bc3c95?w=1920',
+        'https://images.unsplash.com/photo-1426604966848-d7adac402bff?w=1920'
       ],
       abstract: [
         'https://images.unsplash.com/photo-1557672172-298e090bd0f1?w=1920',
@@ -877,9 +939,9 @@
         'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920',
         'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=1920',
         'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920',
-        'https://images.unsplash.com/photo-1507400492013-162706c8c05e?w=1920',
         'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=1920',
-        'https://images.unsplash.com/photo-1465101162946-4377e57745c3?w=1920'
+        'https://images.unsplash.com/photo-1465101162946-4377e57745c3?w=1920',
+        'https://images.unsplash.com/photo-1507400492013-162706c8c05e?w=1920'
       ],
       city: [
         'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920',
@@ -888,42 +950,107 @@
         'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=1920',
         'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=1920',
         'https://images.unsplash.com/photo-1444723121867-7a241cacace9?w=1920'
-      ],
-      minimal: [
-        'https://images.unsplash.com/photo-1557683316-973673baf926?w=1920',
-        'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920',
-        'https://images.unsplash.com/photo-1553356084-58ef4a67b2a7?w=1920',
-        'https://images.unsplash.com/photo-1517999144091-3d9dca6d1e43?w=1920',
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1920',
-        'https://images.unsplash.com/photo-1483232539664-d89822fb5d3e?w=1920'
       ]
     };
     
     window.showBgPicker = function() {
       document.getElementById('bgPickerModal').classList.add('active');
-      loadBgCategory('nature');
+      showBgType('patterns');
     };
     
     window.closeBgPicker = function() {
       document.getElementById('bgPickerModal').classList.remove('active');
     };
     
-    window.loadBgCategory = function(category) {
-      document.querySelectorAll('.bg-cat-btn').forEach(b => b.classList.remove('active'));
+    window.showBgType = function(type) {
+      document.querySelectorAll('.bg-type-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.bg-type-content').forEach(c => c.style.display = 'none');
       event.target.classList.add('active');
-      const gallery = document.getElementById('bgGallery');
+      document.getElementById('bg-type-' + type).style.display = 'block';
       
-      const images = bgCategories[category] || bgCategories.nature;
-      gallery.innerHTML = images.map(url => `
-        <div class="bg-gallery-item" style="background-image: url(${url})" onclick="selectBackground('${url}')"></div>
-      `).join('');
+      if (type === 'patterns') loadPatternCategory('fun');
+      else if (type === 'gradients') loadGradients();
+      else if (type === 'photos') loadBgCategory('nature');
     };
     
-    window.selectBackground = function(url) {
+    // Generate SVG pattern from emoji
+    function createEmojiPattern(emoji, color, bgColor) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect fill="${bgColor}" width="60" height="60"/><text x="30" y="35" font-size="24" text-anchor="middle" dominant-baseline="middle">${emoji}</text></svg>`;
+      return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    }
+    
+    window.loadPatternCategory = function(category) {
+      document.querySelectorAll('#bg-type-patterns .bg-cat-btn').forEach(b => b.classList.remove('active'));
+      if (event?.target) event.target.classList.add('active');
+      
+      const gallery = document.getElementById('patternGallery');
+      const emojiList = patterns[category] || patterns.fun;
+      const color = document.getElementById('patternColor')?.value || '#e63946';
+      const bgColor = document.getElementById('patternBgColor')?.value || '#ffffff';
+      
+      gallery.innerHTML = emojiList.map(emoji => {
+        const pattern = createEmojiPattern(emoji, color, bgColor);
+        return `<div class="bg-gallery-item" style="background: ${bgColor}; background-image: ${pattern};" onclick="selectPattern('${emoji}')"></div>`;
+      }).join('');
+    };
+    
+    window.updatePatternColors = function() {
+      // Re-render current pattern category
+      const activeBtn = document.querySelector('#bg-type-patterns .bg-cat-btn.active');
+      if (activeBtn) {
+        const category = activeBtn.textContent.includes('Fun') ? 'fun' :
+                        activeBtn.textContent.includes('Food') ? 'food' :
+                        activeBtn.textContent.includes('Animal') ? 'animals' :
+                        activeBtn.textContent.includes('Geo') ? 'geometric' : 'nature';
+        loadPatternCategory(category);
+      }
+    };
+    
+    window.selectPattern = function(emoji) {
+      const color = document.getElementById('patternColor')?.value || '#e63946';
+      const bgColor = document.getElementById('patternBgColor')?.value || '#ffffff';
+      const pattern = createEmojiPattern(emoji, color, bgColor);
+      selectedBgUrl = `pattern:${emoji}:${color}:${bgColor}`;
+      selectedBgType = 'pattern';
+      applyPatternBackground(emoji, color, bgColor);
+      document.getElementById('bgPreview').style.background = bgColor;
+      document.getElementById('bgPreview').style.backgroundImage = pattern;
+      closeBgPicker();
+    };
+    
+    window.loadGradients = function() {
+      const gallery = document.getElementById('gradientGallery');
+      gallery.innerHTML = gradients.map((grad, i) => 
+        `<div class="bg-gallery-item gradient" style="background: ${grad};" onclick="selectGradient(${i})"></div>`
+      ).join('');
+    };
+    
+    window.selectGradient = function(index) {
+      const grad = gradients[index];
+      selectedBgUrl = `gradient:${index}`;
+      selectedBgType = 'gradient';
+      applyGradientBackground(grad);
+      document.getElementById('bgPreview').style.background = grad;
+      closeBgPicker();
+    };
+    
+    window.loadBgCategory = function(category) {
+      document.querySelectorAll('#bg-type-photos .bg-cat-btn').forEach(b => b.classList.remove('active'));
+      if (event?.target) event.target.classList.add('active');
+      
+      const gallery = document.getElementById('bgGallery');
+      const images = photoCategories[category] || photoCategories.nature;
+      gallery.innerHTML = images.map(url => 
+        `<div class="bg-gallery-item photo" style="background-image: url(${url})" onclick="selectPhoto('${url}')"></div>`
+      ).join('');
+    };
+    
+    window.selectPhoto = function(url) {
       selectedBgUrl = url;
+      selectedBgType = 'photo';
+      applyPhotoBackground(url);
       document.getElementById('bgPreview').style.backgroundImage = `url(${url})`;
-      // Preview immediately on the page
-      applyBackground(url);
+      document.getElementById('bgPreview').style.backgroundSize = 'cover';
       closeBgPicker();
     };
     
@@ -931,18 +1058,21 @@
       const url = prompt('Enter image URL (must be https):');
       if (url && url.startsWith('http')) {
         selectedBgUrl = url;
+        selectedBgType = 'photo';
+        applyPhotoBackground(url);
         document.getElementById('bgPreview').style.backgroundImage = `url(${url})`;
-        applyBackground(url);
       }
     };
     
     window.clearBackground = function() {
       selectedBgUrl = '';
+      selectedBgType = '';
+      document.getElementById('bgPreview').style.background = '';
       document.getElementById('bgPreview').style.backgroundImage = '';
       removeBackground();
     };
     
-    function applyBackground(url) {
+    function applyPatternBackground(emoji, color, bgColor) {
       let bgOverlay = document.getElementById('forumBgOverlay');
       if (!bgOverlay) {
         bgOverlay = document.createElement('div');
@@ -950,13 +1080,62 @@
         bgOverlay.className = 'forum-bg-overlay';
         document.body.prepend(bgOverlay);
       }
-      bgOverlay.style.backgroundImage = `url(${url})`;
+      const pattern = createEmojiPattern(emoji, color, bgColor);
+      bgOverlay.style.background = bgColor;
+      bgOverlay.style.backgroundImage = pattern;
+      bgOverlay.style.backgroundSize = '60px 60px';
+      bgOverlay.style.opacity = '1';
       document.body.classList.add('has-custom-bg');
+    }
+    
+    function applyGradientBackground(grad) {
+      let bgOverlay = document.getElementById('forumBgOverlay');
+      if (!bgOverlay) {
+        bgOverlay = document.createElement('div');
+        bgOverlay.id = 'forumBgOverlay';
+        bgOverlay.className = 'forum-bg-overlay';
+        document.body.prepend(bgOverlay);
+      }
+      bgOverlay.style.background = grad;
+      bgOverlay.style.backgroundImage = '';
+      bgOverlay.style.opacity = '0.3';
+      document.body.classList.add('has-custom-bg');
+    }
+    
+    function applyPhotoBackground(url) {
+      let bgOverlay = document.getElementById('forumBgOverlay');
+      if (!bgOverlay) {
+        bgOverlay = document.createElement('div');
+        bgOverlay.id = 'forumBgOverlay';
+        bgOverlay.className = 'forum-bg-overlay';
+        document.body.prepend(bgOverlay);
+      }
+      bgOverlay.style.background = '';
+      bgOverlay.style.backgroundImage = `url(${url})`;
+      bgOverlay.style.backgroundSize = 'cover';
+      bgOverlay.style.backgroundPosition = 'center';
+      bgOverlay.style.opacity = '0.15';
+      document.body.classList.add('has-custom-bg');
+    }
+    
+    function applyBackground(bgString) {
+      if (!bgString) { removeBackground(); return; }
+      
+      if (bgString.startsWith('pattern:')) {
+        const [, emoji, color, bgColor] = bgString.split(':');
+        applyPatternBackground(emoji, color, bgColor);
+      } else if (bgString.startsWith('gradient:')) {
+        const index = parseInt(bgString.split(':')[1]);
+        applyGradientBackground(gradients[index]);
+      } else {
+        applyPhotoBackground(bgString);
+      }
     }
     
     function removeBackground() {
       const bgOverlay = document.getElementById('forumBgOverlay');
       if (bgOverlay) {
+        bgOverlay.style.background = '';
         bgOverlay.style.backgroundImage = '';
       }
       document.body.classList.remove('has-custom-bg');

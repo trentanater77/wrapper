@@ -193,13 +193,21 @@ exports.handler = async function(event) {
 
       const { data: allRooms, error } = await query;
       
-      // Additional client-side filtering for rooms that should be shown:
+      // Additional server-side filtering for rooms that should be shown:
       // - ends_at must be in the future, OR
       // - Room must have participants OR be very recent (< 5 min)
+      // - NOT a forum room (forum rooms are displayed in /f/{slug})
       const nowTime = Date.now();
       const fiveMinutesMs = 5 * 60 * 1000;
       
       const data = (allRooms || []).filter(room => {
+        // Filter out forum rooms - they have their own display at /f/{slug}
+        // Forum room IDs start with "forum-"
+        if (room.room_id && room.room_id.startsWith('forum-')) {
+          console.log(`🌐 Filtering out forum room: ${room.room_id}`);
+          return false;
+        }
+        
         // If room has ends_at, check if it's still in the future
         if (room.ends_at) {
           const endsAtTime = new Date(room.ends_at).getTime();

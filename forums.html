@@ -288,12 +288,29 @@
       if (q) { currentFilter = 'search'; loadForums(q); }
     }
 
-    async function loadForums(search = null) {
+    let currentPage = 1;
+    let hasMore = true;
+    let isLoading = false;
+    let allForumsData = [];
+    const PAGE_SIZE = 24;
+
+    // Load forums with optional background refresh (doesn't show spinner or reset scroll)
+    async function loadForums(search = null, isBackgroundRefresh = false) {
+      if (isLoading) return;
+      isLoading = true;
+      
       const container = document.getElementById('forumsContainer');
-      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading forums...</p></div>';
+      
+      // Only show loading on initial load, not background refresh
+      if (!isBackgroundRefresh) {
+        currentPage = 1;
+        hasMore = true;
+        allForumsData = [];
+        container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading forums...</p></div>';
+      }
       
       try {
-        const params = new URLSearchParams({ filter: currentFilter, limit: 24 });
+        const params = new URLSearchParams({ filter: currentFilter, limit: PAGE_SIZE, page: isBackgroundRefresh ? 1 : currentPage });
         if (currentUser) params.append('userId', currentUser.id);
         if (currentCategory !== 'all') params.append('category', currentCategory);
         if (search) params.append('search', search);
@@ -301,22 +318,98 @@
         const res = await fetch(`/.netlify/functions/list-forums?${params}`);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
-        renderForums(data.forums);
+        
+        if (isBackgroundRefresh) {
+          // Background refresh: just update live counts without re-rendering
+          updateForumStats(data.forums);
+        } else {
+          allForumsData = data.forums || [];
+          hasMore = data.pagination ? (data.pagination.page < data.pagination.totalPages) : (allForumsData.length >= PAGE_SIZE);
+          renderForums(allForumsData);
+        }
       } catch (err) {
         console.error('Error:', err);
-        showEmptyState();
+        if (!isBackgroundRefresh) showEmptyState();
+      } finally {
+        isLoading = false;
       }
     }
 
-    function renderForums(forums) {
-      const container = document.getElementById('forumsContainer');
-      if (!forums?.length) { showEmptyState(); return; }
+    // Load more forums (for infinite scroll)
+    async function loadMoreForums() {
+      if (isLoading || !hasMore) return;
+      isLoading = true;
+      currentPage++;
       
-      container.innerHTML = '<div class="forums-grid">' + forums.map(f => `
-        <a href="/f/${f.slug}" class="forum-card">
+      const loadMoreBtn = document.getElementById('loadMoreBtn');
+      if (loadMoreBtn) loadMoreBtn.textContent = 'Loading...';
+      
+      try {
+        const params = new URLSearchParams({ filter: currentFilter, limit: PAGE_SIZE, page: currentPage });
+        if (currentUser) params.append('userId', currentUser.id);
+        if (currentCategory !== 'all') params.append('category', currentCategory);
+        
+        const res = await fetch(`/.netlify/functions/list-forums?${params}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        
+        const newForums = data.forums || [];
+        hasMore = data.pagination ? (data.pagination.page < data.pagination.totalPages) : (newForums.length >= PAGE_SIZE);
+        allForumsData = [...allForumsData, ...newForums];
+        appendForums(newForums);
+      } catch (err) {
+        console.error('Error loading more:', err);
+        currentPage--; // Revert page on error
+      } finally {
+        isLoading = false;
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        if (loadMoreBtn) loadMoreBtn.textContent = hasMore ? '📥 Load More' : 'No more forums';
+      }
+    }
+
+    // Update only the stats (live counts) without re-rendering - preserves scroll
+    function updateForumStats(forums) {
+      if (!forums?.length) return;
+      
+      const statsMap = new Map(forums.map(f => [f.slug, f]));
+      
+      document.querySelectorAll('.forum-card').forEach(card => {
+        const href = card.getAttribute('href');
+        const slug = href?.replace('/f/', '');
+        const forum = statsMap.get(slug);
+        
+        if (forum) {
+          // Update member count
+          const memberStat = card.querySelector('.forum-card-stat:not(.live)');
+          if (memberStat) memberStat.innerHTML = `👥 ${formatNumber(forum.memberCount || 0)}`;
+          
+          // Update or add live indicator
+          const statsContainer = card.querySelector('.forum-card-stats');
+          let liveStat = card.querySelector('.forum-card-stat.live');
+          
+          if (forum.activeRoomCount > 0) {
+            if (liveStat) {
+              liveStat.innerHTML = `🔴 ${forum.activeRoomCount} live`;
+            } else {
+              const newLive = document.createElement('span');
+              newLive.className = 'forum-card-stat live';
+              newLive.innerHTML = `🔴 ${forum.activeRoomCount} live`;
+              statsContainer?.appendChild(newLive);
+            }
+          } else if (liveStat) {
+            liveStat.remove();
+          }
+        }
+      });
+      console.log('📊 Forum stats updated silently');
+    }
+
+    function renderForumCard(f) {
+      return `
+        <a href="/f/${f.slug}" class="forum-card" data-slug="${f.slug}">
           <div class="forum-card-banner" ${f.primaryColor ? `style="background:${f.primaryColor}"` : ''}>
-            ${f.bannerUrl ? `<img src="${f.bannerUrl}">` : ''}
-            <div class="forum-card-icon">${f.iconUrl ? `<img src="${f.iconUrl}">` : (categoryIcons[f.category] || '💬')}</div>
+            ${f.bannerUrl ? `<img src="${f.bannerUrl}" loading="lazy">` : ''}
+            <div class="forum-card-icon">${f.iconUrl ? `<img src="${f.iconUrl}" loading="lazy">` : (categoryIcons[f.category] || '💬')}</div>
           </div>
           <div class="forum-card-body">
             <div class="forum-card-name">${escapeHtml(f.name)}${f.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}</div>
@@ -328,7 +421,37 @@
             </div>
           </div>
         </a>
-      `).join('') + '</div>';
+      `;
+    }
+
+    function renderForums(forums) {
+      const container = document.getElementById('forumsContainer');
+      if (!forums?.length) { showEmptyState(); return; }
+      
+      const loadMoreHtml = hasMore ? `
+        <div style="text-align: center; margin-top: var(--space-xl);">
+          <button id="loadMoreBtn" class="create-btn" onclick="loadMoreForums()" style="background: var(--charcoal);">📥 Load More</button>
+        </div>
+      ` : '';
+      
+      container.innerHTML = '<div class="forums-grid">' + forums.map(f => renderForumCard(f)).join('') + '</div>' + loadMoreHtml;
+    }
+
+    function appendForums(forums) {
+      if (!forums?.length) return;
+      
+      const grid = document.querySelector('.forums-grid');
+      if (!grid) return;
+      
+      forums.forEach(f => {
+        grid.insertAdjacentHTML('beforeend', renderForumCard(f));
+      });
+      
+      // Update or remove load more button
+      const loadMoreBtn = document.getElementById('loadMoreBtn');
+      if (loadMoreBtn && !hasMore) {
+        loadMoreBtn.parentElement.remove();
+      }
     }
 
     function showEmptyState() {
@@ -378,17 +501,16 @@
     function formatNumber(n) { return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : n.toString(); }
     function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
 
-    // Auto-refresh forum list every 15 seconds to update live room counts
+    // Auto-refresh forum list every 30 seconds to update live room counts
+    // Uses background refresh to not interrupt user's scroll position
     let forumsRefreshInterval = null;
     function startForumsRefresh() {
       if (forumsRefreshInterval) clearInterval(forumsRefreshInterval);
       forumsRefreshInterval = setInterval(() => {
-        // Only refresh if we're on the live or top filter (most likely to change)
-        if (currentFilter === 'live' || currentFilter === 'top') {
-          console.log('🔄 Auto-refreshing forums...');
-          loadForums();
-        }
-      }, 15000); // Every 15 seconds
+        // Background refresh: just update stats without re-rendering
+        console.log('🔄 Background refresh: updating forum stats...');
+        loadForums(null, true); // true = background refresh
+      }, 30000); // Every 30 seconds (less frequent to reduce load)
     }
 
     // Start refresh after initial load
@@ -402,6 +524,22 @@
         startForumsRefresh();
       }
     });
+    
+    // Infinite scroll: auto-load more when near bottom
+    let scrollDebounce = null;
+    window.addEventListener('scroll', () => {
+      if (scrollDebounce) return;
+      scrollDebounce = setTimeout(() => {
+        scrollDebounce = null;
+        // Check if near bottom (within 500px of bottom)
+        const scrollBottom = window.innerHeight + window.scrollY;
+        const docHeight = document.documentElement.scrollHeight;
+        if (docHeight - scrollBottom < 500 && hasMore && !isLoading) {
+          console.log('📜 Infinite scroll: loading more forums...');
+          loadMoreForums();
+        }
+      }, 150);
+    }, { passive: true });
 
     // Init with retry
     (function() {

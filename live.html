@@ -1251,6 +1251,13 @@
         const startedAt = new Date(room.started_at).getTime();
         const ageMs = now - startedAt;
         
+        // Filter out FORUM rooms - they have their own display at /f/{slug}
+        // Forum room IDs start with "forum-"
+        if (room.room_id && room.room_id.startsWith('forum-')) {
+          console.log('🌐 Filtering forum room from live page:', room.room_id);
+          return false;
+        }
+        
         // Must be live status
         if (room.status !== 'live') {
           console.log('🚫 Client filter: room not live', room.room_id);

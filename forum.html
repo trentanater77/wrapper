@@ -63,7 +63,9 @@
     .waiting-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--gold); color: var(--charcoal); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.8rem; font-weight: var(--font-weight-bold); }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     .room-card-host { color: var(--charcoal); opacity: 0.7; font-size: 0.9rem; margin-bottom: var(--space-sm); }
-    .room-card-stats { display: flex; gap: var(--space-md); font-size: 0.85rem; color: var(--charcoal); opacity: 0.6; }
+    .room-card-stats { display: flex; gap: var(--space-md); font-size: 0.85rem; color: var(--charcoal); opacity: 0.6; flex-wrap: wrap; }
+    .room-card-action { margin-top: var(--space-md); padding: var(--space-sm) var(--space-md); background: var(--main-red); color: white; border-radius: var(--radius-lg); text-align: center; font-weight: var(--font-weight-bold); font-size: 0.9rem; transition: all var(--transition-fast); }
+    .room-card:hover .room-card-action { background: var(--charcoal); }
     
     .sidebar-section { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); border: 3px solid var(--rose); margin-bottom: var(--space-lg); }
     .sidebar-section h3 { color: var(--charcoal); margin-bottom: var(--space-md); font-size: 1.1rem; display: flex; align-items: center; gap: var(--space-sm); }
@@ -495,7 +497,6 @@
         const roomId = r.room_id || r.roomId;
         const participantCount = r.participant_count || 0;
         const spectatorCount = r.spectator_count || 0;
-        const totalViewers = participantCount + spectatorCount;
         const title = r.title || r.topic || 'Chat Room';
         const encodedTopic = encodeURIComponent(title);
         
@@ -507,6 +508,9 @@
         
         // Build URL with all necessary params
         let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=green&topic=${encodedTopic}&forum=${forumSlug}&mode=${mode}`;
+        
+        // Different button text based on state
+        const actionText = isTrulyLive ? '👁️ Watch Live' : '🎤 Join Room';
         
         return `
           <a href="${roomUrl}" class="room-card" target="_blank">
@@ -520,6 +524,7 @@
               ${spectatorCount > 0 ? `<span>👁️ ${spectatorCount} watching</span>` : ''}
               <span>⏱️ ${formatDuration(r.started_at || r.startedAt)}</span>
             </div>
+            <div class="room-card-action">${actionText}</div>
           </a>
         `;
       }).join('');

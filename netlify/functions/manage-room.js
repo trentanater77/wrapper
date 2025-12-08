@@ -486,15 +486,33 @@ exports.handler = async function(event) {
           };
         }
 
+        const endedAt = new Date().toISOString();
+
+        // End in active_rooms
         const { error } = await supabase
           .from('active_rooms')
           .update({ 
             status: 'ended',
-            ended_at: new Date().toISOString()
+            ended_at: endedAt
           })
           .eq('room_id', roomId);
 
         if (error) throw error;
+
+        // Also end in forum_rooms if this was a forum room
+        try {
+          await supabase
+            .from('forum_rooms')
+            .update({ 
+              status: 'ended',
+              ended_at: endedAt
+            })
+            .eq('room_id', roomId);
+          console.log(`🏁 Forum room also ended: ${roomId}`);
+        } catch (forumError) {
+          // Not a forum room or table doesn't exist - ignore
+          console.log(`ℹ️ No forum room to end for: ${roomId}`);
+        }
 
         console.log(`🏁 Room ended: ${roomId}`);
 

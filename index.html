@@ -5109,11 +5109,25 @@
           !isSpectator && isHost) {
         console.log('🟢 Host is leaving Green Room - ending session');
         if (sphereId) {
+          // End in active_rooms (this also ends forum_rooms)
           const payload = JSON.stringify({
             action: 'end',
             roomId: sphereId
           });
           navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([payload], { type: 'application/json' }));
+          
+          // Also explicitly end forum room if this is a forum room
+          const forumParam = urlParams.get('forum');
+          if (forumParam) {
+            const forumPayload = JSON.stringify({
+              action: 'end',
+              userId: window.currentUserData?.userId || userId,
+              forumSlug: forumParam,
+              roomId: sphereId
+            });
+            navigator.sendBeacon('/.netlify/functions/forum-room', new Blob([forumPayload], { type: 'application/json' }));
+            console.log('🌐 Forum room end beacon sent');
+          }
         }
       }
       

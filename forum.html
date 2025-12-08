@@ -60,6 +60,7 @@
     .room-card-title { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 1.1rem; }
     .live-badge { display: inline-flex; align-items: center; gap: 4px; background: #10b981; color: white; padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.8rem; font-weight: var(--font-weight-bold); }
     .live-badge::before { content: ''; width: 8px; height: 8px; background: white; border-radius: 50%; animation: pulse 1.5s infinite; }
+    .waiting-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--gold); color: var(--charcoal); padding: 4px 10px; border-radius: var(--radius-full); font-size: 0.8rem; font-weight: var(--font-weight-bold); }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     .room-card-host { color: var(--charcoal); opacity: 0.7; font-size: 0.9rem; margin-bottom: var(--space-sm); }
     .room-card-stats { display: flex; gap: var(--space-md); font-size: 0.85rem; color: var(--charcoal); opacity: 0.6; }
@@ -489,31 +490,34 @@
         `;
       }
       
-      // forum_rooms table fields: room_id, title, host_name, host_id, status, started_at, participant_count, peak_viewers, room_url
+      // Room data now includes participant_count and spectator_count from active_rooms
       return rooms.map(r => {
-        // Build room URL - go directly to sphere.chatspheres.com with forum room params
         const roomId = r.room_id || r.roomId;
-        const participantCount = r.participant_count || r.participantCount || 0;
+        const participantCount = r.participant_count || 0;
+        const spectatorCount = r.spectator_count || 0;
+        const totalViewers = participantCount + spectatorCount;
         const title = r.title || r.topic || 'Chat Room';
         const encodedTopic = encodeURIComponent(title);
         
-        // Auto spectator if 2+ participants already in room
+        // Auto spectator if 2+ participants already in room (max 2 speakers)
         const mode = participantCount >= 2 ? 'spectator' : 'participant';
         
-        // Build URL with all necessary params for proper display
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=green&topic=${encodedTopic}&forum=${forumSlug}`;
-        // Add mode param - spectator for full rooms, participant otherwise
-        roomUrl += `&mode=${mode}`;
+        // Only show LIVE badge if 2 participants are actively in the room
+        const isTrulyLive = r.is_truly_live || participantCount >= 2;
+        
+        // Build URL with all necessary params
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=green&topic=${encodedTopic}&forum=${forumSlug}&mode=${mode}`;
         
         return `
           <a href="${roomUrl}" class="room-card" target="_blank">
             <div class="room-card-header">
               <span class="room-card-title">${escapeHtml(title)}</span>
-              ${r.status === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
+              ${isTrulyLive ? '<span class="live-badge">LIVE</span>' : '<span class="waiting-badge">Waiting</span>'}
             </div>
             <div class="room-card-host">Hosted by ${escapeHtml(r.host_name || r.hostName || 'Anonymous')}</div>
             <div class="room-card-stats">
-              <span>👥 ${participantCount} in room</span>
+              <span>🎤 ${participantCount}/2 speakers</span>
+              ${spectatorCount > 0 ? `<span>👁️ ${spectatorCount} watching</span>` : ''}
               <span>⏱️ ${formatDuration(r.started_at || r.startedAt)}</span>
             </div>
           </a>

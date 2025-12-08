@@ -76,7 +76,36 @@ exports.handler = async function(event) {
 
     const { data: moderators } = await supabase.from('forum_moderators').select('user_id').eq('forum_id', forum.id).limit(50);
     const { data: announcements } = await supabase.from('forum_announcements').select('id, title, content, created_at').eq('forum_id', forum.id).eq('is_pinned', true).order('pin_order').limit(3);
-    const { data: activeRooms } = await supabase.from('forum_rooms').select('*').eq('forum_id', forum.id).eq('status', 'live').order('started_at', { ascending: false }).limit(20);
+    const { data: forumRooms } = await supabase.from('forum_rooms').select('*').eq('forum_id', forum.id).eq('status', 'live').order('started_at', { ascending: false }).limit(20);
+
+    // Enrich forum rooms with participant counts from active_rooms table
+    let activeRooms = [];
+    if (forumRooms && forumRooms.length > 0) {
+      const roomIds = forumRooms.map(r => r.room_id);
+      const { data: activeRoomData } = await supabase
+        .from('active_rooms')
+        .select('room_id, participant_count, spectator_count, status')
+        .in('room_id', roomIds);
+      
+      // Create a map for quick lookup
+      const activeRoomMap = {};
+      if (activeRoomData) {
+        activeRoomData.forEach(ar => {
+          activeRoomMap[ar.room_id] = ar;
+        });
+      }
+      
+      // Merge forum room data with active room counts
+      activeRooms = forumRooms.map(fr => {
+        const ar = activeRoomMap[fr.room_id] || {};
+        return {
+          ...fr,
+          participant_count: ar.participant_count || 0,
+          spectator_count: ar.spectator_count || 0,
+          is_truly_live: ar.status === 'live' && (ar.participant_count || 0) >= 2
+        };
+      });
+    }
 
     return {
       statusCode: 200,
@@ -92,7 +121,7 @@ exports.handler = async function(event) {
         user: userId ? { isMember: !!userMembership, role: userRole, isBanned, isMuted, canModerate: ['moderator', 'owner'].includes(userRole), joinedAt: userMembership?.joined_at } : null,
         moderators: moderators?.map(m => m.user_id) || [],
         announcements: announcements || [],
-        activeRooms: activeRooms || [],
+        activeRooms: activeRooms,
       }),
     };
   } catch (error) {

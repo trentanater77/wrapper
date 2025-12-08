@@ -85,6 +85,32 @@
       border-color: #10b981;
     }
     
+    .room-tab.active.forum {
+      background: #8b5cf6;
+      border-color: #8b5cf6;
+    }
+    
+    .room-card.forum {
+      border-color: #8b5cf6;
+    }
+    
+    .room-card.forum .room-card-header {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    }
+    
+    .forum-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #8b5cf6;
+      color: white;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      font-size: 0.7rem;
+      font-weight: var(--font-weight-bold);
+      margin-left: 6px;
+    }
+    
     /* Room Grid */
     .rooms-grid {
       display: grid;
@@ -802,6 +828,9 @@
           <button class="room-tab green" data-type="green" onclick="filterRooms('green')">
             🟢 Green Rooms (Help)
           </button>
+          <button class="room-tab forum" data-type="forum" onclick="filterRooms('forum')">
+            🌐 Forum Rooms
+          </button>
         </div>
       </section>
       
@@ -1250,13 +1279,7 @@
       let filteredRooms = allRooms.filter(room => {
         const startedAt = new Date(room.started_at).getTime();
         const ageMs = now - startedAt;
-        
-        // Filter out FORUM rooms - they have their own display at /f/{slug}
-        // Forum room IDs start with "forum-"
-        if (room.room_id && room.room_id.startsWith('forum-')) {
-          console.log('🌐 Filtering forum room from live page:', room.room_id);
-          return false;
-        }
+        const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
         
         // Must be live status
         if (room.status !== 'live') {
@@ -1275,7 +1298,7 @@
         
         // For red rooms with 0 participants that are older than 5 minutes, filter out
         // A red room debate needs participants to be valid
-        if (room.room_type === 'red' && room.participant_count === 0) {
+        if (room.room_type === 'red' && room.participant_count === 0 && !isForumRoom) {
           if (ageMs > fiveMinutesMs) {
             console.log('🚫 Client filter: empty red room > 5min', room.room_id);
             return false;
@@ -1302,7 +1325,16 @@
       
       // Apply type filter
       if (currentFilter !== 'all') {
-        filteredRooms = filteredRooms.filter(room => room.room_type === currentFilter);
+        if (currentFilter === 'forum') {
+          // Show only forum rooms
+          filteredRooms = filteredRooms.filter(room => room.room_id && room.room_id.startsWith('forum-'));
+        } else {
+          // Show non-forum rooms of the selected type
+          filteredRooms = filteredRooms.filter(room => {
+            const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
+            return !isForumRoom && room.room_type === currentFilter;
+          });
+        }
       }
       
       if (filteredRooms.length === 0) {
@@ -1320,8 +1352,17 @@
     
     function renderRoomCard(room) {
       const isRed = room.room_type === 'red';
-      const typeLabel = isRed ? '🔴 Debate' : '🟢 Help';
-      const typeClass = isRed ? 'red' : 'green';
+      const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
+      
+      // Determine type label and class
+      let typeLabel, typeClass;
+      if (isForumRoom) {
+        typeLabel = isRed ? '🔴 Forum Debate' : '🟢 Forum Help';
+        typeClass = 'forum'; // Use forum styling
+      } else {
+        typeLabel = isRed ? '🔴 Debate' : '🟢 Help';
+        typeClass = isRed ? 'red' : 'green';
+      }
       
       const viewerCount = (room.participant_count || 0) + (room.spectator_count || 0);
       const potHtml = isRed && room.pot_amount > 0 ? `
@@ -1329,6 +1370,9 @@
           💎 Pot: ${room.pot_amount.toLocaleString()} gems
         </div>
       ` : '';
+      
+      // Forum badge for forum rooms
+      const forumBadge = isForumRoom ? '<span class="forum-badge">🌐 FORUM</span>' : '';
       
       // Calculate time elapsed
       const startTime = new Date(room.started_at);
@@ -1339,6 +1383,15 @@
       const roomId = room.room_id;
       const roomType = room.room_type || 'red';
       const topic = encodeURIComponent(room.topic || '');
+      
+      // For forum rooms, extract forum ID from room_id (format: forum-{forumId8chars}-{timestamp})
+      let forumParam = '';
+      if (isForumRoom) {
+        // room_id format: forum-{first8charsOfForumId}-{timestamp}
+        // We need to pass the forum context for revenue split
+        // The forum ID is stored in the room but we may need to look it up
+        forumParam = '&fromLive=true';
+      }
       
       return `
         <div class="room-card ${typeClass}" data-room-id="${roomId}">
@@ -1353,7 +1406,7 @@
           </div>
           
           <div class="room-card-body">
-            <h3 class="room-topic">${escapeHtml(room.topic || 'Untitled Room')}</h3>
+            <h3 class="room-topic">${escapeHtml(room.topic || 'Untitled Room')}${forumBadge}</h3>
             
             <div class="room-host">
               <div class="room-host-avatar">

@@ -201,12 +201,9 @@ exports.handler = async function(event) {
       const fiveMinutesMs = 5 * 60 * 1000;
       
       const data = (allRooms || []).filter(room => {
-        // Filter out forum rooms - they have their own display at /f/{slug}
+        // Include forum rooms - they now display on /live page too with special badge
         // Forum room IDs start with "forum-"
-        if (room.room_id && room.room_id.startsWith('forum-')) {
-          console.log(`🌐 Filtering out forum room: ${room.room_id}`);
-          return false;
-        }
+        const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
         
         // If room has ends_at, check if it's still in the future
         if (room.ends_at) {
@@ -217,8 +214,8 @@ exports.handler = async function(event) {
           }
         }
         
-        // For red rooms, must have at least 1 participant OR be very recent
-        if (room.room_type === 'red') {
+        // For red rooms (non-forum), must have at least 1 participant OR be very recent
+        if (room.room_type === 'red' && !isForumRoom) {
           const startedAt = new Date(room.started_at).getTime();
           const isRecent = (nowTime - startedAt) < fiveMinutesMs;
           const hasParticipants = room.participant_count > 0;

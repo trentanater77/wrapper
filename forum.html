@@ -1493,13 +1493,25 @@
         bgOverlay.className = 'forum-bg-overlay';
         document.body.prepend(bgOverlay);
       }
+      // Clear any previous background settings
+      bgOverlay.style.cssText = '';
+      // Apply pattern to cover full page
+      bgOverlay.style.position = 'fixed';
+      bgOverlay.style.top = '0';
+      bgOverlay.style.left = '0';
+      bgOverlay.style.right = '0';
+      bgOverlay.style.bottom = '0';
+      bgOverlay.style.width = '100vw';
+      bgOverlay.style.height = '100vh';
       const pattern = createEmojiPattern(emoji, color, bgColor);
-      bgOverlay.style.background = bgColor;
+      bgOverlay.style.backgroundColor = bgColor;
       bgOverlay.style.backgroundImage = pattern;
       bgOverlay.style.backgroundSize = '80px 80px';
       bgOverlay.style.backgroundRepeat = 'repeat';
-      bgOverlay.style.opacity = '1';
+      bgOverlay.style.zIndex = '-2';
+      bgOverlay.style.pointerEvents = 'none';
       document.body.classList.add('has-custom-bg');
+      console.log('🎨 Pattern applied:', emoji);
     }
     
     function applyGradientBackground(grad) {
@@ -1510,12 +1522,22 @@
         bgOverlay.className = 'forum-bg-overlay';
         document.body.prepend(bgOverlay);
       }
+      // Clear any previous background settings
+      bgOverlay.style.cssText = '';
+      // Apply gradient to cover full page
+      bgOverlay.style.position = 'fixed';
+      bgOverlay.style.top = '0';
+      bgOverlay.style.left = '0';
+      bgOverlay.style.right = '0';
+      bgOverlay.style.bottom = '0';
+      bgOverlay.style.width = '100vw';
+      bgOverlay.style.height = '100vh';
       bgOverlay.style.background = grad;
-      bgOverlay.style.backgroundImage = '';
-      bgOverlay.style.backgroundSize = '';
-      bgOverlay.style.backgroundRepeat = '';
-      bgOverlay.style.opacity = '1';
+      bgOverlay.style.backgroundAttachment = 'fixed';
+      bgOverlay.style.zIndex = '-2';
+      bgOverlay.style.pointerEvents = 'none';
       document.body.classList.add('has-custom-bg');
+      console.log('🌈 Gradient applied:', grad);
     }
     
     function applyPhotoBackground(url) {
@@ -1526,13 +1548,25 @@
         bgOverlay.className = 'forum-bg-overlay';
         document.body.prepend(bgOverlay);
       }
-      bgOverlay.style.background = '';
+      // Clear any previous background settings
+      bgOverlay.style.cssText = '';
+      // Apply photo to cover full page
+      bgOverlay.style.position = 'fixed';
+      bgOverlay.style.top = '0';
+      bgOverlay.style.left = '0';
+      bgOverlay.style.right = '0';
+      bgOverlay.style.bottom = '0';
+      bgOverlay.style.width = '100vw';
+      bgOverlay.style.height = '100vh';
       bgOverlay.style.backgroundImage = `url(${url})`;
       bgOverlay.style.backgroundSize = 'cover';
       bgOverlay.style.backgroundPosition = 'center';
       bgOverlay.style.backgroundRepeat = 'no-repeat';
-      bgOverlay.style.opacity = '1';
+      bgOverlay.style.backgroundAttachment = 'fixed';
+      bgOverlay.style.zIndex = '-2';
+      bgOverlay.style.pointerEvents = 'none';
       document.body.classList.add('has-custom-bg');
+      console.log('🖼️ Photo background applied');
     }
     
     function applyBackground(bgString) {

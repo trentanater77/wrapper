@@ -378,6 +378,31 @@
     function formatNumber(n) { return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : n.toString(); }
     function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
 
+    // Auto-refresh forum list every 15 seconds to update live room counts
+    let forumsRefreshInterval = null;
+    function startForumsRefresh() {
+      if (forumsRefreshInterval) clearInterval(forumsRefreshInterval);
+      forumsRefreshInterval = setInterval(() => {
+        // Only refresh if we're on the live or top filter (most likely to change)
+        if (currentFilter === 'live' || currentFilter === 'top') {
+          console.log('🔄 Auto-refreshing forums...');
+          loadForums();
+        }
+      }, 15000); // Every 15 seconds
+    }
+
+    // Start refresh after initial load
+    setTimeout(startForumsRefresh, 5000);
+
+    // Stop refresh when page is hidden, restart when visible
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (forumsRefreshInterval) clearInterval(forumsRefreshInterval);
+      } else {
+        startForumsRefresh();
+      }
+    });
+
     // Init with retry
     (function() {
       let a = 0;

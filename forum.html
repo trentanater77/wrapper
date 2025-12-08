@@ -759,6 +759,45 @@
       if (e.key === 'Escape') closeCreateRoomModal();
     });
 
+    // Auto-refresh room counts every 10 seconds
+    let roomRefreshInterval = null;
+    function startRoomRefresh() {
+      if (roomRefreshInterval) clearInterval(roomRefreshInterval);
+      roomRefreshInterval = setInterval(async () => {
+        if (!forumData?.id) return;
+        try {
+          const params = new URLSearchParams({ slug: forumSlug });
+          if (currentUser) params.append('userId', currentUser.id);
+          const res = await fetch(`/.netlify/functions/get-forum?${params}`);
+          if (res.ok) {
+            const data = await res.json();
+            const newRooms = data.activeRooms || [];
+            // Only update the rooms list, not the whole page
+            const roomsList = document.getElementById('roomsList');
+            if (roomsList && newRooms) {
+              forumData.rooms = newRooms;
+              roomsList.innerHTML = renderRooms(newRooms);
+              console.log('🔄 Room counts refreshed');
+            }
+          }
+        } catch (e) {
+          console.log('Room refresh error:', e);
+        }
+      }, 10000); // Every 10 seconds
+    }
+
+    // Start refresh after page loads
+    setTimeout(startRoomRefresh, 5000);
+
+    // Stop refresh when page is hidden, restart when visible
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (roomRefreshInterval) clearInterval(roomRefreshInterval);
+      } else {
+        startRoomRefresh();
+      }
+    });
+
     function updateHeaderForUser(user) {
       document.getElementById('nav-guest-links').style.display = 'none';
       document.getElementById('nav-user-section').style.display = 'block';

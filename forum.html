@@ -658,7 +658,8 @@
     function renderForum(forum) {
       const userStatus = forum.userStatus || {};
       const isMember = userStatus.isMember || userStatus.role;
-      const isOwner = userStatus.role === 'owner' || forum.ownerId === currentUser?.id;
+      // Only trust server-side role determination, not client-side ID comparison
+      const isOwner = userStatus.role === 'owner';
       const isMod = userStatus.role === 'moderator' || userStatus.canModerate;
       const isBanned = userStatus.isBanned;
       
@@ -803,8 +804,18 @@
       }
       
       const isMember = status?.isMember || status?.role;
-      const isOwner = status?.role === 'owner' || forum.ownerId === currentUser?.id;
+      // Only check status.role for owner - don't use clientside comparison
+      const isOwner = status?.role === 'owner';
       const isMod = status?.role === 'moderator' || status?.canModerate;
+      
+      console.log('🔐 User permissions:', { 
+        userId: currentUser?.id, 
+        forumOwnerId: forum.ownerId,
+        statusRole: status?.role,
+        isOwner, 
+        isMember, 
+        isMod 
+      });
       
       let html = '';
       if (isMember) {

@@ -1038,11 +1038,18 @@
     
     window.saveForumSettings = async function() {
       if (!currentUser || !forumData) return;
+      
+      const saveBtn = event?.target;
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = '⏳ Saving...';
+      }
+      
       try {
         const updateData = {
-          description: document.getElementById('forumDescEdit').value,
-          rules: document.getElementById('forumRulesEdit').value,
-          primary_color: document.getElementById('themeColor').value
+          description: document.getElementById('forumDescEdit')?.value || '',
+          rules: document.getElementById('forumRulesEdit')?.value || '',
+          primary_color: document.getElementById('themeColor')?.value || '#e63946'
         };
         
         // Logo (icon_url) - can be emoji or URL
@@ -1060,6 +1067,15 @@
           updateData.secondary_color = selectedBgUrl;
         }
         
+        console.log('💾 Saving forum settings...', {
+          hasLogo: !!updateData.icon_url,
+          hasBanner: !!updateData.banner_url,
+          hasBg: !!updateData.secondary_color,
+          logoSize: updateData.icon_url?.length,
+          bannerSize: updateData.banner_url?.length,
+          bgSize: updateData.secondary_color?.length
+        });
+        
         const res = await fetch('/.netlify/functions/forum-moderation', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1070,15 +1086,26 @@
             forumData: updateData
           })
         });
+        
+        const responseData = await res.json();
+        
         if (res.ok) {
-          alert('Settings saved!');
+          alert('✅ Settings saved!');
           loadForum();
           closeModPanel();
         } else {
-          const d = await res.json();
-          alert(d.error || 'Failed to save');
+          console.error('Save error:', responseData);
+          alert(responseData.error || responseData.message || 'Failed to save');
         }
-      } catch (e) { alert('Error saving settings'); }
+      } catch (e) {
+        console.error('Save exception:', e);
+        alert('Error saving settings: ' + e.message);
+      } finally {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = '💾 Save Changes';
+        }
+      }
     };
     
     // Background Selection
@@ -1414,11 +1441,39 @@
       closeLogoPicker();
     };
     
-    // File to base64 converter
-    function fileToBase64(file) {
+    // Compress and convert image to base64
+    function compressImage(file, maxWidth, maxHeight, quality = 0.7) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let { width, height } = img;
+            
+            // Scale down if needed
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            // Convert to compressed JPEG
+            const base64 = canvas.toDataURL('image/jpeg', quality);
+            console.log(`📦 Compressed: ${(base64.length / 1024).toFixed(1)}KB`);
+            resolve(base64);
+          };
+          img.onerror = reject;
+          img.src = e.target.result;
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
@@ -1427,16 +1482,19 @@
     window.uploadLogo = async function(input) {
       const file = input.files[0];
       if (!file) return;
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Image too large! Max 2MB');
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
         return;
       }
       try {
-        const base64 = await fileToBase64(file);
+        document.getElementById('logoPreview').innerHTML = '⏳';
+        // Compress logo to 200x200 max
+        const base64 = await compressImage(file, 200, 200, 0.8);
         selectedLogoUrl = base64;
         document.getElementById('logoPreview').innerHTML = `<img src="${base64}" alt="Logo">`;
       } catch (e) {
         alert('Failed to load image');
+        document.getElementById('logoPreview').innerHTML = '💬';
       }
       input.value = '';
     };
@@ -1534,14 +1592,17 @@
     window.uploadBanner = async function(input) {
       const file = input.files[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image too large! Max 5MB');
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
         return;
       }
       try {
-        const base64 = await fileToBase64(file);
-        selectedBannerUrl = base64;
         const preview = document.getElementById('bannerPreview');
+        preview.style.background = '#ddd';
+        preview.style.backgroundImage = '';
+        // Compress banner to 1200x300 max
+        const base64 = await compressImage(file, 1200, 300, 0.7);
+        selectedBannerUrl = base64;
         preview.style.background = '';
         preview.style.backgroundImage = `url(${base64})`;
       } catch (e) {
@@ -1554,15 +1615,17 @@
       e.preventDefault();
       e.currentTarget.classList.remove('drag-over');
       const file = e.dataTransfer?.files[0];
-      if (!file || !file.type.startsWith('image/')) return;
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image too large! Max 5MB');
+      if (!file || !file.type.startsWith('image/')) {
+        alert('Please drop an image file');
         return;
       }
       try {
-        const base64 = await fileToBase64(file);
-        selectedBannerUrl = base64;
         const preview = document.getElementById('bannerPreview');
+        preview.style.background = '#ddd';
+        preview.style.backgroundImage = '';
+        // Compress banner to 1200x300 max
+        const base64 = await compressImage(file, 1200, 300, 0.7);
+        selectedBannerUrl = base64;
         preview.style.background = '';
         preview.style.backgroundImage = `url(${base64})`;
       } catch (e) {

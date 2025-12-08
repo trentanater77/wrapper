@@ -309,12 +309,15 @@
         </div>
         <div class="form-group">
           <label class="form-label">🎨 Page Background</label>
+          <div id="bgDropZone" class="drop-zone" ondrop="dropBackground(event)" ondragover="event.preventDefault(); this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')">
+            <div id="bgPreview" class="bg-preview"></div>
+            <div class="drop-hint">📤 Drag & drop image here</div>
+          </div>
           <div class="bg-options">
-            <button class="bg-option-btn" onclick="showBgPicker()">🖼️ Choose from Gallery</button>
-            <button class="bg-option-btn" onclick="promptCustomBgUrl()">🔗 Custom URL</button>
+            <button class="bg-option-btn" onclick="showBgPicker()">🖼️ Patterns & Gallery</button>
+            <label class="bg-option-btn upload-btn">📤 Upload Image<input type="file" accept="image/png,image/jpeg,image/gif,image/webp" onchange="uploadBackground(this)" hidden></label>
             <button class="bg-option-btn" onclick="clearBackground()">❌ Remove</button>
           </div>
-          <div id="bgPreview" class="bg-preview"></div>
         </div>
         <div class="form-group">
           <label class="form-label">🎨 Theme Color</label>
@@ -1329,11 +1332,76 @@
       }
     };
     
+    window.uploadBackground = async function(input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+      }
+      try {
+        const preview = document.getElementById('bgPreview');
+        if (preview) {
+          preview.style.background = '#ddd';
+          preview.style.backgroundImage = '';
+        }
+        // Compress background to 1600x1200 max
+        const base64 = await compressImage(file, 1600, 1200, 0.7);
+        selectedBgUrl = base64;
+        selectedBgType = 'photo';
+        if (preview) {
+          preview.style.background = '';
+          preview.style.backgroundImage = `url(${base64})`;
+          preview.style.backgroundSize = 'cover';
+        }
+        applyPhotoBackground(base64);
+        console.log('🖼️ Background uploaded:', (base64.length / 1024).toFixed(1) + 'KB');
+      } catch (e) {
+        alert('Failed to load image');
+        console.error(e);
+      }
+      input.value = '';
+    };
+    
+    window.dropBackground = async function(e) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      const file = e.dataTransfer?.files[0];
+      if (!file || !file.type.startsWith('image/')) {
+        alert('Please drop an image file');
+        return;
+      }
+      try {
+        const preview = document.getElementById('bgPreview');
+        if (preview) {
+          preview.style.background = '#ddd';
+          preview.style.backgroundImage = '';
+        }
+        // Compress background to 1600x1200 max
+        const base64 = await compressImage(file, 1600, 1200, 0.7);
+        selectedBgUrl = base64;
+        selectedBgType = 'photo';
+        if (preview) {
+          preview.style.background = '';
+          preview.style.backgroundImage = `url(${base64})`;
+          preview.style.backgroundSize = 'cover';
+        }
+        applyPhotoBackground(base64);
+        console.log('🖼️ Background dropped:', (base64.length / 1024).toFixed(1) + 'KB');
+      } catch (e) {
+        alert('Failed to load image');
+        console.error(e);
+      }
+    };
+    
     window.clearBackground = function() {
       selectedBgUrl = '';
       selectedBgType = '';
-      document.getElementById('bgPreview').style.background = '';
-      document.getElementById('bgPreview').style.backgroundImage = '';
+      const preview = document.getElementById('bgPreview');
+      if (preview) {
+        preview.style.background = '';
+        preview.style.backgroundImage = '';
+      }
       removeBackground();
     };
     

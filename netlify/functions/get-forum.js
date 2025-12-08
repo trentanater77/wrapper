@@ -79,37 +79,77 @@ exports.handler = async function(event) {
     const { data: forumRooms } = await supabase.from('forum_rooms').select('*').eq('forum_id', forum.id).eq('status', 'live').order('started_at', { ascending: false }).limit(20);
 
     // Enrich forum rooms with participant counts from active_rooms table
-    // NO automatic cleanup here - rooms only end when host leaves or timer expires
+    // Clean up expired rooms (timer ended) automatically
     let activeRooms = [];
     if (forumRooms && forumRooms.length > 0) {
       const roomIds = forumRooms.map(r => r.room_id);
       const { data: activeRoomData } = await supabase
         .from('active_rooms')
-        .select('room_id, participant_count, spectator_count, status')
+        .select('room_id, participant_count, spectator_count, status, ends_at')
         .in('room_id', roomIds);
       
-      // Create a map for quick lookup
+      // Create a map and check for expired rooms
       const activeRoomMap = {};
+      const expiredRoomIds = [];
+      const now = new Date();
+      
       if (activeRoomData) {
         activeRoomData.forEach(ar => {
           activeRoomMap[ar.room_id] = ar;
+          
+          // Check if room timer has expired
+          if (ar.ends_at) {
+            const endsAt = new Date(ar.ends_at);
+            if (endsAt < now) {
+              expiredRoomIds.push(ar.room_id);
+              console.log(`⏰ Room ${ar.room_id} timer expired at ${ar.ends_at}`);
+            }
+          }
+          
+          // Also check if already ended
+          if (ar.status === 'ended') {
+            if (!expiredRoomIds.includes(ar.room_id)) {
+              expiredRoomIds.push(ar.room_id);
+            }
+          }
         });
       }
       
-      // Show ALL forum rooms that are marked as 'live' in forum_rooms
-      // Just enrich with active_room data if available
-      activeRooms = forumRooms.map(fr => {
-        const ar = activeRoomMap[fr.room_id] || {};
-        const participantCount = ar.participant_count || 0;
-        const spectatorCount = ar.spectator_count || 0;
+      // End expired rooms
+      if (expiredRoomIds.length > 0) {
+        console.log(`⏰ Ending ${expiredRoomIds.length} expired rooms`);
+        const endedAt = new Date().toISOString();
         
-        return {
-          ...fr,
-          participant_count: participantCount,
-          spectator_count: spectatorCount,
-          is_truly_live: participantCount >= 2
-        };
-      });
+        // End in active_rooms
+        await supabase
+          .from('active_rooms')
+          .update({ status: 'ended', ended_at: endedAt })
+          .in('room_id', expiredRoomIds)
+          .neq('status', 'ended');
+        
+        // End in forum_rooms
+        await supabase
+          .from('forum_rooms')
+          .update({ status: 'ended', ended_at: endedAt })
+          .in('room_id', expiredRoomIds)
+          .neq('status', 'ended');
+      }
+      
+      // Return only non-expired rooms
+      activeRooms = forumRooms
+        .filter(fr => !expiredRoomIds.includes(fr.room_id))
+        .map(fr => {
+          const ar = activeRoomMap[fr.room_id] || {};
+          const participantCount = ar.participant_count || 0;
+          const spectatorCount = ar.spectator_count || 0;
+          
+          return {
+            ...fr,
+            participant_count: participantCount,
+            spectator_count: spectatorCount,
+            is_truly_live: participantCount >= 2
+          };
+        });
     }
 
     return {

@@ -66,6 +66,10 @@
     .room-card-stats { display: flex; gap: var(--space-md); font-size: 0.85rem; color: var(--charcoal); opacity: 0.6; flex-wrap: wrap; }
     .room-card-action { margin-top: var(--space-md); padding: var(--space-sm) var(--space-md); background: var(--main-red); color: white; border-radius: var(--radius-lg); text-align: center; font-weight: var(--font-weight-bold); font-size: 0.9rem; transition: all var(--transition-fast); }
     .room-card:hover .room-card-action { background: var(--charcoal); }
+    .room-card-wrapper { position: relative; }
+    .end-room-btn { position: absolute; top: var(--space-sm); right: var(--space-sm); background: #ef4444; color: white; border: none; border-radius: var(--radius-lg); padding: var(--space-xs) var(--space-sm); font-size: 0.75rem; font-weight: var(--font-weight-bold); cursor: pointer; opacity: 0; transition: opacity var(--transition-fast); z-index: 10; font-family: var(--font-family); }
+    .room-card-wrapper:hover .end-room-btn { opacity: 1; }
+    .end-room-btn:hover { background: #dc2626; }
     
     .sidebar-section { background: white; border-radius: var(--radius-xl); padding: var(--space-lg); border: 3px solid var(--rose); margin-bottom: var(--space-lg); }
     .sidebar-section h3 { color: var(--charcoal); margin-bottom: var(--space-md); font-size: 1.1rem; display: flex; align-items: center; gap: var(--space-sm); }
@@ -499,6 +503,12 @@
         const spectatorCount = r.spectator_count || 0;
         const title = r.title || r.topic || 'Chat Room';
         const encodedTopic = encodeURIComponent(title);
+        const hostId = r.host_id || r.hostId;
+        
+        // Check if current user is the host or forum owner
+        const isHost = currentUser && (hostId === currentUser.id);
+        const isOwner = currentUser && forumData && (forumData.ownerId === currentUser.id);
+        const canEndRoom = isHost || isOwner;
         
         // Auto spectator if 2+ participants already in room (max 2 speakers)
         const mode = participantCount >= 2 ? 'spectator' : 'participant';
@@ -513,19 +523,22 @@
         const actionText = isTrulyLive ? '👁️ Watch Live' : '🎤 Join Room';
         
         return `
-          <a href="${roomUrl}" class="room-card" target="_blank">
-            <div class="room-card-header">
-              <span class="room-card-title">${escapeHtml(title)}</span>
-              ${isTrulyLive ? '<span class="live-badge">LIVE</span>' : '<span class="waiting-badge">Waiting</span>'}
-            </div>
-            <div class="room-card-host">Hosted by ${escapeHtml(r.host_name || r.hostName || 'Anonymous')}</div>
-            <div class="room-card-stats">
-              <span>🎤 ${participantCount}/2 speakers</span>
-              ${spectatorCount > 0 ? `<span>👁️ ${spectatorCount} watching</span>` : ''}
-              <span>⏱️ ${formatDuration(r.started_at || r.startedAt)}</span>
-            </div>
-            <div class="room-card-action">${actionText}</div>
-          </a>
+          <div class="room-card-wrapper">
+            <a href="${roomUrl}" class="room-card" target="_blank">
+              <div class="room-card-header">
+                <span class="room-card-title">${escapeHtml(title)}</span>
+                ${isTrulyLive ? '<span class="live-badge">LIVE</span>' : '<span class="waiting-badge">Waiting</span>'}
+              </div>
+              <div class="room-card-host">Hosted by ${escapeHtml(r.host_name || r.hostName || 'Anonymous')}</div>
+              <div class="room-card-stats">
+                <span>🎤 ${participantCount}/2 speakers</span>
+                ${spectatorCount > 0 ? `<span>👁️ ${spectatorCount} watching</span>` : ''}
+                <span>⏱️ ${formatDuration(r.started_at || r.startedAt)}</span>
+              </div>
+              <div class="room-card-action">${actionText}</div>
+            </a>
+            ${canEndRoom ? `<button class="end-room-btn" onclick="endRoom('${roomId}', event)" title="End this room">✕ End Room</button>` : ''}
+          </div>
         `;
       }).join('');
     }
@@ -638,6 +651,59 @@
     };
 
     window.showModPanel = function() { alert('Moderation panel coming soon!'); };
+
+    // End a room (for hosts and forum owners)
+    window.endRoom = async function(roomId, event) {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (!currentUser) {
+        alert('Please sign in');
+        return;
+      }
+      
+      if (!confirm('End this room? This will kick all participants.')) {
+        return;
+      }
+      
+      try {
+        // End in active_rooms via manage-room
+        const res = await fetch('/.netlify/functions/manage-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'end',
+            roomId: roomId
+          })
+        });
+        
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Failed to end room');
+        }
+        
+        // Also end in forum_rooms
+        if (forumData?.id) {
+          await fetch('/.netlify/functions/forum-room', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'end',
+              userId: currentUser.id,
+              forumId: forumData.id,
+              roomId: roomId
+            })
+          });
+        }
+        
+        // Reload the room list
+        loadForum();
+        
+      } catch (err) {
+        console.error('Error ending room:', err);
+        alert(err.message || 'Failed to end room');
+      }
+    };
 
     // Room creation functions
     window.openCreateRoomModal = function() {

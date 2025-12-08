@@ -163,8 +163,8 @@
     const refCode = getReferralCode();
     if (!refCode) return;
     
-    // Find all links to the signup page
-    const signupLinks = document.querySelectorAll('a[href*="chatspheres.com/sign-up"], a[href*="/sign-up"]');
+    // Find all links to the signup page (including new /signup.html path)
+    const signupLinks = document.querySelectorAll('a[href*="chatspheres.com/sign-up"], a[href*="/sign-up"], a[href*="/signup.html"], a[href*="/login.html"]');
     
     signupLinks.forEach(link => {
       const currentHref = link.getAttribute('href');

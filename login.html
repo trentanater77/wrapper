@@ -459,28 +459,44 @@
       setLoading(true);
       
       try {
+        console.log('🔐 Attempting sign in for:', email);
+        
         const { data, error } = await supabaseClient.auth.signInWithPassword({
           email,
           password
         });
         
+        console.log('🔐 Sign in response:', { data, error });
+        
         if (error) {
+          console.error('❌ Sign in error:', error);
           showMessage(error.message);
           setLoading(false);
           return;
         }
         
         if (data?.session) {
+          console.log('✅ Sign in successful');
           showMessage('✅ Signed in successfully!', false);
+          
+          // Track referral if applicable
+          if (window.ChatSpheresReferral && data.user?.id) {
+            await window.ChatSpheresReferral.trackReferralSignup(data.user.id);
+          }
           
           // Redirect after short delay
           const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/explore.html';
           setTimeout(() => {
             window.location.href = redirectTo;
           }, 500);
+        } else {
+          console.log('⚠️ No session returned');
+          showMessage('Sign in failed. Please check your credentials.');
+          setLoading(false);
         }
       } catch (e) {
-        showMessage('Sign in failed. Please try again.');
+        console.error('❌ Sign in exception:', e);
+        showMessage('Sign in failed: ' + (e.message || 'Please try again.'));
         setLoading(false);
       }
     }
@@ -531,7 +547,7 @@
       }
     }
     
-    // Check if already logged in
+    // Check if already logged in and set up auth listener
     async function checkAuth() {
       if (!supabaseClient) return;
       
@@ -541,10 +557,29 @@
           // Already logged in, redirect
           const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/explore.html';
           window.location.href = redirectTo;
+          return;
         }
       } catch (e) {
         console.error('Auth check error:', e);
       }
+      
+      // Listen for auth state changes (handles OAuth redirects)
+      supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        console.log('🔄 Auth state changed:', event);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('✅ User signed in');
+          
+          // Track referral if this is from an invite
+          if (window.ChatSpheresReferral) {
+            await window.ChatSpheresReferral.trackReferralSignup(session.user.id);
+          }
+          
+          // Redirect
+          const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/explore.html';
+          window.location.href = redirectTo;
+        }
+      });
     }
     
     // Initialize
@@ -559,6 +594,7 @@
           supabaseClient = initSupabase();
           handleAuthCallback();
           checkAuth();
+          console.log('✅ Login page initialized');
         } else if (attempts < 15) {
           setTimeout(tryInit, 300);
         } else {
@@ -573,5 +609,8 @@
       }
     })();
   </script>
+  
+  <!-- Cross-Domain Referral Tracking -->
+  <script src="/assets/js/referral.js"></script>
 </body>
 </html>

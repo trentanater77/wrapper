@@ -221,11 +221,13 @@
     
     /* Room Type Selector for Create Room Modal */
     .room-type-selector { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-sm); margin-bottom: var(--space-sm); }
+    .room-type-selector.three-col { grid-template-columns: 1fr 1fr 1fr; }
     .room-type-btn { padding: var(--space-md); border-radius: var(--radius-lg); border: 2px solid var(--rose); background: white; text-align: center; cursor: pointer; transition: all var(--transition-fast); }
     .room-type-btn:hover { box-shadow: var(--shadow-md); }
     .room-type-btn.selected { border-width: 3px; }
     .room-type-btn.selected.red { border-color: var(--main-red); }
     .room-type-btn.selected.green { border-color: #10b981; }
+    .room-type-btn.selected.regular { border-color: #8b5cf6; }
     .room-type-btn.disabled { opacity: 0.5; cursor: not-allowed; }
     .room-type-icon { font-size: 1.5rem; margin-bottom: var(--space-xs); }
     .room-type-name { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 0.9rem; }
@@ -529,15 +531,20 @@
         <!-- Room Type Selection -->
         <div class="form-group">
           <label class="form-label">Room Type</label>
-          <div class="room-type-selector">
-            <button type="button" id="forum-type-red" onclick="selectForumRoomType('red')" class="room-type-btn selected red">
+          <div class="room-type-selector three-col">
+            <button type="button" id="forum-type-regular" onclick="selectForumRoomType('regular')" class="room-type-btn selected regular">
+              <div class="room-type-icon">💬</div>
+              <div class="room-type-name">Chat Room</div>
+              <div class="room-type-desc">Just chatting</div>
+            </button>
+            <button type="button" id="forum-type-red" onclick="selectForumRoomType('red')" class="room-type-btn">
               <div class="room-type-icon">🔴</div>
-              <div class="room-type-name">Debate Room</div>
+              <div class="room-type-name">Debate</div>
               <div class="room-type-desc">Winner takes pot</div>
             </button>
             <button type="button" id="forum-type-green" onclick="selectForumRoomType('green')" class="room-type-btn">
               <div class="room-type-icon">🟢</div>
-              <div class="room-type-name">Help Room</div>
+              <div class="room-type-name">Help</div>
               <div class="room-type-desc">Tips for advice</div>
             </button>
           </div>

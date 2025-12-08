@@ -5296,9 +5296,17 @@ async function initializeApp() {
         description = `🔴 Red Room Debate: "${topic}"`;
         console.log("✅ Found Red Room topic:", topic);
       } else if (roomTypeFromUrl === 'green') {
-        // Green Room help session
-        description = `🟢 Green Room Help: "${topic}"`;
-        console.log("✅ Found Green Room topic:", topic);
+        // Green Room - check if it's a forum room
+        const forumParam = urlParams.get('forum');
+        if (forumParam) {
+          // Forum room - cleaner display without "Green Room Help"
+          description = `🌐 ${topic}`;
+          console.log("✅ Found Forum room topic:", topic);
+        } else {
+          // Regular green room help session
+          description = `🟢 Green Room Help: "${topic}"`;
+          console.log("✅ Found Green Room topic:", topic);
+        }
       } else {
         // Generic room with topic
         description = `Discussing: "${topic}"`;
@@ -5356,7 +5364,8 @@ async function initializeApp() {
           if (roomType === 'red') {
             description = `🔴 Red Room Debate: "${topic}"`;
           } else if (roomType === 'green') {
-            description = `🟢 Green Room Help: "${topic}"`;
+            const forumParam = new URLSearchParams(window.location.search).get('forum');
+            description = forumParam ? `🌐 ${topic}` : `🟢 Green Room Help: "${topic}"`;
           } else {
             description = `Discussing: "${topic}"`;
           }
@@ -5383,7 +5392,8 @@ async function initializeApp() {
             if (roomType === 'red') {
               description = `🔴 Red Room Debate: "${topic}"`;
             } else if (roomType === 'green') {
-              description = `🟢 Green Room Help: "${topic}"`;
+              const forumParam = new URLSearchParams(window.location.search).get('forum');
+              description = forumParam ? `🌐 ${topic}` : `🟢 Green Room Help: "${topic}"`;
             } else {
               description = `Discussing: "${topic}"`;
             }

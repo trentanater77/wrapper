@@ -79,81 +79,37 @@ exports.handler = async function(event) {
     const { data: forumRooms } = await supabase.from('forum_rooms').select('*').eq('forum_id', forum.id).eq('status', 'live').order('started_at', { ascending: false }).limit(20);
 
     // Enrich forum rooms with participant counts from active_rooms table
+    // NO automatic cleanup here - rooms only end when host leaves or timer expires
     let activeRooms = [];
     if (forumRooms && forumRooms.length > 0) {
       const roomIds = forumRooms.map(r => r.room_id);
       const { data: activeRoomData } = await supabase
         .from('active_rooms')
-        .select('room_id, participant_count, spectator_count, status, started_at, ended_at')
+        .select('room_id, participant_count, spectator_count, status')
         .in('room_id', roomIds);
       
       // Create a map for quick lookup
       const activeRoomMap = {};
-      const now = Date.now();
-      const veryOldThreshold = 45 * 60 * 1000; // 45 minutes - rooms this old likely have ghost participants
-      const roomsToEnd = [];
-      
       if (activeRoomData) {
         activeRoomData.forEach(ar => {
           activeRoomMap[ar.room_id] = ar;
-          
-          const startedAt = new Date(ar.started_at).getTime();
-          const age = now - startedAt;
-          const isEnded = ar.status === 'ended';
-          const isEmpty = (ar.participant_count || 0) === 0;
-          const isVeryOld = age > veryOldThreshold; // 2+ hours old = ghost participants
-          
-          // Clean up rooms that are:
-          // 1. Already marked as ended in active_rooms
-          // 2. Have 0 participants (truly empty)
-          // 3. Are older than 2 hours (ghost participants - no real call lasts this long)
-          if (isEnded || isEmpty || isVeryOld) {
-            roomsToEnd.push(ar.room_id);
-            console.log(`🧹 Room ${ar.room_id} cleanup: ended=${isEnded}, empty=${isEmpty}, veryOld=${isVeryOld}`);
-          }
         });
       }
       
-      // Check for orphaned forum rooms (no matching active_room)
-      forumRooms.forEach(fr => {
-        if (!activeRoomMap[fr.room_id] && !roomsToEnd.includes(fr.room_id)) {
-          roomsToEnd.push(fr.room_id);
-          console.log(`🧹 Orphaned forum room ${fr.room_id} cleanup`);
-        }
+      // Show ALL forum rooms that are marked as 'live' in forum_rooms
+      // Just enrich with active_room data if available
+      activeRooms = forumRooms.map(fr => {
+        const ar = activeRoomMap[fr.room_id] || {};
+        const participantCount = ar.participant_count || 0;
+        const spectatorCount = ar.spectator_count || 0;
+        
+        return {
+          ...fr,
+          participant_count: participantCount,
+          spectator_count: spectatorCount,
+          is_truly_live: participantCount >= 2
+        };
       });
-      
-      // Clean up stale rooms - mark them as ended
-      if (roomsToEnd.length > 0) {
-        console.log(`🧹 Cleaning up ${roomsToEnd.length} stale forum rooms`);
-        const endedAt = new Date().toISOString();
-        
-        // End in active_rooms
-        await supabase
-          .from('active_rooms')
-          .update({ status: 'ended', ended_at: endedAt })
-          .in('room_id', roomsToEnd)
-          .eq('status', 'live');
-        
-        // End in forum_rooms
-        await supabase
-          .from('forum_rooms')
-          .update({ status: 'ended', ended_at: endedAt })
-          .in('room_id', roomsToEnd)
-          .eq('status', 'live');
-      }
-      
-      // Merge forum room data with active room counts, filtering out ended rooms
-      activeRooms = forumRooms
-        .filter(fr => !roomsToEnd.includes(fr.room_id))
-        .map(fr => {
-          const ar = activeRoomMap[fr.room_id] || {};
-          return {
-            ...fr,
-            participant_count: ar.participant_count || 0,
-            spectator_count: ar.spectator_count || 0,
-            is_truly_live: ar.status === 'live' && (ar.participant_count || 0) >= 2
-          };
-        });
     }
 
     return {

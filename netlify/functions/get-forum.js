@@ -90,49 +90,35 @@ exports.handler = async function(event) {
       // Create a map for quick lookup
       const activeRoomMap = {};
       const now = Date.now();
-      const oldRoomThreshold = 30 * 60 * 1000; // 30 minutes - rooms older than this are likely stale
-      const veryOldThreshold = 60 * 60 * 1000; // 1 hour - definitely stale
+      const veryOldThreshold = 45 * 60 * 1000; // 45 minutes - rooms this old likely have ghost participants
       const roomsToEnd = [];
       
       if (activeRoomData) {
         activeRoomData.forEach(ar => {
           activeRoomMap[ar.room_id] = ar;
           
-          // Check if room is stale
           const startedAt = new Date(ar.started_at).getTime();
           const age = now - startedAt;
           const isEnded = ar.status === 'ended';
           const isEmpty = (ar.participant_count || 0) === 0;
-          const isOld = age > oldRoomThreshold;
-          const isVeryOld = age > veryOldThreshold;
+          const isVeryOld = age > veryOldThreshold; // 2+ hours old = ghost participants
           
-          // Room should be ended if:
-          // 1. It's already marked as ended in active_rooms
-          // 2. It's empty (0 participants)
-          // 3. It's older than 1 hour (ghost participants - leave beacons not sent)
-          // 4. It's older than 30 min and empty
-          if (isEnded || isEmpty || isVeryOld || (isOld && isEmpty)) {
+          // Clean up rooms that are:
+          // 1. Already marked as ended in active_rooms
+          // 2. Have 0 participants (truly empty)
+          // 3. Are older than 2 hours (ghost participants - no real call lasts this long)
+          if (isEnded || isEmpty || isVeryOld) {
             roomsToEnd.push(ar.room_id);
-            console.log(`🧹 Room ${ar.room_id} marked for cleanup: ended=${isEnded}, empty=${isEmpty}, age=${Math.floor(age/60000)}min, participants=${ar.participant_count}`);
+            console.log(`🧹 Room ${ar.room_id} cleanup: ended=${isEnded}, empty=${isEmpty}, veryOld=${isVeryOld}`);
           }
         });
       }
       
-      // Also check for forum rooms that don't have a matching active_room entry
-      // OR forum rooms that are very old based on their started_at
+      // Check for orphaned forum rooms (no matching active_room)
       forumRooms.forEach(fr => {
-        if (!activeRoomMap[fr.room_id]) {
-          // No active_room entry - this forum room is orphaned
+        if (!activeRoomMap[fr.room_id] && !roomsToEnd.includes(fr.room_id)) {
           roomsToEnd.push(fr.room_id);
-          console.log(`🧹 Orphaned forum room ${fr.room_id} marked for cleanup`);
-        } else {
-          // Check if forum room itself is old
-          const frStarted = new Date(fr.started_at).getTime();
-          const frAge = now - frStarted;
-          if (frAge > veryOldThreshold && !roomsToEnd.includes(fr.room_id)) {
-            roomsToEnd.push(fr.room_id);
-            console.log(`🧹 Old forum room ${fr.room_id} marked for cleanup: age=${Math.floor(frAge/60000)}min`);
-          }
+          console.log(`🧹 Orphaned forum room ${fr.room_id} cleanup`);
         }
       });
       

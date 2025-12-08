@@ -4973,7 +4973,7 @@
         }
       }
       
-      // Warn Green Room hosts before leaving - show browser's native warning
+      // Warn Green Room / Forum Room hosts before leaving
       // Note: Modern browsers show generic "Leave site?" message for security
       // The actual room ending happens via the unload event, not here
       if (typeof roomTypeState !== 'undefined' && 
@@ -4982,12 +4982,15 @@
           !isSpectator) {
         const urlParams = new URLSearchParams(window.location.search);
         const isHost = urlParams.get('host') === 'true';
+        const isForumRoom = urlParams.get('forum');
+        const isRoomCreator = roomHostData?.isHost || isHost;
         
-        if (isHost) {
+        // For forum rooms, check if this user is the host/creator
+        if (isRoomCreator || isForumRoom) {
           // Show browser's native confirmation dialog
           // (The actual room ending happens in the 'unload' event below)
           event.preventDefault();
-          event.returnValue = ''; // Modern browsers require this but show generic message
+          event.returnValue = 'If you leave, this room will be terminated for all participants. Are you sure?';
           return event.returnValue;
         }
       }
@@ -5102,13 +5105,38 @@
       const isHost = urlParams.get('host') === 'true';
       const sphereId = extractSphereId(roomUrl);
       
-      // End Green Room when host actually leaves
-      if (typeof roomTypeState !== 'undefined' && 
-          roomTypeState.type === 'green' && 
-          !roomTypeState.roomEnded && 
-          !isSpectator && isHost) {
+      // End Green Room / Forum Room when host actually leaves
+      const forumParam = urlParams.get('forum');
+      const isRoomCreator = roomHostData?.isHost || isHost;
+      
+      // For forum rooms, any participant leaving who is the creator ends the room
+      // For regular green rooms, only the host ends it
+      const shouldEndRoom = (isRoomCreator || (forumParam && !isSpectator)) && 
+                            typeof roomTypeState !== 'undefined' && 
+                            roomTypeState.type === 'green' && 
+                            !roomTypeState.roomEnded;
+      
+      if (shouldEndRoom) {
         console.log('🟢 Host is leaving Green Room - ending session');
         if (sphereId) {
+          // Notify other participants via LiveKit before ending
+          if (livekitRoom && livekitRoom.localParticipant) {
+            try {
+              const endMessage = {
+                type: 'room-ended',
+                roomType: 'green',
+                reason: 'host_left',
+                message: 'The host has left. This room is now closed.',
+                timestamp: Date.now()
+              };
+              const encoder = new TextEncoder();
+              livekitRoom.localParticipant.publishData(encoder.encode(JSON.stringify(endMessage)), { reliable: true });
+              console.log('📢 Room end notification sent to participants');
+            } catch (e) {
+              console.log('Could not send end notification:', e);
+            }
+          }
+          
           // End in active_rooms (this also ends forum_rooms)
           const payload = JSON.stringify({
             action: 'end',
@@ -5117,7 +5145,6 @@
           navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([payload], { type: 'application/json' }));
           
           // Also explicitly end forum room if this is a forum room
-          const forumParam = urlParams.get('forum');
           if (forumParam) {
             const forumPayload = JSON.stringify({
               action: 'end',
@@ -12526,15 +12553,40 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
-  // Handle room ended message for Green Rooms
+  // Handle room ended message for Green Rooms / Forum Rooms
   function handleGreenRoomEnded(data) {
-    console.log('🟢 Green Room ended:', data);
-    showToast(data.message || '🟢 This help session has ended.');
+    console.log('🟢 Room ended:', data);
     
-    // Optionally redirect after a delay
+    // Mark room as ended to prevent duplicate handling
+    if (typeof roomTypeState !== 'undefined') {
+      roomTypeState.roomEnded = true;
+    }
+    
+    // Show appropriate message
+    const reason = data.reason || 'ended';
+    let message = '🟢 This session has ended.';
+    if (reason === 'host_left') {
+      message = '👋 The host has left. This room is now closed.';
+    }
+    
+    showToast(message);
+    
+    // Check if this was a forum room
+    const urlParams = new URLSearchParams(window.location.search);
+    const forumParam = urlParams.get('forum');
+    
+    // Redirect after a delay
     setTimeout(() => {
-      if (confirm('The help session has ended. Return to live rooms?')) {
-        window.location.href = '/live.html';
+      if (forumParam) {
+        // Redirect back to the forum
+        if (confirm('The room has ended. Return to the forum?')) {
+          window.location.href = `/f/${forumParam}`;
+        }
+      } else {
+        // Regular green room - redirect to live rooms
+        if (confirm('The session has ended. Return to live rooms?')) {
+          window.location.href = '/live.html';
+        }
       }
     }, 2000);
   }

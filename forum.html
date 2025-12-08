@@ -608,7 +608,7 @@
   <script src="/assets/js/navigation.js"></script>
   <script>
     let currentUser = null, supabaseClient = null, forumData = null, forumSlug = null;
-    let selectedForumRoomType = 'red'; // Default to debate room
+    let selectedForumRoomType = 'regular'; // Default to regular chat room
     let userPlan = 'free'; // User's subscription plan
     const categoryIcons = { gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬', business: '💼', education: '📚', fitness: '💪', creative: '🎨', just_chatting: '💬', other: '📁' };
     
@@ -625,40 +625,45 @@
     window.selectForumRoomType = function(type) {
       selectedForumRoomType = type;
       
+      const regularBtn = document.getElementById('forum-type-regular');
       const redBtn = document.getElementById('forum-type-red');
       const greenBtn = document.getElementById('forum-type-green');
       const greenWarning = document.getElementById('forum-green-warning');
       const createBtn = document.getElementById('createRoomBtn');
       
-      if (type === 'red') {
-        // Update button styles
+      // Reset all buttons
+      [regularBtn, redBtn, greenBtn].forEach(btn => {
+        if (btn) {
+          btn.classList.remove('selected', 'regular', 'red', 'green');
+          btn.style.borderColor = '#FFB6B9';
+          btn.style.borderWidth = '2px';
+        }
+      });
+      
+      // Hide warnings by default
+      if (greenWarning) greenWarning.style.display = 'none';
+      if (createBtn) {
+        createBtn.disabled = false;
+        createBtn.style.opacity = '1';
+      }
+      
+      if (type === 'regular') {
+        if (regularBtn) {
+          regularBtn.classList.add('selected', 'regular');
+          regularBtn.style.borderColor = '#8b5cf6';
+          regularBtn.style.borderWidth = '3px';
+        }
+      } else if (type === 'red') {
         if (redBtn) {
           redBtn.classList.add('selected', 'red');
           redBtn.style.borderColor = '#e63946';
           redBtn.style.borderWidth = '3px';
         }
-        if (greenBtn) {
-          greenBtn.classList.remove('selected', 'green');
-          greenBtn.style.borderColor = '#FFB6B9';
-          greenBtn.style.borderWidth = '2px';
-        }
-        // Hide green room warning
-        if (greenWarning) greenWarning.style.display = 'none';
-        if (createBtn) {
-          createBtn.disabled = false;
-          createBtn.style.opacity = '1';
-        }
-      } else {
-        // Green room selected
+      } else if (type === 'green') {
         if (greenBtn) {
           greenBtn.classList.add('selected', 'green');
           greenBtn.style.borderColor = '#10b981';
           greenBtn.style.borderWidth = '3px';
-        }
-        if (redBtn) {
-          redBtn.classList.remove('selected', 'red');
-          redBtn.style.borderColor = '#FFB6B9';
-          redBtn.style.borderWidth = '2px';
         }
         
         // Check if user has pro plan for green rooms
@@ -668,12 +673,6 @@
           if (createBtn) {
             createBtn.disabled = true;
             createBtn.style.opacity = '0.5';
-          }
-        } else {
-          if (greenWarning) greenWarning.style.display = 'none';
-          if (createBtn) {
-            createBtn.disabled = false;
-            createBtn.style.opacity = '1';
           }
         }
       }
@@ -1020,9 +1019,11 @@
         
         // Determine room type - check active_rooms room_type or forum_rooms room_type
         // forum_rooms uses 'debate'/'help'/'live', active_rooms uses 'red'/'green'
-        const activeRoomType = r.active_room_type || r.room_type || 'green';
-        const isDebate = activeRoomType === 'red' || r.room_type === 'debate';
-        const isHelp = activeRoomType === 'green' || r.room_type === 'help' || r.room_type === 'live';
+        const activeRoomType = r.active_room_type || 'green';
+        const forumRoomType = r.room_type || 'live'; // live = regular chat, debate, help
+        const isDebate = activeRoomType === 'red' || forumRoomType === 'debate';
+        const isHelp = forumRoomType === 'help';
+        const isRegular = forumRoomType === 'live' && activeRoomType !== 'red';
         const roomTypeParam = isDebate ? 'red' : 'green';
         const potAmount = r.pot_amount || 0;
         
@@ -1033,12 +1034,16 @@
         // Different button text based on state and type
         let actionText = isTrulyLive ? '👁️ Watch Live' : '🎤 Join Room';
         if (isDebate && isTrulyLive) actionText = '👁️ Watch Debate';
-        if (isHelp && isTrulyLive) actionText = '👁️ Watch Session';
+        else if (isHelp && isTrulyLive) actionText = '👁️ Watch Session';
         
         // Room type badge
-        const typeBadge = isDebate 
-          ? '<span class="room-type-badge debate">🔴 Debate</span>' 
-          : '<span class="room-type-badge help">🟢 Help</span>';
+        let typeBadge = '';
+        if (isDebate) {
+          typeBadge = '<span class="room-type-badge debate">🔴 Debate</span>';
+        } else if (isHelp) {
+          typeBadge = '<span class="room-type-badge help">🟢 Help</span>';
+        }
+        // No badge for regular chat rooms - they're just normal forum rooms
         
         // Pot display for debate rooms
         const potDisplay = isDebate && potAmount > 0 
@@ -1046,7 +1051,10 @@
           : '';
         
         // Card class based on room type
-        const cardClass = isDebate ? 'debate' : 'help';
+        let cardClass = '';
+        if (isDebate) cardClass = 'debate';
+        else if (isHelp) cardClass = 'help';
+        // Regular rooms use default styling
         
         return `
           <div class="room-card-wrapper">
@@ -2189,9 +2197,9 @@
         return;
       }
       
-      // Reset room type selection to debate (red)
-      selectedForumRoomType = 'red';
-      selectForumRoomType('red');
+      // Reset room type selection to regular chat
+      selectedForumRoomType = 'regular';
+      selectForumRoomType('regular');
       
       // Show plan warning for free users
       const planWarning = document.getElementById('forum-plan-warning');
@@ -2235,7 +2243,7 @@
       // Plan-based validation
       const planLimits = PLAN_LIMITS[userPlan] || PLAN_LIMITS.free;
       
-      // Check if Green Room is allowed
+      // Check if Green/Help Room is allowed (regular chat rooms are always allowed)
       if (selectedForumRoomType === 'green' && !planLimits.greenRoomEnabled) {
         alert('Help Rooms require Host Pro subscription. Please upgrade to create paid advice rooms.');
         return;
@@ -2243,6 +2251,15 @@
       
       btn.disabled = true;
       btn.textContent = 'Creating...';
+      
+      // Determine the underlying room type for active_rooms
+      // 'regular' uses 'green' mechanics (direct tips) but is marked as 'live' in forum_rooms
+      const activeRoomType = selectedForumRoomType === 'regular' ? 'green' : selectedForumRoomType;
+      
+      // Determine forum_rooms type: 'live' for regular, 'debate' for red, 'help' for green
+      let forumRoomType = 'live';
+      if (selectedForumRoomType === 'red') forumRoomType = 'debate';
+      else if (selectedForumRoomType === 'green') forumRoomType = 'help';
       
       try {
         // Generate a unique room ID
@@ -2258,7 +2275,7 @@
             roomId: roomId,
             hostId: currentUser.id,
             hostName: userName,
-            roomType: selectedForumRoomType, // Use selected room type (red/green)
+            roomType: activeRoomType, // Use underlying room type (green for regular/help, red for debate)
             topic: title,
             description: description,
             isPublic: forumData.forumType !== 'private',
@@ -2286,7 +2303,7 @@
             title: title,
             description: description,
             hostName: userName,
-            roomType: selectedForumRoomType === 'red' ? 'debate' : 'help' // Store as debate/help in forum_rooms
+            roomType: forumRoomType // Store as live/debate/help in forum_rooms
           })
         });
         
@@ -2302,11 +2319,11 @@
         
         // Redirect to the room
         // The room URL goes to the main app with all necessary params
-        // mode=participant since we're the host, use selected room type
+        // mode=participant since we're the host, use underlying room type
         const encodedTopic = encodeURIComponent(title);
         const encodedDesc = description ? encodeURIComponent(description) : '';
         // Use forum ID (UUID) for revenue split, not slug
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=${selectedForumRoomType}&forum=${forumData.id}&topic=${encodedTopic}&host=true&duration=${planLimits.durationMinutes}`;
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=${activeRoomType}&forum=${forumData.id}&topic=${encodedTopic}&host=true&duration=${planLimits.durationMinutes}`;
         if (encodedDesc) roomUrl += `&description=${encodedDesc}`;
         if (createData.inviteCode) roomUrl += `&invite=${createData.inviteCode}`;
         

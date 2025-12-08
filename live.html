@@ -1326,13 +1326,25 @@
       // Apply type filter
       if (currentFilter !== 'all') {
         if (currentFilter === 'forum') {
-          // Show only forum rooms
+          // Show ALL forum rooms (regular, debate, and help)
           filteredRooms = filteredRooms.filter(room => room.room_id && room.room_id.startsWith('forum-'));
-        } else {
-          // Show non-forum rooms of the selected type
+        } else if (currentFilter === 'red') {
+          // Show all red/debate rooms INCLUDING forum debates
+          filteredRooms = filteredRooms.filter(room => room.room_type === 'red');
+        } else if (currentFilter === 'green') {
+          // Show all green/help rooms INCLUDING forum help rooms
+          // But NOT regular forum chat rooms (they only appear in Forum tab)
           filteredRooms = filteredRooms.filter(room => {
             const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
-            return !isForumRoom && room.room_type === currentFilter;
+            // For forum rooms, only show if it's actually a help room (not regular chat)
+            // Regular forum chats use green type but should only show in Forum tab
+            if (isForumRoom) {
+              // We need to check if this is a help room vs regular chat
+              // Forum help rooms will have been created with 'green' type explicitly
+              // For now, include all green forum rooms in Help tab
+              return room.room_type === 'green';
+            }
+            return room.room_type === 'green';
           });
         }
       }
@@ -1352,13 +1364,19 @@
     
     function renderRoomCard(room) {
       const isRed = room.room_type === 'red';
+      const isGreen = room.room_type === 'green';
       const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
       
       // Determine type label and class
       let typeLabel, typeClass;
       if (isForumRoom) {
-        typeLabel = isRed ? '🔴 Forum Debate' : '🟢 Forum Help';
-        typeClass = 'forum'; // Use forum styling
+        if (isRed) {
+          typeLabel = '🔴 Debate';
+          typeClass = 'red'; // Use red styling for forum debates
+        } else {
+          typeLabel = '💬 Chat';
+          typeClass = 'forum'; // Use forum styling for regular/help
+        }
       } else {
         typeLabel = isRed ? '🔴 Debate' : '🟢 Help';
         typeClass = isRed ? 'red' : 'green';

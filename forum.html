@@ -494,14 +494,21 @@
         // Build room URL - go directly to sphere.chatspheres.com with forum room params
         const roomId = r.room_id || r.roomId;
         const participantCount = r.participant_count || r.participantCount || 0;
-        // Auto spectator if 2+ participants already
-        const mode = participantCount >= 2 ? 'spectator' : 'auto';
-        const roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=${mode}&roomType=green&forum=${forumSlug}`;
+        const title = r.title || r.topic || 'Chat Room';
+        const encodedTopic = encodeURIComponent(title);
+        
+        // Auto spectator if 2+ participants already in room
+        const mode = participantCount >= 2 ? 'spectator' : 'participant';
+        
+        // Build URL with all necessary params for proper display
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=green&topic=${encodedTopic}&forum=${forumSlug}`;
+        // Add mode param - spectator for full rooms, participant otherwise
+        roomUrl += `&mode=${mode}`;
         
         return `
           <a href="${roomUrl}" class="room-card" target="_blank">
             <div class="room-card-header">
-              <span class="room-card-title">${escapeHtml(r.title || r.topic || 'Untitled Room')}</span>
+              <span class="room-card-title">${escapeHtml(title)}</span>
               ${r.status === 'live' ? '<span class="live-badge">LIVE</span>' : ''}
             </div>
             <div class="room-card-host">Hosted by ${escapeHtml(r.host_name || r.hostName || 'Anonymous')}</div>

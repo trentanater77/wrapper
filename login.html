@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - ChatSpheres</title>
+  <meta name="description" content="Sign in to ChatSpheres - Join live video conversations and debates.">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Load config -->
+  <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-main);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-lg);
+    }
+    
+    .bg-pattern {
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, var(--rose) 1px, transparent 0);
+      background-size: 32px 32px;
+      opacity: 0.5;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .login-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 420px;
+    }
+    
+    .login-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-2xl);
+      box-shadow: var(--shadow-lg);
+      border: 4px solid var(--gold);
+    }
+    
+    .login-logo {
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .login-logo svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .login-logo h1 {
+      font-size: 1.75rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .login-logo p {
+      color: var(--charcoal);
+      opacity: 0.7;
+      font-size: 0.95rem;
+    }
+    
+    .auth-message {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      margin-bottom: var(--space-md);
+      font-size: 0.875rem;
+      text-align: center;
+      display: none;
+    }
+    
+    .auth-message.error {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+      display: block;
+    }
+    
+    .auth-message.success {
+      background: #d1fae5;
+      color: #059669;
+      border: 1px solid #6ee7b7;
+      display: block;
+    }
+    
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin: var(--space-lg) 0;
+      color: var(--charcoal);
+      opacity: 0.5;
+      font-size: 0.875rem;
+    }
+    
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--rose);
+    }
+    
+    .google-btn {
+      width: 100%;
+      padding: var(--space-md);
+      background: white;
+      border: 3px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      color: var(--charcoal);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      font-size: 1rem;
+      transition: all var(--transition-fast);
+    }
+    
+    .google-btn:hover {
+      background: var(--light-rose);
+      border-color: var(--main-red);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .google-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .form-group {
+      margin-bottom: var(--space-md);
+    }
+    
+    .form-label {
+      display: block;
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+      font-size: 0.95rem;
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: var(--space-md);
+      border: 3px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color var(--transition-fast);
+    }
+    
+    .form-input:focus {
+      border-color: var(--main-red);
+    }
+    
+    .submit-btn {
+      width: 100%;
+      padding: var(--space-md);
+      background: var(--main-red);
+      color: white;
+      border: none;
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-weight: var(--font-weight-bold);
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      margin-top: var(--space-md);
+    }
+    
+    .submit-btn:hover {
+      background: var(--charcoal);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .login-footer {
+      text-align: center;
+      margin-top: var(--space-xl);
+      padding-top: var(--space-lg);
+      border-top: 2px solid var(--rose);
+    }
+    
+    .login-footer p {
+      color: var(--charcoal);
+      font-size: 0.95rem;
+    }
+    
+    .login-footer a {
+      color: var(--main-red);
+      text-decoration: none;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .login-footer a:hover {
+      text-decoration: underline;
+    }
+    
+    .forgot-link {
+      display: block;
+      text-align: right;
+      color: var(--main-red);
+      font-size: 0.875rem;
+      text-decoration: none;
+      margin-top: var(--space-xs);
+    }
+    
+    .forgot-link:hover {
+      text-decoration: underline;
+    }
+    
+    .back-home {
+      display: block;
+      text-align: center;
+      margin-top: var(--space-lg);
+      color: var(--charcoal);
+      opacity: 0.7;
+      font-size: 0.875rem;
+      text-decoration: none;
+    }
+    
+    .back-home:hover {
+      opacity: 1;
+      color: var(--main-red);
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: var(--space-xs);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-pattern"></div>
+  
+  <div class="login-container">
+    <div class="login-card">
+      <div class="login-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <h1>Welcome Back</h1>
+        <p>Sign in to continue to ChatSpheres</p>
+      </div>
+      
+      <div id="auth-message" class="auth-message"></div>
+      
+      <!-- Google Sign In -->
+      <button id="google-btn" class="google-btn" onclick="handleGoogleSignIn()">
+        <svg width="20" height="20" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+      
+      <div class="divider">or</div>
+      
+      <!-- Email Sign In Form -->
+      <form id="login-form" onsubmit="handleEmailSignIn(event)">
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="email" class="form-input" placeholder="you@example.com" required>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" id="password" class="form-input" placeholder="••••••••" required minlength="6">
+          <a href="#" class="forgot-link" onclick="handleForgotPassword(event)">Forgot password?</a>
+        </div>
+        
+        <button type="submit" id="submit-btn" class="submit-btn">Sign In</button>
+      </form>
+      
+      <div class="login-footer">
+        <p>Don't have an account? <a href="/signup.html">Create one</a></p>
+      </div>
+    </div>
+    
+    <a href="/explore.html" class="back-home">← Back to ChatSpheres</a>
+  </div>
+
+  <script>
+    let supabaseClient = null;
+    let AUTH_REDIRECT_URL = '';
+    
+    function initSupabase() {
+      const config = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = config.supabase || {};
+      const authConfig = config.auth || {};
+      
+      const SUPABASE_URL = supabaseConfig.url || config.SUPABASE_URL || '';
+      const SUPABASE_ANON_KEY = supabaseConfig.anonKey || config.SUPABASE_ANON_KEY || '';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      const AUTH_SITE_URL = authConfig.siteUrl || window.location.origin;
+      AUTH_REDIRECT_URL = authConfig.redirectUrl || `${AUTH_SITE_URL}/.netlify/functions/auth-callback`;
+      
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        console.error('Missing Supabase config');
+        return null;
+      }
+      
+      return window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          flowType: 'pkce',
+          storage: {
+            getItem: (key) => {
+              const cookies = document.cookie.split(';');
+              for (const cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === key) return decodeURIComponent(value);
+              }
+              try { return localStorage.getItem(key); } catch(e) { return null; }
+            },
+            setItem: (key, value) => {
+              const maxAge = 60 * 60 * 24 * 365;
+              let cookieStr = `${key}=${encodeURIComponent(value)}; path=/; max-age=${maxAge}; SameSite=Lax`;
+              if (window.location.protocol === 'https:') cookieStr += '; Secure';
+              if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+              document.cookie = cookieStr;
+              try { localStorage.setItem(key, value); } catch(e) {}
+            },
+            removeItem: (key) => {
+              let cookieStr = `${key}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+              if (AUTH_COOKIE_DOMAIN !== 'localhost') cookieStr += `; domain=${AUTH_COOKIE_DOMAIN}`;
+              document.cookie = cookieStr;
+              try { localStorage.removeItem(key); } catch(e) {}
+            }
+          }
+        }
+      });
+    }
+    
+    function showMessage(msg, isError = true) {
+      const el = document.getElementById('auth-message');
+      el.textContent = msg;
+      el.className = 'auth-message ' + (isError ? 'error' : 'success');
+    }
+    
+    function clearMessage() {
+      const el = document.getElementById('auth-message');
+      el.className = 'auth-message';
+      el.textContent = '';
+    }
+    
+    function setLoading(loading) {
+      const submitBtn = document.getElementById('submit-btn');
+      const googleBtn = document.getElementById('google-btn');
+      
+      if (loading) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="loading"></span>Signing in...';
+        googleBtn.disabled = true;
+      } else {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+        googleBtn.disabled = false;
+      }
+    }
+    
+    async function handleGoogleSignIn() {
+      if (!supabaseClient) {
+        showMessage('Authentication unavailable. Please refresh.');
+        return;
+      }
+      
+      clearMessage();
+      setLoading(true);
+      
+      try {
+        const { error } = await supabaseClient.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: AUTH_REDIRECT_URL }
+        });
+        
+        if (error) {
+          showMessage(error.message);
+          setLoading(false);
+        }
+        // Redirect happens automatically
+      } catch (e) {
+        showMessage('Google sign in failed. Please try again.');
+        setLoading(false);
+      }
+    }
+    
+    async function handleEmailSignIn(e) {
+      e.preventDefault();
+      
+      if (!supabaseClient) {
+        showMessage('Authentication unavailable. Please refresh.');
+        return;
+      }
+      
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      
+      if (!email || !password) {
+        showMessage('Please enter email and password');
+        return;
+      }
+      
+      clearMessage();
+      setLoading(true);
+      
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (error) {
+          showMessage(error.message);
+          setLoading(false);
+          return;
+        }
+        
+        if (data?.session) {
+          showMessage('✅ Signed in successfully!', false);
+          
+          // Redirect after short delay
+          const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/explore.html';
+          setTimeout(() => {
+            window.location.href = redirectTo;
+          }, 500);
+        }
+      } catch (e) {
+        showMessage('Sign in failed. Please try again.');
+        setLoading(false);
+      }
+    }
+    
+    async function handleForgotPassword(e) {
+      e.preventDefault();
+      
+      if (!supabaseClient) {
+        showMessage('Authentication unavailable. Please refresh.');
+        return;
+      }
+      
+      const email = document.getElementById('email').value.trim();
+      
+      if (!email) {
+        showMessage('Please enter your email address first');
+        document.getElementById('email').focus();
+        return;
+      }
+      
+      clearMessage();
+      
+      try {
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password.html`
+        });
+        
+        if (error) {
+          showMessage(error.message);
+          return;
+        }
+        
+        showMessage('✅ Password reset email sent! Check your inbox.', false);
+      } catch (e) {
+        showMessage('Failed to send reset email. Please try again.');
+      }
+    }
+    
+    // Handle auth callback (OAuth redirect)
+    function handleAuthCallback() {
+      if (window.location.hash.includes('access_token') || window.location.hash.includes('auth-callback')) {
+        console.log('🔐 Processing auth callback...');
+        setTimeout(() => {
+          if (window.location.hash) {
+            history.replaceState(null, '', window.location.pathname + window.location.search);
+          }
+        }, 100);
+      }
+    }
+    
+    // Check if already logged in
+    async function checkAuth() {
+      if (!supabaseClient) return;
+      
+      try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.user) {
+          // Already logged in, redirect
+          const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/explore.html';
+          window.location.href = redirectTo;
+        }
+      } catch (e) {
+        console.error('Auth check error:', e);
+      }
+    }
+    
+    // Initialize
+    (function init() {
+      let attempts = 0;
+      
+      function tryInit() {
+        attempts++;
+        const config = window.__CHATSPHERES_CONFIG__ || {};
+        
+        if ((config.supabase?.url || config.SUPABASE_URL) && (config.supabase?.anonKey || config.SUPABASE_ANON_KEY)) {
+          supabaseClient = initSupabase();
+          handleAuthCallback();
+          checkAuth();
+        } else if (attempts < 15) {
+          setTimeout(tryInit, 300);
+        } else {
+          showMessage('Failed to load authentication. Please refresh the page.');
+        }
+      }
+      
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', tryInit);
+      } else {
+        tryInit();
+      }
+    })();
+  </script>
+</body>
+</html>

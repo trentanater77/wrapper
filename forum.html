@@ -263,7 +263,7 @@
       <li><a href="/branding.html" class="nav-link"><span class="nav-link-icon">🎨</span> Branding</a></li>
     </ul>
     <div id="nav-guest-links" class="nav-user-section">
-      <a href="/matchmaking.html" class="btn btn-primary btn-full" style="text-decoration: none;">Sign In</a>
+      <a href="/login.html" class="btn btn-primary btn-full" style="text-decoration: none;">Sign In</a>
     </div>
     <div id="nav-user-section" class="nav-user-section" style="display: none;">
       <div class="nav-user-info">
@@ -800,7 +800,7 @@
 
     function renderActions(forum, status) {
       if (!currentUser) {
-        return `<a href="/matchmaking.html" class="btn-join">Sign In to Join</a>`;
+        return `<a href="/login.html?redirect=${encodeURIComponent(window.location.pathname)}" class="btn-join">Sign In to Join</a>`;
       }
       
       const isMember = status?.isMember || status?.role;
@@ -909,7 +909,7 @@
                   <button onclick="submitInvite('${slug}')">Join</button>
                 </div>
               ` : `
-                <a href="/matchmaking.html" class="btn-join">Sign In to Join</a>
+                <a href="/login.html?redirect=${encodeURIComponent(window.location.pathname)}" class="btn-join">Sign In to Join</a>
               `}
             </div>
           </div>

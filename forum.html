@@ -1028,19 +1028,20 @@
         const isTrulyLive = r.is_truly_live || participantCount >= 2;
         
         // Determine room type - check active_rooms room_type or forum_rooms room_type
-        // forum_rooms uses 'debate'/'help'/'live', active_rooms uses 'red'/'green'/'chat'
-        const activeRoomType = r.active_room_type || 'chat';
+        // forum_rooms uses 'debate'/'help'/'live', active_rooms uses 'red'/'green'
+        const activeRoomType = r.active_room_type || 'green';
         const forumRoomType = r.room_type || 'live'; // live = regular chat, debate, help
         const isDebate = activeRoomType === 'red' || forumRoomType === 'debate';
-        const isHelp = forumRoomType === 'help' && activeRoomType === 'green';
-        const isRegular = !isDebate && !isHelp;
-        // Use actual room type: 'red' for debate, 'green' for help, 'chat' for regular
-        const roomTypeParam = isDebate ? 'red' : (isHelp ? 'green' : 'chat');
+        const isHelp = forumRoomType === 'help';
+        const isRegular = forumRoomType === 'live' && !isDebate;
+        // Use database room type for active_rooms (red or green)
+        const roomTypeParam = isDebate ? 'red' : 'green';
         const potAmount = r.pot_amount || 0;
         
         // Build URL with all necessary params
         // Use forum ID (UUID) for revenue split, not slug
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=${roomTypeParam}&topic=${encodedTopic}&forum=${forumData.id}&mode=${mode}`;
+        // Include forumRoomType to distinguish regular chat from help rooms
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=${roomTypeParam}&forumRoomType=${forumRoomType}&topic=${encodedTopic}&forum=${forumData.id}&mode=${mode}`;
         
         // Different button text based on state and type
         let actionText = isTrulyLive ? '👁️ Watch Live' : '🎤 Join Room';
@@ -2249,10 +2250,10 @@
       btn.textContent = 'Creating...';
       
       // Determine the underlying room type for active_rooms
-      // 'regular' uses 'chat' type (no debate/help UI), debate uses 'red', help uses 'green'
-      let activeRoomType = 'chat'; // default for regular forum chat
+      // Database only supports 'red' and 'green' - use 'green' for both regular chat and help
+      // We'll distinguish them via URL parameter (forumRoomType)
+      let activeRoomType = 'green'; // default for regular forum chat and help
       if (selectedForumRoomType === 'red') activeRoomType = 'red';
-      else if (selectedForumRoomType === 'green') activeRoomType = 'green';
       
       // Determine forum_rooms type: 'live' for regular, 'debate' for red, 'help' for green
       let forumRoomType = 'live';
@@ -2321,7 +2322,8 @@
         const encodedTopic = encodeURIComponent(title);
         const encodedDesc = description ? encodeURIComponent(description) : '';
         // Use forum ID (UUID) for revenue split, not slug
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=${activeRoomType}&forum=${forumData.id}&topic=${encodedTopic}&host=true&duration=${planLimits.durationMinutes}`;
+        // Pass forumRoomType to distinguish regular chat from help rooms
+        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=${activeRoomType}&forumRoomType=${forumRoomType}&forum=${forumData.id}&topic=${encodedTopic}&host=true&duration=${planLimits.durationMinutes}`;
         if (encodedDesc) roomUrl += `&description=${encodedDesc}`;
         if (createData.inviteCode) roomUrl += `&invite=${createData.inviteCode}`;
         

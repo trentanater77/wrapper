@@ -5351,15 +5351,16 @@ async function initializeApp() {
         // Red Room debate
         description = `🔴 Red Room Debate: "${topic}"`;
         console.log("✅ Found Red Room topic:", topic);
-      } else if (roomTypeFromUrl === 'chat') {
-        // Regular forum chat room (no debate/help)
-        description = `💬 ${topic}`;
-        console.log("✅ Found Chat room topic:", topic);
       } else if (roomTypeFromUrl === 'green') {
-        // Green Room - check if it's a forum room
+        // Green Room - check if it's a forum room and what type
         const forumParam = urlParams.get('forum');
-        if (forumParam) {
-          // Forum help room - cleaner display
+        const forumRoomType = urlParams.get('forumRoomType');
+        if (forumParam && forumRoomType === 'live') {
+          // Forum regular chat room - no help terminology
+          description = `💬 ${topic}`;
+          console.log("✅ Found Forum Chat room topic:", topic);
+        } else if (forumParam) {
+          // Forum help room
           description = `🟢 ${topic}`;
           console.log("✅ Found Forum Help room topic:", topic);
         } else {
@@ -5420,14 +5421,20 @@ async function initializeApp() {
         if (roomInfo?.topic) {
           const topic = roomInfo.topic;
           const roomType = roomInfo.roomType || 'red';
+          const urlParams = new URLSearchParams(window.location.search);
+          const forumParam = urlParams.get('forum');
+          const forumRoomType = urlParams.get('forumRoomType');
           let description;
           if (roomType === 'red') {
             description = `🔴 Red Room Debate: "${topic}"`;
-          } else if (roomType === 'chat') {
-            description = `💬 ${topic}`;
           } else if (roomType === 'green') {
-            const forumParam = new URLSearchParams(window.location.search).get('forum');
-            description = forumParam ? `🟢 ${topic}` : `🟢 Green Room Help: "${topic}"`;
+            if (forumParam && forumRoomType === 'live') {
+              description = `💬 ${topic}`;
+            } else if (forumParam) {
+              description = `🟢 ${topic}`;
+            } else {
+              description = `🟢 Green Room Help: "${topic}"`;
+            }
           } else {
             description = `Discussing: "${topic}"`;
           }
@@ -11378,25 +11385,29 @@ function ensureSpectatorTracksForParticipant(participant) {
         showEndDebateButtonIfHost();
       }, 1000);
     } else if (roomType === 'green') {
-      // Green/Help room - hide red room panels, show end session button
+      // Green room - could be help room OR regular forum chat
       if (potPanel) potPanel.classList.add('hidden');
       if (spectatorPotPanel) spectatorPotPanel.classList.add('hidden');
       
-      // Show End Session button if user is the host (for Green Rooms)
-      setTimeout(() => {
-        showEndDebateButtonIfHost();
-      }, 1000);
+      // Check if this is a regular forum chat room (forumRoomType='live')
+      const forumRoomType = urlParams.get('forumRoomType');
+      const forumParam = urlParams.get('forum');
+      
+      if (forumParam && forumRoomType === 'live') {
+        // Regular forum chat - no help UI
+        const endSessionSection = document.getElementById('end-session-section');
+        if (endSessionSection) endSessionSection.classList.add('hidden');
+        console.log('💬 Forum Chat room mode - no help UI');
+      } else {
+        // Help room - show End Session button if user is the host
+        setTimeout(() => {
+          showEndDebateButtonIfHost();
+        }, 1000);
+      }
     } else {
-      // Chat room (regular forum chat) - hide all special panels
-      // No debate pot, no help session - just a simple chat room
+      // Unknown room type - hide all special panels
       if (potPanel) potPanel.classList.add('hidden');
       if (spectatorPotPanel) spectatorPotPanel.classList.add('hidden');
-      
-      // Hide the end session section for chat rooms (they use forum room management)
-      const endSessionSection = document.getElementById('end-session-section');
-      if (endSessionSection) endSessionSection.classList.add('hidden');
-      
-      console.log('💬 Chat room mode - no debate/help UI');
     }
     
     // Register room with server (only if host or first participant)

@@ -1409,7 +1409,6 @@
     function renderRoomCard(room) {
       const isRed = room.room_type === 'red';
       const isGreen = room.room_type === 'green';
-      const isChat = room.room_type === 'chat';
       const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
       
       // Determine type label and class
@@ -1418,10 +1417,9 @@
         if (isRed) {
           typeLabel = '🔴 Debate';
           typeClass = 'red';
-        } else if (isGreen) {
-          typeLabel = '🟢 Help';
-          typeClass = 'green';
         } else {
+          // Forum rooms that are green could be help OR regular chat
+          // We show generic "Chat" for forum rooms to be safe
           typeLabel = '💬 Chat';
           typeClass = 'forum';
         }

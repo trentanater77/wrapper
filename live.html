@@ -1410,12 +1410,17 @@
           // Forum debates show in BOTH Red tab and Forum tab
           filteredRooms = filteredRooms.filter(room => room.room_type === 'red');
         } else if (currentFilter === 'green') {
-          // Show ONLY non-forum green/help rooms
-          // Forum green rooms (help or chat) only show in Forum tab
-          // because we can't distinguish help from chat for older rooms
+          // Show non-forum green/help rooms AND forum help rooms
+          // Forum help rooms show in BOTH Green tab and Forum tab
           filteredRooms = filteredRooms.filter(room => {
             const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
-            return room.room_type === 'green' && !isForumRoom;
+            if (!isForumRoom) {
+              // Non-forum green rooms always show
+              return room.room_type === 'green';
+            }
+            // Forum green rooms: only show if they are 'help' type (not regular chat)
+            // forum_room_type: 'help' = help room, 'live' = regular chat, 'debate' = debate
+            return room.room_type === 'green' && room.forum_room_type === 'help';
           });
         }
       }
@@ -1455,14 +1460,23 @@
       let badges = [];
       
       if (isForumRoom) {
-        if (isRed) {
+        // forum_room_type: 'help' = help room, 'live' = regular chat, 'debate' = debate
+        const forumRoomType = room.forum_room_type;
+        
+        if (isRed || forumRoomType === 'debate') {
           // Forum debate - show both Debate and Forum badges
           typeLabel = '🔴 Debate';
           typeClass = 'red';
           badges.push('<span class="type-badge debate-badge">🔴 Debate</span>');
           badges.push('<span class="type-badge forum-badge">🌐 Forum</span>');
+        } else if (forumRoomType === 'help') {
+          // Forum help room - show both Help and Forum badges
+          typeLabel = '🟢 Help';
+          typeClass = 'green';
+          badges.push('<span class="type-badge help-badge">🟢 Help</span>');
+          badges.push('<span class="type-badge forum-badge">🌐 Forum</span>');
         } else {
-          // Forum chat room (green type = could be help or regular chat)
+          // Forum chat room (live type = regular chat)
           typeLabel = '💬 Chat';
           typeClass = 'forum';
           badges.push('<span class="type-badge chat-badge">💬 Chat</span>');

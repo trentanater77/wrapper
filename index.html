@@ -5567,7 +5567,8 @@ async function initializeApp() {
       console.log('🔌 Connecting to LiveKit room...');
       
       // Set up fallback timeout to hide overlay in case connection gets stuck
-      ensureWaitingOverlayHidden(15000);
+      // Reduced from 15s to 8s for better UX
+      ensureWaitingOverlayHidden(8000);
       
       await connectToLiveKitRoom();
       console.log('✅ LiveKit room connected!');
@@ -5813,7 +5814,10 @@ async function initializeApp() {
       const isHostFromUrl = urlParams.get('host') === 'true';
       const hostDisplayName = window.currentUserData?.displayName || userName || 'Host';
       
-      await new Promise((resolve) => {
+      // Timer sync with timeout to prevent blocking the room connection
+      const TIMER_SYNC_TIMEOUT_MS = 5000; // 5 second timeout
+      
+      const timerSyncPromise = new Promise((resolve) => {
         timerRef.transaction((current) => {
           if (current && typeof current.startedAt === 'number' && typeof current.durationSeconds === 'number') {
             const expiresAt = current.startedAt + current.durationSeconds * 1000;
@@ -5842,6 +5846,16 @@ async function initializeApp() {
           resolve();
         });
       });
+      
+      const timeoutPromise = new Promise((resolve) => {
+        setTimeout(() => {
+          console.warn('⚠️ Timer sync timed out - continuing without blocking');
+          resolve();
+        }, TIMER_SYNC_TIMEOUT_MS);
+      });
+      
+      // Race between timer sync and timeout - don't block room loading
+      await Promise.race([timerSyncPromise, timeoutPromise]);
     }
   }
   

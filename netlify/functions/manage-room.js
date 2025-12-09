@@ -242,11 +242,40 @@ exports.handler = async function(event) {
         }
         throw error;
       }
+      
+      // For forum rooms, try to get the forum_room_type from forum_rooms table
+      // This tells us if it's a 'live' (chat), 'debate', or 'help' room
+      const forumRoomIds = data.filter(r => r.room_id?.startsWith('forum-')).map(r => r.room_id);
+      let forumRoomTypes = {};
+      
+      if (forumRoomIds.length > 0) {
+        try {
+          const { data: forumRooms, error: forumError } = await supabase
+            .from('forum_rooms')
+            .select('room_id, room_type')
+            .in('room_id', forumRoomIds);
+          
+          if (!forumError && forumRooms) {
+            forumRooms.forEach(fr => {
+              forumRoomTypes[fr.room_id] = fr.room_type;
+            });
+            console.log('📋 Forum room types loaded:', Object.keys(forumRoomTypes).length);
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not load forum room types:', e.message);
+        }
+      }
+      
+      // Merge forum_room_type into results
+      const enrichedData = data.map(room => ({
+        ...room,
+        forum_room_type: forumRoomTypes[room.room_id] || null
+      }));
 
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ rooms: data || [] }),
+        body: JSON.stringify({ rooms: enrichedData || [] }),
       };
 
     } catch (error) {

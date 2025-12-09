@@ -5809,12 +5809,16 @@ async function initializeApp() {
       console.log(`⏱️ User plan: ${plan}, timer duration: ${limitMinutes} minutes`);
       
       const serverNow = getServerNow();
+      const urlParams = new URLSearchParams(window.location.search);
+      const isHostFromUrl = urlParams.get('host') === 'true';
+      const hostDisplayName = window.currentUserData?.displayName || userName || 'Host';
+      
       await new Promise((resolve) => {
         timerRef.transaction((current) => {
           if (current && typeof current.startedAt === 'number' && typeof current.durationSeconds === 'number') {
             const expiresAt = current.startedAt + current.durationSeconds * 1000;
             if (expiresAt > serverNow + 1000) {
-              return current;
+              return current; // Keep existing timer and host
             }
           }
           console.log(`⏱️ Starting new shared timer for this room (${limitMinutes} min)`);
@@ -5822,13 +5826,16 @@ async function initializeApp() {
             startedAt: firebase.database.ServerValue.TIMESTAMP,
             durationSeconds: timerDurationSeconds,
             createdBy: userId,
-            createdAt: firebase.database.ServerValue.TIMESTAMP
+            createdAt: firebase.database.ServerValue.TIMESTAMP,
+            // Store host info persistently
+            hostId: userId,
+            hostName: hostDisplayName
           };
         }, (error, committed, snapshot) => {
           if (error) {
             console.error('❌ Timer synchronization error:', error);
           } else if (committed) {
-            console.log(`✅ Timer synchronized for room (${limitMinutes} min)`);
+            console.log(`✅ Timer synchronized for room (${limitMinutes} min) - you are the host`);
           } else {
             console.log('ℹ️ Timer already active, using existing value');
           }
@@ -5840,6 +5847,19 @@ async function initializeApp() {
   
   // Fetch subscription specifically for timer (called early in flow)
   async function fetchUserSubscriptionForTimer() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isHost = urlParams.get('host') === 'true';
+    const urlDuration = parseInt(urlParams.get('duration'), 10);
+    
+    // For hosts, check URL duration first (set by room creation page based on their plan)
+    if (isHost && urlDuration && urlDuration > 0) {
+      // Validate the duration is reasonable (max 180 for host_pro)
+      const validDuration = Math.min(urlDuration, 180);
+      const plan = validDuration >= 180 ? 'host_pro' : (validDuration > 60 ? 'pro_bundle' : 'free');
+      console.log(`⏱️ Using URL duration for host: ${validDuration} minutes`);
+      return { plan, limitMinutes: validDuration };
+    }
+    
     if (!userId || !isValidUuid(userId)) {
       console.log('⏱️ No valid userId for timer, using free plan (60 min)');
       return { plan: 'free', limitMinutes: 60 };
@@ -10004,7 +10024,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   let userGemBalance = 0;
   
   // Initialize host tracking when joining room
-  // Host = the first participant to join (earliest joinedAt timestamp)
+  // Host = stored in timer, or first participant to join (earliest joinedAt timestamp)
   async function initializeHostTracking() {
     console.log('🎯 Initializing host tracking...');
     const sphereId = extractSphereId(roomUrl);
@@ -10013,8 +10033,35 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
+    const currentUserId = window.currentUserData?.userId || userId;
+    
     try {
-      // Read all presence entries and find the host (earliest participant)
+      // FIRST: Check if host is stored in the timer (most reliable)
+      const timerRef = db.ref(`timers/${sphereId}`);
+      const timerSnapshot = await timerRef.once('value');
+      const timerData = timerSnapshot.val();
+      
+      if (timerData?.hostId) {
+        // Host is stored in timer - use this as authoritative source
+        roomHostData.hostId = timerData.hostId;
+        roomHostData.hostName = timerData.hostName || 'Host';
+        roomHostData.isHost = (timerData.hostId === currentUserId);
+        
+        console.log('👑 Host from timer:', roomHostData.hostName, '| Is you?', roomHostData.isHost);
+        
+        if (roomHostData.isHost) {
+          console.log('👑 You are the host of this room (from timer)');
+          loadMutedUsers();
+        } else {
+          console.log(`👤 Host is: ${roomHostData.hostName} (stored in timer)`);
+        }
+        
+        showTipButtonIfNotHost();
+        listenForHostChanges(sphereId);
+        return;
+      }
+      
+      // FALLBACK: Read presence entries and find the host (earliest participant)
       const presenceRef = db.ref(`presence/${sphereId}`);
       const snapshot = await presenceRef.once('value');
       const users = snapshot.val() || {};
@@ -10032,10 +10079,10 @@ function ensureSpectatorTracksForParticipant(participant) {
         // No participants yet - we're likely the first one
         console.log('👑 No other participants - you are the host');
         roomHostData.isHost = true;
-        roomHostData.hostId = window.currentUserData?.userId || userId;
+        roomHostData.hostId = currentUserId;
         roomHostData.hostName = window.currentUserData?.displayName || userName || 'Host';
         showTipButtonIfNotHost();
-        loadMutedUsers(); // Load muted users for host
+        loadMutedUsers();
         showToast('👑 You are the host!');
         return;
       }
@@ -10050,16 +10097,13 @@ function ensureSpectatorTracksForParticipant(participant) {
       const hostParticipant = sortedParticipants[0];
       roomHostData.hostId = hostParticipant.userId;
       roomHostData.hostName = hostParticipant.displayName || hostParticipant.name || 'Host';
-      
-      // Check if current user is the host
-      const currentUserId = window.currentUserData?.userId || userId;
       roomHostData.isHost = (hostParticipant.userId === currentUserId);
       
-      console.log('👤 Host determined:', roomHostData.hostName, '| Is you?', roomHostData.isHost);
+      console.log('👤 Host determined from presence:', roomHostData.hostName, '| Is you?', roomHostData.isHost);
       
       if (roomHostData.isHost) {
         console.log('👑 You are the host of this room');
-        loadMutedUsers(); // Load muted users for host
+        loadMutedUsers();
         showToast('👑 You are the host!');
       } else {
         console.log(`👤 Host is: ${roomHostData.hostName} (${roomHostData.hostId})`);

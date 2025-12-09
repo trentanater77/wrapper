@@ -10336,13 +10336,33 @@ function ensureSpectatorTracksForParticipant(participant) {
         const isSelf = participantUserId === currentUserId;
         const isOnline = participant.status !== 'offline';
         
+        // Get the best display name available, filtering out test/invalid names
+        let displayName = participant.displayName || participant.name || 'User';
+        
+        // Filter out names that look like test data or invalid
+        const invalidNames = ['test', 'test1', 'test2', 'guest', 'user', 'undefined', 'null'];
+        if (invalidNames.includes(displayName.toLowerCase()) || 
+            displayName.length < 2 || 
+            /^[a-f0-9-]{36}$/i.test(displayName)) { // UUID pattern
+          displayName = 'User';
+        }
+        
         if (isSignedIn && !isSelf && isOnline) {
-          tippableParticipants.push({
-            id: participantUserId,
-            name: participant.displayName || participant.name || 'User',
-            type: participant.type || 'participant',
-            isHost: roomHostData.hostId === participantUserId
-          });
+          // Check if we already have this user (avoid duplicates)
+          const existingIndex = tippableParticipants.findIndex(p => p.id === participantUserId);
+          if (existingIndex >= 0) {
+            // Update with better name if current one is generic
+            if (tippableParticipants[existingIndex].name === 'User' && displayName !== 'User') {
+              tippableParticipants[existingIndex].name = displayName;
+            }
+          } else {
+            tippableParticipants.push({
+              id: participantUserId,
+              name: displayName,
+              type: participant.type || 'participant',
+              isHost: roomHostData.hostId === participantUserId
+            });
+          }
         }
       });
       

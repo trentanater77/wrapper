@@ -90,6 +90,34 @@
       border-color: #8b5cf6;
     }
     
+    /* Search Bar */
+    .search-container {
+      max-width: 500px;
+      margin: 0 auto var(--space-lg);
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: var(--space-md) var(--space-lg);
+      border: 3px solid var(--rose);
+      border-radius: var(--radius-full);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      background: white;
+      transition: all var(--transition-fast);
+      outline: none;
+    }
+    
+    .search-input:focus {
+      border-color: var(--main-red);
+      box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.1);
+    }
+    
+    .search-input::placeholder {
+      color: var(--charcoal);
+      opacity: 0.5;
+    }
+    
     .room-card.forum {
       border-color: #8b5cf6;
     }
@@ -817,6 +845,11 @@
         <h1 class="live-title">🔴 Live Rooms</h1>
         <p class="live-subtitle">Watch debates and join conversations happening right now</p>
         
+        <!-- Search Bar -->
+        <div class="search-container">
+          <input type="text" id="room-search" class="search-input" placeholder="🔍 Search rooms by topic or host..." oninput="searchRooms(this.value)">
+        </div>
+        
         <!-- Room Type Tabs -->
         <div class="room-tabs">
           <button class="room-tab active" data-type="all" onclick="filterRooms('all')">
@@ -980,10 +1013,20 @@
     // ============================================
     let allRooms = [];
     let currentFilter = 'all';
+    let currentSearchQuery = '';
     let selectedRoomType = 'red';
     let currentUserId = null;
     let currentUserName = null;
     let userPlan = 'free';
+    
+    // ============================================
+    // SEARCH FUNCTIONALITY
+    // ============================================
+    function searchRooms(query) {
+      currentSearchQuery = query.toLowerCase().trim();
+      renderRooms();
+    }
+    window.searchRooms = searchRooms;
     
     // ============================================
     // CREATE ROOM MODAL - DEFINED FIRST FOR onclick
@@ -1347,6 +1390,18 @@
             return room.room_type === 'green';
           });
         }
+      }
+      
+      // Apply search filter
+      if (currentSearchQuery) {
+        filteredRooms = filteredRooms.filter(room => {
+          const topic = (room.topic || '').toLowerCase();
+          const hostName = (room.host_name || '').toLowerCase();
+          const description = (room.description || '').toLowerCase();
+          return topic.includes(currentSearchQuery) || 
+                 hostName.includes(currentSearchQuery) || 
+                 description.includes(currentSearchQuery);
+        });
       }
       
       if (filteredRooms.length === 0) {

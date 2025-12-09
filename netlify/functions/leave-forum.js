@@ -41,6 +41,15 @@ exports.handler = async function(event) {
     await supabase.from('forum_members').delete().eq('forum_id', forum.id).eq('user_id', userId);
     await supabase.from('forum_moderators').delete().eq('forum_id', forum.id).eq('user_id', userId);
 
+    // Decrement member count on the forum
+    await supabase.rpc('decrement_member_count', { forum_id_param: forum.id }).catch(async () => {
+      // Fallback: direct update if RPC doesn't exist
+      const { data: currentForum } = await supabase.from('forums').select('member_count').eq('id', forum.id).single();
+      if (currentForum) {
+        await supabase.from('forums').update({ member_count: Math.max(0, (currentForum.member_count || 1) - 1) }).eq('id', forum.id);
+      }
+    });
+
     console.log(`✅ User ${userId} left forum ${forum.slug}`);
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, forum: { id: forum.id, slug: forum.slug, name: forum.name } }) };
   } catch (error) {

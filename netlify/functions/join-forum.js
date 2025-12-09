@@ -57,7 +57,13 @@ exports.handler = async function(event) {
     if (joinError?.code === '23505') return { statusCode: 200, headers, body: JSON.stringify({ success: true, alreadyMember: true }) };
     if (joinError) throw joinError;
 
-    console.log(`✅ User ${userId} joined forum ${forum.slug}`);
+    // Increment member count on the forum
+    await supabase.rpc('increment_member_count', { forum_id_param: forum.id }).catch(() => {
+      // Fallback: direct update if RPC doesn't exist
+      supabase.from('forums').update({ member_count: forum.member_count + 1 }).eq('id', forum.id);
+    });
+
+    console.log(`✅ User ${userId} joined forum ${forum.slug} (ID: ${forum.id})`);
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, forum: { id: forum.id, slug: forum.slug, name: forum.name }, role: 'member' }) };
   } catch (error) {
     console.error('❌ Error joining forum:', error);

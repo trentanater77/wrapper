@@ -10,7 +10,24 @@
  * User must be authenticated via Supabase.
  */
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// Validate Stripe configuration
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+if (!STRIPE_SECRET_KEY) {
+  console.error('❌ STRIPE_SECRET_KEY not configured!');
+}
+
+// Warn if using test keys in production
+const isTestMode = STRIPE_SECRET_KEY?.startsWith('sk_test_');
+const isProduction = process.env.NODE_ENV === 'production' || 
+                     process.env.CONTEXT === 'production' ||
+                     !process.env.NETLIFY_DEV;
+
+if (isTestMode && isProduction) {
+  console.warn('⚠️ WARNING: Using Stripe TEST keys in production environment!');
+  console.warn('⚠️ Payments will not be real. Update to live keys for production.');
+}
+
+const stripe = require('stripe')(STRIPE_SECRET_KEY);
 
 // Subscription Price IDs from environment variables
 const SUBSCRIPTION_PRICE_IDS = {

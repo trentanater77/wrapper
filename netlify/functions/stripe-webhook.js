@@ -7,7 +7,22 @@
  * Updates the Supabase database accordingly.
  */
 
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+// Validate Stripe configuration
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
+
+if (!STRIPE_SECRET_KEY) {
+  console.error('❌ STRIPE_SECRET_KEY not configured!');
+}
+if (!STRIPE_WEBHOOK_SECRET) {
+  console.error('❌ STRIPE_WEBHOOK_SECRET not configured!');
+}
+
+// Log mode for debugging
+const isTestMode = STRIPE_SECRET_KEY?.startsWith('sk_test_');
+console.log(`💳 Stripe webhook running in ${isTestMode ? 'TEST' : 'LIVE'} mode`);
+
+const stripe = require('stripe')(STRIPE_SECRET_KEY);
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase with service role key (bypasses RLS)

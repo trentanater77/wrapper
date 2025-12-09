@@ -4468,8 +4468,9 @@
                   // Track this as the other participant
                   const participantData = normalizeLiveKitParticipant(participant, { local: false });
                   const remoteUserId = getParticipantUserId(participantData);
+                  const remoteDisplayName = participantData?.displayName || participantData?.name || participant.name || participant.identity || 'Guest';
                   if (remoteUserId) {
-                    updateOtherParticipant(remoteUserId, participant.identity);
+                    updateOtherParticipant(remoteUserId, remoteDisplayName);
                     
                     // Update pot targets for Red Room
                     if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
@@ -10126,20 +10127,33 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    // Show tip button only if user is NOT the host
-    // Hosts cannot tip themselves in production
-    const ALLOW_SELF_TIP = false; // Disabled for production
+    // In RED ROOMS (debates): Hide tip button for participants - they can't tip each other
+    // Spectators use the pot tip section in debates, not the floating button
+    // In GREEN ROOMS (chat/help): Non-hosts can tip participants
+    const isDebate = typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red';
     
-    console.log('💎 Is host?', roomHostData.isHost);
-    
-    if (!roomHostData.isHost || ALLOW_SELF_TIP) {
-      tipBtn.classList.remove('hidden');
-      tipBtn.style.display = 'block'; // Force visibility
-      console.log('💎 Tip button NOW VISIBLE');
-    } else {
+    if (isDebate) {
+      // In debates, hide the floating tip button for everyone
+      // Spectators tip via the pot panel, participants can't tip at all
       tipBtn.classList.add('hidden');
       tipBtn.style.display = 'none';
-      console.log('👑 Tip button hidden (you are the host)');
+      console.log('🔴 Tip button hidden (debate mode - use pot panel)');
+    } else {
+      // Green/chat rooms: Show tip button for non-hosts
+      // Hosts cannot tip themselves in production
+      const ALLOW_SELF_TIP = false;
+      
+      console.log('💎 Is host?', roomHostData.isHost);
+      
+      if (!roomHostData.isHost || ALLOW_SELF_TIP) {
+        tipBtn.classList.remove('hidden');
+        tipBtn.style.display = 'block';
+        console.log('💎 Tip button NOW VISIBLE');
+      } else {
+        tipBtn.classList.add('hidden');
+        tipBtn.style.display = 'none';
+        console.log('👑 Tip button hidden (you are the host)');
+      }
     }
     
     // Update spectator management button visibility (hosts only)

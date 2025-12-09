@@ -4,9 +4,12 @@
  * Update User Profile
  * 
  * Updates user's display_name, bio, and avatar_url in the profiles table.
+ * 
+ * SANITIZED: XSS prevention on displayName, bio
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { sanitizeDisplayName, sanitizeTextarea, stripXSS } = require('./utils/sanitize');
 
 // Initialize Supabase with service role key
 const supabase = createClient(
@@ -48,7 +51,8 @@ exports.handler = async function(event) {
       };
     }
 
-    // Validate displayName length and characters
+    // Sanitize and validate displayName
+    let cleanDisplayName;
     if (displayName !== undefined) {
       if (typeof displayName !== 'string') {
         return {
@@ -57,31 +61,19 @@ exports.handler = async function(event) {
           body: JSON.stringify({ error: 'displayName must be a string' }),
         };
       }
-      if (displayName.length > 50) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Display name must be 50 characters or less' }),
-        };
-      }
-      if (displayName.length < 1) {
+      // Sanitize for XSS prevention
+      cleanDisplayName = sanitizeDisplayName(displayName, 50);
+      if (cleanDisplayName.length < 1) {
         return {
           statusCode: 400,
           headers,
           body: JSON.stringify({ error: 'Display name cannot be empty' }),
         };
       }
-      // Basic sanitization - remove potential script tags
-      if (/<script|javascript:|on\w+=/i.test(displayName)) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Display name contains invalid characters' }),
-        };
-      }
     }
 
-    // Validate bio length
+    // Sanitize and validate bio
+    let cleanBio;
     if (bio !== undefined) {
       if (typeof bio !== 'string') {
         return {
@@ -90,21 +82,8 @@ exports.handler = async function(event) {
           body: JSON.stringify({ error: 'bio must be a string' }),
         };
       }
-      if (bio.length > 500) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Bio must be 500 characters or less' }),
-        };
-      }
-      // Basic sanitization - remove potential script tags
-      if (/<script|javascript:|on\w+=/i.test(bio)) {
-        return {
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Bio contains invalid content' }),
-        };
-      }
+      // Sanitize for XSS prevention
+      cleanBio = sanitizeTextarea(bio, 500);
     }
 
     let avatarUrl = null;
@@ -163,10 +142,10 @@ exports.handler = async function(event) {
       console.log(`✅ Avatar uploaded: ${avatarUrl}`);
     }
 
-    // Build update object
+    // Build update object with sanitized values
     const updateData = {};
-    if (displayName !== undefined) updateData.display_name = displayName;
-    if (bio !== undefined) updateData.bio = bio;
+    if (displayName !== undefined) updateData.display_name = cleanDisplayName;
+    if (bio !== undefined) updateData.bio = cleanBio;
     if (avatarUrl) updateData.avatar_url = avatarUrl;
 
     // Check if profile exists

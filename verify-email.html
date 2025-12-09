@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Your Email - ChatSpheres</title>
+  <meta name="description" content="Please verify your email address to access all ChatSpheres features.">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Load config -->
+  <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-main);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-lg);
+    }
+    
+    .bg-pattern {
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(circle at 1px 1px, var(--rose) 1px, transparent 0);
+      background-size: 32px 32px;
+      opacity: 0.5;
+      z-index: 0;
+      pointer-events: none;
+    }
+    
+    .verify-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 480px;
+    }
+    
+    .verify-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: var(--space-2xl);
+      box-shadow: var(--shadow-lg);
+      border: 4px solid var(--gold);
+      text-align: center;
+    }
+    
+    .verify-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto var(--space-lg);
+      background: linear-gradient(135deg, var(--gold) 0%, #f59e0b 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .verify-icon svg {
+      width: 40px;
+      height: 40px;
+      stroke: white;
+      stroke-width: 2;
+      fill: none;
+    }
+    
+    h1 {
+      font-size: 1.75rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .email-display {
+      color: var(--main-red);
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .description {
+      color: var(--charcoal);
+      opacity: 0.8;
+      line-height: 1.6;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: var(--space-md) var(--space-xl);
+      border-radius: var(--radius-lg);
+      font-weight: var(--font-weight-bold);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      border: 3px solid transparent;
+      text-decoration: none;
+    }
+    
+    .btn-primary {
+      background: var(--main-red);
+      color: white;
+      border-color: var(--main-red);
+      width: 100%;
+    }
+    
+    .btn-primary:hover {
+      background: #c62c3a;
+      transform: translateY(-2px);
+    }
+    
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: var(--charcoal);
+      border-color: var(--rose);
+      margin-top: var(--space-md);
+      width: 100%;
+    }
+    
+    .btn-secondary:hover {
+      background: var(--rose);
+      transform: translateY(-2px);
+    }
+    
+    .status-message {
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      margin-top: var(--space-md);
+      font-size: 0.875rem;
+      display: none;
+    }
+    
+    .status-message.success {
+      background: #d1fae5;
+      color: #059669;
+      border: 1px solid #6ee7b7;
+      display: block;
+    }
+    
+    .status-message.error {
+      background: #fee2e2;
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+      display: block;
+    }
+    
+    .tips {
+      margin-top: var(--space-xl);
+      padding-top: var(--space-lg);
+      border-top: 1px solid var(--rose);
+      text-align: left;
+    }
+    
+    .tips h3 {
+      font-size: 0.875rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .tips ul {
+      list-style: none;
+      font-size: 0.8rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .tips li {
+      padding: var(--space-xs) 0;
+      padding-left: var(--space-md);
+      position: relative;
+    }
+    
+    .tips li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: var(--main-red);
+    }
+    
+    .verified-state {
+      display: none;
+    }
+    
+    .verified-icon {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .verify-card {
+      animation: fadeIn 0.3s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-pattern" aria-hidden="true"></div>
+  
+  <div class="verify-container">
+    <div class="verify-card" id="unverified-state">
+      <div class="verify-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      
+      <h1>Verify Your Email</h1>
+      <p class="email-display" id="user-email">Loading...</p>
+      
+      <p class="description">
+        We've sent a verification link to your email address. Please check your inbox and click the link to verify your account.
+      </p>
+      
+      <button class="btn btn-primary" id="resend-btn" onclick="resendVerification()">
+        Resend Verification Email
+      </button>
+      
+      <button class="btn btn-secondary" onclick="checkVerification()">
+        I've Verified My Email
+      </button>
+      
+      <div class="status-message" id="status-message"></div>
+      
+      <div class="tips">
+        <h3>Can't find the email?</h3>
+        <ul>
+          <li>Check your spam or junk folder</li>
+          <li>Make sure you entered the correct email</li>
+          <li>Wait a few minutes and try resending</li>
+          <li>Add noreply@mail.app.supabase.io to your contacts</li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="verify-card verified-state" id="verified-state">
+      <div class="verify-icon verified-icon">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      
+      <h1>Email Verified! 🎉</h1>
+      
+      <p class="description">
+        Your email has been successfully verified. You now have full access to all ChatSpheres features.
+      </p>
+      
+      <a href="/matchmaking.html" class="btn btn-primary">
+        Start Chatting
+      </a>
+      
+      <a href="/explore.html" class="btn btn-secondary">
+        Explore Forums
+      </a>
+    </div>
+  </div>
+  
+  <script>
+    let supabase;
+    let userEmail = '';
+    
+    // Initialize Supabase
+    function initSupabase() {
+      const config = window.__CHATSPHERES_CONFIG__;
+      if (config?.SUPABASE_URL && config?.SUPABASE_ANON_KEY) {
+        supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+        checkCurrentUser();
+      } else {
+        setTimeout(initSupabase, 100);
+      }
+    }
+    
+    // Check current user's verification status
+    async function checkCurrentUser() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          // Not logged in, redirect to login
+          window.location.href = '/login.html';
+          return;
+        }
+        
+        userEmail = user.email;
+        document.getElementById('user-email').textContent = userEmail;
+        
+        // Check if already verified
+        if (user.email_confirmed_at) {
+          showVerifiedState();
+        }
+        
+        // Check if this is an OAuth user
+        if (user.app_metadata?.provider !== 'email') {
+          showVerifiedState();
+        }
+      } catch (error) {
+        console.error('Error checking user:', error);
+      }
+    }
+    
+    // Show verified state
+    function showVerifiedState() {
+      document.getElementById('unverified-state').style.display = 'none';
+      document.getElementById('verified-state').style.display = 'block';
+    }
+    
+    // Resend verification email
+    async function resendVerification() {
+      const btn = document.getElementById('resend-btn');
+      const statusEl = document.getElementById('status-message');
+      
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      statusEl.className = 'status-message';
+      statusEl.style.display = 'none';
+      
+      try {
+        const response = await fetch('/.netlify/functions/resend-verification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: userEmail })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          statusEl.textContent = data.message;
+          statusEl.className = 'status-message success';
+        } else {
+          statusEl.textContent = data.error || 'Failed to send verification email';
+          statusEl.className = 'status-message error';
+        }
+      } catch (error) {
+        statusEl.textContent = 'Network error. Please try again.';
+        statusEl.className = 'status-message error';
+      }
+      
+      btn.disabled = false;
+      btn.textContent = 'Resend Verification Email';
+    }
+    
+    // Check if user has verified
+    async function checkVerification() {
+      try {
+        // Refresh the session to get latest data
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error) throw error;
+        
+        if (user?.email_confirmed_at) {
+          showVerifiedState();
+        } else {
+          const statusEl = document.getElementById('status-message');
+          statusEl.textContent = 'Email not verified yet. Please check your inbox and click the verification link.';
+          statusEl.className = 'status-message error';
+        }
+      } catch (error) {
+        console.error('Error checking verification:', error);
+      }
+    }
+    
+    // Check URL for verification callback
+    function checkUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('verified') === 'true') {
+        showVerifiedState();
+      }
+    }
+    
+    // Initialize
+    checkUrlParams();
+    initSupabase();
+  </script>
+</body>
+</html>

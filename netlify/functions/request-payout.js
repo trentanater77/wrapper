@@ -6,9 +6,12 @@
  * Allows hosts to request a payout of their cashable gems.
  * Minimum payout: 500 gems ($4.95)
  * Conversion rate: 100 gems = $0.99
+ * 
+ * RATE LIMITED: 10 requests per minute (STRICT tier)
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -42,6 +45,13 @@ exports.handler = async function(event) {
       headers,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
+  }
+
+  // Rate limiting - STRICT tier (10 requests/min) for financial operations
+  const clientIP = getClientIP(event);
+  const rateLimitResult = await checkRateLimit(supabase, clientIP, RATE_LIMITS.STRICT, 'request-payout');
+  if (!rateLimitResult.allowed) {
+    return rateLimitResponse(rateLimitResult, RATE_LIMITS.STRICT);
   }
 
   try {

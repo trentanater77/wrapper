@@ -10,9 +10,12 @@
  * - Standard (non-forum): 50% host, 50% platform
  * - Forum tip: 45% host, 10% forum creator, 45% platform
  *   (If host IS the forum creator: 55% host, 45% platform)
+ * 
+ * RATE LIMITED: 20 requests per minute (FINANCIAL tier)
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -43,6 +46,13 @@ exports.handler = async function(event) {
       headers,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
+  }
+
+  // Rate limiting - FINANCIAL tier (20 requests/min)
+  const clientIP = getClientIP(event);
+  const rateLimitResult = await checkRateLimit(supabase, clientIP, RATE_LIMITS.FINANCIAL, 'send-tip');
+  if (!rateLimitResult.allowed) {
+    return rateLimitResponse(rateLimitResult, RATE_LIMITS.FINANCIAL);
   }
 
   try {

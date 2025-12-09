@@ -1,6 +1,15 @@
 'use strict';
 
+/**
+ * Submit Bug Report
+ * 
+ * RATE LIMITED: 10 requests per minute (STRICT tier)
+ * SANITIZED: XSS prevention on description, device_info
+ */
+
 const { createClient } = require('@supabase/supabase-js');
+const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
+const { sanitizeTextarea, sanitizeObject, sanitizeUrl, sanitizeDisplayName } = require('./utils/sanitize');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -25,6 +34,13 @@ exports.handler = async function(event) {
       headers,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
+  }
+
+  // Rate limiting - STRICT tier (10 requests/min)
+  const clientIP = getClientIP(event);
+  const rateLimitResult = await checkRateLimit(supabase, clientIP, RATE_LIMITS.STRICT, 'submit-bug-report');
+  if (!rateLimitResult.allowed) {
+    return rateLimitResponse(rateLimitResult, RATE_LIMITS.STRICT);
   }
 
   try {
@@ -55,18 +71,24 @@ exports.handler = async function(event) {
     const validCategories = ['video', 'audio', 'connection', 'chat', 'ui', 'performance', 'other'];
     const bugCategory = validCategories.includes(category) ? category : 'other';
 
+    // Sanitize all inputs for XSS prevention
+    const cleanDescription = sanitizeTextarea(description, 1000);
+    const cleanDeviceInfo = deviceInfo ? sanitizeObject(deviceInfo, 3) : {};
+    const cleanUserName = sanitizeDisplayName(userName, 50) || 'Guest';
+    const cleanUrl = url ? sanitizeUrl(url) : null;
+
     // Insert the bug report
     const { data: report, error: reportError } = await supabase
       .from('bug_reports')
       .insert({
         user_id: userId || 'guest',
-        user_name: userName || 'Guest',
+        user_name: cleanUserName,
         user_email: userEmail || null,
         room_id: roomId || null,
         category: bugCategory,
-        description: description.trim().substring(0, 1000),
-        device_info: deviceInfo || {},
-        page_url: url || null,
+        description: cleanDescription,
+        device_info: cleanDeviceInfo,
+        page_url: cleanUrl,
         is_spectator: isSpectator || false,
         status: 'new',
         reported_at: timestamp || new Date().toISOString()

@@ -2,9 +2,14 @@
 
 /**
  * Forum Room - Creates/updates/ends rooms within forums
+ * 
+ * RATE LIMITED: CREATE tier (30/hour) for create, STANDARD tier (60/min) for update/end
+ * SANITIZED: XSS prevention on room titles, descriptions
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
+const { sanitizeText, sanitizeTextarea, sanitizeDisplayName } = require('./utils/sanitize');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -23,7 +28,16 @@ exports.handler = async function(event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   try {
-    const { action, userId, forumId, forumSlug, roomId, roomUrl, title, description, hostName, roomType, peakViewers } = JSON.parse(event.body || '{}');
+    const body = JSON.parse(event.body || '{}');
+    const { action, userId, forumId, forumSlug, roomId, roomUrl, title, description, hostName, roomType, peakViewers } = body;
+    
+    // Rate limiting (different tiers for create vs update/end)
+    const clientIP = getClientIP(event);
+    const rateConfig = action === 'create' ? RATE_LIMITS.CREATE : RATE_LIMITS.STANDARD;
+    const rateLimitResult = await checkRateLimit(supabase, clientIP, rateConfig, `forum-room-${action || 'unknown'}`);
+    if (!rateLimitResult.allowed) {
+      return rateLimitResponse(rateLimitResult, rateConfig);
+    }
 
     if (!userId) return { statusCode: 401, headers, body: JSON.stringify({ error: 'Authentication required' }) };
     if (!action) return { statusCode: 400, headers, body: JSON.stringify({ error: 'action required' }) };
@@ -54,9 +68,14 @@ exports.handler = async function(event) {
           return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only owner can create lounge' }) };
         }
 
+        // Sanitize inputs for XSS prevention
+        const cleanTitle = sanitizeText(title, 200) || 'Untitled Room';
+        const cleanDescription = description ? sanitizeTextarea(description, 1000) : null;
+        const cleanHostName = sanitizeDisplayName(hostName, 50);
+
         const { data: room, error } = await supabase.from('forum_rooms').insert({
-          forum_id: forum.id, room_id: roomId, room_url: roomUrl, title: title?.slice(0, 200) || 'Untitled Room',
-          description: description?.slice(0, 1000), host_id: userId, host_name: hostName, room_type: validRoomType, status: 'live',
+          forum_id: forum.id, room_id: roomId, room_url: roomUrl, title: cleanTitle,
+          description: cleanDescription, host_id: userId, host_name: cleanHostName, room_type: validRoomType, status: 'live',
         }).select().single();
         if (error) throw error;
 
@@ -80,8 +99,9 @@ exports.handler = async function(event) {
         }
         
         const updateData = {};
-        if (title !== undefined) updateData.title = title.slice(0, 200);
-        if (description !== undefined) updateData.description = description?.slice(0, 1000);
+        // Sanitize inputs for XSS prevention
+        if (title !== undefined) updateData.title = sanitizeText(title, 200);
+        if (description !== undefined) updateData.description = description ? sanitizeTextarea(description, 1000) : null;
         if (peakViewers !== undefined) updateData.peak_viewers = peakViewers;
         if (!Object.keys(updateData).length) return { statusCode: 400, headers, body: JSON.stringify({ error: 'No fields to update' }) };
         await supabase.from('forum_rooms').update(updateData).eq('forum_id', forum.id).eq('room_id', roomId);

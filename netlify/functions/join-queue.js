@@ -1,7 +1,16 @@
 // netlify/functions/join-queue.js
 // Adds a user to the matchmaking queue in Firebase
+// RATE LIMITED: 60 requests per minute (STANDARD tier)
 
 const admin = require("firebase-admin");
+const { createClient } = require('@supabase/supabase-js');
+const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
+
+// Supabase client for rate limiting
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 // Initialize Firebase Admin (singleton pattern)
 function getFirebaseAdmin() {
@@ -58,6 +67,13 @@ exports.handler = async function (event) {
       },
       body: "",
     };
+  }
+
+  // Rate limiting - STANDARD tier (60 requests/min)
+  const clientIP = getClientIP(event);
+  const rateLimitResult = await checkRateLimit(supabase, clientIP, RATE_LIMITS.STANDARD, 'join-queue');
+  if (!rateLimitResult.allowed) {
+    return rateLimitResponse(rateLimitResult, RATE_LIMITS.STANDARD);
   }
 
   // Handle DELETE - remove user from queue

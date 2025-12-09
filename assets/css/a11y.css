@@ -1,0 +1,358 @@
+/**
+ * Accessibility (a11y) CSS
+ * Improves accessibility with focus states, reduced motion, and more
+ */
+
+/* ========================================
+   FOCUS STATES
+======================================== */
+
+/* Better visible focus for keyboard navigation */
+:focus-visible {
+  outline: 3px solid var(--main-red, #e63946);
+  outline-offset: 2px;
+}
+
+/* Remove default outline when mouse clicking */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Focus styles for buttons and interactive elements */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid var(--main-red, #e63946);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.2);
+}
+
+/* Skip link for keyboard users */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--main-red, #e63946);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-lg, 12px);
+  font-weight: 600;
+  z-index: 10002;
+  transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+/* ========================================
+   REDUCED MOTION
+======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .spinner {
+    animation: none;
+    border-top-color: var(--main-red, #e63946);
+    opacity: 0.6;
+  }
+}
+
+/* ========================================
+   HIGH CONTRAST MODE
+======================================== */
+
+@media (prefers-contrast: high) {
+  :root {
+    --main-red: #c00;
+    --rose: #ffb3b3;
+    --gold: #cc9900;
+    --charcoal: #000;
+  }
+  
+  button,
+  a,
+  [role="button"] {
+    border-width: 2px !important;
+  }
+  
+  .card,
+  .forum-card,
+  .room-card {
+    border-width: 2px !important;
+    border-color: #000 !important;
+  }
+}
+
+/* ========================================
+   SCREEN READER UTILITIES
+======================================== */
+
+/* Visually hidden but accessible to screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Make sr-only focusable */
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* ========================================
+   INTERACTIVE STATES
+======================================== */
+
+/* Hover states that also apply to keyboard focus */
+button:hover,
+button:focus-visible,
+a:hover,
+a:focus-visible,
+[role="button"]:hover,
+[role="button"]:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/* Disabled states */
+[disabled],
+[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ========================================
+   FORM ACCESSIBILITY
+======================================== */
+
+/* Required field indicator */
+label[for] .required::after {
+  content: " *";
+  color: var(--main-red, #e63946);
+}
+
+/* Error states */
+.input-error,
+input[aria-invalid="true"],
+select[aria-invalid="true"],
+textarea[aria-invalid="true"] {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+}
+
+/* Error messages */
+.error-message,
+[role="alert"] {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+/* Success messages */
+[role="status"].success {
+  color: #059669;
+}
+
+/* ========================================
+   LINK ACCESSIBILITY
+======================================== */
+
+/* External link indicator */
+a[target="_blank"]::after {
+  content: " (opens in new tab)";
+  font-size: 0;
+  position: absolute;
+}
+
+/* Or use icon approach */
+a[target="_blank"][aria-label]::after {
+  content: "";
+}
+
+/* ========================================
+   MODAL/DIALOG ACCESSIBILITY
+======================================== */
+
+/* Prevent body scroll when modal is open */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* Focus trap indicator (visual debugging) */
+[data-focus-trap] {
+  position: relative;
+}
+
+/* ========================================
+   LANDMARK REGIONS
+======================================== */
+
+main:focus,
+[role="main"]:focus {
+  outline: none;
+}
+
+/* ========================================
+   TABLE ACCESSIBILITY
+======================================== */
+
+table {
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+}
+
+th,
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--rose, #f8d7da);
+}
+
+/* ========================================
+   TOUCH TARGET SIZE
+======================================== */
+
+/* Minimum 44x44px touch targets per WCAG */
+@media (pointer: coarse) {
+  button,
+  a,
+  input[type="checkbox"],
+  input[type="radio"],
+  [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Padding for better touch targets */
+  .nav-link,
+  .menu-item {
+    padding: 0.75rem 1rem;
+  }
+}
+
+/* ========================================
+   COLOR ACCESSIBILITY
+======================================== */
+
+/* Don't rely solely on color for information */
+.status-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-indicator::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-online::before {
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.status-offline::before {
+  background: #6b7280;
+}
+
+.status-busy::before {
+  background: #dc2626;
+}
+
+/* ========================================
+   LIVE REGIONS
+======================================== */
+
+[aria-live="polite"],
+[aria-live="assertive"] {
+  /* These are invisible containers for dynamic content */
+}
+
+/* ========================================
+   TEXT READABILITY
+======================================== */
+
+/* Minimum line height for readability */
+p,
+li,
+td,
+th {
+  line-height: 1.5;
+}
+
+/* Maximum line length for readability */
+.readable-text {
+  max-width: 70ch;
+}
+
+/* ========================================
+   KEYBOARD NAVIGATION
+======================================== */
+
+/* Tab list styles */
+[role="tablist"] {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 2px solid var(--rose, #f8d7da);
+}
+
+[role="tab"] {
+  padding: 0.75rem 1rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-weight: 600;
+  color: var(--charcoal, #333);
+  transition: all 0.2s ease;
+}
+
+[role="tab"]:hover {
+  color: var(--main-red, #e63946);
+}
+
+[role="tab"][aria-selected="true"] {
+  border-bottom-color: var(--main-red, #e63946);
+  color: var(--main-red, #e63946);
+}
+
+[role="tabpanel"] {
+  padding: 1rem 0;
+}
+
+[role="tabpanel"][hidden] {
+  display: none;
+}

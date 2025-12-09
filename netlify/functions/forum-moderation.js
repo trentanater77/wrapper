@@ -2,9 +2,12 @@
 
 /**
  * Forum Moderation - Handles ban, mute, add/remove mods, announcements
+ * 
+ * SANITIZED: XSS prevention on announcement titles, content, forum updates
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { sanitizeText, sanitizeTextarea, sanitizeTags, sanitizeUrl } = require('./utils/sanitize');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -84,7 +87,10 @@ exports.handler = async function(event) {
         if (!isOwner && !modStatus?.can_pin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'No pin permission' }) };
         const { count } = await supabase.from('forum_announcements').select('id', { count: 'exact' }).eq('forum_id', forumId).eq('is_pinned', true);
         if (count >= 3) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Max 3 pins allowed' }) };
-        const { data: announcement } = await supabase.from('forum_announcements').insert({ forum_id: forumId, title: title.slice(0, 200), content, created_by: userId, pin_order: count || 0 }).select().single();
+        // Sanitize announcement title and content for XSS prevention
+        const cleanTitle = sanitizeText(title, 200);
+        const cleanContent = content ? sanitizeTextarea(content, 2000) : null;
+        const { data: announcement } = await supabase.from('forum_announcements').insert({ forum_id: forumId, title: cleanTitle, content: cleanContent, created_by: userId, pin_order: count || 0 }).select().single();
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, announcement }) };
       }
       case 'unpin': {
@@ -94,9 +100,21 @@ exports.handler = async function(event) {
       }
       case 'updateForum': {
         if (!isOwner) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only owner can update' }) };
-        const allowed = ['name', 'description', 'rules', 'category', 'tags', 'forum_type', 'is_nsfw', 'icon_url', 'banner_url', 'primary_color', 'secondary_color'];
         const updateData = {};
-        for (const k of allowed) if (forumData?.[k] !== undefined) updateData[k] = forumData[k];
+        // Sanitize all forum fields for XSS prevention
+        if (forumData?.name !== undefined) updateData.name = sanitizeText(forumData.name, 100);
+        if (forumData?.description !== undefined) updateData.description = sanitizeTextarea(forumData.description, 1000);
+        if (forumData?.rules !== undefined) updateData.rules = sanitizeTextarea(forumData.rules, 2000);
+        if (forumData?.category !== undefined) updateData.category = forumData.category;
+        if (forumData?.tags !== undefined) updateData.tags = sanitizeTags(forumData.tags, 10, 30);
+        if (forumData?.forum_type !== undefined) updateData.forum_type = forumData.forum_type;
+        if (forumData?.is_nsfw !== undefined) updateData.is_nsfw = Boolean(forumData.is_nsfw);
+        if (forumData?.icon_url !== undefined) updateData.icon_url = forumData.icon_url ? sanitizeUrl(forumData.icon_url) : null;
+        if (forumData?.banner_url !== undefined) updateData.banner_url = forumData.banner_url ? sanitizeUrl(forumData.banner_url) : null;
+        // Validate color format (hex only)
+        const hexColorPattern = /^#[0-9A-Fa-f]{6}$/;
+        if (forumData?.primary_color !== undefined) updateData.primary_color = hexColorPattern.test(forumData.primary_color) ? forumData.primary_color : null;
+        if (forumData?.secondary_color !== undefined) updateData.secondary_color = hexColorPattern.test(forumData.secondary_color) ? forumData.secondary_color : null;
         updateData.updated_at = new Date().toISOString();
         await supabase.from('forums').update(updateData).eq('id', forumId);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: 'Forum updated' }) };

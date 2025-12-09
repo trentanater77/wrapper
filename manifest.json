@@ -1,0 +1,111 @@
+{
+  "name": "ChatSpheres - Live Video Conversations",
+  "short_name": "ChatSpheres",
+  "description": "Find your conversation match. AI-powered semantic matchmaking for meaningful video conversations, debates, and forums.",
+  "start_url": "/matchmaking.html",
+  "display": "standalone",
+  "background_color": "#fffaf5",
+  "theme_color": "#e63946",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en-US",
+  "categories": ["social", "communication", "entertainment"],
+  "icons": [
+    {
+      "src": "/assets/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/assets/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/assets/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/assets/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/assets/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/assets/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/assets/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/assets/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/assets/screenshots/matchmaking.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "AI-powered matchmaking"
+    },
+    {
+      "src": "/assets/screenshots/live-rooms.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Live video rooms"
+    },
+    {
+      "src": "/assets/screenshots/forums.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Community forums"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Start Matching",
+      "short_name": "Match",
+      "description": "Find someone to talk to",
+      "url": "/matchmaking.html",
+      "icons": [{ "src": "/assets/icons/match-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Browse Live",
+      "short_name": "Live",
+      "description": "Watch live conversations",
+      "url": "/live.html",
+      "icons": [{ "src": "/assets/icons/live-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Explore Forums",
+      "short_name": "Forums",
+      "description": "Join communities",
+      "url": "/explore.html",
+      "icons": [{ "src": "/assets/icons/forum-96x96.png", "sizes": "96x96" }]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

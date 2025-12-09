@@ -1,6 +1,15 @@
 'use strict';
 
+/**
+ * Submit Report - Report a user for misconduct
+ * 
+ * RATE LIMITED: 10 requests per minute (STRICT tier) to prevent abuse
+ * SANITIZED: XSS prevention on description
+ */
+
 const { createClient } = require('@supabase/supabase-js');
+const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
+const { sanitizeTextarea } = require('./utils/sanitize');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -29,6 +38,13 @@ exports.handler = async function(event) {
       headers,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
+  }
+
+  // Rate limiting - STRICT tier (10 requests/min) to prevent report spam
+  const clientIP = getClientIP(event);
+  const rateLimitResult = await checkRateLimit(supabase, clientIP, RATE_LIMITS.STRICT, 'submit-report');
+  if (!rateLimitResult.allowed) {
+    return rateLimitResponse(rateLimitResult, RATE_LIMITS.STRICT);
   }
 
   try {
@@ -80,6 +96,9 @@ exports.handler = async function(event) {
       };
     }
 
+    // Sanitize description for XSS prevention
+    const cleanDescription = description ? sanitizeTextarea(description, 500) : null;
+
     // Submit the report
     const { data: report, error: reportError } = await supabase
       .from('user_reports')
@@ -88,7 +107,7 @@ exports.handler = async function(event) {
         reported_id: reportedId,
         room_id: roomId || null,
         category: category,
-        description: description?.trim() || null,
+        description: cleanDescription,
       })
       .select()
       .single();

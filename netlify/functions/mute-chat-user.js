@@ -105,6 +105,30 @@ exports.handler = async function(event) {
       };
     }
 
+    // SECURITY: Verify the hostId is actually the host of this room
+    const { data: roomData, error: roomError } = await supabase
+      .from('active_rooms')
+      .select('host_id')
+      .eq('room_id', roomId)
+      .single();
+
+    if (roomError || !roomData) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: 'Room not found' }),
+      };
+    }
+
+    if (roomData.host_id !== hostId) {
+      console.log(`⚠️ Unauthorized mute attempt: ${hostId} tried to mute in room owned by ${roomData.host_id}`);
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'Only the room host can mute users' }),
+      };
+    }
+
     if (action === 'unmute') {
       // Remove the mute
       const { error } = await supabase

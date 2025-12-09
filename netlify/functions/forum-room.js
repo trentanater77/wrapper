@@ -65,6 +65,20 @@ exports.handler = async function(event) {
       }
       case 'update': {
         if (!roomId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'roomId required' }) };
+        
+        // SECURITY: Verify user owns this room or is a forum moderator
+        const { data: roomToUpdate } = await supabase.from('forum_rooms').select('host_id').eq('forum_id', forum.id).eq('room_id', roomId).single();
+        if (!roomToUpdate) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Room not found' }) };
+        
+        const isRoomHost = roomToUpdate.host_id === userId;
+        const isForumOwner = forum.owner_id === userId;
+        const { data: modCheck } = await supabase.from('forum_moderators').select('id').eq('forum_id', forum.id).eq('user_id', userId).single();
+        const isForumMod = !!modCheck;
+        
+        if (!isRoomHost && !isForumOwner && !isForumMod) {
+          return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only the room host or forum moderators can update this room' }) };
+        }
+        
         const updateData = {};
         if (title !== undefined) updateData.title = title.slice(0, 200);
         if (description !== undefined) updateData.description = description?.slice(0, 1000);
@@ -75,6 +89,20 @@ exports.handler = async function(event) {
       }
       case 'end': {
         if (!roomId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'roomId required' }) };
+        
+        // SECURITY: Verify user owns this room or is a forum moderator
+        const { data: roomToEnd } = await supabase.from('forum_rooms').select('host_id').eq('forum_id', forum.id).eq('room_id', roomId).single();
+        if (!roomToEnd) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Room not found' }) };
+        
+        const isRoomHostEnd = roomToEnd.host_id === userId;
+        const isForumOwnerEnd = forum.owner_id === userId;
+        const { data: modCheckEnd } = await supabase.from('forum_moderators').select('id').eq('forum_id', forum.id).eq('user_id', userId).single();
+        const isForumModEnd = !!modCheckEnd;
+        
+        if (!isRoomHostEnd && !isForumOwnerEnd && !isForumModEnd) {
+          return { statusCode: 403, headers, body: JSON.stringify({ error: 'Only the room host or forum moderators can end this room' }) };
+        }
+        
         await supabase.from('forum_rooms').update({ status: 'ended', ended_at: new Date().toISOString() }).eq('forum_id', forum.id).eq('room_id', roomId);
         console.log(`🔴 Room ended in forum ${forum.slug}: ${roomId}`);
         return { statusCode: 200, headers, body: JSON.stringify({ success: true, message: 'Room ended' }) };

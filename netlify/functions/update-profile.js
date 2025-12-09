@@ -48,6 +48,65 @@ exports.handler = async function(event) {
       };
     }
 
+    // Validate displayName length and characters
+    if (displayName !== undefined) {
+      if (typeof displayName !== 'string') {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'displayName must be a string' }),
+        };
+      }
+      if (displayName.length > 50) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Display name must be 50 characters or less' }),
+        };
+      }
+      if (displayName.length < 1) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Display name cannot be empty' }),
+        };
+      }
+      // Basic sanitization - remove potential script tags
+      if (/<script|javascript:|on\w+=/i.test(displayName)) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Display name contains invalid characters' }),
+        };
+      }
+    }
+
+    // Validate bio length
+    if (bio !== undefined) {
+      if (typeof bio !== 'string') {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'bio must be a string' }),
+        };
+      }
+      if (bio.length > 500) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Bio must be 500 characters or less' }),
+        };
+      }
+      // Basic sanitization - remove potential script tags
+      if (/<script|javascript:|on\w+=/i.test(bio)) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Bio contains invalid content' }),
+        };
+      }
+    }
+
     let avatarUrl = null;
 
     // Handle avatar upload if provided

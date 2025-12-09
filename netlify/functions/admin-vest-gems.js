@@ -7,6 +7,8 @@
  * already made a purchase before the vesting code was deployed.
  * 
  * Usage: ?referrerId=xxx&referredId=yyy
+ * 
+ * PROTECTED: Requires X-Admin-Secret header
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -16,15 +18,36 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// Admin secret for protecting this endpoint (REQUIRED - no fallback for security)
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Admin-Secret',
   'Content-Type': 'application/json',
 };
 
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };
+  }
+
+  // Verify admin secret - REQUIRED for security
+  const adminSecret = event.headers['x-admin-secret'] || event.headers['X-Admin-Secret'];
+  if (!ADMIN_SECRET) {
+    console.error('❌ ADMIN_SECRET environment variable not configured');
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Server configuration error - admin secret not set' }),
+    };
+  }
+  if (adminSecret !== ADMIN_SECRET) {
+    return {
+      statusCode: 401,
+      headers,
+      body: JSON.stringify({ error: 'Unauthorized - Invalid admin secret' }),
+    };
   }
 
   const params = event.queryStringParameters || {};

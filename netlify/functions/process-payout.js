@@ -14,8 +14,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-// Admin secret for protecting this endpoint
-const ADMIN_SECRET = process.env.ADMIN_SECRET || 'chatspheres-admin-2024';
+// Admin secret for protecting this endpoint (REQUIRED - no fallback for security)
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -29,8 +29,16 @@ exports.handler = async function(event) {
     return { statusCode: 204, headers, body: '' };
   }
 
-  // Verify admin secret
+  // Verify admin secret - REQUIRED for security
   const adminSecret = event.headers['x-admin-secret'] || event.headers['X-Admin-Secret'];
+  if (!ADMIN_SECRET) {
+    console.error('❌ ADMIN_SECRET environment variable not configured');
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Server configuration error - admin secret not set' }),
+    };
+  }
   if (adminSecret !== ADMIN_SECRET) {
     return {
       statusCode: 401,

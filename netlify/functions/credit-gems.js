@@ -5,6 +5,8 @@
  * 
  * Admin function to manually credit gems to a user.
  * Used for fixing missing gem credits or manual adjustments.
+ * 
+ * PROTECTED: Requires X-Admin-Secret header
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -14,9 +16,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// Admin secret for protecting this endpoint (REQUIRED - no fallback for security)
+const ADMIN_SECRET = process.env.ADMIN_SECRET;
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Admin-Secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json',
 };
@@ -31,6 +36,24 @@ exports.handler = async function(event) {
       statusCode: 405,
       headers,
       body: JSON.stringify({ error: 'Method not allowed' }),
+    };
+  }
+
+  // Verify admin secret - REQUIRED for security
+  const adminSecret = event.headers['x-admin-secret'] || event.headers['X-Admin-Secret'];
+  if (!ADMIN_SECRET) {
+    console.error('❌ ADMIN_SECRET environment variable not configured');
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Server configuration error - admin secret not set' }),
+    };
+  }
+  if (adminSecret !== ADMIN_SECRET) {
+    return {
+      statusCode: 401,
+      headers,
+      body: JSON.stringify({ error: 'Unauthorized - Invalid admin secret' }),
     };
   }
 

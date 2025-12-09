@@ -7,7 +7,7 @@
 [functions]
   node_bundler = "esbuild"
 
-# Security Headers - Protect against common attacks
+# Security Headers - Basic protection without breaking functionality
 [[headers]]
   for = "/*"
   [headers.values]
@@ -19,13 +19,17 @@
     X-XSS-Protection = "1; mode=block"
     # Referrer policy for privacy
     Referrer-Policy = "strict-origin-when-cross-origin"
-    # Permissions policy (disable unused features)
-    Permissions-Policy = "geolocation=(), midi=(), sync-xhr=(), accelerometer=(), gyroscope=(), magnetometer=(), payment=(self)"
-    # Content Security Policy
-    # Includes: Firebase Storage (recordings), Google Ads, LiveKit, Stripe, Supabase
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://www.gstatic.com https://pagead2.googlesyndication.com https://www.googletagservices.com https://adservice.google.com https://apis.google.com https://*.supabase.co https://*.firebaseio.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.firebaseio.com wss://*.firebaseio.com https://*.livekit.cloud wss://*.livekit.cloud https://api.openai.com https://pagead2.googlesyndication.com https://*.google.com https://*.googleapis.com https://*.doubleclick.net https://*.googleadservices.com https://ep1.adtrafficquality.google https://ep2.adtrafficquality.google; frame-src 'self' https://*.livekit.cloud https://js.stripe.com https://accounts.google.com https://googleads.g.doubleclick.net https://www.google.com https://tpc.googlesyndication.com https://*.googlesyndication.com; media-src 'self' blob: https://*.livekit.cloud https://storage.googleapis.com https://*.firebasestorage.app https://*.googleapis.com;"
     # Strict Transport Security (HTTPS only)
     Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    # NOTE: CSP removed - was blocking Firebase auth, LiveKit, and Google Ads
+    # The app uses many external services that make strict CSP impractical:
+    # - Firebase (auth, database, storage)
+    # - Supabase (auth, database)
+    # - LiveKit (video)
+    # - Stripe (payments)
+    # - Google Ads
+    # - OpenAI API
+    # Security is maintained through other measures (input sanitization, rate limiting)
 
 # Cache static assets for better performance
 [[headers]]

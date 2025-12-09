@@ -629,6 +629,7 @@
       const redBtn = document.getElementById('forum-type-red');
       const greenBtn = document.getElementById('forum-type-green');
       const greenWarning = document.getElementById('forum-green-warning');
+      const planWarning = document.getElementById('forum-plan-warning');
       const createBtn = document.getElementById('createRoomBtn');
       
       // Reset all buttons
@@ -640,26 +641,35 @@
         }
       });
       
-      // Hide warnings by default
+      // Hide all warnings by default
       if (greenWarning) greenWarning.style.display = 'none';
+      if (planWarning) planWarning.style.display = 'none';
       if (createBtn) {
         createBtn.disabled = false;
         createBtn.style.opacity = '1';
       }
       
       if (type === 'regular') {
+        // Regular chat - no special warnings needed
         if (regularBtn) {
           regularBtn.classList.add('selected', 'regular');
           regularBtn.style.borderColor = '#8b5cf6';
           regularBtn.style.borderWidth = '3px';
         }
+        // No plan warnings for regular chat rooms
       } else if (type === 'red') {
+        // Debate room
         if (redBtn) {
           redBtn.classList.add('selected', 'red');
           redBtn.style.borderColor = '#e63946';
           redBtn.style.borderWidth = '3px';
         }
+        // Show plan warning for free users (60 min limit)
+        if (planWarning && userPlan === 'free') {
+          planWarning.style.display = 'block';
+        }
       } else if (type === 'green') {
+        // Help room
         if (greenBtn) {
           greenBtn.classList.add('selected', 'green');
           greenBtn.style.borderColor = '#10b981';
@@ -2201,23 +2211,8 @@
       selectedForumRoomType = 'regular';
       selectForumRoomType('regular');
       
-      // Show plan warning for free users
-      const planWarning = document.getElementById('forum-plan-warning');
-      const planLimits = PLAN_LIMITS[userPlan] || PLAN_LIMITS.free;
-      if (planWarning) {
-        planWarning.style.display = (userPlan === 'free') ? 'block' : 'none';
-      }
-      
-      // Ensure green warning is hidden initially (since we default to red)
-      const greenWarning = document.getElementById('forum-green-warning');
-      if (greenWarning) greenWarning.style.display = 'none';
-      
-      // Enable create button (since we start with red room which is allowed for all)
-      const createBtn = document.getElementById('createRoomBtn');
-      if (createBtn) {
-        createBtn.disabled = false;
-        createBtn.style.opacity = '1';
-      }
+      // selectForumRoomType already handles hiding warnings for regular chat
+      // and enabling the create button
       
       document.getElementById('createRoomModal').classList.add('active');
       document.getElementById('roomTitle').focus();

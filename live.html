@@ -139,6 +139,40 @@
       margin-left: 6px;
     }
     
+    /* Room card badges */
+    .room-badges {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      font-size: 0.7rem;
+      font-weight: var(--font-weight-bold);
+      color: white;
+    }
+    
+    .type-badge.debate-badge {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+    }
+    
+    .type-badge.help-badge {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
+    
+    .type-badge.chat-badge {
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+    }
+    
+    .type-badge.forum-badge {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    }
+    
     /* Room Grid */
     .rooms-grid {
       display: grid;
@@ -1369,15 +1403,20 @@
       // Apply type filter
       if (currentFilter !== 'all') {
         if (currentFilter === 'forum') {
-          // Show ALL forum rooms (regular, debate, and help)
+          // Show ALL forum rooms (regular chat, debate, and help)
           filteredRooms = filteredRooms.filter(room => room.room_id && room.room_id.startsWith('forum-'));
         } else if (currentFilter === 'red') {
           // Show all red/debate rooms INCLUDING forum debates
+          // Forum debates show in BOTH Red tab and Forum tab
           filteredRooms = filteredRooms.filter(room => room.room_type === 'red');
         } else if (currentFilter === 'green') {
-          // Show all green/help rooms INCLUDING forum help rooms
-          // Regular forum chat rooms use 'chat' type and only appear in Forum tab
-          filteredRooms = filteredRooms.filter(room => room.room_type === 'green');
+          // Show ONLY non-forum green/help rooms
+          // Forum green rooms (help or chat) only show in Forum tab
+          // because we can't distinguish help from chat for older rooms
+          filteredRooms = filteredRooms.filter(room => {
+            const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
+            return room.room_type === 'green' && !isForumRoom;
+          });
         }
       }
       
@@ -1411,22 +1450,38 @@
       const isGreen = room.room_type === 'green';
       const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
       
-      // Determine type label and class
+      // Determine type label, class, and badges
       let typeLabel, typeClass;
+      let badges = [];
+      
       if (isForumRoom) {
+        if (isRed) {
+          // Forum debate - show both Debate and Forum badges
+          typeLabel = '🔴 Debate';
+          typeClass = 'red';
+          badges.push('<span class="type-badge debate-badge">🔴 Debate</span>');
+          badges.push('<span class="type-badge forum-badge">🌐 Forum</span>');
+        } else {
+          // Forum chat room (green type = could be help or regular chat)
+          typeLabel = '💬 Chat';
+          typeClass = 'forum';
+          badges.push('<span class="type-badge chat-badge">💬 Chat</span>');
+          badges.push('<span class="type-badge forum-badge">🌐 Forum</span>');
+        }
+      } else {
+        // Non-forum rooms
         if (isRed) {
           typeLabel = '🔴 Debate';
           typeClass = 'red';
+          badges.push('<span class="type-badge debate-badge">🔴 Debate</span>');
         } else {
-          // Forum rooms that are green could be help OR regular chat
-          // We show generic "Chat" for forum rooms to be safe
-          typeLabel = '💬 Chat';
-          typeClass = 'forum';
+          typeLabel = '🟢 Help';
+          typeClass = 'green';
+          badges.push('<span class="type-badge help-badge">🟢 Help</span>');
         }
-      } else {
-        typeLabel = isRed ? '🔴 Debate' : '🟢 Help';
-        typeClass = isRed ? 'red' : 'green';
       }
+      
+      const badgesHtml = badges.join('');
       
       const viewerCount = (room.participant_count || 0) + (room.spectator_count || 0);
       const potHtml = isRed && room.pot_amount > 0 ? `
@@ -1434,9 +1489,6 @@
           💎 Pot: ${room.pot_amount.toLocaleString()} gems
         </div>
       ` : '';
-      
-      // Forum badge for forum rooms
-      const forumBadge = isForumRoom ? '<span class="forum-badge">🌐 FORUM</span>' : '';
       
       // Calculate time elapsed
       const startTime = new Date(room.started_at);
@@ -1460,8 +1512,8 @@
       return `
         <div class="room-card ${typeClass}" data-room-id="${roomId}">
           <div class="room-card-header">
-            <div class="room-type-badge">
-              ${typeLabel}
+            <div class="room-badges">
+              ${badgesHtml}
             </div>
             <div class="live-badge">
               <div class="live-dot"></div>
@@ -1470,7 +1522,7 @@
           </div>
           
           <div class="room-card-body">
-            <h3 class="room-topic">${escapeHtml(room.topic || 'Untitled Room')}${forumBadge}</h3>
+            <h3 class="room-topic">${escapeHtml(room.topic || 'Untitled Room')}</h3>
             
             <div class="room-host">
               <div class="room-host-avatar">

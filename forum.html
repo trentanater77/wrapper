@@ -1028,13 +1028,14 @@
         const isTrulyLive = r.is_truly_live || participantCount >= 2;
         
         // Determine room type - check active_rooms room_type or forum_rooms room_type
-        // forum_rooms uses 'debate'/'help'/'live', active_rooms uses 'red'/'green'
-        const activeRoomType = r.active_room_type || 'green';
+        // forum_rooms uses 'debate'/'help'/'live', active_rooms uses 'red'/'green'/'chat'
+        const activeRoomType = r.active_room_type || 'chat';
         const forumRoomType = r.room_type || 'live'; // live = regular chat, debate, help
         const isDebate = activeRoomType === 'red' || forumRoomType === 'debate';
-        const isHelp = forumRoomType === 'help';
-        const isRegular = forumRoomType === 'live' && activeRoomType !== 'red';
-        const roomTypeParam = isDebate ? 'red' : 'green';
+        const isHelp = forumRoomType === 'help' && activeRoomType === 'green';
+        const isRegular = !isDebate && !isHelp;
+        // Use actual room type: 'red' for debate, 'green' for help, 'chat' for regular
+        const roomTypeParam = isDebate ? 'red' : (isHelp ? 'green' : 'chat');
         const potAmount = r.pot_amount || 0;
         
         // Build URL with all necessary params
@@ -2248,8 +2249,10 @@
       btn.textContent = 'Creating...';
       
       // Determine the underlying room type for active_rooms
-      // 'regular' uses 'green' mechanics (direct tips) but is marked as 'live' in forum_rooms
-      const activeRoomType = selectedForumRoomType === 'regular' ? 'green' : selectedForumRoomType;
+      // 'regular' uses 'chat' type (no debate/help UI), debate uses 'red', help uses 'green'
+      let activeRoomType = 'chat'; // default for regular forum chat
+      if (selectedForumRoomType === 'red') activeRoomType = 'red';
+      else if (selectedForumRoomType === 'green') activeRoomType = 'green';
       
       // Determine forum_rooms type: 'live' for regular, 'debate' for red, 'help' for green
       let forumRoomType = 'live';

@@ -5351,13 +5351,17 @@ async function initializeApp() {
         // Red Room debate
         description = `🔴 Red Room Debate: "${topic}"`;
         console.log("✅ Found Red Room topic:", topic);
+      } else if (roomTypeFromUrl === 'chat') {
+        // Regular forum chat room (no debate/help)
+        description = `💬 ${topic}`;
+        console.log("✅ Found Chat room topic:", topic);
       } else if (roomTypeFromUrl === 'green') {
         // Green Room - check if it's a forum room
         const forumParam = urlParams.get('forum');
         if (forumParam) {
-          // Forum room - cleaner display without "Green Room Help"
-          description = `🌐 ${topic}`;
-          console.log("✅ Found Forum room topic:", topic);
+          // Forum help room - cleaner display
+          description = `🟢 ${topic}`;
+          console.log("✅ Found Forum Help room topic:", topic);
         } else {
           // Regular green room help session
           description = `🟢 Green Room Help: "${topic}"`;
@@ -5419,9 +5423,11 @@ async function initializeApp() {
           let description;
           if (roomType === 'red') {
             description = `🔴 Red Room Debate: "${topic}"`;
+          } else if (roomType === 'chat') {
+            description = `💬 ${topic}`;
           } else if (roomType === 'green') {
             const forumParam = new URLSearchParams(window.location.search).get('forum');
-            description = forumParam ? `🌐 ${topic}` : `🟢 Green Room Help: "${topic}"`;
+            description = forumParam ? `🟢 ${topic}` : `🟢 Green Room Help: "${topic}"`;
           } else {
             description = `Discussing: "${topic}"`;
           }
@@ -11371,8 +11377,8 @@ function ensureSpectatorTracksForParticipant(participant) {
         // Show End Debate button if user is the host
         showEndDebateButtonIfHost();
       }, 1000);
-    } else {
-      // Green room - hide all red room panels
+    } else if (roomType === 'green') {
+      // Green/Help room - hide red room panels, show end session button
       if (potPanel) potPanel.classList.add('hidden');
       if (spectatorPotPanel) spectatorPotPanel.classList.add('hidden');
       
@@ -11380,6 +11386,17 @@ function ensureSpectatorTracksForParticipant(participant) {
       setTimeout(() => {
         showEndDebateButtonIfHost();
       }, 1000);
+    } else {
+      // Chat room (regular forum chat) - hide all special panels
+      // No debate pot, no help session - just a simple chat room
+      if (potPanel) potPanel.classList.add('hidden');
+      if (spectatorPotPanel) spectatorPotPanel.classList.add('hidden');
+      
+      // Hide the end session section for chat rooms (they use forum room management)
+      const endSessionSection = document.getElementById('end-session-section');
+      if (endSessionSection) endSessionSection.classList.add('hidden');
+      
+      console.log('💬 Chat room mode - no debate/help UI');
     }
     
     // Register room with server (only if host or first participant)

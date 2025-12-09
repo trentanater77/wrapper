@@ -1376,19 +1376,8 @@
           filteredRooms = filteredRooms.filter(room => room.room_type === 'red');
         } else if (currentFilter === 'green') {
           // Show all green/help rooms INCLUDING forum help rooms
-          // But NOT regular forum chat rooms (they only appear in Forum tab)
-          filteredRooms = filteredRooms.filter(room => {
-            const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
-            // For forum rooms, only show if it's actually a help room (not regular chat)
-            // Regular forum chats use green type but should only show in Forum tab
-            if (isForumRoom) {
-              // We need to check if this is a help room vs regular chat
-              // Forum help rooms will have been created with 'green' type explicitly
-              // For now, include all green forum rooms in Help tab
-              return room.room_type === 'green';
-            }
-            return room.room_type === 'green';
-          });
+          // Regular forum chat rooms use 'chat' type and only appear in Forum tab
+          filteredRooms = filteredRooms.filter(room => room.room_type === 'green');
         }
       }
       
@@ -1420,6 +1409,7 @@
     function renderRoomCard(room) {
       const isRed = room.room_type === 'red';
       const isGreen = room.room_type === 'green';
+      const isChat = room.room_type === 'chat';
       const isForumRoom = room.room_id && room.room_id.startsWith('forum-');
       
       // Determine type label and class
@@ -1427,10 +1417,13 @@
       if (isForumRoom) {
         if (isRed) {
           typeLabel = '🔴 Debate';
-          typeClass = 'red'; // Use red styling for forum debates
+          typeClass = 'red';
+        } else if (isGreen) {
+          typeLabel = '🟢 Help';
+          typeClass = 'green';
         } else {
           typeLabel = '💬 Chat';
-          typeClass = 'forum'; // Use forum styling for regular/help
+          typeClass = 'forum';
         }
       } else {
         typeLabel = isRed ? '🔴 Debate' : '🟢 Help';

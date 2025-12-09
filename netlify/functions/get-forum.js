@@ -162,8 +162,8 @@ exports.handler = async function(event) {
             participant_count: participantCount,
             spectator_count: spectatorCount,
             is_truly_live: participantCount >= 2,
-            // Include room type from active_rooms (red/green) for debate/help distinction
-            active_room_type: ar.room_type || 'green',
+            // Include room type from active_rooms (red/green/chat) for debate/help/chat distinction
+            active_room_type: ar.room_type || 'chat',
             pot_amount: ar.pot_amount || 0
           };
         });

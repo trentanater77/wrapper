@@ -262,9 +262,11 @@
     function setupEventListeners() {
       document.querySelectorAll('.filter-tab').forEach(tab => {
         tab.addEventListener('click', () => {
+          console.log(`🔘 Filter tab clicked: ${tab.dataset.filter}`);
           document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
           tab.classList.add('active');
           currentFilter = tab.dataset.filter;
+          console.log(`📋 Current filter set to: ${currentFilter}, userId: ${currentUser?.id || 'none'}`);
           loadForums();
         });
       });
@@ -315,9 +317,27 @@
         if (currentCategory !== 'all') params.append('category', currentCategory);
         if (search) params.append('search', search);
         
+        console.log(`🌐 Fetching forums: ${params.toString()}`);
+        
         const res = await fetch(`/.netlify/functions/list-forums?${params}`);
         const data = await res.json();
+        console.log(`📦 Response: ${data.forums?.length || 0} forums, filter: ${data.filter || currentFilter}`);
         if (!res.ok) throw new Error(data.error);
+        
+        // Show message if no forums found for "My Forums"
+        if (currentFilter === 'joined' && data.message && (!data.forums || data.forums.length === 0)) {
+          const container = document.getElementById('forumsContainer');
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">⭐</div>
+              <h2>No Forums Joined Yet</h2>
+              <p>${data.message || 'Join some forums to see them here!'}</p>
+              <button class="create-btn" onclick="document.querySelector('[data-filter=top]').click()">Browse All Forums</button>
+            </div>
+          `;
+          isLoading = false;
+          return;
+        }
         
         if (isBackgroundRefresh) {
           // Background refresh: just update live counts without re-rendering

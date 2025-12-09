@@ -27,23 +27,80 @@ exports.handler = async function(event) {
     const params = event.httpMethod === 'GET' ? (event.queryStringParameters || {}) : JSON.parse(event.body || '{}');
     const { userId, filter = 'top', category, search, page = 1, limit = 20, includeNsfw = false } = params;
 
+    console.log(`📋 List forums: filter=${filter}, userId=${userId ? userId.substring(0,8) + '...' : 'none'}, category=${category || 'all'}`);
+
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
     const offset = (pageNum - 1) * limitNum;
 
+    // Handle "My Forums" filter - show only forums the user is a member of
+    if (filter === 'joined') {
+      if (!userId) {
+        console.log('⚠️ Joined filter requested but no userId provided');
+        return { statusCode: 200, headers, body: JSON.stringify({ forums: [], pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 }, message: 'Login required to see your forums' }) };
+      }
+      
+      // Get all forums the user is a member of
+      const { data: memberships, error: memberError } = await supabase
+        .from('forum_members')
+        .select('forum_id')
+        .eq('user_id', userId);
+      
+      if (memberError) {
+        console.error('❌ Error fetching memberships:', memberError);
+      }
+      
+      console.log(`👤 User ${userId.substring(0,8)}... has ${memberships?.length || 0} forum memberships`);
+      
+      if (!memberships?.length) {
+        return { statusCode: 200, headers, body: JSON.stringify({ 
+          forums: [], 
+          pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 },
+          message: 'You have not joined any forums yet'
+        }) };
+      }
+      
+      const forumIds = memberships.map(m => m.forum_id);
+      console.log(`📁 Fetching forums with IDs:`, forumIds);
+      
+      let joinedQuery = supabase
+        .from('forums')
+        .select('*', { count: 'exact' })
+        .in('id', forumIds)
+        .is('deleted_at', null);
+      
+      // Apply category filter if specified
+      if (category && category !== 'all') {
+        joinedQuery = joinedQuery.eq('category', category);
+      }
+      
+      const { data: forums, count, error: forumsError } = await joinedQuery
+        .order('name')
+        .range(offset, offset + limitNum - 1);
+      
+      if (forumsError) {
+        console.error('❌ Error fetching joined forums:', forumsError);
+        throw forumsError;
+      }
+      
+      console.log(`✅ Found ${forums?.length || 0} forums for user (total: ${count})`);
+      
+      return { 
+        statusCode: 200, 
+        headers, 
+        body: JSON.stringify({ 
+          forums: formatForums(forums), 
+          pagination: { page: pageNum, limit: limitNum, total: count || 0, totalPages: Math.ceil((count || 0) / limitNum) },
+          filter: 'joined'
+        }) 
+      };
+    }
+
+    // Build query for other filters
     let query = supabase.from('forums').select('*', { count: 'exact' }).is('deleted_at', null).in('forum_type', ['public', 'unlisted']);
     if (!includeNsfw) query = query.eq('is_nsfw', false);
     if (category && category !== 'all') query = query.eq('category', category);
     if (search && filter === 'search') query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
-
-    if (filter === 'joined' && userId) {
-      const { data: memberships } = await supabase.from('forum_members').select('forum_id').eq('user_id', userId);
-      if (!memberships?.length) {
-        return { statusCode: 200, headers, body: JSON.stringify({ forums: [], pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 } }) };
-      }
-      const { data: forums, count } = await supabase.from('forums').select('*', { count: 'exact' }).in('id', memberships.map(m => m.forum_id)).is('deleted_at', null).order('name').range(offset, offset + limitNum - 1);
-      return { statusCode: 200, headers, body: JSON.stringify({ forums: formatForums(forums), pagination: { page: pageNum, limit: limitNum, total: count || 0, totalPages: Math.ceil((count || 0) / limitNum) } }) };
-    }
 
     switch (filter) {
       case 'new': query = query.order('created_at', { ascending: false }); break;

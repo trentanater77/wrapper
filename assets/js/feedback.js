@@ -508,6 +508,8 @@
 
   // Wait for DOM to be ready
   function initFeedback() {
+    console.log('💬 Initializing feedback component...');
+    
     // Check if we're on a page that already has custom feedback (like index.html video chat)
     const existingBugBtn = document.getElementById('floating-bug-btn');
     
@@ -515,6 +517,7 @@
     const fabContainer = document.createElement('div');
     fabContainer.innerHTML = fabHTML;
     document.body.appendChild(fabContainer.firstElementChild);
+    console.log('💬 Feedback FAB button added');
     
     // Shift FAB if there are other floating buttons
     if (existingBugBtn || document.getElementById('floating-tip-btn')) {

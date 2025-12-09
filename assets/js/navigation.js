@@ -3,6 +3,32 @@
  * Handles the hamburger menu, scroll effects, and navigation state
  */
 
+// Define openFeedbackModal globally BEFORE anything else
+// This ensures it's available for onclick handlers immediately
+window.openFeedbackModal = function() {
+  const modal = document.getElementById('cs-feedback-modal');
+  if (modal) {
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    // Reset forms if the function exists
+    if (typeof window.resetFeedbackForms === 'function') {
+      window.resetFeedbackForms();
+    }
+  } else {
+    // Feedback.js not loaded yet, wait a moment and try again
+    setTimeout(function() {
+      const m = document.getElementById('cs-feedback-modal');
+      if (m) {
+        m.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      } else {
+        // Still not loaded, show alert
+        alert('Loading feedback form... Please try again in a moment.');
+      }
+    }, 500);
+  }
+};
+
 (function() {
   'use strict';
 
@@ -275,32 +301,15 @@
     script.id = 'cs-feedback-script';
     script.src = '/assets/js/feedback.js';
     script.async = true;
+    script.onload = function() {
+      console.log('✅ Feedback component loaded');
+    };
+    script.onerror = function() {
+      console.error('❌ Failed to load feedback.js');
+    };
     document.body.appendChild(script);
+    console.log('📝 Loading feedback component...');
   }
-
-  /**
-   * Global function to open feedback modal
-   * This ensures the nav link works even before feedback.js loads
-   */
-  window.openFeedbackModal = window.openFeedbackModal || function() {
-    // If feedback.js hasn't loaded yet, wait and try again
-    const modal = document.getElementById('cs-feedback-modal');
-    if (modal) {
-      modal.classList.add('active');
-      document.body.style.overflow = 'hidden';
-    } else {
-      // Feedback.js not loaded yet, wait a moment
-      setTimeout(() => {
-        const m = document.getElementById('cs-feedback-modal');
-        if (m) {
-          m.classList.add('active');
-          document.body.style.overflow = 'hidden';
-        } else {
-          alert('Loading feedback form... Please try again in a moment.');
-        }
-      }, 500);
-    }
-  };
 
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {

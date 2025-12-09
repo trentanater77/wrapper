@@ -4462,13 +4462,15 @@
                 const track = pub.track.mediaStreamTrack || pub.track;
                 if (track?.readyState === 'live') {
                   setupRemoteVideo(track);
-                  updateRemoteInfo(participant.identity || 'Guest');
-                  hideWaitingOverlay();
                   
-                  // Track this as the other participant
+                  // Track this as the other participant - extract proper display name
                   const participantData = normalizeLiveKitParticipant(participant, { local: false });
                   const remoteUserId = getParticipantUserId(participantData);
                   const remoteDisplayName = participantData?.displayName || participantData?.name || participant.name || participant.identity || 'Guest';
+                  
+                  updateRemoteInfo(remoteDisplayName);
+                  hideWaitingOverlay();
+                  
                   if (remoteUserId) {
                     updateOtherParticipant(remoteUserId, remoteDisplayName);
                     
@@ -7696,7 +7698,10 @@ async function initializeApp() {
     if (videoTrack) {
       console.log(`✅ Retry ${attemptNum}: found video track, setting up...`);
       setupRemoteVideo(videoTrack);
-      updateRemoteInfo(lkParticipant.identity || 'Guest');
+      // Extract proper display name from metadata
+      const metadata = parseLiveKitMetadata(lkParticipant.metadata);
+      const displayName = metadata?.displayName || metadata?.name || lkParticipant.name || lkParticipant.identity || 'Guest';
+      updateRemoteInfo(displayName);
       hideWaitingOverlay();
     } else {
       console.log(`⚠️ Retry ${attemptNum}: no video track found yet`);
@@ -10129,7 +10134,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     // In RED ROOMS (debates): Hide tip button for participants - they can't tip each other
     // Spectators use the pot tip section in debates, not the floating button
-    // In GREEN ROOMS (chat/help): Non-hosts can tip participants
+    // In GREEN ROOMS (chat/help): ALL participants can tip each other (not themselves)
     const isDebate = typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red';
     
     if (isDebate) {
@@ -10139,21 +10144,12 @@ function ensureSpectatorTracksForParticipant(participant) {
       tipBtn.style.display = 'none';
       console.log('🔴 Tip button hidden (debate mode - use pot panel)');
     } else {
-      // Green/chat rooms: Show tip button for non-hosts
-      // Hosts cannot tip themselves in production
-      const ALLOW_SELF_TIP = false;
-      
-      console.log('💎 Is host?', roomHostData.isHost);
-      
-      if (!roomHostData.isHost || ALLOW_SELF_TIP) {
-        tipBtn.classList.remove('hidden');
-        tipBtn.style.display = 'block';
-        console.log('💎 Tip button NOW VISIBLE');
-      } else {
-        tipBtn.classList.add('hidden');
-        tipBtn.style.display = 'none';
-        console.log('👑 Tip button hidden (you are the host)');
-      }
+      // Green/chat rooms: Show tip button for ALL participants (they can tip each other)
+      // The recipient dropdown will exclude self, so no self-tipping
+      // Spectators can also tip
+      tipBtn.classList.remove('hidden');
+      tipBtn.style.display = 'block';
+      console.log('💎 Tip button NOW VISIBLE (green/chat room - participants can tip each other)');
     }
     
     // Update spectator management button visibility (hosts only)

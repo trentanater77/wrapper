@@ -218,6 +218,18 @@
     .verify-card {
       animation: fadeIn 0.3s ease-out;
     }
+    
+    /* Responsive styles */
+    @media (max-width: 480px) {
+      body { padding: var(--space-md); }
+      .verify-card { padding: var(--space-lg); }
+      h1 { font-size: 1.5rem; }
+      .verify-icon { width: 64px; height: 64px; }
+      .verify-icon svg { width: 32px; height: 32px; }
+      .btn { padding: var(--space-sm) var(--space-lg); font-size: 0.95rem; }
+      .tips h3 { font-size: 0.8rem; }
+      .tips ul { font-size: 0.75rem; }
+    }
   </style>
 </head>
 <body>

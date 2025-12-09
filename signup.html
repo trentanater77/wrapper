@@ -331,6 +331,17 @@
     .password-strength-bar.weak { width: 33%; background: #ef4444; }
     .password-strength-bar.medium { width: 66%; background: #f59e0b; }
     .password-strength-bar.strong { width: 100%; background: #10b981; }
+    
+    /* Responsive styles */
+    @media (max-width: 480px) {
+      body { padding: var(--space-md); }
+      .signup-card { padding: var(--space-lg); }
+      .signup-logo h1 { font-size: 1.5rem; }
+      .signup-logo p { font-size: 0.875rem; }
+      .features-list { gap: var(--space-xs); margin-bottom: var(--space-md); }
+      .feature-item { font-size: 0.85rem; padding: var(--space-xs); }
+      .form-input, .submit-btn, .google-btn { padding: 0.875rem; font-size: 0.95rem; }
+    }
   </style>
 </head>
 <body>

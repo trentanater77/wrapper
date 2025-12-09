@@ -125,6 +125,16 @@
       background: #d4edda;
       color: #155724;
     }
+    
+    /* Responsive styles */
+    @media (max-width: 480px) {
+      body { padding: var(--space-md); }
+      .offline-card { padding: var(--space-lg); }
+      h1 { font-size: 1.25rem; }
+      .offline-icon { width: 64px; height: 64px; }
+      .offline-icon svg { width: 32px; height: 32px; }
+      .btn { padding: var(--space-sm) var(--space-lg); }
+    }
   </style>
 </head>
 <body>

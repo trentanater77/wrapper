@@ -10313,10 +10313,13 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   // Get list of participants who can receive tips (signed-in only, excluding self)
+  // For PARTICIPANTS: Only show other participants (not spectators)
+  // For SPECTATORS: Show all participants (they can tip anyone)
   async function loadTippableParticipants() {
     tippableParticipants = [];
     const currentUserId = window.currentUserData?.userId || userId;
     const sphereId = extractSphereId(roomUrl);
+    const iAmSpectator = isSpectator; // Check if current user is a spectator
     
     if (!sphereId) {
       console.warn('⚠️ No sphereId for loading tippable participants');
@@ -10335,35 +10338,50 @@ function ensureSpectatorTracksForParticipant(participant) {
         const isSignedIn = participantUserId && isValidUuid(participantUserId);
         const isSelf = participantUserId === currentUserId;
         const isOnline = participant.status !== 'offline';
+        const isParticipantType = participant.type === 'participant';
+        const isSpectatorType = participant.type === 'spectator';
         
-        // Get the best display name available, filtering out test/invalid names
-        let displayName = participant.displayName || participant.name || 'User';
+        // Get the best display name available
+        let displayName = participant.displayName || participant.name || null;
         
         // Filter out names that look like test data or invalid
         const invalidNames = ['test', 'test1', 'test2', 'guest', 'user', 'undefined', 'null'];
-        if (invalidNames.includes(displayName.toLowerCase()) || 
+        if (!displayName || 
+            invalidNames.includes(displayName.toLowerCase()) || 
             displayName.length < 2 || 
             /^[a-f0-9-]{36}$/i.test(displayName)) { // UUID pattern
-          displayName = 'User';
+          displayName = null; // Mark as invalid - will be filtered out
         }
         
-        if (isSignedIn && !isSelf && isOnline) {
-          // Check if we already have this user (avoid duplicates)
-          const existingIndex = tippableParticipants.findIndex(p => p.id === participantUserId);
-          if (existingIndex >= 0) {
-            // Update with better name if current one is generic
-            if (tippableParticipants[existingIndex].name === 'User' && displayName !== 'User') {
-              tippableParticipants[existingIndex].name = displayName;
-            }
-          } else {
-            tippableParticipants.push({
-              id: participantUserId,
-              name: displayName,
-              type: participant.type || 'participant',
-              isHost: roomHostData.hostId === participantUserId
-            });
-          }
+        // Skip if no valid display name (we need to know who we're tipping)
+        if (!displayName) return;
+        
+        // Skip self
+        if (isSelf) return;
+        
+        // Skip if not signed in or offline
+        if (!isSignedIn || !isOnline) return;
+        
+        // For PARTICIPANTS: Only allow tipping other participants (not spectators)
+        // For SPECTATORS: Allow tipping any participant
+        if (!iAmSpectator && isSpectatorType) {
+          // I'm a participant, skip spectators
+          return;
         }
+        
+        // Check if we already have this user (avoid duplicates)
+        const existingIndex = tippableParticipants.findIndex(p => p.id === participantUserId);
+        if (existingIndex >= 0) {
+          // Update with better name if needed
+          return;
+        }
+        
+        tippableParticipants.push({
+          id: participantUserId,
+          name: displayName,
+          type: participant.type || 'participant',
+          isHost: roomHostData.hostId === participantUserId
+        });
       });
       
       // Sort: host first, then by name
@@ -10373,7 +10391,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         return a.name.localeCompare(b.name);
       });
       
-      console.log('👥 Tippable participants:', tippableParticipants);
+      console.log('👥 Tippable participants:', tippableParticipants, '(I am spectator:', iAmSpectator, ')');
     } catch (error) {
       console.error('❌ Error loading tippable participants:', error);
     }

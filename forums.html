@@ -321,21 +321,23 @@
         
         const res = await fetch(`/.netlify/functions/list-forums?${params}`);
         const data = await res.json();
-        console.log(`📦 Response: ${data.forums?.length || 0} forums, filter: ${data.filter || currentFilter}`);
+        console.log(`📦 Response: ${data.forums?.length || 0} forums, filter: ${data.filter || currentFilter}, from params: ${params.get('filter')}`);
+        console.log('📦 Response data:', JSON.stringify(data).substring(0, 200));
         if (!res.ok) throw new Error(data.error);
         
         // Show message if no forums found for "My Forums"
-        if (currentFilter === 'joined' && data.message && (!data.forums || data.forums.length === 0)) {
+        if (currentFilter === 'joined' && (!data.forums || data.forums.length === 0)) {
           const container = document.getElementById('forumsContainer');
           container.innerHTML = `
             <div class="empty-state">
               <div class="empty-state-icon">⭐</div>
               <h2>No Forums Joined Yet</h2>
-              <p>${data.message || 'Join some forums to see them here!'}</p>
-              <button class="create-btn" onclick="document.querySelector('[data-filter=top]').click()">Browse All Forums</button>
+              <p>${data.message || 'You haven\'t joined any forums yet. Browse and click "Join" on forums you like!'}</p>
+              <button class="create-btn" onclick="document.querySelector('[data-filter=top]').click()">🔥 Browse Top Forums</button>
             </div>
           `;
           isLoading = false;
+          console.log('ℹ️ Showing empty state for My Forums - user has no memberships');
           return;
         }
         
@@ -446,6 +448,10 @@
 
     function renderForums(forums) {
       const container = document.getElementById('forumsContainer');
+      
+      // Log current state for debugging
+      console.log(`🎨 Rendering ${forums?.length || 0} forums, current filter: ${currentFilter}`);
+      
       if (!forums?.length) { showEmptyState(); return; }
       
       const loadMoreHtml = hasMore ? `

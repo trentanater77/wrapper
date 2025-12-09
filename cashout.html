@@ -725,6 +725,7 @@
       const amountInput = document.getElementById('payout-amount');
       const previewEl = document.getElementById('payout-preview');
       const btn = document.getElementById('payout-btn');
+      const messageEl = document.getElementById('message');
       
       const gems = parseInt(amountInput.value) || 0;
       const usd = Math.round((gems / 100) * 0.99 * 100) / 100;
@@ -732,11 +733,48 @@
       previewEl.textContent = usd.toFixed(2);
       
       const maxGems = payoutData?.cashableGems || 0;
-      const isValid = gems >= 500 && gems <= maxGems;
+      
+      // Clear previous validation messages
+      messageEl.classList.add('hidden');
+      
+      // Validation checks
+      let isValid = true;
+      let errorMessage = '';
+      
+      if (gems > maxGems) {
+        isValid = false;
+        errorMessage = `❌ You only have ${maxGems.toLocaleString()} cashable gems. You can't cash out more than you have!`;
+        // Also cap the input to max
+        amountInput.style.borderColor = 'var(--main-red)';
+      } else if (gems < 500 && gems > 0) {
+        isValid = false;
+        errorMessage = `⚠️ Minimum cashout is 500 gems ($4.95)`;
+        amountInput.style.borderColor = 'var(--gold)';
+      } else if (gems === 0) {
+        isValid = false;
+        amountInput.style.borderColor = '';
+      } else {
+        amountInput.style.borderColor = '#10b981'; // Green for valid
+      }
+      
+      // Show error message if invalid
+      if (errorMessage) {
+        showMessage(errorMessage, 'error');
+      }
       
       if (btn) {
         btn.disabled = !isValid;
-        btn.textContent = isValid ? `Cash Out $${usd.toFixed(2)}` : 'Enter Valid Amount';
+        if (!isValid) {
+          if (gems > maxGems) {
+            btn.textContent = '❌ Exceeds Balance';
+          } else if (gems < 500) {
+            btn.textContent = 'Minimum 500 Gems';
+          } else {
+            btn.textContent = 'Enter Amount';
+          }
+        } else {
+          btn.textContent = `💰 Cash Out $${usd.toFixed(2)}`;
+        }
       }
     }
     
@@ -746,26 +784,28 @@
       const payoutEmail = document.getElementById('payout-email').value.trim();
       const payoutMethod = document.getElementById('payout-method').value;
       const gemsAmount = parseInt(document.getElementById('payout-amount').value) || 0;
+      const maxGems = payoutData?.cashableGems || 0;
       
       messageEl.classList.add('hidden');
       
+      // Validation checks
       if (!payoutEmail) {
-        showMessage('Please enter your PayPal email or Venmo username', 'error');
+        showMessage('❌ Please enter your PayPal email or Venmo username', 'error');
         return;
       }
       
       if (gemsAmount < 500) {
-        showMessage('Minimum payout is 500 gems', 'error');
+        showMessage('❌ Minimum payout is 500 gems ($4.95)', 'error');
         return;
       }
       
-      if (gemsAmount > (payoutData?.cashableGems || 0)) {
-        showMessage('Amount exceeds your cashable balance', 'error');
+      if (gemsAmount > maxGems) {
+        showMessage(`❌ You can't cash out ${gemsAmount.toLocaleString()} gems - you only have ${maxGems.toLocaleString()} cashable gems!`, 'error');
         return;
       }
       
       btn.disabled = true;
-      btn.textContent = 'Processing...';
+      btn.textContent = '⏳ Processing...';
       
       try {
         const response = await fetch('/.netlify/functions/request-payout', {
@@ -782,16 +822,21 @@
         const data = await response.json();
         
         if (data.success) {
-          showMessage(data.message, 'success');
+          showMessage('✅ ' + data.message, 'success');
           await loadPayoutData();
         } else {
-          throw new Error(data.error || 'Failed to request payout');
+          // Handle specific error cases from backend
+          if (data.error?.includes('Insufficient')) {
+            showMessage(`❌ Insufficient gems! You requested ${data.requested?.toLocaleString() || gemsAmount.toLocaleString()} but only have ${data.available?.toLocaleString() || maxGems.toLocaleString()} cashable gems.`, 'error');
+          } else {
+            throw new Error(data.error || 'Failed to request payout');
+          }
         }
       } catch (error) {
         console.error('Payout error:', error);
-        showMessage(error.message, 'error');
+        showMessage('❌ ' + error.message, 'error');
         btn.disabled = false;
-        btn.textContent = 'Cash Out';
+        updatePayoutPreview(); // Reset button text
       }
     }
     

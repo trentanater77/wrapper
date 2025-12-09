@@ -842,13 +842,87 @@
         if (recording.status === 'processing') continue;
         if (recording.uploadProgress !== undefined && recording.uploadProgress < 100) continue;
 
-        const isValid = await checkUrlValidity(recording.downloadUrl);
-        if (!isValid) continue;
+        // Check if URL is valid, try to refresh if expired
+        const urlResult = await checkAndRefreshUrl(recording);
+        if (!urlResult.valid) continue;
+
+        // Update recording with refreshed URL if needed
+        if (urlResult.refreshed) {
+          recording.downloadUrl = urlResult.url;
+        }
 
         validRecordings.push(recording);
       }
 
       return validRecordings;
+    }
+
+    // Try to refresh expired URLs
+    async function checkAndRefreshUrl(recording) {
+      const url = recording.downloadUrl;
+      
+      // Check if URL is expired
+      const isExpired = isUrlExpired(url);
+      
+      if (!isExpired) {
+        return { valid: true, refreshed: false };
+      }
+
+      console.log('⏰ URL expired, attempting to refresh...', recording.id);
+
+      // Try to refresh the URL
+      try {
+        const response = await fetch('/.netlify/functions/refresh-recording-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recordingId: recording.id,
+            oldUrl: url
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.url) {
+            console.log('✅ URL refreshed successfully:', data.permanent ? 'permanent' : 'temporary');
+            return { valid: true, refreshed: true, url: data.url };
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to refresh URL:', error);
+      }
+
+      // If refresh failed, still try to show the recording (might work)
+      return { valid: true, refreshed: false };
+    }
+
+    function isUrlExpired(url) {
+      if (!url) return true;
+      
+      // Check for signed URL expiration parameters
+      if (url.includes('Expires=') || url.includes('X-Goog-Expires=')) {
+        const expiresMatch = url.match(/[?&]Expires=(\d+)/);
+        const googExpiresMatch = url.match(/[?&]X-Goog-Expires=(\d+)/);
+        
+        if (expiresMatch) {
+          const expiresTimestamp = parseInt(expiresMatch[1]) * 1000;
+          if (Date.now() > expiresTimestamp) {
+            return true;
+          }
+        }
+        if (googExpiresMatch) {
+          const dateMatch = url.match(/X-Goog-Date=(\d{8}T\d{6}Z)/);
+          if (dateMatch) {
+            const signDate = new Date(dateMatch[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
+            const expiresMs = signDate.getTime() + (parseInt(googExpiresMatch[1]) * 1000);
+            if (Date.now() > expiresMs) {
+              return true;
+            }
+          }
+        }
+      }
+      
+      return false;
     }
 
     async function checkUrlValidity(url) {

@@ -254,6 +254,39 @@
     .room-type-badge.debate { background: var(--main-red); color: white; }
     .room-type-badge.help { background: #10b981; color: white; }
     .room-pot-display { background: var(--gold); color: var(--charcoal); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-lg); font-weight: var(--font-weight-bold); font-size: 0.85rem; margin-top: var(--space-sm); display: inline-block; }
+    
+    /* Responsive styles */
+    @media (max-width: 768px) {
+      .forum-header { padding: var(--space-lg); flex-direction: column; text-align: center; }
+      .forum-icon { width: 80px; height: 80px; font-size: 2.5rem; }
+      .forum-name { font-size: 1.5rem; justify-content: center; }
+      .forum-stats { justify-content: center; gap: var(--space-lg); }
+      .forum-actions { justify-content: center; }
+      .forum-content { padding: 0 var(--space-md); gap: var(--space-md); }
+      .rooms-section h2 { font-size: 1.1rem; }
+      .sidebar-section { padding: var(--space-md); }
+      .modal { padding: var(--space-lg); margin: var(--space-sm); }
+      .room-type-selector.three-col { grid-template-columns: 1fr; }
+      .bg-gallery { grid-template-columns: repeat(3, 1fr); }
+      .logo-gallery { grid-template-columns: repeat(4, 1fr); }
+      .banner-gallery { grid-template-columns: 1fr; }
+    }
+    
+    @media (max-width: 480px) {
+      .forum-header { padding: var(--space-md); }
+      .forum-icon { width: 64px; height: 64px; font-size: 2rem; }
+      .forum-name { font-size: 1.25rem; }
+      .forum-stats { flex-direction: column; gap: var(--space-sm); }
+      .forum-stat-value { font-size: 1.25rem; }
+      .forum-actions { flex-direction: column; width: 100%; }
+      .forum-actions button, .forum-actions a { width: 100%; text-align: center; justify-content: center; }
+      .room-card { padding: var(--space-md); }
+      .room-type-selector { grid-template-columns: 1fr; }
+      .bg-gallery { grid-template-columns: repeat(2, 1fr); }
+      .logo-gallery { grid-template-columns: repeat(3, 1fr); }
+      .bg-type-tabs { flex-direction: column; }
+      .modal-actions { flex-direction: column; }
+    }
   </style>
 </head>
 <body>

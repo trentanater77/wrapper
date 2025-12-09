@@ -284,6 +284,23 @@
       opacity: 0.7;
       margin-bottom: var(--space-lg);
     }
+    
+    /* Responsive styles */
+    @media (max-width: 768px) {
+      .profile-title { font-size: 1.5rem; }
+      .profile-section { padding: var(--space-lg); }
+      .avatar-section { flex-direction: column; text-align: center; gap: var(--space-lg); }
+      .avatar-controls { text-align: center; }
+      .billing-card { flex-direction: column; text-align: center; }
+      .billing-info { text-align: center; }
+      .billing-plan { justify-content: center; flex-wrap: wrap; }
+    }
+    
+    @media (max-width: 480px) {
+      .profile-title { font-size: 1.25rem; }
+      .avatar-preview { width: 100px; height: 100px; }
+      .profile-section h2 { font-size: 1.1rem; flex-wrap: wrap; }
+    }
   </style>
 </head>
 <body>

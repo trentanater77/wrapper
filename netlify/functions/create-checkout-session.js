@@ -39,13 +39,33 @@ const SUBSCRIPTION_PRICE_IDS = {
   pro_bundle_yearly: process.env.STRIPE_PRICE_PRO_BUNDLE_YEARLY,
 };
 
-// Gem Pack Price IDs (one-time payments)
-const GEM_PACK_PRICE_IDS = {
-  'price_1Sa4Oo7BKCnIRZddj3wh0qMh': { gems: 150, name: 'Taste Test' },
-  'price_1Sa4RW7BKCnIRZddFRVyS6ho': { gems: 500, name: 'Handful' },
-  'price_1Sa4TN7BKCnIRZddRN0V4NM5': { gems: 1100, name: 'Sack' },
-  'price_1Sa4UF7BKCnIRZddiGmxw1oY': { gems: 2500, name: 'Chest' },
-  'price_1Sa4Wv7BKCnIRZddHYCOdDjM': { gems: 7000, name: 'Vault' },
+// Gem Pack definitions with price IDs from environment variables
+const GEM_PACKS = {
+  taste_test: { 
+    gems: 150, 
+    name: 'Taste Test',
+    priceId: process.env.STRIPE_PRICE_GEM_TASTE_TEST
+  },
+  handful: { 
+    gems: 500, 
+    name: 'Handful',
+    priceId: process.env.STRIPE_PRICE_GEM_HANDFUL
+  },
+  sack: { 
+    gems: 1100, 
+    name: 'Sack',
+    priceId: process.env.STRIPE_PRICE_GEM_SACK
+  },
+  chest: { 
+    gems: 2500, 
+    name: 'Chest',
+    priceId: process.env.STRIPE_PRICE_GEM_CHEST
+  },
+  vault: { 
+    gems: 7000, 
+    name: 'Vault',
+    priceId: process.env.STRIPE_PRICE_GEM_VAULT
+  },
 };
 
 // CORS headers
@@ -74,7 +94,7 @@ exports.handler = async function(event) {
     const body = JSON.parse(event.body || '{}');
     const { 
       priceKey,      // For subscriptions (e.g., 'host_pro_monthly')
-      priceId,       // For gem packs (direct Stripe price ID)
+      gemPackKey,    // For gem packs (e.g., 'taste_test', 'handful')
       mode,          // 'subscription' or 'payment'
       userId, 
       userEmail, 
@@ -90,18 +110,18 @@ exports.handler = async function(event) {
         headers,
         body: JSON.stringify({ 
           error: 'Missing required fields',
-          required: ['userId', 'userEmail', 'priceKey or priceId']
+          required: ['userId', 'userEmail', 'priceKey or gemPackKey']
         }),
       };
     }
 
-    // Must have either priceKey (subscription) or priceId (one-time)
-    if (!priceKey && !priceId) {
+    // Must have either priceKey (subscription) or gemPackKey (one-time gem purchase)
+    if (!priceKey && !gemPackKey) {
       return {
         statusCode: 400,
         headers,
         body: JSON.stringify({ 
-          error: 'Must provide either priceKey (for subscriptions) or priceId (for one-time purchases)'
+          error: 'Must provide either priceKey (for subscriptions) or gemPackKey (for gem purchases)'
         }),
       };
     }
@@ -140,22 +160,35 @@ exports.handler = async function(event) {
       checkoutMode = 'subscription';
     }
     
-    // Handle one-time gem purchase (using priceId directly)
-    if (priceId) {
-      // Validate it's a known gem pack price ID
-      const gemPack = GEM_PACK_PRICE_IDS[priceId];
+    // Handle one-time gem purchase (using gemPackKey)
+    if (gemPackKey) {
+      // Validate it's a known gem pack key
+      const gemPack = GEM_PACKS[gemPackKey];
       if (!gemPack) {
         return {
           statusCode: 400,
           headers,
           body: JSON.stringify({ 
-            error: 'Invalid gem pack price ID',
-            validPriceIds: Object.keys(GEM_PACK_PRICE_IDS)
+            error: 'Invalid gem pack key',
+            validKeys: Object.keys(GEM_PACKS)
           }),
         };
       }
 
-      finalPriceId = priceId;
+      // Check that the price ID is configured
+      if (!gemPack.priceId) {
+        console.error(`❌ Missing price ID for gem pack: ${gemPackKey}`);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Gem pack price not configured',
+            message: `STRIPE_PRICE_GEM_${gemPackKey.toUpperCase()} environment variable is not set`
+          }),
+        };
+      }
+
+      finalPriceId = gemPack.priceId;
       checkoutMode = 'payment'; // One-time payment
       sessionMetadata.type = 'gem_purchase';
       sessionMetadata.gems = gemPack.gems;

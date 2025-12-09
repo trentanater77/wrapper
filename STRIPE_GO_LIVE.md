@@ -103,7 +103,13 @@ STRIPE_PRICE_PRO_BUNDLE_YEARLY=price_xxxxxx
 ```
 
 ### Gem Pack Price IDs:
-Update the `GEM_PACK_PRICE_IDS` in `create-checkout-session.js` with your new live price IDs.
+```
+STRIPE_PRICE_GEM_TASTE_TEST=price_xxxxxx
+STRIPE_PRICE_GEM_HANDFUL=price_xxxxxx
+STRIPE_PRICE_GEM_SACK=price_xxxxxx
+STRIPE_PRICE_GEM_CHEST=price_xxxxxx
+STRIPE_PRICE_GEM_VAULT=price_xxxxxx
+```
 
 ---
 

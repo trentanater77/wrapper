@@ -1556,34 +1556,29 @@
       }
     }
     
-    // Gem Packs - Price IDs
+    // Gem Packs - No hardcoded price IDs needed (loaded from server env vars)
     const gemPacks = {
       taste_test: {
-        priceId: 'price_1Sa4Oo7BKCnIRZddj3wh0qMh',
         gems: 150,
         price: '$0.99',
         name: 'Taste Test'
       },
       handful: {
-        priceId: 'price_1Sa4RW7BKCnIRZddFRVyS6ho',
         gems: 500,
         price: '$4.99',
         name: 'Handful'
       },
       sack: {
-        priceId: 'price_1Sa4TN7BKCnIRZddRN0V4NM5',
         gems: 1100,
         price: '$9.99',
         name: 'Sack'
       },
       chest: {
-        priceId: 'price_1Sa4UF7BKCnIRZddiGmxw1oY',
         gems: 2500,
         price: '$19.99',
         name: 'Chest'
       },
       vault: {
-        priceId: 'price_1Sa4Wv7BKCnIRZddHYCOdDjM',
         gems: 7000,
         price: '$49.99',
         name: 'Vault'
@@ -1641,17 +1636,12 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            priceId: pack.priceId,
+            gemPackKey: packType, // Server looks up price from env vars
             mode: 'payment', // One-time payment
             userId: currentUser.id,
             userEmail: currentUser.email,
             successUrl: `${window.location.origin}/pricing.html?success=true&gems=${pack.gems}`,
-            cancelUrl: `${window.location.origin}/pricing.html?canceled=true`,
-            metadata: {
-              type: 'gem_purchase',
-              gems: pack.gems,
-              packName: pack.name
-            }
+            cancelUrl: `${window.location.origin}/pricing.html?canceled=true`
           }),
         });
         

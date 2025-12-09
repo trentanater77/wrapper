@@ -630,15 +630,104 @@
         max-height: 300px;
       }
       
-      /* Video header adjustments */
-      .video-header .max-w-7xl {
-        flex-wrap: wrap;
+      /* Video header adjustments - contain everything */
+      .video-header {
+        padding: 0.5rem 0.75rem !important;
+        overflow: hidden;
+      }
+      
+      .video-header .header-inner {
+        flex-wrap: nowrap;
         gap: 0.5rem;
+        width: 100%;
+        max-width: 100%;
+        overflow: hidden;
+      }
+      
+      /* Left side container - can shrink but keep items visible */
+      .video-header .header-left {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        gap: 0.375rem !important;
+      }
+      
+      /* Right side timer container - never shrinks */
+      .video-header .header-right {
+        flex-shrink: 0;
       }
       
       .video-header .timer-glow {
-        padding: 0.5rem 1rem;
-        font-size: 1rem;
+        padding: 0.5rem 0.875rem;
+        font-size: 0.95rem;
+        white-space: nowrap;
+      }
+      
+      /* Hide brand name on tablet */
+      .video-header .header-brand-text {
+        display: none;
+      }
+      
+      /* Compact logo */
+      .video-header .header-logo svg {
+        width: 36px;
+        height: 36px;
+      }
+      
+      /* Gem balance compact */
+      #header-gem-balance {
+        padding: 0.25rem 0.5rem !important;
+        font-size: 0.8rem;
+      }
+      
+      /* Menu toggle compact */
+      #video-menu-toggle {
+        padding: 0.375rem !important;
+        margin-left: 0.25rem !important;
+      }
+      
+      #video-menu-toggle svg {
+        width: 1.25rem;
+        height: 1.25rem;
+      }
+      
+      /* Role badge compact */
+      #user-role-badge {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.625rem;
+      }
+      
+      /* Live indicator compact */
+      #live-indicator {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.625rem;
+        gap: 0.25rem !important;
+      }
+      
+      /* Recording status compact */
+      #recording-status {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.625rem;
+      }
+      
+      /* Share button compact */
+      #header-share-btn {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.75rem;
+      }
+      
+      #header-share-btn .share-text {
+        display: none;
+      }
+      
+      #header-share-btn svg {
+        width: 1rem;
+        height: 1rem;
+      }
+      
+      /* Hide timer details on tablet */
+      .video-header .timer-details {
+        display: none !important;
       }
       
       /* Topic badge */
@@ -694,31 +783,82 @@
     @media (max-width: 480px) {
       /* Smaller header for phones */
       .video-header {
-        padding: 0.5rem !important;
+        padding: 0.375rem 0.5rem !important;
       }
       
-      .video-header svg[width="40"] {
-        width: 32px;
-        height: 32px;
+      .video-header .header-inner {
+        gap: 0.375rem;
       }
       
-      .video-header .text-xl {
-        font-size: 1rem;
+      /* Left side more compact */
+      .video-header .header-left {
+        gap: 0.25rem !important;
       }
       
-      /* Hide some elements on very small screens */
-      #header-share-btn span {
+      .video-header .header-logo svg {
+        width: 28px;
+        height: 28px;
+      }
+      
+      /* Hide gem balance on small phones to save space */
+      #header-gem-balance {
+        display: none !important;
+      }
+      
+      /* Smaller menu toggle */
+      #video-menu-toggle {
+        padding: 0.25rem !important;
+        margin-left: 0.125rem !important;
+      }
+      
+      #video-menu-toggle svg {
+        width: 1.125rem;
+        height: 1.125rem;
+      }
+      
+      /* Hide role badge on phones */
+      #user-role-badge {
+        display: none !important;
+      }
+      
+      /* Compact live indicator */
+      #live-indicator {
+        padding: 0.2rem 0.375rem;
+        font-size: 0.5625rem;
+        gap: 0.2rem !important;
+      }
+      
+      #live-indicator .w-2 {
+        width: 0.375rem;
+        height: 0.375rem;
+      }
+      
+      /* Hide eye icon on small phones */
+      #live-indicator .eye-icon {
         display: none;
       }
       
-      #header-share-btn {
-        padding: 0.5rem 0.75rem;
+      /* Recording status tiny */
+      #recording-status {
+        padding: 0.25rem 0.375rem;
+        font-size: 0.5625rem;
       }
       
-      /* Timer */
-      .timer-glow {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.875rem;
+      /* Share button icon only */
+      #header-share-btn {
+        padding: 0.375rem 0.5rem;
+      }
+      
+      #header-share-btn svg {
+        width: 0.875rem;
+        height: 0.875rem;
+      }
+      
+      /* Timer - ensure visible and compact */
+      .video-header .timer-glow {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.8rem;
+        min-width: fit-content;
       }
       
       /* Topic */
@@ -779,12 +919,80 @@
       #spectator-container .aspect-video {
         aspect-ratio: 16/10;
       }
+      
+      /* Recording download container - more compact */
+      #recording-download-container {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.625rem;
+      }
+      
+      #recording-download-container .flex-wrap {
+        gap: 0.25rem;
+      }
+      
+      #recording-download-container a,
+      #recording-download-container button {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.625rem;
+      }
     }
     
     @media (max-width: 360px) {
-      /* Extra small phones */
+      /* Extra small phones - maximum compactness */
+      .video-header {
+        padding: 0.25rem 0.375rem !important;
+      }
+      
+      .video-header .header-logo svg {
+        width: 24px;
+        height: 24px;
+      }
+      
+      #video-menu-toggle {
+        padding: 0.2rem !important;
+      }
+      
+      #video-menu-toggle svg {
+        width: 1rem;
+        height: 1rem;
+      }
+      
+      /* Compact live indicator - just dot + count */
+      #live-indicator .live-text {
+        display: none;
+      }
+      
+      #live-indicator {
+        padding: 0.2rem 0.3rem;
+      }
+      
+      /* Recording - dot only */
+      #recording-status .rec-label {
+        display: none;
+      }
+      
+      #recording-status {
+        padding: 0.25rem 0.375rem;
+      }
+      
+      /* Hide recording download container on tiny screens */
+      #recording-download-container {
+        display: none !important;
+      }
+      
+      /* Share button minimal */
+      #header-share-btn {
+        padding: 0.3rem 0.4rem;
+      }
+      
+      #header-share-btn svg {
+        width: 0.75rem;
+        height: 0.75rem;
+      }
+      
+      /* Timer - most compact but readable */
       .video-header .timer-glow {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         padding: 0.25rem 0.5rem;
       }
       
@@ -1412,90 +1620,90 @@
 <div id="video-interface" class="hidden">
   <!-- Header -->
   <header class="video-header" style="background: var(--light-rose); border-bottom: 2px solid var(--rose); padding: 0.75rem 1rem;">
-    <div class="max-w-7xl mx-auto flex items-center justify-between">
-      <!-- Logo - Links to main site -->
-      <div class="flex items-center space-x-3">
-        <a href="/explore.html" class="flex items-center space-x-2 hover:opacity-80 transition-opacity" title="Go to ChatSpheres Home">
+    <div class="header-inner max-w-7xl mx-auto flex items-center justify-between">
+      <!-- Logo & Controls - Left Side -->
+      <div class="header-left flex items-center space-x-3">
+        <a href="/explore.html" class="header-logo flex items-center space-x-2 hover:opacity-80 transition-opacity flex-shrink-0" title="Go to ChatSpheres Home">
           <svg viewBox="0 0 64 64" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
             <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
             <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
             <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           </svg>
-          <span class="text-xl font-extrabold" style="color: var(--charcoal);">ChatSpheres</span>
+          <span class="header-brand-text text-xl font-extrabold" style="color: var(--charcoal);">ChatSpheres</span>
         </a>
         
         <!-- Gem Balance (shown when logged in) -->
-        <div id="header-gem-balance" class="hidden items-center gap-1 px-3 py-1 rounded-full cursor-pointer transition-colors" style="background: var(--gold);" onclick="window.location.href='/cashout.html'" title="Your gem balance - Click to cash out">
+        <div id="header-gem-balance" class="hidden items-center gap-1 px-3 py-1 rounded-full cursor-pointer transition-colors flex-shrink-0" style="background: var(--gold);" onclick="window.location.href='/cashout.html'" title="Your gem balance - Click to cash out">
           <span>💎</span>
           <span id="gem-count" class="text-sm font-bold" style="color: var(--charcoal);">0</span>
         </div>
         
         <!-- Hamburger Menu Toggle (always visible) -->
-        <button id="video-menu-toggle" onclick="toggleVideoMenu()" class="ml-2 p-2 rounded-lg transition-colors hover:opacity-80" style="background: var(--gold);" aria-label="Toggle menu">
+        <button id="video-menu-toggle" onclick="toggleVideoMenu()" class="ml-2 p-2 rounded-lg transition-colors hover:opacity-80 flex-shrink-0" style="background: var(--gold);" aria-label="Toggle menu">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--charcoal);">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/>
           </svg>
         </button>
         
         <!-- User Role Badge -->
-        <div id="user-role-badge" class="hidden px-3 py-1 rounded-full text-xs font-bold">
+        <div id="user-role-badge" class="hidden px-3 py-1 rounded-full text-xs font-bold flex-shrink-0">
           <span id="role-text">participant</span>
         </div>
         
         <!-- Live Indicator -->
-        <div id="live-indicator" class="hidden flex items-center space-x-2 bg-main-red text-white px-3 py-1 rounded-full text-xs font-bold">
+        <div id="live-indicator" class="hidden flex items-center space-x-2 bg-main-red text-white px-3 py-1 rounded-full text-xs font-bold flex-shrink-0">
           <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          <span>LIVE</span>
+          <span class="live-text">LIVE</span>
           <span id="viewer-count">0</span>
-          <span>👁️</span>
+          <span class="eye-icon">👁️</span>
         </div>
         
-          <!-- Recording Indicator -->
-          <div id="recording-status" class="hidden bg-red-600 text-white px-3 py-2 rounded-2xl text-xs font-bold space-y-1">
-            <div class="flex items-center space-x-2">
-              <div class="recording-dot w-2 h-2 bg-white rounded-full"></div>
-              <span id="recording-mode-label">REC</span>
-              <span id="recording-upload-status" class="recording-upload-status hidden">
-                <span id="recording-upload-label">uploading</span>
-                <span id="recording-upload-percent">0%</span>
-              </span>
-            </div>
-            <div id="recording-upload-bar" class="recording-upload-bar hidden">
-              <div id="recording-upload-bar-fill" class="recording-upload-bar-fill"></div>
-            </div>
+        <!-- Recording Indicator -->
+        <div id="recording-status" class="hidden bg-red-600 text-white px-3 py-2 rounded-2xl text-xs font-bold space-y-1 flex-shrink-0">
+          <div class="flex items-center space-x-2">
+            <div class="recording-dot w-2 h-2 bg-white rounded-full"></div>
+            <span id="recording-mode-label" class="rec-label">REC</span>
+            <span id="recording-upload-status" class="recording-upload-status hidden">
+              <span id="recording-upload-label">uploading</span>
+              <span id="recording-upload-percent">0%</span>
+            </span>
           </div>
-          <div id="recording-download-container" class="hidden bg-white text-charcoal dark:bg-gray-800 dark:text-white px-3 py-2 rounded-2xl text-xs font-semibold space-y-1 shadow-sm border border-gray-200 dark:border-gray-700">
-            <div id="recording-download-message" class="flex items-center gap-2">
-              <span>📼 Recording link</span>
-              <span id="recording-download-status-text" class="text-gray-500 dark:text-gray-300">Preparing...</span>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <a id="recording-download-link" href="#" target="_blank" class="px-3 py-1 rounded-full bg-main-red text-white transition disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-50">Open</a>
-              <button id="copy-recording-link" class="px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition" type="button" disabled>
-                Copy link
-              </button>
-            </div>
+          <div id="recording-upload-bar" class="recording-upload-bar hidden">
+            <div id="recording-upload-bar-fill" class="recording-upload-bar-fill"></div>
           </div>
-          
-          <!-- PROMINENT SHARE BUTTON IN HEADER -->
-          <button id="header-share-btn" onclick="openShareModal()" class="cta-btn flex items-center gap-2 px-5 py-2 font-bold text-sm shadow-lg hover:shadow-xl transition-all hover:scale-105" title="Share room link">
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
-            </svg>
-            <span>Share</span>
-          </button>
+        </div>
+        <div id="recording-download-container" class="hidden bg-white text-charcoal dark:bg-gray-800 dark:text-white px-3 py-2 rounded-2xl text-xs font-semibold space-y-1 shadow-sm border border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <div id="recording-download-message" class="flex items-center gap-2">
+            <span>📼 Recording link</span>
+            <span id="recording-download-status-text" class="text-gray-500 dark:text-gray-300">Preparing...</span>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <a id="recording-download-link" href="#" target="_blank" class="px-3 py-1 rounded-full bg-main-red text-white transition disabled:opacity-50 disabled:cursor-not-allowed pointer-events-none opacity-50">Open</a>
+            <button id="copy-recording-link" class="px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition" type="button" disabled>
+              Copy link
+            </button>
+          </div>
+        </div>
+        
+        <!-- PROMINENT SHARE BUTTON IN HEADER -->
+        <button id="header-share-btn" onclick="openShareModal()" class="cta-btn flex items-center gap-2 px-5 py-2 font-bold text-sm shadow-lg hover:shadow-xl transition-all hover:scale-105 flex-shrink-0" title="Share room link">
+          <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z"/>
+          </svg>
+          <span class="share-text">Share</span>
+        </button>
       </div>
       
-      <!-- Timer -->
-        <div class="flex items-center space-x-3">
+      <!-- Timer - Right Side (never shrinks) -->
+      <div class="header-right flex items-center space-x-3 flex-shrink-0">
         <div class="timer-glow bg-main-red text-white px-4 py-2 rounded-full font-bold text-lg">
           <span id="timer-header">60:00</span>
         </div>
-          <div class="hidden sm:flex flex-col leading-tight">
-            <span id="timer-header-subtitle" class="text-sm text-gray-600 dark:text-gray-300">time remaining</span>
-            <span id="minutes-used-header-wrapper" class="text-xs text-gray-500 dark:text-gray-400">minutes used: <span id="minutes-used-header">0</span></span>
-          </div>
+        <div class="timer-details hidden sm:flex flex-col leading-tight">
+          <span id="timer-header-subtitle" class="text-sm text-gray-600 dark:text-gray-300">time remaining</span>
+          <span id="minutes-used-header-wrapper" class="text-xs text-gray-500 dark:text-gray-400">minutes used: <span id="minutes-used-header">0</span></span>
+        </div>
       </div>
     </div>
   </header>

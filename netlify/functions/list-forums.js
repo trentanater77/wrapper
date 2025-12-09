@@ -33,26 +33,53 @@ exports.handler = async function(event) {
     const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
     const offset = (pageNum - 1) * limitNum;
 
-    // Handle "My Forums" filter - show only forums the user is a member of
+    // Handle "My Forums" filter - show only forums the user is a member of, moderator of, or owns
     if (filter === 'joined') {
       if (!userId) {
         console.log('⚠️ Joined filter requested but no userId provided');
         return { statusCode: 200, headers, body: JSON.stringify({ forums: [], pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 }, message: 'Login required to see your forums' }) };
       }
       
-      // Get all forums the user is a member of
+      // Get all forums the user is a member of (includes owners and moderators)
       const { data: memberships, error: memberError } = await supabase
         .from('forum_members')
-        .select('forum_id')
+        .select('forum_id, role')
         .eq('user_id', userId);
       
       if (memberError) {
         console.error('❌ Error fetching memberships:', memberError);
       }
       
-      console.log(`👤 User ${userId.substring(0,8)}... has ${memberships?.length || 0} forum memberships`);
+      // Also get forums where user is owner (in case not in forum_members)
+      const { data: ownedForums, error: ownedError } = await supabase
+        .from('forums')
+        .select('id')
+        .eq('owner_id', userId)
+        .is('deleted_at', null);
       
-      if (!memberships?.length) {
+      if (ownedError) {
+        console.error('❌ Error fetching owned forums:', ownedError);
+      }
+      
+      // Also get forums where user is a moderator (in case not in forum_members)
+      const { data: modForums, error: modError } = await supabase
+        .from('forum_moderators')
+        .select('forum_id')
+        .eq('user_id', userId);
+      
+      if (modError) {
+        console.error('❌ Error fetching moderated forums:', modError);
+      }
+      
+      // Combine all forum IDs (deduplicated)
+      const memberForumIds = (memberships || []).map(m => m.forum_id);
+      const ownedForumIds = (ownedForums || []).map(f => f.id);
+      const modForumIds = (modForums || []).map(m => m.forum_id);
+      const allForumIds = [...new Set([...memberForumIds, ...ownedForumIds, ...modForumIds])];
+      
+      console.log(`👤 User ${userId.substring(0,8)}... forums: ${memberForumIds.length} joined, ${ownedForumIds.length} owned, ${modForumIds.length} moderated = ${allForumIds.length} total unique`);
+      
+      if (allForumIds.length === 0) {
         return { statusCode: 200, headers, body: JSON.stringify({ 
           forums: [], 
           pagination: { page: pageNum, limit: limitNum, total: 0, totalPages: 0 },
@@ -60,13 +87,12 @@ exports.handler = async function(event) {
         }) };
       }
       
-      const forumIds = memberships.map(m => m.forum_id);
-      console.log(`📁 Fetching forums with IDs:`, forumIds);
+      console.log(`📁 Fetching forums with IDs:`, allForumIds);
       
       let joinedQuery = supabase
         .from('forums')
         .select('*', { count: 'exact' })
-        .in('id', forumIds)
+        .in('id', allForumIds)
         .is('deleted_at', null);
       
       // Apply category filter if specified
@@ -83,13 +109,25 @@ exports.handler = async function(event) {
         throw forumsError;
       }
       
+      // Add user's role to each forum
+      const formattedForums = formatForums(forums).map(f => {
+        let role = null;
+        if (ownedForumIds.includes(f.id)) role = 'owner';
+        else if (modForumIds.includes(f.id)) role = 'moderator';
+        else {
+          const membership = memberships?.find(m => m.forum_id === f.id);
+          role = membership?.role || 'member';
+        }
+        return { ...f, userRole: role };
+      });
+      
       console.log(`✅ Found ${forums?.length || 0} forums for user (total: ${count})`);
       
       return { 
         statusCode: 200, 
         headers, 
         body: JSON.stringify({ 
-          forums: formatForums(forums), 
+          forums: formattedForums, 
           pagination: { page: pageNum, limit: limitNum, total: count || 0, totalPages: Math.ceil((count || 0) / limitNum) },
           filter: 'joined'
         }) 

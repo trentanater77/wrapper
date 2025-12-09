@@ -261,12 +261,21 @@
 
     function setupEventListeners() {
       document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          console.log(`🔘 Filter tab clicked: ${tab.dataset.filter}`);
+        tab.addEventListener('click', (e) => {
+          e.preventDefault();
+          const newFilter = tab.dataset.filter;
+          console.log(`🔘 Filter tab clicked: ${newFilter}`);
+          console.log(`👤 Current user: ${currentUser?.id || 'NOT LOGGED IN'}`);
+          
+          // Update UI
           document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
           tab.classList.add('active');
-          currentFilter = tab.dataset.filter;
-          console.log(`📋 Current filter set to: ${currentFilter}, userId: ${currentUser?.id || 'none'}`);
+          
+          // Set filter
+          currentFilter = newFilter;
+          console.log(`📋 Filter changed to: ${currentFilter}`);
+          
+          // Load forums with new filter
           loadForums();
         });
       });
@@ -312,12 +321,19 @@
       }
       
       try {
+        // Build request params
         const params = new URLSearchParams({ filter: currentFilter, limit: PAGE_SIZE, page: isBackgroundRefresh ? 1 : currentPage });
-        if (currentUser) params.append('userId', currentUser.id);
+        if (currentUser) {
+          params.append('userId', currentUser.id);
+          console.log(`👤 Sending userId: ${currentUser.id}`);
+        } else {
+          console.log('⚠️ No currentUser - userId will not be sent');
+        }
         if (currentCategory !== 'all') params.append('category', currentCategory);
         if (search) params.append('search', search);
         
-        console.log(`🌐 Fetching forums: ${params.toString()}`);
+        console.log(`🌐 API Request: /.netlify/functions/list-forums?${params.toString()}`);
+        console.log(`🔍 Current filter: "${currentFilter}", isBackgroundRefresh: ${isBackgroundRefresh}`);
         
         const res = await fetch(`/.netlify/functions/list-forums?${params}`);
         const data = await res.json();
@@ -326,19 +342,24 @@
         if (!res.ok) throw new Error(data.error);
         
         // Show message if no forums found for "My Forums"
-        if (currentFilter === 'joined' && (!data.forums || data.forums.length === 0)) {
-          const container = document.getElementById('forumsContainer');
-          container.innerHTML = `
-            <div class="empty-state">
-              <div class="empty-state-icon">⭐</div>
-              <h2>No Forums Joined Yet</h2>
-              <p>${data.message || 'You haven\'t joined any forums yet. Browse and click "Join" on forums you like!'}</p>
-              <button class="create-btn" onclick="document.querySelector('[data-filter=top]').click()">🔥 Browse Top Forums</button>
-            </div>
-          `;
-          isLoading = false;
-          console.log('ℹ️ Showing empty state for My Forums - user has no memberships');
-          return;
+        if (currentFilter === 'joined') {
+          console.log(`⭐ My Forums filter - received ${data.forums?.length || 0} forums`);
+          if (!data.forums || data.forums.length === 0) {
+            const container = document.getElementById('forumsContainer');
+            container.innerHTML = `
+              <div class="empty-state">
+                <div class="empty-state-icon">⭐</div>
+                <h2>No Forums Joined Yet</h2>
+                <p>${data.message || 'You haven\'t joined any forums yet. Browse and click "Join" on forums you like!'}</p>
+                <button class="create-btn" onclick="document.querySelector('[data-filter=top]').click()">🔥 Browse Top Forums</button>
+              </div>
+            `;
+            isLoading = false;
+            console.log('ℹ️ Showing empty state for My Forums - user has no memberships');
+            return;
+          } else {
+            console.log(`✅ User has ${data.forums.length} forums they've joined`);
+          }
         }
         
         if (isBackgroundRefresh) {
@@ -427,6 +448,14 @@
     }
 
     function renderForumCard(f) {
+      // Show role badge for "My Forums" view
+      let roleBadge = '';
+      if (currentFilter === 'joined' && f.userRole) {
+        const roleColors = { owner: '#7c3aed', moderator: '#2563eb', member: '#059669' };
+        const roleLabels = { owner: '👑 Owner', moderator: '🛡️ Mod', member: '✓ Member' };
+        roleBadge = `<span class="role-badge" style="font-size:0.65rem;background:${roleColors[f.userRole] || '#6b7280'};color:white;padding:3px 8px;border-radius:var(--radius-sm);font-weight:var(--font-weight-bold);">${roleLabels[f.userRole] || f.userRole}</span>`;
+      }
+      
       return `
         <a href="/f/${f.slug}" class="forum-card" data-slug="${f.slug}">
           <div class="forum-card-banner" ${f.primaryColor ? `style="background:${f.primaryColor}"` : ''}>
@@ -434,7 +463,7 @@
             <div class="forum-card-icon">${f.iconUrl ? `<img src="${f.iconUrl}" loading="lazy">` : (categoryIcons[f.category] || '💬')}</div>
           </div>
           <div class="forum-card-body">
-            <div class="forum-card-name">${escapeHtml(f.name)}${f.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}</div>
+            <div class="forum-card-name">${escapeHtml(f.name)}${f.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}${roleBadge}</div>
             <div class="forum-card-slug">f/${f.slug}</div>
             <div class="forum-card-desc">${escapeHtml(f.description || 'A community on ChatSpheres')}</div>
             <div class="forum-card-stats">

@@ -258,10 +258,34 @@
     }, 3000);
   };
 
+  /**
+   * Load feedback component
+   * Adds the floating feedback button site-wide
+   */
+  function loadFeedbackComponent() {
+    // Don't load on pages that have their own feedback (index.html video chat)
+    if (window.location.pathname === '/index.html' && window.location.search.includes('room=')) {
+      return;
+    }
+    
+    // Check if already loaded
+    if (document.getElementById('cs-feedback-script')) return;
+    
+    const script = document.createElement('script');
+    script.id = 'cs-feedback-script';
+    script.src = '/assets/js/feedback.js';
+    script.async = true;
+    document.body.appendChild(script);
+  }
+
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', () => {
+      init();
+      loadFeedbackComponent();
+    });
   } else {
     init();
+    loadFeedbackComponent();
   }
 })();

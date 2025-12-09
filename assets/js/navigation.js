@@ -278,6 +278,30 @@
     document.body.appendChild(script);
   }
 
+  /**
+   * Global function to open feedback modal
+   * This ensures the nav link works even before feedback.js loads
+   */
+  window.openFeedbackModal = window.openFeedbackModal || function() {
+    // If feedback.js hasn't loaded yet, wait and try again
+    const modal = document.getElementById('cs-feedback-modal');
+    if (modal) {
+      modal.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Feedback.js not loaded yet, wait a moment
+      setTimeout(() => {
+        const m = document.getElementById('cs-feedback-modal');
+        if (m) {
+          m.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        } else {
+          alert('Loading feedback form... Please try again in a moment.');
+        }
+      }, 500);
+    }
+  };
+
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {

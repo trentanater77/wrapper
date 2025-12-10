@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Schedule a Room - ChatSpheres</title>
+  
+  <!-- Google AdSense -->
+  <meta name="google-adsense-account" content="ca-pub-8986841930339200">
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <link rel="stylesheet" href="styles/tailwind.generated.css">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <style>
+    * {
+      font-family: 'Nunito', sans-serif;
+    }
+    
+    .schedule-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 2rem 1rem;
+    }
+    
+    .schedule-card {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      padding: 2rem;
+      border: 3px solid var(--rose, #FFB6B9);
+    }
+    
+    .schedule-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--charcoal, #22223B);
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+    
+    .schedule-subtitle {
+      color: #666;
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-label {
+      display: block;
+      font-weight: 700;
+      color: var(--charcoal, #22223B);
+      margin-bottom: 0.5rem;
+    }
+    
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid var(--rose, #FFB6B9);
+      border-radius: 12px;
+      font-family: 'Nunito', sans-serif;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+      outline: none;
+      border-color: var(--main-red, #e63946);
+    }
+    
+    .form-textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    
+    @media (max-width: 500px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .room-type-selector {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .room-type-option {
+      flex: 1;
+      padding: 1rem;
+      border: 3px solid var(--rose, #FFB6B9);
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .room-type-option:hover {
+      border-color: var(--main-red, #e63946);
+    }
+    
+    .room-type-option.selected {
+      border-color: var(--main-red, #e63946);
+      background: rgba(230, 57, 70, 0.1);
+    }
+    
+    .room-type-option.red.selected {
+      background: rgba(230, 57, 70, 0.15);
+    }
+    
+    .room-type-option.green.selected {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: #10b981;
+    }
+    
+    .room-type-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .room-type-name {
+      font-weight: 700;
+      color: var(--charcoal, #22223B);
+    }
+    
+    .room-type-desc {
+      font-size: 0.8rem;
+      color: #666;
+    }
+    
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    
+    .checkbox-group input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--main-red, #e63946);
+    }
+    
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--main-red, #e63946), var(--gold, #FFD166));
+      color: white;
+      border: none;
+      border-radius: 100px;
+      font-weight: 800;
+      font-size: 1.1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .submit-btn:hover:not(:disabled) {
+      transform: scale(1.02);
+      box-shadow: 0 4px 15px rgba(230, 57, 70, 0.4);
+    }
+    
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .success-message {
+      background: #d4edda;
+      color: #155724;
+      padding: 1rem;
+      border-radius: 12px;
+      text-align: center;
+      margin-top: 1rem;
+    }
+    
+    .success-message a {
+      color: var(--main-red, #e63946);
+      font-weight: 700;
+    }
+    
+    .error-message {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 1rem;
+      border-radius: 12px;
+      text-align: center;
+      margin-top: 1rem;
+    }
+    
+    .login-prompt {
+      text-align: center;
+      padding: 2rem;
+    }
+    
+    .login-prompt a {
+      color: var(--main-red, #e63946);
+      font-weight: 700;
+    }
+    
+    /* My Scheduled Rooms Section */
+    .my-rooms-section {
+      margin-top: 2rem;
+    }
+    
+    .my-rooms-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--charcoal, #22223B);
+      margin-bottom: 1rem;
+    }
+    
+    .scheduled-room-card {
+      background: white;
+      border: 2px solid var(--rose, #FFB6B9);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    .scheduled-room-topic {
+      font-weight: 700;
+      color: var(--charcoal, #22223B);
+      margin-bottom: 0.5rem;
+    }
+    
+    .scheduled-room-time {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+    
+    .scheduled-room-stats {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: #666;
+    }
+    
+    .scheduled-room-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    
+    .room-action-btn {
+      padding: 8px 16px;
+      border-radius: 100px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+    
+    .room-action-btn.primary {
+      background: var(--main-red, #e63946);
+      color: white;
+    }
+    
+    .room-action-btn.secondary {
+      background: var(--gold, #FFD166);
+      color: var(--charcoal, #22223B);
+    }
+    
+    .room-action-btn.danger {
+      background: #dc3545;
+      color: white;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-light-rose to-white">
+  <!-- Navigation will be injected -->
+  <nav id="main-nav"></nav>
+  
+  <main class="schedule-container" style="padding-top: 80px;">
+    <div class="schedule-card">
+      <h1 class="schedule-title">📅 Schedule a Room</h1>
+      <p class="schedule-subtitle">Plan your conversation in advance so people can join when you go live</p>
+      
+      <!-- Login check -->
+      <div id="login-prompt" class="login-prompt" style="display: none;">
+        <p>Please <a href="/login.html">sign in</a> to schedule a room</p>
+      </div>
+      
+      <!-- Schedule form -->
+      <form id="schedule-form" style="display: none;">
+        <div class="form-group">
+          <label class="form-label">Room Type</label>
+          <div class="room-type-selector">
+            <div class="room-type-option red selected" onclick="selectRoomType('red')">
+              <div class="room-type-icon">🔴</div>
+              <div class="room-type-name">Debate</div>
+              <div class="room-type-desc">Challenge & discuss</div>
+            </div>
+            <div class="room-type-option green" onclick="selectRoomType('green')">
+              <div class="room-type-icon">🟢</div>
+              <div class="room-type-name">Help</div>
+              <div class="room-type-desc">Advice & support</div>
+            </div>
+          </div>
+          <input type="hidden" id="room-type" value="red">
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="topic">Topic / Title *</label>
+          <input type="text" id="topic" class="form-input" placeholder="e.g., Should AI have rights?" maxlength="200" required>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="description">Description (optional)</label>
+          <textarea id="description" class="form-textarea" placeholder="Tell people what to expect..."></textarea>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="schedule-date">Date *</label>
+            <input type="date" id="schedule-date" class="form-input" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="schedule-time">Time *</label>
+            <input type="time" id="schedule-time" class="form-input" required>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label" for="duration">Duration</label>
+          <select id="duration" class="form-select">
+            <option value="30">30 minutes</option>
+            <option value="60" selected>1 hour</option>
+            <option value="90">1.5 hours</option>
+            <option value="120">2 hours</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="checkbox-group">
+            <input type="checkbox" id="is-public" checked>
+            <span>Make this room public (visible on Live page)</span>
+          </label>
+        </div>
+        
+        <div class="form-group">
+          <label class="checkbox-group">
+            <input type="checkbox" id="queue-mode" checked>
+            <span>Enable Queue Mode (spectators can queue to join)</span>
+          </label>
+        </div>
+        
+        <button type="submit" class="submit-btn" id="submit-btn">
+          📅 Schedule Room
+        </button>
+        
+        <div id="success-message" class="success-message" style="display: none;"></div>
+        <div id="error-message" class="error-message" style="display: none;"></div>
+      </form>
+      
+      <!-- My Scheduled Rooms -->
+      <div id="my-rooms-section" class="my-rooms-section" style="display: none;">
+        <h2 class="my-rooms-title">📋 My Scheduled Rooms</h2>
+        <div id="my-rooms-list"></div>
+      </div>
+    </div>
+  </main>
+  
+  <!-- Scripts -->
+  <script src="/assets/js/navigation.js"></script>
+  
+  <script>
+    // State
+    let currentUser = null;
+    let supabaseClient = null;
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Wait for config
+      await waitForConfig();
+      
+      // Initialize Supabase
+      const config = window.__CHATSPHERES_CONFIG__;
+      if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
+        supabaseClient = supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+        
+        // Check auth
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session?.user) {
+          currentUser = session.user;
+          showForm();
+          loadMyRooms();
+        } else {
+          showLoginPrompt();
+        }
+      }
+      
+      // Set minimum date to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('schedule-date').min = today;
+      document.getElementById('schedule-date').value = today;
+      
+      // Set default time to next hour
+      const now = new Date();
+      now.setHours(now.getHours() + 1, 0, 0, 0);
+      document.getElementById('schedule-time').value = now.toTimeString().slice(0, 5);
+    });
+    
+    function waitForConfig() {
+      return new Promise((resolve) => {
+        const check = () => {
+          if (window.__CHATSPHERES_CONFIG__?.SUPABASE_URL) {
+            resolve();
+          } else {
+            setTimeout(check, 100);
+          }
+        };
+        check();
+      });
+    }
+    
+    function showLoginPrompt() {
+      document.getElementById('login-prompt').style.display = 'block';
+      document.getElementById('schedule-form').style.display = 'none';
+    }
+    
+    function showForm() {
+      document.getElementById('login-prompt').style.display = 'none';
+      document.getElementById('schedule-form').style.display = 'block';
+    }
+    
+    // Room type selection
+    function selectRoomType(type) {
+      document.querySelectorAll('.room-type-option').forEach(el => {
+        el.classList.remove('selected');
+      });
+      document.querySelector(`.room-type-option.${type}`).classList.add('selected');
+      document.getElementById('room-type').value = type;
+    }
+    window.selectRoomType = selectRoomType;
+    
+    // Form submission
+    document.getElementById('schedule-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.textContent = 'Scheduling...';
+      
+      const topic = document.getElementById('topic').value.trim();
+      const description = document.getElementById('description').value.trim();
+      const roomType = document.getElementById('room-type').value;
+      const date = document.getElementById('schedule-date').value;
+      const time = document.getElementById('schedule-time').value;
+      const duration = parseInt(document.getElementById('duration').value);
+      const isPublic = document.getElementById('is-public').checked;
+      
+      // Combine date and time
+      const scheduledFor = new Date(`${date}T${time}`);
+      
+      // Validate it's in the future
+      if (scheduledFor <= new Date()) {
+        showError('Please select a future date and time');
+        btn.disabled = false;
+        btn.textContent = '📅 Schedule Room';
+        return;
+      }
+      
+      try {
+        const response = await fetch('/.netlify/functions/scheduled-rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            hostId: currentUser.id,
+            hostName: currentUser.user_metadata?.display_name || currentUser.email?.split('@')[0] || 'Host',
+            hostAvatar: currentUser.user_metadata?.avatar_url,
+            topic,
+            description,
+            roomType,
+            scheduledFor: scheduledFor.toISOString(),
+            durationMinutes: duration,
+            isPublic,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showSuccess(`Room scheduled for ${scheduledFor.toLocaleString()}! <a href="/live.html">View on Live page</a>`);
+          document.getElementById('schedule-form').reset();
+          selectRoomType('red');
+          loadMyRooms();
+        } else {
+          showError(data.error || 'Failed to schedule room');
+        }
+      } catch (error) {
+        console.error('Error scheduling room:', error);
+        showError('Failed to schedule room. Please try again.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📅 Schedule Room';
+      }
+    });
+    
+    function showSuccess(message) {
+      const el = document.getElementById('success-message');
+      el.innerHTML = message;
+      el.style.display = 'block';
+      document.getElementById('error-message').style.display = 'none';
+      setTimeout(() => el.style.display = 'none', 10000);
+    }
+    
+    function showError(message) {
+      const el = document.getElementById('error-message');
+      el.textContent = message;
+      el.style.display = 'block';
+      document.getElementById('success-message').style.display = 'none';
+      setTimeout(() => el.style.display = 'none', 5000);
+    }
+    
+    // Load user's scheduled rooms
+    async function loadMyRooms() {
+      if (!currentUser) return;
+      
+      try {
+        const response = await fetch(`/.netlify/functions/scheduled-rooms?hostId=${currentUser.id}`);
+        const data = await response.json();
+        
+        const rooms = (data.rooms || []).filter(r => r.status === 'scheduled');
+        
+        if (rooms.length > 0) {
+          document.getElementById('my-rooms-section').style.display = 'block';
+          document.getElementById('my-rooms-list').innerHTML = rooms.map(room => {
+            const schedDate = new Date(room.scheduled_for);
+            const isNow = schedDate <= new Date(Date.now() + 15 * 60 * 1000); // Within 15 min
+            
+            return `
+              <div class="scheduled-room-card">
+                <div class="scheduled-room-topic">${room.room_type === 'red' ? '🔴' : '🟢'} ${escapeHtml(room.topic)}</div>
+                <div class="scheduled-room-time">
+                  📅 ${schedDate.toLocaleDateString()} at ${schedDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                  ${isNow ? '<span style="color: var(--main-red); font-weight: 700;"> (Starting soon!)</span>' : ''}
+                </div>
+                <div class="scheduled-room-stats">
+                  <span>👁️ ${room.interested_count || 0} interested</span>
+                  <span>⏱️ ${room.duration_minutes} min</span>
+                  <span>${room.is_public ? '🌐 Public' : '🔒 Private'}</span>
+                </div>
+                <div class="scheduled-room-actions">
+                  ${isNow ? `<button class="room-action-btn primary" onclick="goLive('${room.id}')">🔴 Go Live Now</button>` : ''}
+                  <button class="room-action-btn danger" onclick="cancelRoom('${room.id}')">Cancel</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          document.getElementById('my-rooms-section').style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Error loading rooms:', error);
+      }
+    }
+    
+    // Go live with a scheduled room
+    window.goLive = async function(scheduleId) {
+      try {
+        const response = await fetch('/.netlify/functions/scheduled-rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'go-live',
+            scheduleId,
+            hostId: currentUser.id,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          // Redirect to the room
+          window.location.href = `/index.html?room=${data.roomId}`;
+        } else {
+          alert(data.error || 'Failed to go live');
+        }
+      } catch (error) {
+        console.error('Error going live:', error);
+        alert('Failed to go live');
+      }
+    };
+    
+    // Cancel a scheduled room
+    window.cancelRoom = async function(scheduleId) {
+      if (!confirm('Are you sure you want to cancel this scheduled room?')) return;
+      
+      try {
+        const response = await fetch('/.netlify/functions/scheduled-rooms', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scheduleId,
+            hostId: currentUser.id,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          loadMyRooms();
+        } else {
+          alert(data.error || 'Failed to cancel');
+        }
+      } catch (error) {
+        console.error('Error cancelling:', error);
+      }
+    };
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

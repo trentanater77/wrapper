@@ -15647,5 +15647,50 @@ function ensureSpectatorTracksForParticipant(participant) {
 <!-- Cross-Domain Referral Tracking -->
 <script src="/assets/js/referral.js"></script>
 
+<!-- Room Queue System -->
+<script src="/assets/js/room-queue.js"></script>
+<script>
+  // Initialize room queue when room is joined
+  document.addEventListener('DOMContentLoaded', function() {
+    // Wait for room to be initialized and user data
+    const checkReady = setInterval(function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomId = urlParams.get('room');
+      const isHost = urlParams.get('host') === 'true';
+      const isSpectator = urlParams.get('mode') === 'spectator';
+      
+      // Check if we're in a room and have user data
+      if (roomId && (window.currentUserData || window.userId)) {
+        clearInterval(checkReady);
+        
+        // Initialize queue system for creator rooms (queue mode)
+        // For now, enable for all rooms - hosts can toggle it
+        if (typeof window.initRoomQueue === 'function') {
+          const userId = window.currentUserData?.userId || window.userId;
+          const userName = window.currentUserData?.displayName || window.userName || 'Anonymous';
+          
+          // Only show queue panel if:
+          // 1. User is a spectator who might want to join queue
+          // 2. User is the host who needs to manage the queue
+          if (isSpectator || isHost) {
+            console.log('🎤 Initializing room queue system...');
+            window.initRoomQueue({
+              roomId: roomId,
+              userId: userId,
+              userName: userName,
+              isHost: isHost
+            });
+          }
+        }
+      }
+    }, 1000);
+    
+    // Stop checking after 30 seconds
+    setTimeout(function() {
+      clearInterval(checkReady);
+    }, 30000);
+  });
+</script>
+
 </body>
 </html>

@@ -90,6 +90,184 @@
       border-color: #8b5cf6;
     }
     
+    .room-tab.active.scheduled {
+      background: #f59e0b;
+      border-color: #f59e0b;
+    }
+    
+    /* Scheduled Rooms Section */
+    .scheduled-section {
+      margin-bottom: var(--space-xl);
+    }
+    
+    .scheduled-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-md);
+    }
+    
+    .scheduled-title {
+      font-size: 1.25rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+    }
+    
+    .schedule-room-link {
+      color: var(--main-red);
+      font-weight: var(--font-weight-bold);
+      text-decoration: none;
+    }
+    
+    .schedule-room-link:hover {
+      text-decoration: underline;
+    }
+    
+    /* Scheduled Room Card */
+    .scheduled-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      border: 3px solid #f59e0b;
+      transition: all var(--transition-fast);
+    }
+    
+    .scheduled-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .scheduled-card-header {
+      padding: var(--space-md);
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .scheduled-time {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      color: white;
+      font-weight: var(--font-weight-bold);
+      font-size: 0.85rem;
+    }
+    
+    .scheduled-type-badge {
+      background: rgba(255,255,255,0.2);
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-full);
+      font-size: 0.75rem;
+      font-weight: var(--font-weight-bold);
+      color: white;
+    }
+    
+    .scheduled-card-body {
+      padding: var(--space-lg);
+    }
+    
+    .scheduled-topic {
+      font-size: 1.1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .scheduled-host {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-md);
+    }
+    
+    .scheduled-host-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--rose);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .scheduled-host-name {
+      font-weight: var(--font-weight-semibold);
+      color: var(--charcoal);
+      font-size: 0.9rem;
+    }
+    
+    .scheduled-stats {
+      display: flex;
+      gap: var(--space-md);
+      margin-bottom: var(--space-md);
+      font-size: 0.85rem;
+      color: var(--charcoal);
+    }
+    
+    .scheduled-stat {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .scheduled-countdown {
+      background: var(--gold);
+      color: var(--charcoal);
+      padding: var(--space-sm);
+      border-radius: var(--radius-lg);
+      text-align: center;
+      font-weight: var(--font-weight-bold);
+      margin-bottom: var(--space-md);
+    }
+    
+    .scheduled-actions {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .remind-btn {
+      flex: 1;
+      padding: var(--space-sm) var(--space-md);
+      background: #f59e0b;
+      color: white;
+      border: none;
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .remind-btn:hover:not(:disabled) {
+      background: #d97706;
+      transform: scale(1.02);
+    }
+    
+    .remind-btn.reminded {
+      background: #10b981;
+    }
+    
+    .remind-btn:disabled {
+      opacity: 0.7;
+      cursor: default;
+    }
+    
+    .share-btn {
+      padding: var(--space-sm) var(--space-md);
+      background: var(--rose);
+      color: var(--charcoal);
+      border: none;
+      border-radius: var(--radius-full);
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .share-btn:hover {
+      background: var(--light-rose);
+    }
+    
     /* Search Bar */
     .search-container {
       max-width: 500px;
@@ -872,7 +1050,10 @@
       <div class="create-room-cta" style="margin-bottom: var(--space-xl); margin-top: 0;">
         <h3>🎙️ Ready to Host?</h3>
         <p>Start your own debate or help session and earn gems from tips!</p>
-        <button onclick="window.openCreateRoomModal()" class="create-room-btn">🚀 Create a Room</button>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+          <button onclick="window.openCreateRoomModal()" class="create-room-btn">🚀 Create a Room</button>
+          <a href="/schedule-room.html" class="create-room-btn" style="background: #f59e0b; color: white; text-decoration: none;">📅 Schedule for Later</a>
+        </div>
       </div>
       
       <!-- Hero -->
@@ -899,8 +1080,28 @@
           <button class="room-tab forum" data-type="forum" onclick="filterRooms('forum')">
             🌐 Forum Rooms
           </button>
+          <button class="room-tab scheduled" data-type="scheduled" onclick="filterRooms('scheduled')">
+            📅 Upcoming
+          </button>
         </div>
       </section>
+      
+      <!-- Upcoming Scheduled Rooms Section -->
+      <div id="scheduled-section" class="scheduled-section hidden">
+        <div class="scheduled-header">
+          <h2 class="scheduled-title">📅 Upcoming Events</h2>
+          <a href="/schedule-room.html" class="schedule-room-link">+ Schedule Your Room</a>
+        </div>
+        <div id="scheduled-rooms-grid" class="rooms-grid">
+          <!-- Scheduled room cards will be populated here -->
+        </div>
+        <div id="scheduled-empty" class="empty-state hidden">
+          <div class="empty-state-icon">📅</div>
+          <h2 class="empty-state-title">No Upcoming Events</h2>
+          <p class="empty-state-text">Be the first to schedule a room!</p>
+          <a href="/schedule-room.html" class="btn btn-primary">📅 Schedule a Room</a>
+        </div>
+      </div>
       
       <!-- Loading State -->
       <div id="loading-state" class="loading">
@@ -1047,12 +1248,14 @@
     // GLOBAL STATE
     // ============================================
     let allRooms = [];
+    let scheduledRooms = [];
     let currentFilter = 'all';
     let currentSearchQuery = '';
     let selectedRoomType = 'red';
     let currentUserId = null;
     let currentUserName = null;
     let userPlan = 'free';
+    let userReminders = new Set(); // Track which rooms user has clicked "Remind Me"
     
     // ============================================
     // SEARCH FUNCTIONALITY
@@ -1183,8 +1386,10 @@
     document.addEventListener('DOMContentLoaded', () => {
       console.log('📦 DOM loaded, initializing live rooms...');
       loadRooms();
+      loadScheduledRooms();
       // Refresh every 15 seconds to keep list fresh
       setInterval(loadRooms, 15000);
+      setInterval(loadScheduledRooms, 30000); // Refresh scheduled rooms every 30s
       
       // Check auth state for create room
       checkAuthForCreateRoom();
@@ -1325,6 +1530,185 @@
       }
     }
     
+    async function loadScheduledRooms() {
+      try {
+        const response = await fetch('/.netlify/functions/scheduled-rooms?upcoming=true&limit=20');
+        if (!response.ok) throw new Error('Failed to load scheduled rooms');
+        
+        const data = await response.json();
+        scheduledRooms = data.rooms || [];
+        console.log('📅 Loaded', scheduledRooms.length, 'scheduled rooms');
+        
+        if (currentFilter === 'scheduled') {
+          renderScheduledRooms();
+        }
+      } catch (error) {
+        console.error('Error loading scheduled rooms:', error);
+        scheduledRooms = [];
+      }
+    }
+    
+    function renderScheduledRooms() {
+      const gridEl = document.getElementById('scheduled-rooms-grid');
+      const emptyEl = document.getElementById('scheduled-empty');
+      
+      if (!scheduledRooms || scheduledRooms.length === 0) {
+        gridEl.classList.add('hidden');
+        emptyEl.classList.remove('hidden');
+        return;
+      }
+      
+      emptyEl.classList.add('hidden');
+      gridEl.classList.remove('hidden');
+      
+      gridEl.innerHTML = scheduledRooms.map(room => renderScheduledCard(room)).join('');
+    }
+    
+    function renderScheduledCard(room) {
+      const scheduleDate = new Date(room.scheduled_for);
+      const now = new Date();
+      const isToday = scheduleDate.toDateString() === now.toDateString();
+      const isTomorrow = scheduleDate.toDateString() === new Date(now.getTime() + 86400000).toDateString();
+      
+      // Format date
+      let dateStr;
+      if (isToday) {
+        dateStr = 'Today at ' + scheduleDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      } else if (isTomorrow) {
+        dateStr = 'Tomorrow at ' + scheduleDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      } else {
+        dateStr = scheduleDate.toLocaleDateString([], {weekday: 'short', month: 'short', day: 'numeric'}) + 
+                  ' at ' + scheduleDate.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      }
+      
+      // Calculate countdown
+      const diffMs = scheduleDate - now;
+      const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      let countdownStr;
+      if (diffMs < 0) {
+        countdownStr = 'Starting soon...';
+      } else if (diffHrs > 24) {
+        const days = Math.floor(diffHrs / 24);
+        countdownStr = `Starts in ${days} day${days > 1 ? 's' : ''}`;
+      } else if (diffHrs > 0) {
+        countdownStr = `Starts in ${diffHrs}h ${diffMins}m`;
+      } else {
+        countdownStr = `Starts in ${diffMins} minutes`;
+      }
+      
+      const isRed = room.room_type === 'red';
+      const typeIcon = isRed ? '🔴' : '🟢';
+      const typeName = isRed ? 'Debate' : 'Help';
+      
+      const isReminded = userReminders.has(room.id);
+      const remindBtnClass = isReminded ? 'remind-btn reminded' : 'remind-btn';
+      const remindBtnText = isReminded ? '✓ Reminded' : '🔔 Remind Me';
+      
+      return `
+        <div class="scheduled-card" data-schedule-id="${room.id}">
+          <div class="scheduled-card-header">
+            <div class="scheduled-time">
+              📅 ${dateStr}
+            </div>
+            <div class="scheduled-type-badge">
+              ${typeIcon} ${typeName}
+            </div>
+          </div>
+          
+          <div class="scheduled-card-body">
+            <h3 class="scheduled-topic">${escapeHtml(room.topic || 'Untitled Event')}</h3>
+            
+            <div class="scheduled-host">
+              <div class="scheduled-host-avatar">
+                ${room.host_avatar ? `<img src="${room.host_avatar}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : '👤'}
+              </div>
+              <span class="scheduled-host-name">Hosted by ${escapeHtml(room.host_name || 'Host')}</span>
+            </div>
+            
+            <div class="scheduled-stats">
+              <div class="scheduled-stat">
+                <span>👁️</span>
+                <span>${room.interested_count || 0} interested</span>
+              </div>
+              <div class="scheduled-stat">
+                <span>⏱️</span>
+                <span>${room.duration_minutes || 60} min</span>
+              </div>
+            </div>
+            
+            <div class="scheduled-countdown">
+              ⏰ ${countdownStr}
+            </div>
+            
+            <div class="scheduled-actions">
+              <button class="${remindBtnClass}" onclick="toggleReminder('${room.id}')" ${isReminded ? 'disabled' : ''}>
+                ${remindBtnText}
+              </button>
+              <button class="share-btn" onclick="shareScheduledRoom('${room.id}', '${escapeHtml(room.topic)}')">
+                📤 Share
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    async function toggleReminder(scheduleId) {
+      if (!currentUserId) {
+        alert('Please sign in to set reminders');
+        window.location.href = '/login.html';
+        return;
+      }
+      
+      try {
+        const response = await fetch('/.netlify/functions/scheduled-rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'interested',
+            scheduleId,
+            userId: currentUserId,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          userReminders.add(scheduleId);
+          renderScheduledRooms();
+          
+          // Show confirmation
+          alert('You will be notified when this room goes live!');
+        }
+      } catch (error) {
+        console.error('Error setting reminder:', error);
+        alert('Failed to set reminder');
+      }
+    }
+    window.toggleReminder = toggleReminder;
+    
+    function shareScheduledRoom(scheduleId, topic) {
+      const url = `${window.location.origin}/live.html?event=${scheduleId}`;
+      const text = `Join me for "${topic}" on ChatSpheres! 🎤`;
+      
+      if (navigator.share) {
+        navigator.share({
+          title: topic,
+          text: text,
+          url: url,
+        }).catch(() => {});
+      } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(`${text}\n${url}`).then(() => {
+          alert('Link copied to clipboard!');
+        }).catch(() => {
+          prompt('Copy this link:', url);
+        });
+      }
+    }
+    window.shareScheduledRoom = shareScheduledRoom;
+    
     function filterRooms(type) {
       currentFilter = type;
       
@@ -1336,7 +1720,24 @@
         }
       });
       
-      renderRooms();
+      // Show/hide scheduled section
+      const scheduledSection = document.getElementById('scheduled-section');
+      const loadingEl = document.getElementById('loading-state');
+      const emptyEl = document.getElementById('empty-state');
+      const gridEl = document.getElementById('rooms-grid');
+      
+      if (type === 'scheduled') {
+        // Hide live rooms, show scheduled
+        loadingEl.classList.add('hidden');
+        emptyEl.classList.add('hidden');
+        gridEl.classList.add('hidden');
+        scheduledSection.classList.remove('hidden');
+        renderScheduledRooms();
+      } else {
+        // Show live rooms, hide scheduled
+        scheduledSection.classList.add('hidden');
+        renderRooms();
+      }
     }
     window.filterRooms = filterRooms;
     

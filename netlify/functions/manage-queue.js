@@ -36,6 +36,8 @@ exports.handler = async function(event) {
       const params = event.queryStringParameters || {};
       const { roomId, userId, guestSessionId } = params;
 
+      console.log('📥 GET queue request:', { roomId, userId, guestSessionId });
+
       if (!roomId) {
         return {
           statusCode: 400,
@@ -51,6 +53,8 @@ exports.handler = async function(event) {
         .eq('room_id', roomId)
         .eq('status', 'waiting')
         .order('queue_position', { ascending: true });
+      
+      console.log('📋 Queue query result:', { queue, queueError });
 
       if (queueError) {
         // Table might not exist yet
@@ -154,8 +158,11 @@ exports.handler = async function(event) {
       case 'join': {
         const { userId, userName, guestName, guestSessionId } = body;
 
+        console.log('🎯 JOIN queue request:', { roomId, userId, userName, guestName, guestSessionId });
+
         // Must have either userId or guestSessionId
         if (!userId && !guestSessionId) {
+          console.log('❌ No user ID or guest session ID provided');
           return {
             statusCode: 400,
             headers,
@@ -171,7 +178,10 @@ exports.handler = async function(event) {
           .eq('status', 'live')
           .single();
 
+        console.log('🏠 Room lookup result:', { room, roomError });
+        
         if (roomError || !room) {
+          console.log('❌ Room not found:', roomError);
           return {
             statusCode: 404,
             headers,
@@ -180,12 +190,15 @@ exports.handler = async function(event) {
         }
 
         if (room.room_type !== 'creator' && !room.is_creator_room) {
+          console.log('❌ Room is not a creator room:', room.room_type, room.is_creator_room);
           return {
             statusCode: 400,
             headers,
             body: JSON.stringify({ error: 'This room does not have a queue' }),
           };
         }
+        
+        console.log('✅ Room is valid creator room');
 
         // Check if host is trying to join their own queue
         if (userId && room.host_id === userId) {
@@ -264,13 +277,18 @@ exports.handler = async function(event) {
           status: 'waiting',
         };
 
+        console.log('📝 Inserting queue entry:', queueEntry);
+        
         const { data: newEntry, error: insertError } = await supabase
           .from('room_queue')
           .insert(queueEntry)
           .select()
           .single();
 
+        console.log('📝 Insert result:', { newEntry, insertError });
+
         if (insertError) {
+          console.log('❌ Insert error:', insertError);
           // Handle unique constraint violation
           if (insertError.code === '23505') {
             return {
@@ -286,7 +304,7 @@ exports.handler = async function(event) {
           throw insertError;
         }
 
-        console.log(`🎯 User joined queue: ${roomId} at position ${nextPosition}`);
+        console.log(`✅ User joined queue: ${roomId} at position ${nextPosition}`);
 
         return {
           statusCode: 200,

@@ -15837,9 +15837,13 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       // Update user state
       if (data.userStatus === 'active') {
+        // Only enable media once when first becoming active
+        const wasAlreadyActive = roomTypeState.isActiveChallenger;
         roomTypeState.isActiveChallenger = true;
         roomTypeState.inQueue = false;
-        showActiveChallengerUI();
+        if (!wasAlreadyActive) {
+          showActiveChallengerUI(); // async but fire-and-forget is fine
+        }
       } else if (data.position !== null) {
         roomTypeState.inQueue = true;
         roomTypeState.queuePosition = data.position;
@@ -15973,8 +15977,10 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (positionEl) positionEl.textContent = position;
   }
   
-  // Show UI for active challenger
-  function showActiveChallengerUI() {
+  // Show UI for active challenger and enable their media
+  async function showActiveChallengerUI() {
+    console.log('🎯 User is now the ACTIVE CHALLENGER! Enabling media...');
+    
     const notInQueue = document.getElementById('not-in-queue');
     const inQueue = document.getElementById('in-queue');
     const isActive = document.getElementById('is-active-challenger');
@@ -15982,6 +15988,36 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (notInQueue) notInQueue.classList.add('hidden');
     if (inQueue) inQueue.classList.add('hidden');
     if (isActive) isActive.classList.remove('hidden');
+    
+    // Switch from spectator to participant mode - enable camera and mic!
+    try {
+      if (window.lkRoom && isSpectator) {
+        console.log('🎤📹 Challenger mode: enabling local media...');
+        
+        // Enable microphone
+        await window.lkRoom.localParticipant.setMicrophoneEnabled(true);
+        console.log('✅ Challenger microphone enabled');
+        
+        // Enable camera
+        await window.lkRoom.localParticipant.setCameraEnabled(true);
+        console.log('✅ Challenger camera enabled');
+        
+        // Update state
+        isSpectator = false;
+        roomTypeState.isActiveChallenger = true;
+        
+        // Show the local video
+        const localVideo = document.getElementById('localVideo');
+        const localPlaceholder = document.getElementById('local-video-placeholder');
+        if (localVideo) localVideo.style.display = 'block';
+        if (localPlaceholder) localPlaceholder.style.display = 'none';
+        
+        showToast('🎯 You are now the active challenger! Your camera is ON.');
+      }
+    } catch (error) {
+      console.error('❌ Failed to enable challenger media:', error);
+      showToast('❌ Failed to enable camera/mic. Please refresh.');
+    }
   }
   
   // Join queue
@@ -15999,9 +16035,16 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     const currentUserId = window.currentUserData?.userId || (typeof userId !== 'undefined' ? userId : null);
     const guestSessionId = getGuestSessionId();
-    const userName = window.currentUserData?.name || window.currentUserData?.displayName || 'Guest';
     
-    console.log('🎯 Queue join params:', { sphereId, currentUserId, guestSessionId, userName });
+    // Get username with multiple fallbacks
+    const userNameFromNav = document.querySelector('.nav-username')?.textContent?.trim();
+    const queueUserName = window.currentUserData?.name 
+      || window.currentUserData?.displayName 
+      || window.currentUserData?.username
+      || userNameFromNav
+      || 'Guest';
+    
+    console.log('🎯 Queue join params:', { sphereId, currentUserId, guestSessionId, queueUserName });
     
     try {
       const response = await fetch('/.netlify/functions/manage-queue', {
@@ -16011,8 +16054,8 @@ function ensureSpectatorTracksForParticipant(participant) {
           action: 'join',
           roomId: sphereId,
           userId: currentUserId || null,
-          userName: userName,
-          guestName: userName,
+          userName: queueUserName,
+          guestName: queueUserName,
           guestSessionId: currentUserId ? null : guestSessionId,
         })
       });

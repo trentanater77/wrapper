@@ -15989,26 +15989,34 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (inQueue) inQueue.classList.add('hidden');
     if (isActive) isActive.classList.remove('hidden');
     
-    // Switch from spectator to participant mode - enable camera and mic!
+    // Spectators connect with canPublish=false, so we need to RECONNECT with participant permissions
     try {
       console.log('🔍 Challenger check - livekitRoom:', !!livekitRoom, 'isSpectator:', isSpectator);
       
-      if (livekitRoom && livekitRoom.localParticipant) {
-        console.log('🎤📹 Challenger mode: enabling local media...');
+      if (livekitRoom) {
+        console.log('🔄 Challenger: Reconnecting with participant permissions...');
+        showToast('🎯 You\'re up! Connecting your camera...');
         
-        // Enable microphone
-        await livekitRoom.localParticipant.setMicrophoneEnabled(true);
-        isMicOn = true;
-        console.log('✅ Challenger microphone enabled');
+        // Disconnect from current session
+        try {
+          await livekitRoom.disconnect(true);
+          console.log('✅ Disconnected from spectator session');
+        } catch (e) {
+          console.warn('⚠️ Disconnect warning:', e);
+        }
         
-        // Enable camera
-        await livekitRoom.localParticipant.setCameraEnabled(true);
-        isCameraOn = true;
-        console.log('✅ Challenger camera enabled');
-        
-        // Update state - no longer a spectator!
+        // Switch mode BEFORE reconnecting
         isSpectator = false;
         roomTypeState.isActiveChallenger = true;
+        
+        // Wait a moment for cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reconnect as participant (connectToLiveKitRoom uses isSpectator to determine role)
+        console.log('🔌 Reconnecting as participant...');
+        await connectToLiveKitRoom();
+        
+        console.log('✅ Challenger reconnected with participant permissions!');
         
         // Show the local video
         const localVideo = document.getElementById('localVideo');
@@ -16025,14 +16033,20 @@ function ensureSpectatorTracksForParticipant(participant) {
         if (micBtn) micBtn.classList.add('active');
         if (cameraBtn) cameraBtn.classList.add('active');
         
+        // Update UI to show participant controls
+        const spectatorControls = document.getElementById('spectator-controls');
+        const participantControls = document.getElementById('participant-controls');
+        if (spectatorControls) spectatorControls.classList.add('hidden');
+        if (participantControls) participantControls.classList.remove('hidden');
+        
         showToast('🎯 You are now the active challenger! Your camera is ON.');
         console.log('✅ Challenger media enabled successfully!');
       } else {
-        console.error('❌ LiveKit room or local participant not available');
+        console.error('❌ LiveKit room not available');
       }
     } catch (error) {
       console.error('❌ Failed to enable challenger media:', error);
-      showToast('❌ Failed to enable camera/mic. Please refresh.');
+      showToast('❌ Failed to connect camera. Please refresh the page.');
     }
   }
   

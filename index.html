@@ -3999,7 +3999,9 @@
   let sparkIsSelected = false;
 
     const roomUrl = new URLSearchParams(window.location.search).get('room');
-    const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+    const urlMode = new URLSearchParams(window.location.search).get('mode');
+    const spectatorMode = urlMode === 'spectator' || urlMode === 'queue';
+    const queueMode = urlMode === 'queue'; // User wants to join the queue
 
     // Extract sphereId from any room format for consistent presence path
     function extractSphereId(roomParam) {
@@ -15785,6 +15787,12 @@ function ensureSpectatorTracksForParticipant(participant) {
     } else if (isSpectator) {
       if (hostControls) hostControls.classList.add('hidden');
       if (joinQueueSection) joinQueueSection.classList.remove('hidden');
+    }
+    
+    // If user joined with mode=queue, automatically add them to the queue
+    if (queueMode && !isHost) {
+      console.log('🎯 Auto-joining queue (mode=queue)...');
+      await joinQueue();
     }
     
     // Load queue immediately and refresh periodically

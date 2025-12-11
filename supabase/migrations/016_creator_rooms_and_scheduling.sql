@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS room_queue (
     user_id UUID,
     guest_name TEXT,
     guest_session_id TEXT,
-    position INTEGER NOT NULL,
+    queue_position INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'active', 'completed', 'left')),
     joined_at TIMESTAMPTZ DEFAULT NOW(),
     called_at TIMESTAMPTZ,
@@ -61,7 +61,7 @@ END $$;
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_room_queue_room_id ON room_queue(room_id);
 CREATE INDEX IF NOT EXISTS idx_room_queue_status ON room_queue(status);
-CREATE INDEX IF NOT EXISTS idx_room_queue_position ON room_queue(room_id, position);
+CREATE INDEX IF NOT EXISTS idx_room_queue_position ON room_queue(room_id, queue_position);
 
 -- =====================================================
 -- 3. SCHEDULED EVENTS TABLE

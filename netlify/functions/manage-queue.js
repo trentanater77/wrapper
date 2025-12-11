@@ -50,7 +50,7 @@ exports.handler = async function(event) {
         .select('*')
         .eq('room_id', roomId)
         .eq('status', 'waiting')
-        .order('position', { ascending: true });
+        .order('queue_position', { ascending: true });
 
       if (queueError) {
         // Table might not exist yet
@@ -83,7 +83,7 @@ exports.handler = async function(event) {
         );
         
         if (userEntry) {
-          userPosition = userEntry.position;
+          userPosition = userEntry.queue_position;
           userStatus = userEntry.status;
         } else if (activeChallenger) {
           // Check if user is the active challenger
@@ -101,7 +101,7 @@ exports.handler = async function(event) {
         body: JSON.stringify({
           queue: queue.map(q => ({
             id: q.id,
-            position: q.position,
+            position: q.queue_position,
             name: q.user_id ? null : q.guest_name, // Don't expose user IDs
             isUser: q.user_id ? true : false,
             joinedAt: q.joined_at,
@@ -218,7 +218,7 @@ exports.handler = async function(event) {
             body: JSON.stringify({
               success: true,
               message: 'Already in queue',
-              position: existing.position,
+              position: existing.queue_position,
               status: existing.status,
               alreadyInQueue: true,
             }),
@@ -245,14 +245,14 @@ exports.handler = async function(event) {
         // Get next position
         const { data: lastInQueue } = await supabase
           .from('room_queue')
-          .select('position')
+          .select('queue_position')
           .eq('room_id', roomId)
           .eq('status', 'waiting')
-          .order('position', { ascending: false })
+          .order('queue_position', { ascending: false })
           .limit(1)
           .single();
 
-        const nextPosition = (lastInQueue?.position || 0) + 1;
+        const nextPosition = (lastInQueue?.queue_position || 0) + 1;
 
         // Add to queue
         const queueEntry = {
@@ -260,7 +260,7 @@ exports.handler = async function(event) {
           user_id: userId || null,
           guest_name: guestName || (userId ? userName : 'Guest'),
           guest_session_id: userId ? null : guestSessionId,
-          position: nextPosition,
+          queue_position: nextPosition,
           status: 'waiting',
         };
 
@@ -380,7 +380,7 @@ exports.handler = async function(event) {
           .select('*')
           .eq('room_id', roomId)
           .eq('status', 'waiting')
-          .order('position', { ascending: true })
+          .order('queue_position', { ascending: true })
           .limit(1)
           .single();
 
@@ -567,7 +567,7 @@ async function reorderQueue(roomId) {
       .select('id')
       .eq('room_id', roomId)
       .eq('status', 'waiting')
-      .order('position', { ascending: true });
+      .order('queue_position', { ascending: true });
 
     if (!waitingQueue || waitingQueue.length === 0) return;
 
@@ -575,7 +575,7 @@ async function reorderQueue(roomId) {
     for (let i = 0; i < waitingQueue.length; i++) {
       await supabase
         .from('room_queue')
-        .update({ position: i + 1 })
+        .update({ queue_position: i + 1 })
         .eq('id', waitingQueue[i].id);
     }
   } catch (error) {

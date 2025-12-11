@@ -106,7 +106,7 @@ exports.handler = async function(event) {
           queue: queue.map(q => ({
             id: q.id,
             position: q.queue_position,
-            name: q.user_id ? null : q.guest_name, // Don't expose user IDs
+            name: q.guest_name || 'Guest', // Use guest_name which stores actual username for all users
             isUser: q.user_id ? true : false,
             joinedAt: q.joined_at,
           })),
@@ -115,6 +115,7 @@ exports.handler = async function(event) {
             name: activeChallenger.guest_name || 'Challenger',
             isUser: !!activeChallenger.user_id,
             userId: activeChallenger.user_id,
+            guestSessionId: activeChallenger.guest_session_id,
             startedAt: activeChallenger.called_at,
           } : null,
           position: userPosition,
@@ -382,15 +383,26 @@ exports.handler = async function(event) {
           };
         }
 
-        // End current challenger if any
-        await supabase
+        // Get current active challenger before ending them
+        const { data: previousChallenger } = await supabase
           .from('room_queue')
-          .update({ 
-            status: 'completed', 
-            ended_at: new Date().toISOString() 
-          })
+          .select('id, user_id, guest_session_id, guest_name')
           .eq('room_id', roomId)
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .single();
+
+        // End current challenger if any
+        if (previousChallenger) {
+          await supabase
+            .from('room_queue')
+            .update({ 
+              status: 'completed', 
+              ended_at: new Date().toISOString() 
+            })
+            .eq('id', previousChallenger.id);
+          
+          console.log('👋 Previous challenger ended:', previousChallenger.guest_name || previousChallenger.user_id);
+        }
 
         // Get next in queue
         const { data: nextChallenger, error: nextError } = await supabase
@@ -457,10 +469,17 @@ exports.handler = async function(event) {
             nextChallenger: {
               id: nextChallenger.id,
               userId: nextChallenger.user_id,
+              guestSessionId: nextChallenger.guest_session_id,
               name: nextChallenger.guest_name || 'Challenger',
               isUser: !!nextChallenger.user_id,
               timeLimit: room.challenger_time_limit,
             },
+            previousChallenger: previousChallenger ? {
+              id: previousChallenger.id,
+              userId: previousChallenger.user_id,
+              guestSessionId: previousChallenger.guest_session_id,
+              name: previousChallenger.guest_name || 'Challenger',
+            } : null,
           }),
         };
       }

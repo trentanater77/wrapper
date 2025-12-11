@@ -7549,6 +7549,43 @@ async function initializeApp() {
       if (typeof handleGreenRoomEnded === 'function') {
         handleGreenRoomEnded(event.data);
       }
+    } else if (event.data.type === 'challenger-update') {
+      // Creator room challenger update
+      console.log('⭐ Challenger update received via LiveKit:', event.data);
+      handleChallengerUpdate(event.data);
+    }
+  }
+  
+  // Handle challenger update message from Creator room host
+  function handleChallengerUpdate(data) {
+    const currentUserId = window.currentUserData?.userId || userId;
+    const guestSessionId = getGuestSessionId();
+    
+    // Check if this user was the previous challenger (their turn just ended)
+    if (data.previousChallenger) {
+      const prev = data.previousChallenger;
+      const wasMe = (currentUserId && prev.userId === currentUserId) ||
+                    (guestSessionId && prev.guestSessionId === guestSessionId);
+      
+      if (wasMe && roomTypeState.isActiveChallenger) {
+        console.log('👋 You were the previous challenger - reverting to spectator');
+        revertToSpectatorMode();
+        return;
+      }
+    }
+    
+    // Check if this user is the new challenger
+    if (data.nextChallenger) {
+      const next = data.nextChallenger;
+      const isMe = (currentUserId && next.userId === currentUserId) ||
+                   (guestSessionId && next.guestSessionId === guestSessionId);
+      
+      if (isMe && !roomTypeState.isActiveChallenger) {
+        console.log('🎯 You are the next challenger!');
+        roomTypeState.isActiveChallenger = true;
+        roomTypeState.inQueue = false;
+        showActiveChallengerUI();
+      }
     }
   }
 
@@ -15851,13 +15888,15 @@ function ensureSpectatorTracksForParticipant(participant) {
       // Update queue display
       updateQueueDisplay(data);
       
+      // Track previous state to detect transitions
+      const wasActiveChallenger = roomTypeState.isActiveChallenger;
+      
       // Update user state
       if (data.userStatus === 'active') {
         // Only enable media once when first becoming active
-        const wasAlreadyActive = roomTypeState.isActiveChallenger;
         roomTypeState.isActiveChallenger = true;
         roomTypeState.inQueue = false;
-        if (!wasAlreadyActive) {
+        if (!wasActiveChallenger) {
           showActiveChallengerUI(); // async but fire-and-forget is fine
         }
       } else if (data.position !== null) {
@@ -15865,10 +15904,22 @@ function ensureSpectatorTracksForParticipant(participant) {
         roomTypeState.queuePosition = data.position;
         roomTypeState.isActiveChallenger = false;
         showInQueueUI(data.position);
+        
+        // If was active challenger but now back in queue, revert to spectator
+        if (wasActiveChallenger) {
+          console.log('👋 Challenger turn ended, reverting to spectator...');
+          revertToSpectatorMode();
+        }
       } else {
         roomTypeState.inQueue = false;
         roomTypeState.isActiveChallenger = false;
         showNotInQueueUI();
+        
+        // If was active challenger but now not in queue at all, revert to spectator
+        if (wasActiveChallenger) {
+          console.log('👋 Challenger turn ended, reverting to spectator...');
+          revertToSpectatorMode();
+        }
       }
       
       // Update current challenger display
@@ -16142,6 +16193,81 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
+  // Revert from active challenger back to spectator mode
+  async function revertToSpectatorMode() {
+    console.log('👋 Reverting from challenger back to spectator mode...');
+    
+    try {
+      // Update UI sections
+      const notInQueue = document.getElementById('not-in-queue');
+      const inQueue = document.getElementById('in-queue');
+      const isActive = document.getElementById('is-active-challenger');
+      
+      if (notInQueue) notInQueue.classList.remove('hidden');
+      if (inQueue) inQueue.classList.add('hidden');
+      if (isActive) isActive.classList.add('hidden');
+      
+      // Disconnect from LiveKit and reconnect as spectator
+      if (livekitRoom) {
+        console.log('🔌 Disconnecting participant session...');
+        await livekitRoom.disconnect(true);
+        
+        // Set spectator flags
+        isSpectator = true;
+        roomTypeState.isActiveChallenger = false;
+        
+        // Small delay for cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reconnect as spectator (this will get spectator token)
+        console.log('🔌 Reconnecting as spectator...');
+        await connectToLiveKitRoom();
+        
+        console.log('✅ Reconnected as spectator');
+      }
+      
+      // Switch UI from participant to spectator layout
+      const participantLayout = document.getElementById('participant-layout');
+      const spectatorLayout = document.getElementById('spectator-layout');
+      
+      if (participantLayout) {
+        participantLayout.classList.add('hidden');
+        participantLayout.style.display = 'none';
+      }
+      
+      if (spectatorLayout) {
+        spectatorLayout.classList.remove('hidden');
+        spectatorLayout.style.display = 'block';
+      }
+      
+      // Update role badge
+      const roleBadge = document.getElementById('role-badge');
+      const roleText = document.getElementById('role-text');
+      if (roleBadge) {
+        roleBadge.classList.remove('participant-badge');
+        roleBadge.classList.add('spectator-badge');
+      }
+      if (roleText) {
+        roleText.textContent = 'spectator';
+      }
+      
+      // Hide local video container
+      const localContainer = document.getElementById('local-video-container');
+      if (localContainer) {
+        localContainer.classList.add('hidden');
+        localContainer.style.display = 'none';
+      }
+      
+      showToast('👋 Your turn ended. You are now spectating.');
+      console.log('✅ Reverted to spectator mode');
+      
+    } catch (error) {
+      console.error('❌ Error reverting to spectator:', error);
+      // Show the join queue UI as fallback
+      showNotInQueueUI();
+    }
+  }
+  
   // Join queue
   async function joinQueue() {
     // Get room ID from URL directly
@@ -16272,12 +16398,32 @@ function ensureSpectatorTracksForParticipant(participant) {
           roomTypeState.currentChallenger = data.nextChallenger;
           roomTypeState.challengerTimeLimit = data.nextChallenger.timeLimit;
           showCurrentChallenger(data.nextChallenger);
+          
+          // Broadcast via LiveKit to notify the new challenger and previous challenger
+          if (livekitRoom && livekitRoom.localParticipant) {
+            try {
+              const challengerUpdate = {
+                type: 'challenger-update',
+                action: 'next',
+                nextChallenger: data.nextChallenger,
+                previousChallenger: data.previousChallenger || null,
+              };
+              const encoder = new TextEncoder();
+              await livekitRoom.localParticipant.publishData(
+                encoder.encode(JSON.stringify(challengerUpdate)),
+                { reliable: true }
+              );
+              console.log('📢 Broadcasted challenger update via LiveKit');
+            } catch (e) {
+              console.log('Could not broadcast challenger update via LiveKit');
+            }
+          }
         } else {
           showToast('📭 Queue is empty');
           hideCurrentChallenger();
         }
         
-        // Broadcast to Firebase
+        // Broadcast to Firebase as backup
         broadcastQueueUpdate('next');
       } else {
         showToast(`❌ ${data.error || 'Failed to call next'}`);

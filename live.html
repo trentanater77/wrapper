@@ -1186,6 +1186,23 @@
         ></textarea>
       </div>
       
+      <!-- Cover Image (optional) -->
+      <div class="form-group">
+        <label class="form-label">Cover Image / GIF (optional)</label>
+        <input 
+          type="url" 
+          id="create-room-cover" 
+          placeholder="https://example.com/image.jpg or .gif"
+          class="form-input"
+        >
+        <p style="font-size: 0.7rem; color: var(--charcoal); opacity: 0.6; margin-top: 4px;">
+          Paste a direct link to an image or GIF. Shows on the room card.
+        </p>
+        <div id="cover-preview" style="display:none; margin-top: 8px; border-radius: 8px; overflow: hidden; max-height: 100px;">
+          <img id="cover-preview-img" style="width: 100%; height: 100px; object-fit: cover;" />
+        </div>
+      </div>
+      
       <!-- Public/Private Toggle -->
       <div class="toggle-row">
         <div>
@@ -1310,6 +1327,36 @@
       if (modal) modal.style.display = 'none';
     };
     
+    // Preview cover image as user types
+    window.previewCoverImage = function() {
+      const input = document.getElementById('create-room-cover');
+      const preview = document.getElementById('cover-preview');
+      const img = document.getElementById('cover-preview-img');
+      
+      if (input && input.value.trim()) {
+        const url = input.value.trim();
+        // Basic URL validation
+        if (url.match(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i) || url.includes('imgur') || url.includes('giphy') || url.includes('tenor')) {
+          img.src = url;
+          preview.style.display = 'block';
+          img.onerror = () => { preview.style.display = 'none'; };
+        } else {
+          preview.style.display = 'none';
+        }
+      } else {
+        if (preview) preview.style.display = 'none';
+      }
+    };
+    
+    // Attach preview event listener
+    document.addEventListener('DOMContentLoaded', () => {
+      const coverInput = document.getElementById('create-room-cover');
+      if (coverInput) {
+        coverInput.addEventListener('input', window.previewCoverImage);
+        coverInput.addEventListener('paste', () => setTimeout(window.previewCoverImage, 100));
+      }
+    });
+    
     // Toggle public/private switch
     let isPublic = true;
     window.togglePublic = function() {
@@ -1427,6 +1474,7 @@
     window.createRoom = async function() {
       const topic = document.getElementById('create-room-topic').value.trim();
       const description = document.getElementById('create-room-description').value.trim();
+      const coverImageUrl = document.getElementById('create-room-cover')?.value.trim() || null;
       // Use the global isPublic variable set by togglePublic()
       
       if (!topic) {
@@ -1490,6 +1538,7 @@
             roomType: selectedRoomType,
             topic: topic,
             description: description,
+            coverImageUrl: coverImageUrl,
             isPublic: isPublic,
             durationMinutes: planLimits.durationMinutes,
             userPlan: userPlan,
@@ -1703,8 +1752,14 @@
             return room.room_type === 'green' && room.forum_room_type === 'help';
           });
         } else if (currentFilter === 'creator') {
-          // Show creator rooms
-          filteredRooms = filteredRooms.filter(room => room.room_type === 'creator' || room.is_creator_room);
+          // Show creator rooms only
+          console.log('🔍 Filtering for creator rooms. Before filter:', filteredRooms.length);
+          filteredRooms = filteredRooms.filter(room => {
+            const isCreator = room.room_type === 'creator' || room.is_creator_room === true;
+            console.log(`  Room ${room.room_id}: room_type=${room.room_type}, is_creator_room=${room.is_creator_room}, isCreator=${isCreator}`);
+            return isCreator;
+          });
+          console.log('🔍 After creator filter:', filteredRooms.length);
         }
       }
       
@@ -1825,6 +1880,13 @@
         forumParam = '&fromLive=true';
       }
       
+      // Cover image
+      const coverImageHtml = room.cover_image_url ? `
+        <div class="room-cover-image" style="width:100%;height:100px;overflow:hidden;border-radius:8px;margin-bottom:12px;">
+          <img src="${room.cover_image_url}" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.style.display='none';">
+        </div>
+      ` : '';
+      
       return `
         <div class="room-card ${typeClass}" data-room-id="${roomId}">
           <div class="room-card-header">
@@ -1836,6 +1898,8 @@
               LIVE • ${timeDisplay}
             </div>
           </div>
+          
+          ${coverImageHtml}
           
           <div class="room-card-body">
             <h3 class="room-topic">${escapeHtml(room.topic || 'Untitled Room')}</h3>
@@ -1934,9 +1998,36 @@
     }
     window.joinRoom = joinRoom;
     
-    function showEmptyState() {
+    async function showEmptyState() {
       document.getElementById('loading-state').classList.add('hidden');
       document.getElementById('rooms-grid').classList.add('hidden');
+      
+      // Check if there are upcoming events to show
+      try {
+        const response = await fetch('/.netlify/functions/schedule-room?upcoming=true');
+        const data = await response.json();
+        const upcoming = data.events || [];
+        
+        if (upcoming.length > 0) {
+          // Show upcoming events instead of empty state
+          const emptyEl = document.getElementById('empty-state');
+          emptyEl.classList.remove('hidden');
+          emptyEl.innerHTML = `
+            <div class="empty-state-icon">📅</div>
+            <h2 class="empty-state-title">No Live Rooms Right Now</h2>
+            <p class="empty-state-text">But there are ${upcoming.length} upcoming event${upcoming.length > 1 ? 's' : ''} scheduled!</p>
+            <button onclick="filterRooms('upcoming')" class="btn btn-primary">📅 View Upcoming Events</button>
+            <div style="margin-top: 20px;">
+              <a href="/schedule-room.html" class="btn btn-secondary">➕ Schedule Your Own</a>
+            </div>
+          `;
+          return;
+        }
+      } catch (e) {
+        console.log('Could not check upcoming events:', e);
+      }
+      
+      // No upcoming events - show default empty state
       document.getElementById('empty-state').classList.remove('hidden');
     }
     
@@ -1957,9 +2048,12 @@
       if (gridEl) gridEl.classList.add('hidden');
       
       try {
+        console.log('📅 Loading upcoming events...');
         const response = await fetch('/.netlify/functions/schedule-room?upcoming=true');
         const data = await response.json();
+        console.log('📅 Upcoming events response:', data);
         upcomingEvents = data.events || [];
+        console.log('📅 Found', upcomingEvents.length, 'upcoming events');
         
         // Check user's reminders if logged in
         if (currentUserId) {

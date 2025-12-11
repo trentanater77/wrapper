@@ -637,6 +637,16 @@
           <input type="text" class="form-input" id="roomDescription" placeholder="Brief description..." maxlength="500">
         </div>
         
+        <!-- Cover Image (optional) -->
+        <div class="form-group">
+          <label class="form-label">Cover Image / GIF (optional)</label>
+          <input type="url" class="form-input" id="roomCoverImage" placeholder="https://example.com/image.jpg or .gif">
+          <p class="form-hint">Paste a direct link to an image or GIF for your room card</p>
+          <div id="forum-cover-preview" style="display:none; margin-top: 8px; border-radius: 8px; overflow: hidden; max-height: 80px;">
+            <img id="forum-cover-preview-img" style="width: 100%; height: 80px; object-fit: cover;" />
+          </div>
+        </div>
+        
         <!-- Plan Warning for Free Users -->
         <div id="forum-plan-warning" class="plan-warning gold" style="display:none;">
           <div class="plan-warning-header">
@@ -789,6 +799,35 @@
         }
       }
     };
+    
+    // Preview cover image as user types
+    window.previewForumCoverImage = function() {
+      const input = document.getElementById('roomCoverImage');
+      const preview = document.getElementById('forum-cover-preview');
+      const img = document.getElementById('forum-cover-preview-img');
+      
+      if (input && input.value.trim()) {
+        const url = input.value.trim();
+        if (url.match(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)(\?.*)?$/i) || url.includes('imgur') || url.includes('giphy') || url.includes('tenor')) {
+          img.src = url;
+          preview.style.display = 'block';
+          img.onerror = () => { preview.style.display = 'none'; };
+        } else {
+          preview.style.display = 'none';
+        }
+      } else {
+        if (preview) preview.style.display = 'none';
+      }
+    };
+    
+    // Attach cover image preview listener when modal opens
+    document.addEventListener('DOMContentLoaded', () => {
+      const coverInput = document.getElementById('roomCoverImage');
+      if (coverInput) {
+        coverInput.addEventListener('input', window.previewForumCoverImage);
+        coverInput.addEventListener('paste', () => setTimeout(window.previewForumCoverImage, 100));
+      }
+    });
     
     // Parse slug from URL - handles /f/slug and /forum.html?slug=xxx
     function getSlugFromUrl() {
@@ -2332,6 +2371,7 @@
       
       const title = document.getElementById('roomTitle').value.trim();
       const description = document.getElementById('roomDescription').value.trim();
+      const coverImageUrl = document.getElementById('roomCoverImage')?.value.trim() || null;
       const btn = document.getElementById('createRoomBtn');
       
       if (!title) {
@@ -2402,6 +2442,7 @@
             roomType: activeRoomType, // Use underlying room type (green for regular/help, red for debate, creator)
             topic: title,
             description: description,
+            coverImageUrl: coverImageUrl,
             isPublic: forumData.forumType !== 'private',
             durationMinutes: planLimits.durationMinutes, // Apply plan limit
             // Creator room specific

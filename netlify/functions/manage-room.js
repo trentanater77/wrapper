@@ -325,7 +325,7 @@ exports.handler = async function(event) {
       case 'create': {
         const { 
           roomId, hostId, hostName, hostAvatar,
-          roomType, topic, description, isPublic,
+          roomType, topic, description, coverImageUrl, isPublic,
           durationMinutes,
           // Creator room specific fields
           isCreatorRoom,
@@ -427,6 +427,7 @@ exports.handler = async function(event) {
             room_type: effectiveRoomType,
             topic: topic,
             description: description,
+            cover_image_url: coverImageUrl || null,
             is_public: isPublic !== false,
             participant_count: 1,
             spectator_count: 0,

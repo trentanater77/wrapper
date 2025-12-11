@@ -84,20 +84,24 @@ exports.handler = async function(event) {
       if (upcoming === 'true') {
         // Only get upcoming scheduled events (not live or ended)
         const now = new Date().toISOString();
+        console.log(`📅 Fetching upcoming events (scheduled_at >= ${now})`);
         query = query
           .eq('status', 'scheduled')
           .gte('scheduled_at', now);
       }
 
       const { data: events, error } = await query.limit(50);
+      
+      console.log(`📅 Query result: ${events?.length || 0} events, error: ${error?.message || 'none'}`);
 
       if (error) {
         // Table might not exist
-        if (error.code === '42P01') {
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          console.log('📅 scheduled_events table not found');
           return {
             statusCode: 200,
             headers,
-            body: JSON.stringify({ events: [] }),
+            body: JSON.stringify({ events: [], message: 'Table not found - run migration' }),
           };
         }
         throw error;
@@ -360,7 +364,10 @@ exports.handler = async function(event) {
         // Generate room ID
         const roomId = 'room-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 6);
         const now = new Date();
-        const endsAt = new Date(now.getTime() + 3 * 60 * 60 * 1000); // 3 hours default
+        
+        // Creator rooms don't have an ends_at - they only end when host ends them
+        const isCreatorRoom = scheduledEvent.room_type === 'creator';
+        const endsAt = isCreatorRoom ? null : new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
 
         // Create the live room
         const { data: room, error: roomError } = await supabase
@@ -374,7 +381,7 @@ exports.handler = async function(event) {
             topic: scheduledEvent.title,
             description: scheduledEvent.description,
             is_public: true,
-            is_creator_room: scheduledEvent.room_type === 'creator',
+            is_creator_room: isCreatorRoom,
             challenger_time_limit: scheduledEvent.challenger_time_limit,
             max_queue_size: scheduledEvent.max_queue_size,
             participant_count: 1,
@@ -382,7 +389,7 @@ exports.handler = async function(event) {
             pot_amount: 0,
             status: 'live',
             started_at: now.toISOString(),
-            ends_at: endsAt.toISOString(),
+            ends_at: endsAt,
           })
           .select()
           .single();

@@ -27,6 +27,7 @@ ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS max_queue_size INTEGER;
 ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS current_challenger_id UUID;
 ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS current_challenger_name TEXT;
 ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS current_challenger_started_at TIMESTAMPTZ;
+ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS cover_image_url TEXT;
 
 -- =====================================================
 -- 2. ROOM QUEUE TABLE

@@ -685,6 +685,73 @@
           </p>
         </section>
         
+        <!-- Creator Partner Program -->
+        <section id="partner-section" class="faq-section" style="margin-bottom: var(--space-2xl);">
+          <h2>⭐ Creator Partner Program</h2>
+          
+          <div style="background: linear-gradient(135deg, #FFD166, #e63946); border-radius: var(--radius-xl); padding: var(--space-xl); color: white; text-align: center; margin-bottom: var(--space-lg);">
+            <h3 style="font-size: 1.5rem; margin-bottom: var(--space-sm);">Become a Founding Creator Partner</h3>
+            <p style="opacity: 0.9; margin-bottom: var(--space-md);">Keep 100% of your tips • Priority support • Featured placement</p>
+            <p style="font-size: 0.9rem; opacity: 0.8;">We're looking for creators with audiences who want to bring their community to ChatSpheres.</p>
+          </div>
+          
+          <!-- Partner Status (shown when user is a partner) -->
+          <div id="partner-status" class="hidden" style="background: var(--gold); border-radius: var(--radius-lg); padding: var(--space-lg); text-align: center; margin-bottom: var(--space-lg);">
+            <span style="font-size: 2rem;">⭐</span>
+            <h4 style="font-weight: bold; margin-top: var(--space-sm);">You're a Creator Partner!</h4>
+            <p id="partner-tier" style="opacity: 0.8;">Founding Partner • 100% Tips</p>
+          </div>
+          
+          <!-- Application Form -->
+          <div id="partner-apply-form" style="background: var(--light-rose); border-radius: var(--radius-lg); padding: var(--space-lg); border: 2px solid var(--rose);">
+            <h4 style="font-weight: bold; margin-bottom: var(--space-md);">📝 Apply to Join</h4>
+            
+            <div id="partner-signin-prompt" style="text-align: center; padding: var(--space-lg);">
+              <p style="margin-bottom: var(--space-md);">Sign in to apply for the Creator Partner program</p>
+              <button onclick="showAuthModal()" class="btn btn-primary">Sign In</button>
+            </div>
+            
+            <form id="partner-application-form" class="hidden" onsubmit="submitPartnerApplication(event)">
+              <div style="margin-bottom: var(--space-md);">
+                <label style="display: block; font-weight: bold; margin-bottom: 4px; font-size: 0.9rem;">Your Social Media Links</label>
+                <input type="text" id="partner-social-links" placeholder="Twitter, YouTube, TikTok, etc." style="width: 100%; padding: 10px; border: 2px solid var(--rose); border-radius: 8px; font-family: inherit;">
+              </div>
+              
+              <div style="margin-bottom: var(--space-md);">
+                <label style="display: block; font-weight: bold; margin-bottom: 4px; font-size: 0.9rem;">Estimated Audience Size</label>
+                <select id="partner-audience-size" style="width: 100%; padding: 10px; border: 2px solid var(--rose); border-radius: 8px; font-family: inherit;">
+                  <option value="">Select...</option>
+                  <option value="100-1000">100 - 1,000 followers</option>
+                  <option value="1000-10000">1,000 - 10,000 followers</option>
+                  <option value="10000-50000">10,000 - 50,000 followers</option>
+                  <option value="50000+">50,000+ followers</option>
+                </select>
+              </div>
+              
+              <div style="margin-bottom: var(--space-md);">
+                <label style="display: block; font-weight: bold; margin-bottom: 4px; font-size: 0.9rem;">What content do you create?</label>
+                <input type="text" id="partner-content-type" placeholder="Debates, reactions, educational, gaming, etc." style="width: 100%; padding: 10px; border: 2px solid var(--rose); border-radius: 8px; font-family: inherit;">
+              </div>
+              
+              <div style="margin-bottom: var(--space-lg);">
+                <label style="display: block; font-weight: bold; margin-bottom: 4px; font-size: 0.9rem;">Why do you want to partner with ChatSpheres?</label>
+                <textarea id="partner-why" rows="3" placeholder="Tell us how you'd use Creator Rooms..." style="width: 100%; padding: 10px; border: 2px solid var(--rose); border-radius: 8px; font-family: inherit; resize: vertical;"></textarea>
+              </div>
+              
+              <button type="submit" id="partner-submit-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #FFD166, #e63946); color: white; border: none; border-radius: 999px; font-weight: bold; font-size: 1rem; cursor: pointer;">
+                Submit Application
+              </button>
+            </form>
+            
+            <!-- Pending Application Status -->
+            <div id="partner-pending" class="hidden" style="text-align: center; padding: var(--space-lg);">
+              <span style="font-size: 2rem;">⏳</span>
+              <h4 style="font-weight: bold; margin-top: var(--space-sm);">Application Pending</h4>
+              <p style="opacity: 0.8;">We're reviewing your application. You'll hear from us soon!</p>
+            </div>
+          </div>
+        </section>
+        
         <!-- FAQ -->
         <section class="faq-section">
           <h2>❓ Frequently Asked Questions</h2>
@@ -1074,6 +1141,110 @@
         console.error('Sign out error:', error);
       }
     }
+    
+    // ============================================
+    // CREATOR PARTNER PROGRAM
+    // ============================================
+    
+    // Check partner status
+    async function checkPartnerStatus() {
+      if (!currentUser) {
+        // Show sign in prompt
+        document.getElementById('partner-signin-prompt').classList.remove('hidden');
+        document.getElementById('partner-application-form').classList.add('hidden');
+        return;
+      }
+      
+      document.getElementById('partner-signin-prompt').classList.add('hidden');
+      
+      try {
+        const response = await fetch(`/.netlify/functions/partner-program?userId=${currentUser.id}`);
+        const data = await response.json();
+        
+        if (data.isPartner) {
+          // Show partner status
+          document.getElementById('partner-status').classList.remove('hidden');
+          document.getElementById('partner-apply-form').style.display = 'none';
+          
+          const tierEl = document.getElementById('partner-tier');
+          if (tierEl && data.partner) {
+            const tierLabel = data.partner.tier === 'founding' ? 'Founding Partner' : 'Partner';
+            tierEl.textContent = `${tierLabel} • ${data.partner.tip_share_percent}% Tips`;
+          }
+        } else if (data.application && data.application.status === 'pending') {
+          // Show pending status
+          document.getElementById('partner-application-form').classList.add('hidden');
+          document.getElementById('partner-pending').classList.remove('hidden');
+        } else {
+          // Show application form
+          document.getElementById('partner-application-form').classList.remove('hidden');
+        }
+      } catch (error) {
+        console.error('Error checking partner status:', error);
+        document.getElementById('partner-application-form').classList.remove('hidden');
+      }
+    }
+    
+    // Submit partner application
+    async function submitPartnerApplication(event) {
+      event.preventDefault();
+      
+      if (!currentUser) {
+        alert('Please sign in first');
+        return;
+      }
+      
+      const socialLinks = document.getElementById('partner-social-links').value.trim();
+      const audienceSize = document.getElementById('partner-audience-size').value;
+      const contentType = document.getElementById('partner-content-type').value.trim();
+      const whyPartner = document.getElementById('partner-why').value.trim();
+      
+      if (!audienceSize) {
+        alert('Please select your audience size');
+        return;
+      }
+      
+      const submitBtn = document.getElementById('partner-submit-btn');
+      submitBtn.textContent = 'Submitting...';
+      submitBtn.disabled = true;
+      
+      try {
+        const response = await fetch('/.netlify/functions/partner-program', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'apply',
+            userId: currentUser.id,
+            socialLinks,
+            audienceSize,
+            contentType,
+            whyPartner,
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('Application submitted! We\'ll review it and get back to you soon.');
+          document.getElementById('partner-application-form').classList.add('hidden');
+          document.getElementById('partner-pending').classList.remove('hidden');
+        } else {
+          throw new Error(data.error || 'Failed to submit application');
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      } finally {
+        submitBtn.textContent = 'Submit Application';
+        submitBtn.disabled = false;
+      }
+    }
+    window.submitPartnerApplication = submitPartnerApplication;
+    
+    // Check partner status when page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      // Wait a bit for auth to initialize
+      setTimeout(checkPartnerStatus, 1000);
+    });
     
     // Expose functions globally
     window.showAuthModal = showAuthModal;

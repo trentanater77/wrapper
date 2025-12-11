@@ -306,7 +306,11 @@ exports.handler = async function(event) {
         const { 
           roomId, hostId, hostName, hostAvatar,
           roomType, topic, description, isPublic,
-          durationMinutes 
+          durationMinutes,
+          // Creator room specific fields
+          isCreatorRoom,
+          challengerTimeLimit,
+          maxQueueSize,
         } = body;
 
         if (!roomId || !hostId) {
@@ -382,6 +386,10 @@ exports.handler = async function(event) {
         const endsAt = new Date(Date.now() + duration * 60 * 1000);
         const inviteCode = generateInviteCode();
 
+        // Determine if this is a creator room
+        const effectiveRoomType = roomType || 'red';
+        const effectiveIsCreatorRoom = isCreatorRoom || effectiveRoomType === 'creator';
+
         const { data, error } = await supabase
           .from('active_rooms')
           .upsert({
@@ -389,7 +397,7 @@ exports.handler = async function(event) {
             host_id: hostId,
             host_name: hostName || 'Host',
             host_avatar: hostAvatar,
-            room_type: roomType || 'red',
+            room_type: effectiveRoomType,
             topic: topic,
             description: description,
             is_public: isPublic !== false,
@@ -400,6 +408,13 @@ exports.handler = async function(event) {
             started_at: new Date().toISOString(),
             ends_at: endsAt.toISOString(),
             invite_code: inviteCode,
+            // Creator room specific fields
+            is_creator_room: effectiveIsCreatorRoom,
+            challenger_time_limit: effectiveIsCreatorRoom ? (challengerTimeLimit || null) : null,
+            max_queue_size: effectiveIsCreatorRoom ? (maxQueueSize || null) : null,
+            current_challenger_id: null,
+            current_challenger_name: null,
+            current_challenger_started_at: null,
           }, { onConflict: 'room_id' })
           .select()
           .single();
@@ -414,7 +429,12 @@ exports.handler = async function(event) {
               headers,
               body: JSON.stringify({
                 success: true,
-                room: { room_id: roomId, room_type: roomType || 'red', topic },
+                room: { 
+                  room_id: roomId, 
+                  room_type: effectiveRoomType, 
+                  topic,
+                  is_creator_room: effectiveIsCreatorRoom,
+                },
                 inviteCode,
                 inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${inviteCode}`,
                 warning: 'Room created but not saved to database (migration pending)'
@@ -424,7 +444,7 @@ exports.handler = async function(event) {
           throw error;
         }
 
-        console.log(`🏠 Room created: ${roomId} (${roomType || 'red'})`);
+        console.log(`🏠 Room created: ${roomId} (${effectiveRoomType}${effectiveIsCreatorRoom ? ' - Creator Room' : ''})`);
 
         return {
           statusCode: 200,

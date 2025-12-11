@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ChatSpheres - Schedule an Event</title>
+  <meta name="description" content="Schedule a future live event on ChatSpheres. Let your audience know when you'll be live.">
+  
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Load config from Netlify function -->
+  <script>
+    window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};
+  </script>
+  <script src="/.netlify/functions/client-config"></script>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
+  
+  <style>
+    .schedule-hero {
+      text-align: center;
+      padding: var(--space-2xl) 0 var(--space-xl);
+    }
+    
+    .schedule-title {
+      font-size: 2.5rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .schedule-subtitle {
+      font-size: 1.1rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .schedule-form {
+      max-width: 600px;
+      margin: 0 auto;
+      background: var(--light-rose);
+      padding: var(--space-xl);
+      border-radius: var(--radius-xl);
+      border: 3px solid var(--gold);
+    }
+    
+    .form-group {
+      margin-bottom: var(--space-lg);
+    }
+    
+    .form-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .form-input {
+      width: 100%;
+      padding: var(--space-sm) var(--space-md);
+      border: 2px solid var(--rose);
+      border-radius: var(--radius-lg);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      transition: border-color var(--transition-fast);
+      box-sizing: border-box;
+    }
+    
+    .form-input:focus {
+      outline: none;
+      border-color: var(--main-red);
+    }
+    
+    .form-textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .form-hint {
+      font-size: 0.75rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+      margin-top: 4px;
+    }
+    
+    .room-type-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-sm);
+    }
+    
+    .room-type-btn {
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      border: 2px solid var(--rose);
+      background: white;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .room-type-btn:hover {
+      box-shadow: var(--shadow-md);
+    }
+    
+    .room-type-btn.selected {
+      border-width: 3px;
+    }
+    
+    .room-type-btn.selected.creator {
+      border-color: #FFD166;
+      background: linear-gradient(135deg, rgba(255,209,102,0.1), rgba(230,57,70,0.1));
+    }
+    
+    .room-type-btn.selected.red {
+      border-color: #e63946;
+    }
+    
+    .room-type-btn.selected.green {
+      border-color: #10b981;
+    }
+    
+    .room-type-icon {
+      font-size: 1.5rem;
+      margin-bottom: var(--space-xs);
+    }
+    
+    .room-type-name {
+      font-weight: var(--font-weight-bold);
+      color: var(--charcoal);
+      font-size: 0.85rem;
+    }
+    
+    .room-type-desc {
+      font-size: 0.7rem;
+      color: var(--charcoal);
+      opacity: 0.7;
+    }
+    
+    .datetime-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-md);
+    }
+    
+    .creator-settings {
+      background: var(--rose);
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      margin-top: var(--space-md);
+    }
+    
+    .creator-settings-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-md);
+    }
+    
+    .submit-btn {
+      width: 100%;
+      padding: var(--space-md);
+      background: linear-gradient(135deg, #FFD166, #e63946);
+      color: white;
+      border: none;
+      border-radius: var(--radius-full);
+      font-family: var(--font-family);
+      font-size: 1rem;
+      font-weight: var(--font-weight-bold);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .submit-btn:hover:not(:disabled) {
+      transform: scale(1.02);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .signin-prompt {
+      text-align: center;
+      padding: var(--space-lg);
+      background: var(--rose);
+      border-radius: var(--radius-lg);
+    }
+    
+    .signin-prompt p {
+      margin-bottom: var(--space-md);
+    }
+    
+    .signin-prompt a {
+      color: var(--main-red);
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .my-events {
+      max-width: 600px;
+      margin: var(--space-2xl) auto 0;
+    }
+    
+    .my-events h2 {
+      font-size: 1.5rem;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .event-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .event-item {
+      background: white;
+      padding: var(--space-md);
+      border-radius: var(--radius-lg);
+      border: 2px solid var(--rose);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: var(--space-sm);
+    }
+    
+    .event-info h3 {
+      font-size: 1rem;
+      margin-bottom: 4px;
+    }
+    
+    .event-info p {
+      font-size: 0.85rem;
+      opacity: 0.7;
+    }
+    
+    .event-actions {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .event-btn {
+      padding: var(--space-xs) var(--space-md);
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: var(--font-weight-bold);
+      border: none;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .event-btn.primary {
+      background: var(--main-red);
+      color: white;
+    }
+    
+    .event-btn.secondary {
+      background: var(--rose);
+      color: var(--charcoal);
+    }
+    
+    .event-btn:hover {
+      transform: scale(1.05);
+    }
+    
+    .cover-upload {
+      border: 2px dashed var(--rose);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    
+    .cover-upload:hover {
+      border-color: var(--main-red);
+      background: rgba(230, 57, 70, 0.05);
+    }
+    
+    .cover-upload.has-image {
+      padding: 0;
+      border-style: solid;
+    }
+    
+    .cover-upload img {
+      max-width: 100%;
+      border-radius: var(--radius-lg);
+    }
+    
+    @media (max-width: 768px) {
+      .schedule-title {
+        font-size: 1.75rem;
+      }
+      
+      .room-type-selector {
+        grid-template-columns: 1fr;
+      }
+      
+      .datetime-row {
+        grid-template-columns: 1fr;
+      }
+      
+      .creator-settings-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Pattern -->
+  <div class="bg-pattern"></div>
+  
+  <!-- Header -->
+  <header class="site-header">
+    <div class="header-container">
+      <a href="/explore.html" class="site-logo">
+        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+        </svg>
+        <span class="site-logo-text">ChatSpheres</span>
+      </a>
+      
+      <div class="header-actions">
+        <a href="/live.html" class="btn btn-ghost" style="text-decoration: none;">← Back to Live</a>
+      </div>
+    </div>
+  </header>
+  
+  <!-- Main Content -->
+  <div class="page-wrapper">
+    <main class="main-content">
+      <section class="schedule-hero">
+        <h1 class="schedule-title">📅 Schedule an Event</h1>
+        <p class="schedule-subtitle">Let your audience know when you'll be live</p>
+      </section>
+      
+      <!-- Sign in prompt (shown if not logged in) -->
+      <div id="signin-prompt" class="signin-prompt" style="max-width: 600px; margin: 0 auto;">
+        <p>Sign in to schedule events</p>
+        <a href="/login.html?redirect=/schedule-room.html" class="btn btn-primary">Sign In</a>
+      </div>
+      
+      <!-- Schedule Form (shown when logged in) -->
+      <form id="schedule-form" class="schedule-form" style="display: none;">
+        <!-- Room Type -->
+        <div class="form-group">
+          <label class="form-label">Event Type</label>
+          <div class="room-type-selector">
+            <button type="button" id="type-creator" onclick="selectRoomType('creator')" class="room-type-btn selected creator">
+              <div class="room-type-icon">⭐</div>
+              <div class="room-type-name">Creator</div>
+              <div class="room-type-desc">Queue • Cycle challengers</div>
+            </button>
+            <button type="button" id="type-red" onclick="selectRoomType('red')" class="room-type-btn">
+              <div class="room-type-icon">🔴</div>
+              <div class="room-type-name">Debate</div>
+              <div class="room-type-desc">1v1 • Winner takes pot</div>
+            </button>
+            <button type="button" id="type-green" onclick="selectRoomType('green')" class="room-type-btn">
+              <div class="room-type-icon">🟢</div>
+              <div class="room-type-name">Help</div>
+              <div class="room-type-desc">Advice • Tips only</div>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Title -->
+        <div class="form-group">
+          <label class="form-label">Event Title *</label>
+          <input type="text" id="event-title" class="form-input" placeholder="What's your event about?" maxlength="100" required>
+        </div>
+        
+        <!-- Description -->
+        <div class="form-group">
+          <label class="form-label">Description (optional)</label>
+          <textarea id="event-description" class="form-input form-textarea" placeholder="Tell people what to expect..." maxlength="500"></textarea>
+        </div>
+        
+        <!-- Cover Image (optional) -->
+        <div class="form-group">
+          <label class="form-label">Cover Image (optional)</label>
+          <div id="cover-upload" class="cover-upload" onclick="document.getElementById('cover-input').click()">
+            <p>📷 Click to upload a cover image</p>
+            <p class="form-hint">Recommended: 1200x630px</p>
+          </div>
+          <input type="file" id="cover-input" accept="image/*" style="display: none;" onchange="handleCoverUpload(event)">
+          <input type="hidden" id="cover-url">
+        </div>
+        
+        <!-- Date and Time -->
+        <div class="form-group">
+          <label class="form-label">When? *</label>
+          <div class="datetime-row">
+            <div>
+              <input type="date" id="event-date" class="form-input" required>
+            </div>
+            <div>
+              <input type="time" id="event-time" class="form-input" required>
+            </div>
+          </div>
+          <p class="form-hint">Times are in your local timezone</p>
+        </div>
+        
+        <!-- Creator Room Settings -->
+        <div id="creator-settings" class="form-group">
+          <label class="form-label">Creator Room Settings</label>
+          <div class="creator-settings">
+            <div class="creator-settings-row">
+              <div>
+                <label style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Time per Challenger</label>
+                <select id="challenger-time-limit" class="form-input">
+                  <option value="">No limit</option>
+                  <option value="60">1 minute</option>
+                  <option value="120">2 minutes</option>
+                  <option value="180">3 minutes</option>
+                  <option value="300">5 minutes</option>
+                  <option value="600">10 minutes</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size: 0.8rem; display: block; margin-bottom: 4px;">Max Queue Size</label>
+                <select id="max-queue-size" class="form-input">
+                  <option value="">Unlimited</option>
+                  <option value="5">5 people</option>
+                  <option value="10">10 people</option>
+                  <option value="20">20 people</option>
+                  <option value="50">50 people</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Submit -->
+        <button type="submit" id="submit-btn" class="submit-btn">
+          📅 Schedule Event
+        </button>
+      </form>
+      
+      <!-- My Scheduled Events -->
+      <div id="my-events" class="my-events" style="display: none;">
+        <h2>📅 My Scheduled Events</h2>
+        <div id="events-list" class="event-list">
+          <!-- Events will be loaded here -->
+        </div>
+        <div id="no-events" style="text-align: center; padding: var(--space-lg); opacity: 0.7;">
+          No scheduled events yet
+        </div>
+      </div>
+      
+      <!-- Footer -->
+      <footer style="text-align: center; padding: var(--space-xl); color: var(--charcoal); font-size: 0.875rem; border-top: 2px solid var(--rose); margin-top: var(--space-2xl);">
+        <p>
+          <a href="/terms.html" style="color: var(--main-red);">Terms</a> · 
+          <a href="/privacy.html" style="color: var(--main-red);">Privacy</a> · 
+          <a href="/contact.html" style="color: var(--main-red);">Contact</a>
+        </p>
+        <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres. All rights reserved.</p>
+      </footer>
+    </main>
+  </div>
+  
+  <!-- Navigation Script -->
+  <script src="/assets/js/navigation.js"></script>
+  
+  <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let currentUserId = null;
+    let currentUserName = null;
+    let currentUserAvatar = null;
+    let selectedRoomType = 'creator';
+    let myEvents = [];
+    
+    // ============================================
+    // INIT
+    // ============================================
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Set minimum date to today
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('event-date').min = today;
+      
+      // Check auth
+      await checkAuth();
+      
+      // Form submission
+      document.getElementById('schedule-form').addEventListener('submit', handleSubmit);
+    });
+    
+    async function checkAuth() {
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+      
+      if (!window.supabase || !supabaseConfig.url || !supabaseConfig.anonKey) {
+        return;
+      }
+      
+      try {
+        const client = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
+        const { data: { session } } = await client.auth.getSession();
+        
+        if (session?.user) {
+          currentUserId = session.user.id;
+          currentUserName = session.user.user_metadata?.name || 
+                           session.user.user_metadata?.full_name || 
+                           session.user.email?.split('@')[0] || 'Host';
+          currentUserAvatar = session.user.user_metadata?.avatar_url || null;
+          
+          // Show form, hide signin prompt
+          document.getElementById('signin-prompt').style.display = 'none';
+          document.getElementById('schedule-form').style.display = 'block';
+          document.getElementById('my-events').style.display = 'block';
+          
+          // Load my events
+          loadMyEvents();
+        }
+      } catch (e) {
+        console.error('Auth check error:', e);
+      }
+    }
+    
+    // ============================================
+    // ROOM TYPE SELECTION
+    // ============================================
+    function selectRoomType(type) {
+      selectedRoomType = type;
+      
+      const buttons = document.querySelectorAll('.room-type-btn');
+      buttons.forEach(btn => {
+        btn.classList.remove('selected', 'creator', 'red', 'green');
+      });
+      
+      const selectedBtn = document.getElementById('type-' + type);
+      if (selectedBtn) {
+        selectedBtn.classList.add('selected', type);
+      }
+      
+      // Show/hide creator settings
+      const creatorSettings = document.getElementById('creator-settings');
+      if (creatorSettings) {
+        creatorSettings.style.display = type === 'creator' ? 'block' : 'none';
+      }
+    }
+    window.selectRoomType = selectRoomType;
+    
+    // ============================================
+    // COVER IMAGE UPLOAD
+    // ============================================
+    async function handleCoverUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // For now, just show a preview (you could upload to Supabase storage)
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const uploadDiv = document.getElementById('cover-upload');
+        uploadDiv.classList.add('has-image');
+        uploadDiv.innerHTML = `<img src="${e.target.result}" alt="Cover preview">`;
+        // Store the data URL (in production, upload to storage and store URL)
+        document.getElementById('cover-url').value = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+    window.handleCoverUpload = handleCoverUpload;
+    
+    // ============================================
+    // FORM SUBMISSION
+    // ============================================
+    async function handleSubmit(event) {
+      event.preventDefault();
+      
+      const title = document.getElementById('event-title').value.trim();
+      const description = document.getElementById('event-description').value.trim();
+      const coverUrl = document.getElementById('cover-url').value;
+      const date = document.getElementById('event-date').value;
+      const time = document.getElementById('event-time').value;
+      
+      if (!title || !date || !time) {
+        alert('Please fill in all required fields');
+        return;
+      }
+      
+      // Combine date and time
+      const scheduledAt = new Date(`${date}T${time}`);
+      
+      if (scheduledAt <= new Date()) {
+        alert('Please select a future date and time');
+        return;
+      }
+      
+      // Get creator settings
+      let challengerTimeLimit = null;
+      let maxQueueSize = null;
+      
+      if (selectedRoomType === 'creator') {
+        const timeLimitEl = document.getElementById('challenger-time-limit');
+        const queueSizeEl = document.getElementById('max-queue-size');
+        
+        if (timeLimitEl && timeLimitEl.value) {
+          challengerTimeLimit = parseInt(timeLimitEl.value);
+        }
+        if (queueSizeEl && queueSizeEl.value) {
+          maxQueueSize = parseInt(queueSizeEl.value);
+        }
+      }
+      
+      const submitBtn = document.getElementById('submit-btn');
+      submitBtn.textContent = 'Scheduling...';
+      submitBtn.disabled = true;
+      
+      try {
+        const response = await fetch('/.netlify/functions/schedule-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'create',
+            hostId: currentUserId,
+            hostName: currentUserName,
+            hostAvatar: currentUserAvatar,
+            title,
+            description,
+            coverImageUrl: coverUrl || null,
+            roomType: selectedRoomType,
+            challengerTimeLimit,
+            maxQueueSize,
+            scheduledAt: scheduledAt.toISOString(),
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('Event scheduled! It will appear on the Live page under "Upcoming".');
+          
+          // Reset form
+          document.getElementById('schedule-form').reset();
+          document.getElementById('cover-upload').classList.remove('has-image');
+          document.getElementById('cover-upload').innerHTML = `
+            <p>📷 Click to upload a cover image</p>
+            <p class="form-hint">Recommended: 1200x630px</p>
+          `;
+          document.getElementById('cover-url').value = '';
+          
+          // Reload my events
+          loadMyEvents();
+        } else {
+          throw new Error(data.error || 'Failed to schedule event');
+        }
+      } catch (error) {
+        console.error('Error scheduling event:', error);
+        alert('Failed to schedule event: ' + error.message);
+      } finally {
+        submitBtn.textContent = '📅 Schedule Event';
+        submitBtn.disabled = false;
+      }
+    }
+    
+    // ============================================
+    // LOAD MY EVENTS
+    // ============================================
+    async function loadMyEvents() {
+      try {
+        const response = await fetch(`/.netlify/functions/schedule-room?hostId=${currentUserId}`);
+        const data = await response.json();
+        myEvents = (data.events || []).filter(e => e.status === 'scheduled');
+        
+        renderMyEvents();
+      } catch (error) {
+        console.error('Error loading events:', error);
+      }
+    }
+    
+    function renderMyEvents() {
+      const listEl = document.getElementById('events-list');
+      const noEventsEl = document.getElementById('no-events');
+      
+      if (myEvents.length === 0) {
+        listEl.innerHTML = '';
+        noEventsEl.style.display = 'block';
+        return;
+      }
+      
+      noEventsEl.style.display = 'none';
+      listEl.innerHTML = myEvents.map(event => {
+        const scheduledAt = new Date(event.scheduled_at);
+        const dateStr = scheduledAt.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit'
+        });
+        
+        return `
+          <div class="event-item">
+            <div class="event-info">
+              <h3>${escapeHtml(event.title)}</h3>
+              <p>📅 ${dateStr} • 🔔 ${event.reminderCount || 0} interested</p>
+            </div>
+            <div class="event-actions">
+              <button onclick="goLive('${event.id}')" class="event-btn primary">🔴 Go Live</button>
+              <button onclick="cancelEvent('${event.id}')" class="event-btn secondary">Cancel</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+    
+    // ============================================
+    // EVENT ACTIONS
+    // ============================================
+    async function goLive(eventId) {
+      if (!confirm('Start this event now?')) return;
+      
+      try {
+        const response = await fetch('/.netlify/functions/schedule-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'go-live',
+            eventId,
+            hostId: currentUserId,
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          const event = myEvents.find(e => e.id === eventId);
+          const roomType = event?.room_type || 'creator';
+          window.location.href = `/index.html?room=${data.roomId}&mode=participant&roomType=${roomType}&host=true`;
+        } else {
+          throw new Error(data.error || 'Failed to go live');
+        }
+      } catch (error) {
+        console.error('Error going live:', error);
+        alert('Failed to start event: ' + error.message);
+      }
+    }
+    window.goLive = goLive;
+    
+    async function cancelEvent(eventId) {
+      if (!confirm('Cancel this scheduled event?')) return;
+      
+      try {
+        const response = await fetch('/.netlify/functions/schedule-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'cancel',
+            eventId,
+            hostId: currentUserId,
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('Event cancelled');
+          loadMyEvents();
+        } else {
+          throw new Error(data.error || 'Failed to cancel event');
+        }
+      } catch (error) {
+        console.error('Error cancelling event:', error);
+        alert('Failed to cancel event: ' + error.message);
+      }
+    }
+    window.cancelEvent = cancelEvent;
+    
+    // ============================================
+    // HELPERS
+    // ============================================
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

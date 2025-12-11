@@ -16078,6 +16078,39 @@ function ensureSpectatorTracksForParticipant(participant) {
           remotePlaceholder.style.display = 'none';
         }
         
+        // CRITICAL: Set up local video preview
+        const localVideoEl = document.getElementById('local-video');
+        const localPlaceholder = document.getElementById('local-placeholder');
+        const localContainer = document.getElementById('local-video-container');
+        
+        if (localContainer) {
+          localContainer.style.display = 'block';
+          localContainer.classList.remove('hidden');
+        }
+        
+        // Attach local camera track to video element
+        if (localVideoEl && livekitRoom && livekitRoom.localParticipant) {
+          try {
+            const cameraPublication = livekitRoom.localParticipant.getTrackPublication('camera');
+            const cameraTrack = cameraPublication?.track;
+            if (cameraTrack && cameraTrack.mediaStreamTrack) {
+              localVideoEl.srcObject = new MediaStream([cameraTrack.mediaStreamTrack]);
+              localVideoEl.style.display = 'block';
+              localVideoEl.classList.remove('hidden');
+              localVideoEl.play().catch(e => console.log('Local video autoplay prevented:', e));
+              console.log('✅ Shown local-video with camera track');
+            } else {
+              console.log('⚠️ Camera track not ready yet');
+            }
+          } catch (e) {
+            console.error('❌ Error setting up local video:', e);
+          }
+          
+          if (localPlaceholder) {
+            localPlaceholder.style.display = 'none';
+          }
+        }
+        
         // Update role badge
         const roleBadge = document.getElementById('role-badge');
         const roleText = document.getElementById('role-text');

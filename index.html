@@ -15770,37 +15770,45 @@ function ensureSpectatorTracksForParticipant(participant) {
   async function initializeCreatorRoom() {
     console.log('⭐ Initializing Creator Room...');
     
+    // Check URL mode for queue joining
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlModeParam = urlParams.get('mode');
+    const shouldJoinQueue = urlModeParam === 'queue';
+    const isHostParam = urlParams.get('host') === 'true';
+    
+    console.log(`⭐ Creator Room - mode: ${urlModeParam}, isHost: ${isHostParam}, shouldJoinQueue: ${shouldJoinQueue}`);
+    
     const queuePanel = document.getElementById('creator-queue-panel');
     if (queuePanel) queuePanel.classList.remove('hidden');
     
-    const urlParams = new URLSearchParams(window.location.search);
-    const isHost = urlParams.get('host') === 'true';
-    roomTypeState.isHost = isHost;
+    roomTypeState.isHost = isHostParam;
     
     // Show appropriate controls
     const hostControls = document.getElementById('creator-host-controls');
     const joinQueueSection = document.getElementById('join-queue-section');
     
-    if (isHost) {
+    if (isHostParam) {
       if (hostControls) hostControls.classList.remove('hidden');
       if (joinQueueSection) joinQueueSection.classList.add('hidden');
-    } else if (isSpectator) {
+    } else {
       if (hostControls) hostControls.classList.add('hidden');
       if (joinQueueSection) joinQueueSection.classList.remove('hidden');
     }
     
     // If user joined with mode=queue, automatically add them to the queue
-    if (queueMode && !isHost) {
+    if (shouldJoinQueue && !isHostParam) {
       console.log('🎯 Auto-joining queue (mode=queue)...');
-      await joinQueue();
+      try {
+        await joinQueue();
+        console.log('✅ Successfully joined queue');
+      } catch (e) {
+        console.error('❌ Failed to join queue:', e);
+      }
     }
     
     // Load queue immediately and refresh periodically
     await refreshQueueState();
-    queueRefreshInterval = setInterval(refreshQueueState, 3000); // Refresh every 3 seconds
-    
-    // Listen for queue updates via Firebase (for real-time updates)
-    listenForQueueUpdates();
+    queueRefreshInterval = setInterval(refreshQueueState, 2000); // Refresh every 2 seconds
     
     console.log('⭐ Creator Room initialized');
   }
@@ -15978,12 +15986,22 @@ function ensureSpectatorTracksForParticipant(participant) {
   
   // Join queue
   async function joinQueue() {
-    const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) return;
+    // Get room ID from URL directly
+    const urlRoomId = new URLSearchParams(window.location.search).get('room');
+    const sphereId = urlRoomId || extractSphereId(roomUrl);
+    
+    console.log('🎯 Joining queue for room:', sphereId);
+    
+    if (!sphereId) {
+      console.error('❌ No room ID found for queue join');
+      return;
+    }
     
     const currentUserId = window.currentUserData?.userId || userId;
     const guestSessionId = getGuestSessionId();
     const userName = window.currentUserData?.name || displayName || 'Guest';
+    
+    console.log('🎯 Queue join params:', { sphereId, currentUserId, guestSessionId, userName });
     
     try {
       const response = await fetch('/.netlify/functions/manage-queue', {
@@ -16001,15 +16019,24 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       const data = await response.json();
       
+      console.log('🎯 Join queue response:', data);
+      
       if (data.success) {
         roomTypeState.inQueue = true;
         roomTypeState.queuePosition = data.position;
         showInQueueUI(data.position);
-        showToast(`🎯 Joined queue at position ${data.position}!`);
+        if (!data.alreadyInQueue) {
+          showToast(`🎯 Joined queue at position ${data.position}!`);
+        }
         
-        // Broadcast to Firebase
-        broadcastQueueUpdate('join');
+        // Try to broadcast to Firebase (ignore errors)
+        try {
+          broadcastQueueUpdate('join');
+        } catch (e) {
+          console.log('Firebase broadcast skipped');
+        }
       } else {
+        console.error('❌ Join queue failed:', data.error);
         showToast(`❌ ${data.error || 'Failed to join queue'}`);
       }
     } catch (error) {

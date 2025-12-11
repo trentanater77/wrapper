@@ -1817,14 +1817,16 @@
             ${potHtml}
             
             <div class="room-actions">
-              <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}')" class="room-btn room-btn-secondary">
-                👁️ Watch
-              </button>
               ${isCreator ? `
                 <button onclick="joinRoom('${roomId}', 'queue', '${roomType}', '${topic}')" class="room-btn room-btn-primary" style="background: linear-gradient(135deg, #FFD166, #e63946);">
                   🎯 Join Queue
                 </button>
-              ` : room.participant_count >= 2 ? `
+              ` : `
+              <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}')" class="room-btn room-btn-secondary">
+                👁️ Watch
+              </button>
+              `}
+              ${!isCreator ? (room.participant_count >= 2 ? `
                 <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}')" class="room-btn room-btn-primary" title="Room is full - joining as spectator">
                   👁️ Watch (Full)
                 </button>
@@ -1832,7 +1834,7 @@
                 <button onclick="joinRoom('${roomId}', 'participant', '${roomType}', '${topic}')" class="room-btn room-btn-primary">
                   🚀 Join
                 </button>
-              `}
+              `) : ''}
             </div>
           </div>
         </div>

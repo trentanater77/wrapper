@@ -16464,6 +16464,10 @@ function ensureSpectatorTracksForParticipant(participant) {
         
         // Broadcast to Firebase
         broadcastQueueUpdate('done');
+        
+        // CRITICAL: Revert to spectator mode
+        console.log('👋 Challenger clicked Done - reverting to spectator mode...');
+        await revertToSpectatorMode();
       }
     } catch (error) {
       console.error('Error finishing challenge:', error);

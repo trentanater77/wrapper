@@ -15997,9 +15997,9 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    const currentUserId = window.currentUserData?.userId || userId;
+    const currentUserId = window.currentUserData?.userId || (typeof userId !== 'undefined' ? userId : null);
     const guestSessionId = getGuestSessionId();
-    const userName = window.currentUserData?.name || displayName || 'Guest';
+    const userName = window.currentUserData?.name || window.currentUserData?.displayName || 'Guest';
     
     console.log('🎯 Queue join params:', { sphereId, currentUserId, guestSessionId, userName });
     

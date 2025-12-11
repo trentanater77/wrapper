@@ -16034,15 +16034,6 @@ function ensureSpectatorTracksForParticipant(participant) {
         
         console.log('✅ Challenger reconnected with participant permissions!');
         
-        // Show the local video
-        const localVideo = document.getElementById('localVideo');
-        const localPlaceholder = document.getElementById('local-video-placeholder');
-        if (localVideo) {
-          localVideo.style.display = 'block';
-          localVideo.classList.remove('hidden');
-        }
-        if (localPlaceholder) localPlaceholder.style.display = 'none';
-        
         // Update mic/camera button states
         const micBtn = document.getElementById('mic-btn');
         const cameraBtn = document.getElementById('camera-btn');

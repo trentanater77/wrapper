@@ -1219,6 +1219,16 @@
         <a href="/pricing.html">Upgrade Now →</a>
       </div>
       
+      <!-- Creator Room Partner Warning -->
+      <div id="creator-partner-warning" class="plan-warning red" style="display:none;">
+        <div class="plan-warning-header">
+          <span>⭐</span>
+          <span class="plan-warning-title">Creator Rooms require Partner status</span>
+        </div>
+        <p style="font-size: 0.75rem; margin-top: 4px; opacity: 0.9;">Apply to become a Creator Partner to unlock Creator Rooms with queue system and unlimited time.</p>
+        <a href="/affiliate.html#partner-section" style="color: var(--gold);">Apply Now →</a>
+      </div>
+      
       <!-- Create Button -->
       <button id="create-room-btn" onclick="window.createRoom()" class="modal-btn modal-btn-primary" style="width:100%;padding:16px;background:#e63946;color:white;border:none;border-radius:999px;font-weight:bold;font-size:1rem;cursor:pointer;">
         🚀 Create Room
@@ -1247,6 +1257,7 @@
     let currentUserId = null;
     let currentUserName = null;
     let userPlan = 'free';
+    let isCreatorPartner = false;
     
     // ============================================
     // SEARCH FUNCTIONALITY
@@ -1324,6 +1335,7 @@
       const greenBtn = document.getElementById('type-green');
       const creatorBtn = document.getElementById('type-creator');
       const greenProWarning = document.getElementById('green-room-pro-warning');
+      const creatorPartnerWarning = document.getElementById('creator-partner-warning');
       const creatorSettings = document.getElementById('creator-room-settings');
       const createBtn = document.getElementById('create-room-btn');
       
@@ -1338,6 +1350,7 @@
       
       // Hide warnings and settings by default
       if (greenProWarning) greenProWarning.style.display = 'none';
+      if (creatorPartnerWarning) creatorPartnerWarning.style.display = 'none';
       if (creatorSettings) creatorSettings.style.display = 'none';
       
       if (type === 'red') {
@@ -1376,7 +1389,15 @@
         }
         // Show creator room settings
         if (creatorSettings) creatorSettings.style.display = 'block';
-        if (createBtn && currentUserId) {
+        
+        // Check if user is a creator partner
+        if (!isCreatorPartner && currentUserId) {
+          if (creatorPartnerWarning) creatorPartnerWarning.style.display = 'block';
+          if (createBtn) {
+            createBtn.disabled = true;
+            createBtn.style.opacity = '0.5';
+          }
+        } else if (createBtn && currentUserId) {
           createBtn.disabled = false;
           createBtn.style.opacity = '1';
         }
@@ -1424,6 +1445,12 @@
       // Check if Green Room is allowed
       if (selectedRoomType === 'green' && !planLimits.greenRoomEnabled) {
         alert('Green Rooms require Host Pro subscription. Please upgrade to create paid advice rooms.');
+        return;
+      }
+      
+      // Check if Creator Room is allowed
+      if (selectedRoomType === 'creator' && !isCreatorPartner) {
+        alert('Creator Rooms require Creator Partner status.\n\nApply to become a Creator Partner at:\nhttps://sphere.chatspheres.com/affiliate.html#partner-section\n\nAs a Creator Partner you get:\n• Unlimited room duration\n• Queue system for challengers\n• 100% of tips\n• Featured placement');
         return;
       }
       
@@ -1527,6 +1554,17 @@
             // No subscription found, stay on free plan
             userPlan = 'free';
             console.log('ℹ️ Subscription check failed:', subError.message);
+          }
+          
+          // Check creator partner status
+          try {
+            const partnerResponse = await fetch(`/.netlify/functions/partner-program?userId=${session.user.id}`);
+            const partnerData = await partnerResponse.json();
+            isCreatorPartner = partnerData.isPartner === true;
+            console.log('⭐ Creator Partner status:', isCreatorPartner);
+          } catch (partnerError) {
+            isCreatorPartner = false;
+            console.log('ℹ️ Partner check failed:', partnerError.message);
           }
         }
       } catch (e) {
@@ -1710,6 +1748,12 @@
         typeLabel = '⭐ Creator';
         typeClass = 'creator';
         badges.push('<span class="type-badge creator-badge">⭐ Creator</span>');
+        
+        // If creator room is from a forum, also show forum badge
+        if (isForumRoom) {
+          badges.push('<span class="type-badge forum-badge">🌐 Forum</span>');
+        }
+        
         if (room.current_challenger_name) {
           badges.push(`<span class="type-badge" style="background: #333;">vs ${escapeHtml(room.current_challenger_name)}</span>`);
         }

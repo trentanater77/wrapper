@@ -6334,6 +6334,13 @@ async function initializeApp() {
     const urlParams = new URLSearchParams(window.location.search);
     const isHost = urlParams.get('host') === 'true';
     const urlDuration = parseInt(urlParams.get('duration'), 10);
+    const roomType = urlParams.get('roomType');
+    
+    // Creator room hosts have unlimited time (24 hours effectively)
+    if (roomType === 'creator' && isHost) {
+      console.log('⭐ Creator room host - using extended timer (24 hours)');
+      return { plan: 'creator_host', limitMinutes: 1440 }; // 24 hours
+    }
     
     // For hosts, check URL duration first (set by room creation page based on their plan)
     if (isHost && urlDuration && urlDuration > 0) {
@@ -10289,6 +10296,15 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Skip for spectators - they don't have time limits
     if (isSpectator) {
       console.log('👀 Spectator mode - no session limits');
+      return;
+    }
+    
+    // Skip for Creator room hosts - they control when the room ends
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomType = urlParams.get('roomType');
+    const isHost = urlParams.get('host') === 'true';
+    if (roomType === 'creator' && isHost) {
+      console.log('⭐ Creator room host - no session time limits');
       return;
     }
     

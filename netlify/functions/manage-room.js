@@ -116,21 +116,25 @@ exports.handler = async function(event) {
       console.log('🧹 Cleanup 1 (past ends_at):', cleanup1.error ? cleanup1.error.message : 'OK');
       
       // Cleanup 2: Mark old rooms without ends_at as ended (> 1 hour old)
+      // EXCLUDE Creator rooms - they only end when host ends them
       const cleanup2 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .is('ends_at', null)
+        .neq('room_type', 'creator')
         .lt('started_at', oneHourAgo);
-      console.log('🧹 Cleanup 2 (null ends_at, > 1hr):', cleanup2.error ? cleanup2.error.message : 'OK');
+      console.log('🧹 Cleanup 2 (null ends_at, > 1hr, non-creator):', cleanup2.error ? cleanup2.error.message : 'OK');
       
       // Cleanup 3: Mark any room started > 3 hours ago as ended (safety net)
+      // EXCLUDE Creator rooms - they can run indefinitely
       const cleanup3 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
+        .neq('room_type', 'creator')
         .lt('started_at', threeHoursAgo);
-      console.log('🧹 Cleanup 3 (> 3hrs old):', cleanup3.error ? cleanup3.error.message : 'OK');
+      console.log('🧹 Cleanup 3 (> 3hrs old, non-creator):', cleanup3.error ? cleanup3.error.message : 'OK');
       
       // Cleanup 4: Also mark 'voting' rooms older than 1 hour as ended
       const cleanup4 = await supabase
@@ -142,13 +146,15 @@ exports.handler = async function(event) {
       
       // Cleanup 5: CRITICAL - Mark rooms with 0 participants that are > 15 minutes old
       // These are abandoned rooms where everyone left
+      // EXCLUDE Creator rooms - they have a longer grace period
       const cleanup5 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .eq('participant_count', 0)
+        .neq('room_type', 'creator')
         .lt('started_at', fifteenMinutesAgo);
-      console.log('🧹 Cleanup 5 (0 participants, > 15min):', cleanup5.error ? cleanup5.error.message : 'OK');
+      console.log('🧹 Cleanup 5 (0 participants, > 15min, non-creator):', cleanup5.error ? cleanup5.error.message : 'OK');
       
       // Cleanup 6: Mark rooms with only spectators (0 participants) older than 5 minutes
       // A debate can't happen without debaters
@@ -163,14 +169,28 @@ exports.handler = async function(event) {
       
       // Cleanup 7: Mark any room with 0 participants older than 2 hours as ended
       // These are definitely abandoned rooms
+      // EXCLUDE Creator rooms - they have a much longer grace period
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const cleanup7 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .eq('participant_count', 0)
+        .neq('room_type', 'creator')
         .lt('started_at', twoHoursAgo);
-      console.log('🧹 Cleanup 7 (0 participants, > 2hr):', cleanup7.error ? cleanup7.error.message : 'OK');
+      console.log('🧹 Cleanup 7 (0 participants, > 2hr, non-creator):', cleanup7.error ? cleanup7.error.message : 'OK');
+      
+      // Cleanup 8: Creator rooms only - end if truly abandoned (0 participants for 12+ hours)
+      // This is a safety net to prevent zombie creator rooms
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+      const cleanup8 = await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .eq('room_type', 'creator')
+        .eq('participant_count', 0)
+        .lt('started_at', twelveHoursAgo);
+      console.log('🧹 Cleanup 8 (creator room, 0 participants, > 12hr):', cleanup8.error ? cleanup8.error.message : 'OK');
       
       console.log('🧹 Expired room cleanup completed');
       
@@ -383,12 +403,19 @@ exports.handler = async function(event) {
         }
 
         const duration = durationMinutes || 60;
-        const endsAt = new Date(Date.now() + duration * 60 * 1000);
         const inviteCode = generateInviteCode();
 
         // Determine if this is a creator room
         const effectiveRoomType = roomType || 'red';
         const effectiveIsCreatorRoom = isCreatorRoom || effectiveRoomType === 'creator';
+
+        // Creator rooms don't have an ends_at - they only end when host ends them
+        // Other rooms expire after their duration
+        let endsAt = null;
+        if (!effectiveIsCreatorRoom) {
+          endsAt = new Date(Date.now() + duration * 60 * 1000).toISOString();
+        }
+        console.log(`📅 Room ends_at: ${endsAt || 'null (creator room - no auto-end)'}`);
 
         const { data, error } = await supabase
           .from('active_rooms')
@@ -406,7 +433,7 @@ exports.handler = async function(event) {
             pot_amount: 0,
             status: 'live',
             started_at: new Date().toISOString(),
-            ends_at: endsAt.toISOString(),
+            ends_at: endsAt,
             invite_code: inviteCode,
             // Creator room specific fields
             is_creator_room: effectiveIsCreatorRoom,

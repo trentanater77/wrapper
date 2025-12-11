@@ -1,238 +1,262 @@
 -- =====================================================
--- CHATSPHERES CREATOR ROOMS & SCHEDULING SYSTEM
--- Migration for Creator Room mode, Queue system, and Event scheduling
+-- CREATOR ROOMS, SCHEDULING & PARTNER PROGRAM
+-- Run this entire script in Supabase SQL Editor
 -- =====================================================
 
--- 1. ADD CREATOR ROOM TYPE TO ACTIVE_ROOMS
--- Alter the room_type check constraint to include 'creator'
-ALTER TABLE active_rooms DROP CONSTRAINT IF EXISTS active_rooms_room_type_check;
-ALTER TABLE active_rooms ADD CONSTRAINT active_rooms_room_type_check 
-    CHECK (room_type IN ('red', 'green', 'creator'));
+-- =====================================================
+-- 1. ADD CREATOR ROOM COLUMNS TO ACTIVE_ROOMS
+-- =====================================================
 
--- Add creator room specific columns to active_rooms
+-- Add room_type constraint if table exists
+DO $$ 
+BEGIN
+    -- Drop old constraint if exists
+    ALTER TABLE active_rooms DROP CONSTRAINT IF EXISTS active_rooms_room_type_check;
+    
+    -- Add new constraint allowing 'creator' type
+    ALTER TABLE active_rooms ADD CONSTRAINT active_rooms_room_type_check 
+        CHECK (room_type IN ('red', 'green', 'creator'));
+EXCEPTION WHEN undefined_table THEN
+    NULL;
+END $$;
+
+-- Add new columns for creator rooms
 ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS is_creator_room BOOLEAN DEFAULT false;
-ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS challenger_time_limit INTEGER; -- seconds per challenger, NULL = unlimited
-ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS max_queue_size INTEGER; -- NULL = unlimited
-ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS current_challenger_id UUID REFERENCES auth.users(id);
+ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS challenger_time_limit INTEGER;
+ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS max_queue_size INTEGER;
+ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS current_challenger_id UUID;
 ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS current_challenger_name TEXT;
 ALTER TABLE active_rooms ADD COLUMN IF NOT EXISTS current_challenger_started_at TIMESTAMPTZ;
 
+-- =====================================================
 -- 2. ROOM QUEUE TABLE
--- Tracks users waiting in queue for creator rooms
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS room_queue (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     room_id TEXT NOT NULL,
-    
-    -- User info (NULL user_id = guest)
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    guest_name TEXT, -- For guests without accounts
-    guest_session_id TEXT, -- To identify guest across requests
-    
-    -- Position in queue (1 = next up)
+    user_id UUID,
+    guest_name TEXT,
+    guest_session_id TEXT,
     position INTEGER NOT NULL,
-    
-    -- Status
     status TEXT NOT NULL DEFAULT 'waiting' CHECK (status IN ('waiting', 'active', 'completed', 'left')),
-    
-    -- Timestamps
     joined_at TIMESTAMPTZ DEFAULT NOW(),
-    called_at TIMESTAMPTZ, -- When they became the active challenger
-    ended_at TIMESTAMPTZ,
-    
-    -- Unique constraint: one entry per user/guest per room
-    UNIQUE(room_id, user_id),
-    UNIQUE(room_id, guest_session_id)
+    called_at TIMESTAMPTZ,
+    ended_at TIMESTAMPTZ
 );
 
+-- Add unique constraints (ignore if already exist)
+DO $$ 
+BEGIN
+    ALTER TABLE room_queue ADD CONSTRAINT room_queue_user_unique UNIQUE(room_id, user_id);
+EXCEPTION WHEN duplicate_table THEN NULL;
+END $$;
+
+DO $$ 
+BEGIN
+    ALTER TABLE room_queue ADD CONSTRAINT room_queue_guest_unique UNIQUE(room_id, guest_session_id);
+EXCEPTION WHEN duplicate_table THEN NULL;
+END $$;
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_room_queue_room_id ON room_queue(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_queue_status ON room_queue(status);
+CREATE INDEX IF NOT EXISTS idx_room_queue_position ON room_queue(room_id, position);
+
+-- =====================================================
 -- 3. SCHEDULED EVENTS TABLE
--- For creators to schedule future rooms
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS scheduled_events (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    
-    -- Host info
-    host_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    host_id UUID NOT NULL,
     host_name TEXT,
     host_avatar TEXT,
-    
-    -- Event details
     title TEXT NOT NULL,
     description TEXT,
-    cover_image_url TEXT, -- Optional thumbnail/cover
-    
-    -- Room settings (pre-configured)
+    cover_image_url TEXT,
     room_type TEXT NOT NULL DEFAULT 'creator' CHECK (room_type IN ('red', 'green', 'creator')),
-    challenger_time_limit INTEGER, -- For creator rooms
+    challenger_time_limit INTEGER,
     max_queue_size INTEGER,
-    
-    -- Scheduling
-    scheduled_at TIMESTAMPTZ NOT NULL, -- When the event will go live
+    scheduled_at TIMESTAMPTZ NOT NULL,
     timezone TEXT DEFAULT 'UTC',
-    
-    -- Status
     status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'live', 'ended', 'cancelled')),
-    
-    -- When it actually went live
-    room_id TEXT, -- Links to active_rooms when live
+    room_id TEXT,
     went_live_at TIMESTAMPTZ,
-    
-    -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_scheduled_events_host ON scheduled_events(host_id);
+CREATE INDEX IF NOT EXISTS idx_scheduled_events_status ON scheduled_events(status);
+CREATE INDEX IF NOT EXISTS idx_scheduled_events_scheduled_at ON scheduled_events(scheduled_at);
+
+-- =====================================================
 -- 4. EVENT REMINDERS TABLE
--- Track users who want to be reminded about events
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS event_reminders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_id UUID NOT NULL REFERENCES scheduled_events(id) ON DELETE CASCADE,
-    
-    -- User info (can be logged in or guest with email)
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT, -- For guests or additional email
-    
-    -- Browser push subscription (for push notifications)
+    user_id UUID,
+    email TEXT,
     push_subscription JSONB,
-    
-    -- Notification preferences
     notify_browser BOOLEAN DEFAULT true,
     notify_email BOOLEAN DEFAULT false,
-    
-    -- Status
     reminder_sent BOOLEAN DEFAULT false,
     sent_at TIMESTAMPTZ,
-    
-    -- Timestamps
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- One reminder per user per event
-    UNIQUE(event_id, user_id),
-    UNIQUE(event_id, email)
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add unique constraints
+DO $$ 
+BEGIN
+    ALTER TABLE event_reminders ADD CONSTRAINT event_reminders_user_unique UNIQUE(event_id, user_id);
+EXCEPTION WHEN duplicate_table THEN NULL;
+END $$;
+
+DO $$ 
+BEGIN
+    ALTER TABLE event_reminders ADD CONSTRAINT event_reminders_email_unique UNIQUE(event_id, email);
+EXCEPTION WHEN duplicate_table THEN NULL;
+END $$;
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_event_reminders_event ON event_reminders(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_reminders_user ON event_reminders(user_id);
+
+-- =====================================================
 -- 5. CREATOR PARTNERS TABLE
--- Simple flag system for creator partner program
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS creator_partners (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
-    
-    -- Partner status
+    user_id UUID NOT NULL UNIQUE,
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('pending', 'active', 'suspended')),
-    
-    -- Revenue split (100 = 100% to creator, 0 platform cut)
     tip_share_percent INTEGER NOT NULL DEFAULT 100 CHECK (tip_share_percent >= 0 AND tip_share_percent <= 100),
-    
-    -- Partner tier (for future expansion)
     tier TEXT DEFAULT 'founding' CHECK (tier IN ('founding', 'standard', 'premium')),
-    
-    -- Application info
     application_note TEXT,
-    approved_by TEXT, -- Admin who approved
+    approved_by TEXT,
     approved_at TIMESTAMPTZ,
-    
-    -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_creator_partners_user ON creator_partners(user_id);
+CREATE INDEX IF NOT EXISTS idx_creator_partners_status ON creator_partners(status);
+
+-- =====================================================
 -- 6. PARTNER APPLICATIONS TABLE
--- For users applying to become creator partners
+-- =====================================================
+
 CREATE TABLE IF NOT EXISTS partner_applications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    
-    -- Application details
-    social_links TEXT, -- Their social media presence
-    audience_size TEXT, -- Estimated audience
-    content_type TEXT, -- What kind of content they create
-    why_partner TEXT, -- Why they want to be a partner
-    
-    -- Status
+    user_id UUID NOT NULL UNIQUE,
+    social_links TEXT,
+    audience_size TEXT,
+    content_type TEXT,
+    why_partner TEXT,
     status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
     reviewed_by TEXT,
     review_notes TEXT,
     reviewed_at TIMESTAMPTZ,
-    
-    -- Timestamps
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    
-    -- One pending application per user
-    UNIQUE(user_id)
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. INDEXES
-CREATE INDEX IF NOT EXISTS idx_room_queue_room ON room_queue(room_id);
-CREATE INDEX IF NOT EXISTS idx_room_queue_status ON room_queue(room_id, status);
-CREATE INDEX IF NOT EXISTS idx_room_queue_position ON room_queue(room_id, position) WHERE status = 'waiting';
-CREATE INDEX IF NOT EXISTS idx_scheduled_events_host ON scheduled_events(host_id);
-CREATE INDEX IF NOT EXISTS idx_scheduled_events_status ON scheduled_events(status);
-CREATE INDEX IF NOT EXISTS idx_scheduled_events_time ON scheduled_events(scheduled_at) WHERE status = 'scheduled';
-CREATE INDEX IF NOT EXISTS idx_event_reminders_event ON event_reminders(event_id);
-CREATE INDEX IF NOT EXISTS idx_event_reminders_user ON event_reminders(user_id);
-CREATE INDEX IF NOT EXISTS idx_creator_partners_user ON creator_partners(user_id);
-CREATE INDEX IF NOT EXISTS idx_creator_partners_status ON creator_partners(status);
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_partner_applications_user ON partner_applications(user_id);
+CREATE INDEX IF NOT EXISTS idx_partner_applications_status ON partner_applications(status);
 
--- 8. ROW LEVEL SECURITY
+-- =====================================================
+-- 7. ROW LEVEL SECURITY (RLS)
+-- =====================================================
+
+-- Enable RLS on all tables
 ALTER TABLE room_queue ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scheduled_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE event_reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE creator_partners ENABLE ROW LEVEL SECURITY;
 ALTER TABLE partner_applications ENABLE ROW LEVEL SECURITY;
 
--- Room Queue policies
-CREATE POLICY "Anyone can view room queue" ON room_queue
-    FOR SELECT USING (true);
+-- room_queue policies
+DROP POLICY IF EXISTS "Anyone can read room queue" ON room_queue;
+CREATE POLICY "Anyone can read room queue" ON room_queue FOR SELECT USING (true);
 
-CREATE POLICY "Users can join queue" ON room_queue
-    FOR INSERT WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
+DROP POLICY IF EXISTS "Users can join queue" ON room_queue;
+CREATE POLICY "Users can join queue" ON room_queue FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Users can leave queue" ON room_queue
-    FOR UPDATE USING (user_id = auth.uid() OR user_id IS NULL);
+DROP POLICY IF EXISTS "Users can update own queue entry" ON room_queue;
+CREATE POLICY "Users can update own queue entry" ON room_queue FOR UPDATE 
+USING (user_id = auth.uid() OR guest_session_id IS NOT NULL);
 
-CREATE POLICY "Service role full access room_queue" ON room_queue
-    FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "Users can leave queue" ON room_queue;
+CREATE POLICY "Users can leave queue" ON room_queue FOR DELETE 
+USING (user_id = auth.uid() OR guest_session_id IS NOT NULL);
 
--- Scheduled Events policies
-CREATE POLICY "Anyone can view scheduled events" ON scheduled_events
-    FOR SELECT USING (true);
+-- scheduled_events policies
+DROP POLICY IF EXISTS "Anyone can read scheduled events" ON scheduled_events;
+CREATE POLICY "Anyone can read scheduled events" ON scheduled_events FOR SELECT USING (true);
 
-CREATE POLICY "Hosts can manage own events" ON scheduled_events
-    FOR ALL USING (host_id = auth.uid());
+DROP POLICY IF EXISTS "Users can create own events" ON scheduled_events;
+CREATE POLICY "Users can create own events" ON scheduled_events FOR INSERT 
+WITH CHECK (auth.uid() = host_id);
 
-CREATE POLICY "Service role full access scheduled_events" ON scheduled_events
-    FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "Hosts can update own events" ON scheduled_events;
+CREATE POLICY "Hosts can update own events" ON scheduled_events FOR UPDATE 
+USING (auth.uid() = host_id);
 
--- Event Reminders policies
-CREATE POLICY "Users can view own reminders" ON event_reminders
-    FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "Hosts can delete own events" ON scheduled_events;
+CREATE POLICY "Hosts can delete own events" ON scheduled_events FOR DELETE 
+USING (auth.uid() = host_id);
 
-CREATE POLICY "Users can create reminders" ON event_reminders
-    FOR INSERT WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
+-- event_reminders policies
+DROP POLICY IF EXISTS "Anyone can read reminder counts" ON event_reminders;
+CREATE POLICY "Anyone can read reminder counts" ON event_reminders FOR SELECT USING (true);
 
-CREATE POLICY "Users can delete own reminders" ON event_reminders
-    FOR DELETE USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "Users can create reminders" ON event_reminders;
+CREATE POLICY "Users can create reminders" ON event_reminders FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Service role full access event_reminders" ON event_reminders
-    FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "Users can update own reminders" ON event_reminders;
+CREATE POLICY "Users can update own reminders" ON event_reminders FOR UPDATE 
+USING (user_id = auth.uid() OR email IS NOT NULL);
 
--- Creator Partners policies (read-only for users, service role manages)
-CREATE POLICY "Anyone can view active partners" ON creator_partners
-    FOR SELECT USING (status = 'active');
+DROP POLICY IF EXISTS "Users can delete own reminders" ON event_reminders;
+CREATE POLICY "Users can delete own reminders" ON event_reminders FOR DELETE 
+USING (user_id = auth.uid() OR email IS NOT NULL);
 
-CREATE POLICY "Service role full access creator_partners" ON creator_partners
-    FOR ALL USING (auth.role() = 'service_role');
+-- creator_partners policies
+DROP POLICY IF EXISTS "Anyone can check partner status" ON creator_partners;
+CREATE POLICY "Anyone can check partner status" ON creator_partners FOR SELECT USING (true);
 
--- Partner Applications policies
-CREATE POLICY "Users can view own applications" ON partner_applications
-    FOR SELECT USING (user_id = auth.uid());
+DROP POLICY IF EXISTS "Service role can manage partners" ON creator_partners;
+CREATE POLICY "Service role can manage partners" ON creator_partners FOR ALL 
+USING (auth.role() = 'service_role');
 
-CREATE POLICY "Users can create applications" ON partner_applications
-    FOR INSERT WITH CHECK (user_id = auth.uid());
+-- partner_applications policies
+DROP POLICY IF EXISTS "Users can read own applications" ON partner_applications;
+CREATE POLICY "Users can read own applications" ON partner_applications FOR SELECT 
+USING (auth.uid() = user_id OR auth.role() = 'service_role');
 
-CREATE POLICY "Service role full access partner_applications" ON partner_applications
-    FOR ALL USING (auth.role() = 'service_role');
+DROP POLICY IF EXISTS "Users can create own applications" ON partner_applications;
+CREATE POLICY "Users can create own applications" ON partner_applications FOR INSERT 
+WITH CHECK (auth.uid() = user_id);
 
--- 9. HELPER FUNCTION: Get queue position
-CREATE OR REPLACE FUNCTION get_queue_position(p_room_id TEXT, p_user_id UUID DEFAULT NULL, p_guest_session_id TEXT DEFAULT NULL)
+DROP POLICY IF EXISTS "Service role can manage applications" ON partner_applications;
+CREATE POLICY "Service role can manage applications" ON partner_applications FOR ALL 
+USING (auth.role() = 'service_role');
+
+-- =====================================================
+-- 8. HELPER FUNCTIONS
+-- =====================================================
+
+-- Get queue position for a user
+CREATE OR REPLACE FUNCTION get_queue_position(
+    p_room_id TEXT, 
+    p_user_id UUID DEFAULT NULL, 
+    p_guest_session_id TEXT DEFAULT NULL
+)
 RETURNS TABLE (
     position INTEGER,
     total_in_queue BIGINT,
@@ -253,7 +277,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 10. HELPER FUNCTION: Check if user is a creator partner
+-- Check if user is a creator partner
 CREATE OR REPLACE FUNCTION is_creator_partner(p_user_id UUID)
 RETURNS BOOLEAN AS $$
 BEGIN
@@ -264,7 +288,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 11. HELPER FUNCTION: Get partner tip share percentage
+-- Get partner tip share percentage (returns 85 for non-partners)
 CREATE OR REPLACE FUNCTION get_partner_tip_share(p_user_id UUID)
 RETURNS INTEGER AS $$
 DECLARE
@@ -274,15 +298,17 @@ BEGIN
     FROM creator_partners
     WHERE user_id = p_user_id AND status = 'active';
     
-    -- Default to standard platform rate if not a partner (e.g., 85%)
     RETURN COALESCE(share_percent, 85);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Done!
--- Tables created:
--- - room_queue: Queue system for creator rooms
--- - scheduled_events: Future event scheduling
--- - event_reminders: "Remind Me" subscriptions
--- - creator_partners: Creator partner program
--- - partner_applications: Partner application form data
+-- =====================================================
+-- DONE! 
+-- =====================================================
+
+SELECT 'Migration complete! Tables created:' as status;
+SELECT '- room_queue' as table_name;
+SELECT '- scheduled_events' as table_name;
+SELECT '- event_reminders' as table_name;
+SELECT '- creator_partners' as table_name;
+SELECT '- partner_applications' as table_name;

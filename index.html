@@ -16039,34 +16039,43 @@ function ensureSpectatorTracksForParticipant(participant) {
         if (spectatorControls) spectatorControls.classList.add('hidden');
         if (participantControls) participantControls.classList.remove('hidden');
         
-        // CRITICAL: Switch from spectator video layout to participant video layout
-        // Hide spectator video slots
-        const spectatorVideo1 = document.getElementById('spectator-video-1');
-        const spectatorVideo2 = document.getElementById('spectator-video-2');
-        const spectatorContainer = document.getElementById('spectator-video-container');
-        const spectatorOverlay = document.getElementById('spectator-click-overlay');
+        // CRITICAL: Switch from spectator layout to participant layout
+        console.log('🔄 Switching UI from spectator to participant layout...');
         
-        if (spectatorVideo1) spectatorVideo1.style.display = 'none';
-        if (spectatorVideo2) spectatorVideo2.style.display = 'none';
-        if (spectatorContainer) spectatorContainer.style.display = 'none';
-        if (spectatorOverlay) spectatorOverlay.style.display = 'none';
-        
-        // Show participant video layout
-        const remoteVideoEl = document.getElementById('remoteVideo');
-        const localVideoEl = document.getElementById('localVideo');
-        const videoContainer = document.getElementById('video-container');
-        
-        if (videoContainer) {
-          videoContainer.style.display = 'flex';
-          videoContainer.classList.remove('hidden');
+        // Hide ENTIRE spectator layout
+        const spectatorLayout = document.getElementById('spectator-layout');
+        if (spectatorLayout) {
+          spectatorLayout.classList.add('hidden');
+          spectatorLayout.style.display = 'none';
+          console.log('✅ Hidden spectator-layout');
         }
+        
+        // Also hide the spectator click overlay
+        const spectatorOverlay = document.getElementById('spectator-click-overlay');
+        if (spectatorOverlay) {
+          spectatorOverlay.style.display = 'none';
+          spectatorOverlay.classList.add('hidden');
+        }
+        
+        // Show ENTIRE participant layout
+        const participantLayout = document.getElementById('participant-layout');
+        if (participantLayout) {
+          participantLayout.classList.remove('hidden');
+          participantLayout.style.display = 'grid';
+          console.log('✅ Shown participant-layout');
+        }
+        
+        // Show participant video elements
+        const remoteVideoEl = document.getElementById('remote-video');
+        const remotePlaceholder = document.getElementById('remote-placeholder');
+        
         if (remoteVideoEl) {
           remoteVideoEl.style.display = 'block';
           remoteVideoEl.classList.remove('hidden');
+          console.log('✅ Shown remote-video');
         }
-        if (localVideoEl) {
-          localVideoEl.style.display = 'block';
-          localVideoEl.classList.remove('hidden');
+        if (remotePlaceholder) {
+          remotePlaceholder.style.display = 'none';
         }
         
         // Update role badge
@@ -16079,6 +16088,8 @@ function ensureSpectatorTracksForParticipant(participant) {
         if (roleText) {
           roleText.textContent = 'challenger';
         }
+        
+        console.log('✅ UI layout switched to participant mode');
         
         showToast('🎯 You are now the active challenger! Your camera is ON.');
         console.log('✅ Challenger media enabled successfully!');

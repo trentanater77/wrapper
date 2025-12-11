@@ -180,17 +180,17 @@ exports.handler = async function(event) {
         .lt('started_at', twoHoursAgo);
       console.log('🧹 Cleanup 7 (0 participants, > 2hr, non-creator):', cleanup7.error ? cleanup7.error.message : 'OK');
       
-      // Cleanup 8: Creator rooms only - end if truly abandoned (0 participants for 12+ hours)
-      // This is a safety net to prevent zombie creator rooms
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+      // Cleanup 8: Creator rooms only - end if empty for 30+ minutes
+      // Creator rooms end when host leaves, but this catches abandoned rooms
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
       const cleanup8 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .eq('room_type', 'creator')
         .eq('participant_count', 0)
-        .lt('started_at', twelveHoursAgo);
-      console.log('🧹 Cleanup 8 (creator room, 0 participants, > 12hr):', cleanup8.error ? cleanup8.error.message : 'OK');
+        .lt('started_at', thirtyMinutesAgo);
+      console.log('🧹 Cleanup 8 (creator room, 0 participants, > 30min):', cleanup8.error ? cleanup8.error.message : 'OK');
       
       console.log('🧹 Expired room cleanup completed');
       

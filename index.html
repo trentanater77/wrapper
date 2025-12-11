@@ -5449,7 +5449,7 @@
       // Warn Green Room hosts before leaving (NOT forum rooms - they persist)
       // Note: Modern browsers show generic "Leave site?" message for security
       if (typeof roomTypeState !== 'undefined' && 
-          roomTypeState.type === 'green' && 
+          (roomTypeState.type === 'green' || roomTypeState.type === 'creator') && 
           !roomTypeState.roomEnded && 
           !isSpectator) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -5458,7 +5458,7 @@
         const isRoomCreator = roomHostData?.isHost || isHost;
         
         // Forum rooms don't end when host leaves - no warning needed
-        // Regular green rooms DO end when host leaves - show warning
+        // Regular green rooms and creator rooms DO end when host leaves - show warning
         if (isRoomCreator && !isForumRoom) {
           event.preventDefault();
           event.returnValue = 'If you leave, this room will be terminated for all participants. Are you sure?';
@@ -5636,6 +5636,39 @@
             hostId: hostId
           });
           navigator.sendBeacon('/.netlify/functions/end-red-room', new Blob([payload], { type: 'application/json' }));
+        }
+      }
+      
+      // End Creator Room when host leaves
+      if (typeof roomTypeState !== 'undefined' && 
+          roomTypeState.type === 'creator' && 
+          !roomTypeState.roomEnded && 
+          isHost) {
+        console.log('⭐ Host is leaving Creator Room - ending room');
+        if (sphereId) {
+          // Notify participants via LiveKit
+          if (livekitRoom && livekitRoom.localParticipant) {
+            try {
+              const endMessage = {
+                type: 'room-ended',
+                roomType: 'creator',
+                reason: 'host_left',
+                message: 'The host has ended this room.',
+                timestamp: Date.now()
+              };
+              const encoder = new TextEncoder();
+              livekitRoom.localParticipant.publishData(encoder.encode(JSON.stringify(endMessage)), { reliable: true });
+            } catch (e) {
+              console.log('Could not send end notification:', e);
+            }
+          }
+          
+          // End the room in database
+          const endPayload = JSON.stringify({
+            action: 'end',
+            roomId: sphereId
+          });
+          navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([endPayload], { type: 'application/json' }));
         }
       }
       

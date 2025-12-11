@@ -16039,6 +16039,47 @@ function ensureSpectatorTracksForParticipant(participant) {
         if (spectatorControls) spectatorControls.classList.add('hidden');
         if (participantControls) participantControls.classList.remove('hidden');
         
+        // CRITICAL: Switch from spectator video layout to participant video layout
+        // Hide spectator video slots
+        const spectatorVideo1 = document.getElementById('spectator-video-1');
+        const spectatorVideo2 = document.getElementById('spectator-video-2');
+        const spectatorContainer = document.getElementById('spectator-video-container');
+        const spectatorOverlay = document.getElementById('spectator-click-overlay');
+        
+        if (spectatorVideo1) spectatorVideo1.style.display = 'none';
+        if (spectatorVideo2) spectatorVideo2.style.display = 'none';
+        if (spectatorContainer) spectatorContainer.style.display = 'none';
+        if (spectatorOverlay) spectatorOverlay.style.display = 'none';
+        
+        // Show participant video layout
+        const remoteVideoEl = document.getElementById('remoteVideo');
+        const localVideoEl = document.getElementById('localVideo');
+        const videoContainer = document.getElementById('video-container');
+        
+        if (videoContainer) {
+          videoContainer.style.display = 'flex';
+          videoContainer.classList.remove('hidden');
+        }
+        if (remoteVideoEl) {
+          remoteVideoEl.style.display = 'block';
+          remoteVideoEl.classList.remove('hidden');
+        }
+        if (localVideoEl) {
+          localVideoEl.style.display = 'block';
+          localVideoEl.classList.remove('hidden');
+        }
+        
+        // Update role badge
+        const roleBadge = document.getElementById('role-badge');
+        const roleText = document.getElementById('role-text');
+        if (roleBadge) {
+          roleBadge.classList.remove('spectator-badge');
+          roleBadge.classList.add('participant-badge');
+        }
+        if (roleText) {
+          roleText.textContent = 'challenger';
+        }
+        
         showToast('🎯 You are now the active challenger! Your camera is ON.');
         console.log('✅ Challenger media enabled successfully!');
       } else {

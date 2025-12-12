@@ -51,7 +51,7 @@ exports.handler = async function(event) {
     // Check if user already has a verified status
     const { data: existingKyc } = await supabase
       .from('kyc_verifications')
-      .select('status, stripe_verification_id')
+      .select('status, stripe_verification_id, updated_at')
       .eq('user_id', userId)
       .single();
 
@@ -66,20 +66,25 @@ exports.handler = async function(event) {
       };
     }
 
-    // If there's a pending verification, check its status with Stripe
-    if (existingKyc?.status === 'pending' && existingKyc?.stripe_verification_id) {
+    // If there's an existing verification record, check its status with Stripe
+    if (existingKyc?.stripe_verification_id) {
       try {
         const existingSession = await stripe.identity.verificationSessions.retrieve(
           existingKyc.stripe_verification_id
         );
         
+        console.log(`📋 Existing Stripe session status: ${existingSession.status}`);
+        
         if (existingSession.status === 'verified') {
           // Update our database
+          const verifiedOutputs = existingSession.verified_outputs || {};
           await supabase
             .from('kyc_verifications')
             .update({ 
               status: 'verified',
               verified_at: new Date().toISOString(),
+              first_name: verifiedOutputs.first_name || null,
+              last_name: verifiedOutputs.last_name || null,
               updated_at: new Date().toISOString()
             })
             .eq('user_id', userId);
@@ -99,20 +104,37 @@ exports.handler = async function(event) {
           };
         }
 
-        // If still processing, return the existing session URL
+        // Check if session is still usable
         if (existingSession.status === 'requires_input') {
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ 
-              url: existingSession.url,
-              sessionId: existingSession.id,
-              message: 'Please complete your verification'
-            }),
-          };
+          // Check if session is expired (older than 24 hours)
+          const sessionAge = Date.now() - new Date(existingSession.created * 1000).getTime();
+          const isExpired = sessionAge > 24 * 60 * 60 * 1000;
+          
+          if (!isExpired && existingSession.url) {
+            // Session still valid - user can continue where they left off
+            console.log(`🔄 Returning existing session URL for user ${userId}`);
+            return {
+              statusCode: 200,
+              headers,
+              body: JSON.stringify({ 
+                url: existingSession.url,
+                sessionId: existingSession.id,
+                message: 'Continue your verification',
+                isExisting: true
+              }),
+            };
+          }
+          // Session expired - will create new one below
+          console.log(`⏰ Session expired, creating new one`);
         }
+        
+        // If session is canceled or expired, we'll create a new one below
+        if (existingSession.status === 'canceled') {
+          console.log(`🚫 Previous session was canceled, creating new one`);
+        }
+        
       } catch (e) {
-        console.log('Could not retrieve existing session, creating new one');
+        console.log('Could not retrieve existing session, creating new one:', e.message);
       }
     }
 

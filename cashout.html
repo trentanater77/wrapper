@@ -689,22 +689,59 @@
         
         kycVerified = data.verified;
         
+        const kycNotice = document.getElementById('kyc-notice');
+        const kycVerifiedBadge = document.getElementById('kyc-verified');
+        
         if (kycVerified) {
-          document.getElementById('kyc-verified').classList.remove('hidden');
-          document.getElementById('kyc-notice').classList.add('hidden');
+          kycVerifiedBadge.classList.remove('hidden');
+          kycNotice.classList.add('hidden');
         } else if (data.status === 'pending') {
-          document.getElementById('kyc-notice').classList.remove('hidden');
-          document.getElementById('kyc-notice').innerHTML = `
+          // Actually pending with Stripe processing
+          kycNotice.classList.remove('hidden');
+          kycNotice.innerHTML = `
             <p style="font-weight: 700;">⏳ Verification In Progress</p>
             <p style="font-size: 0.875rem; margin-top: 0.5rem;">We're reviewing your documents. This usually takes a few minutes.</p>
             <button class="btn btn-ghost" style="margin-top: var(--space-md);" onclick="location.reload()">
               🔄 Refresh Status
             </button>
           `;
-          document.getElementById('kyc-verified').classList.add('hidden');
+          kycVerifiedBadge.classList.add('hidden');
+        } else if (data.status === 'incomplete' || data.needsRetry) {
+          // User started but didn't finish - let them continue
+          kycNotice.classList.remove('hidden');
+          kycNotice.innerHTML = `
+            <p style="font-weight: 700;">📝 Verification Incomplete</p>
+            <p style="font-size: 0.875rem; margin-top: 0.5rem;">You started verification but didn't complete it. Please finish to enable payouts.</p>
+            <button id="kyc-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startKycVerification()">
+              ✓ Continue Verification
+            </button>
+            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-sm);">Takes ~2 minutes. You'll need a government-issued ID.</p>
+          `;
+          kycVerifiedBadge.classList.add('hidden');
+        } else if (data.status === 'failed') {
+          // Verification failed - let them retry
+          kycNotice.classList.remove('hidden');
+          kycNotice.innerHTML = `
+            <p style="font-weight: 700;">❌ Verification Failed</p>
+            <p style="font-size: 0.875rem; margin-top: 0.5rem;">Your verification couldn't be completed. Please try again with a clear photo of your ID.</p>
+            <button id="kyc-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startKycVerification()">
+              🔄 Try Again
+            </button>
+            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-sm);">Make sure your ID is valid and the photo is clear.</p>
+          `;
+          kycVerifiedBadge.classList.add('hidden');
         } else {
-          document.getElementById('kyc-notice').classList.remove('hidden');
-          document.getElementById('kyc-verified').classList.add('hidden');
+          // Unverified - show initial verification prompt
+          kycNotice.classList.remove('hidden');
+          kycNotice.innerHTML = `
+            <p style="font-weight: 700;">🆔 Identity Verification Required</p>
+            <p style="font-size: 0.875rem; margin-top: 0.5rem;">Before you can cash out, we need to verify your identity. This is required by financial regulations.</p>
+            <button id="kyc-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startKycVerification()">
+              ✓ Verify My Identity
+            </button>
+            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-sm);">Takes ~2 minutes. You'll need a government-issued ID.</p>
+          `;
+          kycVerifiedBadge.classList.add('hidden');
         }
       } catch (error) {
         console.error('Error checking KYC status:', error);

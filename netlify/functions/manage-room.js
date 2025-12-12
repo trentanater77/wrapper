@@ -102,9 +102,11 @@ exports.handler = async function(event) {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+      const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString();
       
-      console.log('🧹 Running expired room cleanup...');
+      console.log('🧹 Running expired room cleanup (Jeff Bezos approved™)...');
       
       // Cleanup 1: Mark rooms past their ends_at as ended
       const cleanup1 = await supabase
@@ -116,7 +118,7 @@ exports.handler = async function(event) {
       console.log('🧹 Cleanup 1 (past ends_at):', cleanup1.error ? cleanup1.error.message : 'OK');
       
       // Cleanup 2: Mark old rooms without ends_at as ended (> 1 hour old)
-      // EXCLUDE Creator rooms - they only end when host ends them
+      // EXCLUDE Creator rooms - they only end when host ends them (up to 8 hours)
       const cleanup2 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
@@ -126,8 +128,7 @@ exports.handler = async function(event) {
         .lt('started_at', oneHourAgo);
       console.log('🧹 Cleanup 2 (null ends_at, > 1hr, non-creator):', cleanup2.error ? cleanup2.error.message : 'OK');
       
-      // Cleanup 3: Mark any room started > 3 hours ago as ended (safety net)
-      // EXCLUDE Creator rooms - they can run indefinitely
+      // Cleanup 3: Mark any non-creator room started > 3 hours ago as ended (safety net)
       const cleanup3 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
@@ -144,9 +145,7 @@ exports.handler = async function(event) {
         .lt('started_at', oneHourAgo);
       console.log('🧹 Cleanup 4 (voting > 1hr):', cleanup4.error ? cleanup4.error.message : 'OK');
       
-      // Cleanup 5: CRITICAL - Mark rooms with 0 participants that are > 15 minutes old
-      // These are abandoned rooms where everyone left
-      // EXCLUDE Creator rooms - they have a longer grace period
+      // Cleanup 5: CRITICAL - Mark non-creator rooms with 0 participants that are > 15 minutes old
       const cleanup5 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
@@ -156,8 +155,7 @@ exports.handler = async function(event) {
         .lt('started_at', fifteenMinutesAgo);
       console.log('🧹 Cleanup 5 (0 participants, > 15min, non-creator):', cleanup5.error ? cleanup5.error.message : 'OK');
       
-      // Cleanup 6: Mark rooms with only spectators (0 participants) older than 5 minutes
-      // A debate can't happen without debaters
+      // Cleanup 6: Mark red rooms with only spectators (0 participants) older than 5 minutes
       const cleanup6 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
@@ -167,10 +165,7 @@ exports.handler = async function(event) {
         .lt('started_at', fiveMinutesAgo);
       console.log('🧹 Cleanup 6 (red room, 0 debaters, > 5min):', cleanup6.error ? cleanup6.error.message : 'OK');
       
-      // Cleanup 7: Mark any room with 0 participants older than 2 hours as ended
-      // These are definitely abandoned rooms
-      // EXCLUDE Creator rooms - they have a much longer grace period
-      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      // Cleanup 7: Mark any non-creator room with 0 participants older than 2 hours as ended
       const cleanup7 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
@@ -180,19 +175,42 @@ exports.handler = async function(event) {
         .lt('started_at', twoHoursAgo);
       console.log('🧹 Cleanup 7 (0 participants, > 2hr, non-creator):', cleanup7.error ? cleanup7.error.message : 'OK');
       
-      // Cleanup 8: Creator rooms only - end if empty for 30+ minutes
-      // Creator rooms end when host leaves, but this catches abandoned rooms
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      // ============================================================
+      // CREATOR ROOM SPECIFIC CLEANUP (Jeff Bezos Approved™)
+      // ============================================================
+      
+      // Cleanup 8: Creator rooms - end if EMPTY (0 participants) for 2+ hours
+      // If host left and no one is there, room is abandoned
       const cleanup8 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .eq('room_type', 'creator')
         .eq('participant_count', 0)
-        .lt('started_at', thirtyMinutesAgo);
-      console.log('🧹 Cleanup 8 (creator room, 0 participants, > 30min):', cleanup8.error ? cleanup8.error.message : 'OK');
+        .lt('started_at', twoHoursAgo);
+      console.log('🧹 Cleanup 8 (creator room, EMPTY, > 2hr):', cleanup8.error ? cleanup8.error.message : 'OK');
       
-      console.log('🧹 Expired room cleanup completed');
+      // Cleanup 9: Creator rooms - end if only 1 participant (just host, no challengers) for 2+ hours
+      // Host is lonely - no one came to chat
+      const cleanup9 = await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .eq('room_type', 'creator')
+        .eq('participant_count', 1)
+        .lt('started_at', twoHoursAgo);
+      console.log('🧹 Cleanup 9 (creator room, 1 participant only, > 2hr):', cleanup9.error ? cleanup9.error.message : 'OK');
+      
+      // Cleanup 10: HARD LIMIT - ALL rooms (including active creator rooms) end after 8 HOURS
+      // Even Jeff Bezos takes bathroom breaks. No room should run forever.
+      const cleanup10 = await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .lt('started_at', eightHoursAgo);
+      console.log('🧹 Cleanup 10 (ANY room > 8hrs - HARD LIMIT):', cleanup10.error ? cleanup10.error.message : 'OK');
+      
+      console.log('🧹 Expired room cleanup completed (all rooms checked)');
       
       // Now fetch only active rooms that:
       // 1. Are public

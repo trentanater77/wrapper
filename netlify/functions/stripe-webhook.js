@@ -42,6 +42,7 @@ const RELEVANT_EVENTS = [
   // Identity verification events
   'identity.verification_session.verified',
   'identity.verification_session.requires_input',
+  'identity.verification_session.canceled',
 ];
 
 exports.handler = async function(event) {
@@ -114,6 +115,10 @@ exports.handler = async function(event) {
 
         case 'identity.verification_session.requires_input':
           await handleIdentityRequiresInput(stripeEvent.data.object);
+          break;
+
+        case 'identity.verification_session.canceled':
+          await handleIdentityCanceled(stripeEvent.data.object);
           break;
       }
 
@@ -640,4 +645,32 @@ async function handleIdentityRequiresInput(verificationSession) {
     }, {
       onConflict: 'user_id'
     });
+}
+
+/**
+ * Handle identity verification canceled (user X'd out or explicitly canceled)
+ */
+async function handleIdentityCanceled(verificationSession) {
+  const userId = verificationSession.metadata?.user_id;
+
+  if (!userId) {
+    console.error('❌ No user_id in verification session metadata');
+    return;
+  }
+
+  console.log(`🚫 Identity verification canceled for user ${userId}`);
+
+  // Reset status so user can start fresh
+  await supabase
+    .from('kyc_verifications')
+    .upsert({
+      user_id: userId,
+      stripe_verification_id: null, // Clear the old session ID
+      status: 'unverified',
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id'
+    });
+  
+  console.log(`🔄 User ${userId} KYC reset to unverified - can start fresh`);
 }

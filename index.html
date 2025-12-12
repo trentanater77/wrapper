@@ -2073,6 +2073,100 @@
           </div>
         </div>
         
+        <!-- CREATOR ROOM QUEUE PANEL -->
+        <div id="creator-queue-panel" class="mt-4 hidden">
+          <div class="bg-gradient-to-br from-yellow-500 to-red-600 rounded-xl p-4 border-2 border-yellow-400 shadow-lg">
+            <div class="text-center mb-3">
+              <span class="text-2xl">⭐</span>
+              <h4 class="text-white font-bold text-sm">Creator Room</h4>
+            </div>
+            
+            <!-- Current Challenger (shown when there is one) -->
+            <div id="current-challenger-section" class="hidden mb-4">
+              <div class="bg-black bg-opacity-30 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-xs text-yellow-200 opacity-80">Now Challenging:</p>
+                    <p id="current-challenger-name" class="text-white font-bold">—</p>
+                  </div>
+                  <div id="challenger-timer" class="text-white font-bold text-lg">—</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Host Controls -->
+            <div id="creator-host-controls" class="hidden space-y-2 mb-4">
+              <button 
+                id="next-challenger-btn"
+                onclick="callNextChallenger()"
+                class="w-full py-3 bg-white text-yellow-600 font-bold rounded-lg hover:bg-yellow-100 transition transform hover:scale-102 shadow-md"
+              >
+                ⏭️ Next Challenger
+              </button>
+              <button 
+                id="clear-queue-btn"
+                onclick="clearQueue()"
+                class="w-full py-2 bg-red-700 bg-opacity-50 text-white font-bold rounded-lg hover:bg-opacity-70 transition text-sm"
+              >
+                🗑️ Clear Queue
+              </button>
+            </div>
+            
+            <!-- Challenger Controls (when active) -->
+            <div id="challenger-controls" class="hidden mb-4">
+              <button 
+                id="im-done-btn"
+                onclick="challengerDone()"
+                class="w-full py-3 bg-white text-red-600 font-bold rounded-lg hover:bg-red-100 transition transform hover:scale-102 shadow-md"
+              >
+                ✅ I'm Done
+              </button>
+            </div>
+            
+            <!-- Queue List -->
+            <div class="bg-black bg-opacity-20 rounded-lg p-3">
+              <div class="flex items-center justify-between mb-2">
+                <h5 class="text-white font-bold text-sm">🎯 Queue</h5>
+                <span id="queue-count" class="text-yellow-200 text-xs">0 waiting</span>
+              </div>
+              <div id="queue-list" class="space-y-1 max-h-32 overflow-y-auto">
+                <p class="text-white text-opacity-60 text-xs text-center py-2">Queue is empty</p>
+              </div>
+            </div>
+            
+            <!-- Join Queue Button (for spectators) -->
+            <div id="join-queue-section" class="mt-3 hidden">
+              <div id="not-in-queue">
+                <button 
+                  id="join-queue-btn"
+                  onclick="joinQueue()"
+                  class="w-full py-3 bg-white text-yellow-600 font-bold rounded-lg hover:bg-yellow-100 transition transform hover:scale-102 shadow-md"
+                >
+                  🎯 Join Queue
+                </button>
+              </div>
+              <div id="in-queue" class="hidden">
+                <div class="bg-black bg-opacity-30 rounded-lg p-3 text-center">
+                  <p class="text-white font-bold">You're in the queue!</p>
+                  <p class="text-yellow-200 text-sm">Position: <span id="my-queue-position">—</span></p>
+                  <button 
+                    onclick="leaveQueue()"
+                    class="mt-2 text-red-300 text-sm underline hover:text-white"
+                  >
+                    Leave Queue
+                  </button>
+                </div>
+              </div>
+              <div id="is-active-challenger" class="hidden">
+                <div class="bg-green-600 bg-opacity-50 rounded-lg p-3 text-center">
+                  <p class="text-white font-bold">🎤 You're Live!</p>
+                  <p class="text-yellow-200 text-sm">You're the current challenger</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <!-- VOTING PANEL (Shown when debate ends) -->
         <div id="voting-panel" class="hidden bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl shadow-lg border-2 border-purple-400 p-6">
           <div class="text-center">
@@ -3905,7 +3999,9 @@
   let sparkIsSelected = false;
 
     const roomUrl = new URLSearchParams(window.location.search).get('room');
-    const spectatorMode = new URLSearchParams(window.location.search).get('mode') === 'spectator';
+    const urlMode = new URLSearchParams(window.location.search).get('mode');
+    const spectatorMode = urlMode === 'spectator' || urlMode === 'queue';
+    const queueMode = urlMode === 'queue'; // User wants to join the queue
 
     // Extract sphereId from any room format for consistent presence path
     function extractSphereId(roomParam) {
@@ -5353,7 +5449,7 @@
       // Warn Green Room hosts before leaving (NOT forum rooms - they persist)
       // Note: Modern browsers show generic "Leave site?" message for security
       if (typeof roomTypeState !== 'undefined' && 
-          roomTypeState.type === 'green' && 
+          (roomTypeState.type === 'green' || roomTypeState.type === 'creator') && 
           !roomTypeState.roomEnded && 
           !isSpectator) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -5362,7 +5458,7 @@
         const isRoomCreator = roomHostData?.isHost || isHost;
         
         // Forum rooms don't end when host leaves - no warning needed
-        // Regular green rooms DO end when host leaves - show warning
+        // Regular green rooms and creator rooms DO end when host leaves - show warning
         if (isRoomCreator && !isForumRoom) {
           event.preventDefault();
           event.returnValue = 'If you leave, this room will be terminated for all participants. Are you sure?';
@@ -5540,6 +5636,39 @@
             hostId: hostId
           });
           navigator.sendBeacon('/.netlify/functions/end-red-room', new Blob([payload], { type: 'application/json' }));
+        }
+      }
+      
+      // End Creator Room when host leaves
+      if (typeof roomTypeState !== 'undefined' && 
+          roomTypeState.type === 'creator' && 
+          !roomTypeState.roomEnded && 
+          isHost) {
+        console.log('⭐ Host is leaving Creator Room - ending room');
+        if (sphereId) {
+          // Notify participants via LiveKit
+          if (livekitRoom && livekitRoom.localParticipant) {
+            try {
+              const endMessage = {
+                type: 'room-ended',
+                roomType: 'creator',
+                reason: 'host_left',
+                message: 'The host has ended this room.',
+                timestamp: Date.now()
+              };
+              const encoder = new TextEncoder();
+              livekitRoom.localParticipant.publishData(encoder.encode(JSON.stringify(endMessage)), { reliable: true });
+            } catch (e) {
+              console.log('Could not send end notification:', e);
+            }
+          }
+          
+          // End the room in database
+          const endPayload = JSON.stringify({
+            action: 'end',
+            roomId: sphereId
+          });
+          navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([endPayload], { type: 'application/json' }));
         }
       }
       
@@ -6238,6 +6367,13 @@ async function initializeApp() {
     const urlParams = new URLSearchParams(window.location.search);
     const isHost = urlParams.get('host') === 'true';
     const urlDuration = parseInt(urlParams.get('duration'), 10);
+    const roomType = urlParams.get('roomType');
+    
+    // Creator room hosts have unlimited time (24 hours effectively)
+    if (roomType === 'creator' && isHost) {
+      console.log('⭐ Creator room host - using extended timer (24 hours)');
+      return { plan: 'creator_host', limitMinutes: 1440 }; // 24 hours
+    }
     
     // For hosts, check URL duration first (set by room creation page based on their plan)
     if (isHost && urlDuration && urlDuration > 0) {
@@ -7445,6 +7581,43 @@ async function initializeApp() {
       console.log('🟢 Room ended notification received via LiveKit:', event.data);
       if (typeof handleGreenRoomEnded === 'function') {
         handleGreenRoomEnded(event.data);
+      }
+    } else if (event.data.type === 'challenger-update') {
+      // Creator room challenger update
+      console.log('⭐ Challenger update received via LiveKit:', event.data);
+      handleChallengerUpdate(event.data);
+    }
+  }
+  
+  // Handle challenger update message from Creator room host
+  function handleChallengerUpdate(data) {
+    const currentUserId = window.currentUserData?.userId || userId;
+    const guestSessionId = getGuestSessionId();
+    
+    // Check if this user was the previous challenger (their turn just ended)
+    if (data.previousChallenger) {
+      const prev = data.previousChallenger;
+      const wasMe = (currentUserId && prev.userId === currentUserId) ||
+                    (guestSessionId && prev.guestSessionId === guestSessionId);
+      
+      if (wasMe && roomTypeState.isActiveChallenger) {
+        console.log('👋 You were the previous challenger - reverting to spectator');
+        revertToSpectatorMode();
+        return;
+      }
+    }
+    
+    // Check if this user is the new challenger
+    if (data.nextChallenger) {
+      const next = data.nextChallenger;
+      const isMe = (currentUserId && next.userId === currentUserId) ||
+                   (guestSessionId && next.guestSessionId === guestSessionId);
+      
+      if (isMe && !roomTypeState.isActiveChallenger) {
+        console.log('🎯 You are the next challenger!');
+        roomTypeState.isActiveChallenger = true;
+        roomTypeState.inQueue = false;
+        showActiveChallengerUI();
       }
     }
   }
@@ -10196,6 +10369,15 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
+    // Skip for Creator room hosts - they control when the room ends
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomType = urlParams.get('roomType');
+    const isHost = urlParams.get('host') === 'true';
+    if (roomType === 'creator' && isHost) {
+      console.log('⭐ Creator room host - no session time limits');
+      return;
+    }
+    
     const { plan, limitMinutes } = await fetchUserSubscription();
     
     sessionLimitState.userPlan = plan;
@@ -11752,7 +11934,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   // ============================================
   
   let roomTypeState = {
-    type: 'red', // 'red' for debate, 'green' for help
+    type: 'red', // 'red' for debate, 'green' for help, 'creator' for creator rooms
     potAmount: 0,
     participants: [],
     participantTips: {}, // Track tips per participant {participantId: tipAmount}
@@ -11761,7 +11943,16 @@ function ensureSpectatorTracksForParticipant(participant) {
     hasVoted: false,
     isHost: false,
     debateEnded: false, // For red rooms
-    roomEnded: false    // For green rooms
+    roomEnded: false,   // For green rooms
+    // Creator room specific state
+    isCreatorRoom: false,
+    currentChallenger: null,
+    challengerTimeLimit: null,
+    challengerStartedAt: null,
+    queuePosition: null,
+    inQueue: false,
+    isActiveChallenger: false,
+    guestSessionId: null, // For guest queue tracking
   };
   
   // Initialize room type from URL or Firebase
@@ -11884,6 +12075,17 @@ function ensureSpectatorTracksForParticipant(participant) {
           showEndDebateButtonIfHost();
         }, 1000);
       }
+    } else if (roomType === 'creator') {
+      // Creator room - show queue panel
+      if (potPanel) potPanel.classList.add('hidden');
+      if (spectatorPotPanel) spectatorPotPanel.classList.add('hidden');
+      
+      roomTypeState.isCreatorRoom = true;
+      
+      // Initialize creator room
+      setTimeout(() => {
+        initializeCreatorRoom();
+      }, 500);
     } else {
       // Unknown room type - hide all special panels
       if (potPanel) potPanel.classList.add('hidden');
@@ -15630,6 +15832,781 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.closeSpectatorManagementModal = closeSpectatorManagementModal;
   window.toggleMuteSpectator = toggleMuteSpectator;
   window.searchSpectators = searchSpectators;
+
+  // ============================================
+  // CREATOR ROOM QUEUE SYSTEM
+  // ============================================
+  
+  let queueRefreshInterval = null;
+  
+  // Generate guest session ID for queue tracking
+  function getGuestSessionId() {
+    if (!roomTypeState.guestSessionId) {
+      let storedId = sessionStorage.getItem('creatorQueueSessionId');
+      if (!storedId) {
+        storedId = 'guest-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 8);
+        sessionStorage.setItem('creatorQueueSessionId', storedId);
+      }
+      roomTypeState.guestSessionId = storedId;
+    }
+    return roomTypeState.guestSessionId;
+  }
+  
+  // Initialize Creator Room
+  async function initializeCreatorRoom() {
+    console.log('⭐ Initializing Creator Room...');
+    
+    // Check URL mode for queue joining
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlModeParam = urlParams.get('mode');
+    const shouldJoinQueue = urlModeParam === 'queue';
+    const isHostParam = urlParams.get('host') === 'true';
+    
+    console.log(`⭐ Creator Room - mode: ${urlModeParam}, isHost: ${isHostParam}, shouldJoinQueue: ${shouldJoinQueue}`);
+    
+    const queuePanel = document.getElementById('creator-queue-panel');
+    if (queuePanel) queuePanel.classList.remove('hidden');
+    
+    roomTypeState.isHost = isHostParam;
+    
+    // Show appropriate controls
+    const hostControls = document.getElementById('creator-host-controls');
+    const joinQueueSection = document.getElementById('join-queue-section');
+    
+    if (isHostParam) {
+      if (hostControls) hostControls.classList.remove('hidden');
+      if (joinQueueSection) joinQueueSection.classList.add('hidden');
+    } else {
+      if (hostControls) hostControls.classList.add('hidden');
+      if (joinQueueSection) joinQueueSection.classList.remove('hidden');
+    }
+    
+    // If user joined with mode=queue, automatically add them to the queue
+    if (shouldJoinQueue && !isHostParam) {
+      console.log('🎯 Auto-joining queue (mode=queue)...');
+      try {
+        await joinQueue();
+        console.log('✅ Successfully joined queue');
+      } catch (e) {
+        console.error('❌ Failed to join queue:', e);
+      }
+    }
+    
+    // Load queue immediately and refresh periodically
+    await refreshQueueState();
+    queueRefreshInterval = setInterval(refreshQueueState, 2000); // Refresh every 2 seconds
+    
+    console.log('⭐ Creator Room initialized');
+  }
+  
+  // Refresh queue state from server
+  async function refreshQueueState() {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) return;
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    const guestSessionId = getGuestSessionId();
+    
+    try {
+      let url = `/.netlify/functions/manage-queue?roomId=${sphereId}`;
+      if (currentUserId) {
+        url += `&userId=${currentUserId}`;
+      } else {
+        url += `&guestSessionId=${guestSessionId}`;
+      }
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      // Update queue display
+      updateQueueDisplay(data);
+      
+      // Track previous state to detect transitions
+      const wasActiveChallenger = roomTypeState.isActiveChallenger;
+      
+      // Update user state
+      if (data.userStatus === 'active') {
+        // Only enable media once when first becoming active
+        roomTypeState.isActiveChallenger = true;
+        roomTypeState.inQueue = false;
+        if (!wasActiveChallenger) {
+          showActiveChallengerUI(); // async but fire-and-forget is fine
+        }
+      } else if (data.position !== null) {
+        roomTypeState.inQueue = true;
+        roomTypeState.queuePosition = data.position;
+        roomTypeState.isActiveChallenger = false;
+        showInQueueUI(data.position);
+        
+        // If was active challenger but now back in queue, revert to spectator
+        if (wasActiveChallenger) {
+          console.log('👋 Challenger turn ended, reverting to spectator...');
+          revertToSpectatorMode();
+        }
+      } else {
+        roomTypeState.inQueue = false;
+        roomTypeState.isActiveChallenger = false;
+        showNotInQueueUI();
+        
+        // If was active challenger but now not in queue at all, revert to spectator
+        if (wasActiveChallenger) {
+          console.log('👋 Challenger turn ended, reverting to spectator...');
+          revertToSpectatorMode();
+        }
+      }
+      
+      // Update current challenger display
+      if (data.activeChallenger) {
+        roomTypeState.currentChallenger = data.activeChallenger;
+        showCurrentChallenger(data.activeChallenger);
+      } else {
+        roomTypeState.currentChallenger = null;
+        hideCurrentChallenger();
+      }
+      
+    } catch (error) {
+      console.error('Error refreshing queue:', error);
+    }
+  }
+  
+  // Update queue display
+  function updateQueueDisplay(data) {
+    const queueList = document.getElementById('queue-list');
+    const queueCount = document.getElementById('queue-count');
+    
+    if (queueCount) {
+      queueCount.textContent = `${data.totalInQueue} waiting`;
+    }
+    
+    if (queueList) {
+      if (!data.queue || data.queue.length === 0) {
+        queueList.innerHTML = `<p class="text-white text-opacity-60 text-xs text-center py-2">Queue is empty</p>`;
+      } else {
+        queueList.innerHTML = data.queue.slice(0, 10).map((entry, index) => `
+          <div class="flex items-center justify-between bg-black bg-opacity-20 rounded px-2 py-1">
+            <span class="text-white text-xs">
+              ${entry.position}. ${entry.isUser ? '👤' : '👻'} ${entry.name || 'Guest'}
+            </span>
+          </div>
+        `).join('');
+        
+        if (data.queue.length > 10) {
+          queueList.innerHTML += `<p class="text-yellow-200 text-xs text-center mt-1">+${data.queue.length - 10} more...</p>`;
+        }
+      }
+    }
+  }
+  
+  // Show current challenger
+  function showCurrentChallenger(challenger) {
+    const section = document.getElementById('current-challenger-section');
+    const nameEl = document.getElementById('current-challenger-name');
+    const timerEl = document.getElementById('challenger-timer');
+    
+    if (section) section.classList.remove('hidden');
+    if (nameEl) nameEl.textContent = challenger.name || 'Challenger';
+    
+    // Update timer if there's a time limit
+    if (challenger.startedAt && roomTypeState.challengerTimeLimit) {
+      updateChallengerTimer(challenger.startedAt);
+    } else if (timerEl) {
+      timerEl.textContent = '—';
+    }
+    
+    // Show challenger done button if this user is the active challenger
+    const challengerControls = document.getElementById('challenger-controls');
+    if (challengerControls) {
+      const currentUserId = window.currentUserData?.userId || userId;
+      if (challenger.userId === currentUserId) {
+        challengerControls.classList.remove('hidden');
+      } else {
+        challengerControls.classList.add('hidden');
+      }
+    }
+  }
+  
+  // Hide current challenger
+  function hideCurrentChallenger() {
+    const section = document.getElementById('current-challenger-section');
+    const challengerControls = document.getElementById('challenger-controls');
+    if (section) section.classList.add('hidden');
+    if (challengerControls) challengerControls.classList.add('hidden');
+  }
+  
+  // Update challenger timer
+  function updateChallengerTimer(startedAt) {
+    const timerEl = document.getElementById('challenger-timer');
+    if (!timerEl || !roomTypeState.challengerTimeLimit) return;
+    
+    const startTime = new Date(startedAt).getTime();
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    const remaining = roomTypeState.challengerTimeLimit - elapsed;
+    
+    if (remaining <= 0) {
+      timerEl.textContent = '⏰ Time!';
+      timerEl.classList.add('text-red-300');
+    } else {
+      const mins = Math.floor(remaining / 60);
+      const secs = remaining % 60;
+      timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+      timerEl.classList.remove('text-red-300');
+    }
+  }
+  
+  // Show UI for not in queue
+  function showNotInQueueUI() {
+    const notInQueue = document.getElementById('not-in-queue');
+    const inQueue = document.getElementById('in-queue');
+    const isActive = document.getElementById('is-active-challenger');
+    
+    if (notInQueue) notInQueue.classList.remove('hidden');
+    if (inQueue) inQueue.classList.add('hidden');
+    if (isActive) isActive.classList.add('hidden');
+  }
+  
+  // Show UI for in queue
+  function showInQueueUI(position) {
+    const notInQueue = document.getElementById('not-in-queue');
+    const inQueue = document.getElementById('in-queue');
+    const isActive = document.getElementById('is-active-challenger');
+    const positionEl = document.getElementById('my-queue-position');
+    
+    if (notInQueue) notInQueue.classList.add('hidden');
+    if (inQueue) inQueue.classList.remove('hidden');
+    if (isActive) isActive.classList.add('hidden');
+    if (positionEl) positionEl.textContent = position;
+  }
+  
+  // Show UI for active challenger and enable their media
+  async function showActiveChallengerUI() {
+    console.log('🎯 User is now the ACTIVE CHALLENGER! Enabling media...');
+    
+    const notInQueue = document.getElementById('not-in-queue');
+    const inQueue = document.getElementById('in-queue');
+    const isActive = document.getElementById('is-active-challenger');
+    
+    if (notInQueue) notInQueue.classList.add('hidden');
+    if (inQueue) inQueue.classList.add('hidden');
+    if (isActive) isActive.classList.remove('hidden');
+    
+    // Spectators connect with canPublish=false, so we need to RECONNECT with participant permissions
+    try {
+      console.log('🔍 Challenger check - livekitRoom:', !!livekitRoom, 'isSpectator:', isSpectator);
+      
+      if (livekitRoom) {
+        console.log('🔄 Challenger: Reconnecting with participant permissions...');
+        showToast('🎯 You\'re up! Connecting your camera...');
+        
+        // Disconnect from current session
+        try {
+          await livekitRoom.disconnect(true);
+          console.log('✅ Disconnected from spectator session');
+        } catch (e) {
+          console.warn('⚠️ Disconnect warning:', e);
+        }
+        
+        // Switch mode BEFORE reconnecting
+        isSpectator = false;
+        roomTypeState.isActiveChallenger = true;
+        
+        // Wait a moment for cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reconnect as participant (connectToLiveKitRoom uses isSpectator to determine role)
+        console.log('🔌 Reconnecting as participant...');
+        await connectToLiveKitRoom();
+        
+        console.log('✅ Challenger reconnected with participant permissions!');
+        
+        // Update mic/camera button states
+        const micBtn = document.getElementById('mic-btn');
+        const cameraBtn = document.getElementById('camera-btn');
+        if (micBtn) micBtn.classList.add('active');
+        if (cameraBtn) cameraBtn.classList.add('active');
+        
+        // Update UI to show participant controls
+        const spectatorControls = document.getElementById('spectator-controls');
+        const participantControls = document.getElementById('participant-controls');
+        if (spectatorControls) spectatorControls.classList.add('hidden');
+        if (participantControls) participantControls.classList.remove('hidden');
+        
+        // CRITICAL: Switch from spectator layout to participant layout
+        console.log('🔄 Switching UI from spectator to participant layout...');
+        
+        // Hide ENTIRE spectator layout
+        const spectatorLayout = document.getElementById('spectator-layout');
+        if (spectatorLayout) {
+          spectatorLayout.classList.add('hidden');
+          spectatorLayout.style.display = 'none';
+          console.log('✅ Hidden spectator-layout');
+        }
+        
+        // Also hide the spectator click overlay
+        const spectatorOverlay = document.getElementById('spectator-click-overlay');
+        if (spectatorOverlay) {
+          spectatorOverlay.style.display = 'none';
+          spectatorOverlay.classList.add('hidden');
+        }
+        
+        // Show ENTIRE participant layout
+        const participantLayout = document.getElementById('participant-layout');
+        if (participantLayout) {
+          participantLayout.classList.remove('hidden');
+          participantLayout.style.display = 'grid';
+          console.log('✅ Shown participant-layout');
+        }
+        
+        // Show participant video elements
+        const remoteVideoEl = document.getElementById('remote-video');
+        const remotePlaceholder = document.getElementById('remote-placeholder');
+        
+        if (remoteVideoEl) {
+          remoteVideoEl.style.display = 'block';
+          remoteVideoEl.classList.remove('hidden');
+          console.log('✅ Shown remote-video');
+        }
+        if (remotePlaceholder) {
+          remotePlaceholder.style.display = 'none';
+        }
+        
+        // CRITICAL: Set up local video preview
+        const localVideoEl = document.getElementById('local-video');
+        const localPlaceholder = document.getElementById('local-placeholder');
+        const localContainer = document.getElementById('local-video-container');
+        
+        if (localContainer) {
+          localContainer.style.display = 'block';
+          localContainer.classList.remove('hidden');
+        }
+        
+        // Attach local camera track to video element
+        if (localVideoEl && livekitRoom && livekitRoom.localParticipant) {
+          try {
+            const cameraPublication = livekitRoom.localParticipant.getTrackPublication('camera');
+            const cameraTrack = cameraPublication?.track;
+            if (cameraTrack && cameraTrack.mediaStreamTrack) {
+              localVideoEl.srcObject = new MediaStream([cameraTrack.mediaStreamTrack]);
+              localVideoEl.style.display = 'block';
+              localVideoEl.classList.remove('hidden');
+              localVideoEl.play().catch(e => console.log('Local video autoplay prevented:', e));
+              console.log('✅ Shown local-video with camera track');
+            } else {
+              console.log('⚠️ Camera track not ready yet');
+            }
+          } catch (e) {
+            console.error('❌ Error setting up local video:', e);
+          }
+          
+          if (localPlaceholder) {
+            localPlaceholder.style.display = 'none';
+          }
+        }
+        
+        // Update role badge
+        const roleBadge = document.getElementById('role-badge');
+        const roleText = document.getElementById('role-text');
+        if (roleBadge) {
+          roleBadge.classList.remove('spectator-badge');
+          roleBadge.classList.add('participant-badge');
+        }
+        if (roleText) {
+          roleText.textContent = 'challenger';
+        }
+        
+        console.log('✅ UI layout switched to participant mode');
+        
+        showToast('🎯 You are now the active challenger! Your camera is ON.');
+        console.log('✅ Challenger media enabled successfully!');
+      } else {
+        console.error('❌ LiveKit room not available');
+      }
+    } catch (error) {
+      console.error('❌ Failed to enable challenger media:', error);
+      showToast('❌ Failed to connect camera. Please refresh the page.');
+    }
+  }
+  
+  // Revert from active challenger back to spectator mode
+  async function revertToSpectatorMode() {
+    console.log('👋 Reverting from challenger back to spectator mode...');
+    
+    try {
+      // Update UI sections
+      const notInQueue = document.getElementById('not-in-queue');
+      const inQueue = document.getElementById('in-queue');
+      const isActive = document.getElementById('is-active-challenger');
+      
+      if (notInQueue) notInQueue.classList.remove('hidden');
+      if (inQueue) inQueue.classList.add('hidden');
+      if (isActive) isActive.classList.add('hidden');
+      
+      // Disconnect from LiveKit and reconnect as spectator
+      if (livekitRoom) {
+        console.log('🔌 Disconnecting participant session...');
+        await livekitRoom.disconnect(true);
+        
+        // Set spectator flags
+        isSpectator = true;
+        roomTypeState.isActiveChallenger = false;
+        
+        // Small delay for cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Reconnect as spectator (this will get spectator token)
+        console.log('🔌 Reconnecting as spectator...');
+        await connectToLiveKitRoom();
+        
+        console.log('✅ Reconnected as spectator');
+      }
+      
+      // Switch UI from participant to spectator layout
+      const participantLayout = document.getElementById('participant-layout');
+      const spectatorLayout = document.getElementById('spectator-layout');
+      
+      if (participantLayout) {
+        participantLayout.classList.add('hidden');
+        participantLayout.style.display = 'none';
+      }
+      
+      if (spectatorLayout) {
+        spectatorLayout.classList.remove('hidden');
+        spectatorLayout.style.display = 'block';
+      }
+      
+      // Update role badge
+      const roleBadge = document.getElementById('role-badge');
+      const roleText = document.getElementById('role-text');
+      if (roleBadge) {
+        roleBadge.classList.remove('participant-badge');
+        roleBadge.classList.add('spectator-badge');
+      }
+      if (roleText) {
+        roleText.textContent = 'spectator';
+      }
+      
+      // Hide local video container
+      const localContainer = document.getElementById('local-video-container');
+      if (localContainer) {
+        localContainer.classList.add('hidden');
+        localContainer.style.display = 'none';
+      }
+      
+      showToast('👋 Your turn ended. You are now spectating.');
+      console.log('✅ Reverted to spectator mode');
+      
+    } catch (error) {
+      console.error('❌ Error reverting to spectator:', error);
+      // Show the join queue UI as fallback
+      showNotInQueueUI();
+    }
+  }
+  
+  // Join queue
+  async function joinQueue() {
+    // Get room ID from URL directly
+    const urlRoomId = new URLSearchParams(window.location.search).get('room');
+    const sphereId = urlRoomId || extractSphereId(roomUrl);
+    
+    console.log('🎯 Joining queue for room:', sphereId);
+    
+    if (!sphereId) {
+      console.error('❌ No room ID found for queue join');
+      return;
+    }
+    
+    const currentUserId = window.currentUserData?.userId || (typeof userId !== 'undefined' ? userId : null);
+    const guestSessionId = getGuestSessionId();
+    
+    // Get username with multiple fallbacks
+    const userNameFromNav = document.querySelector('.nav-username')?.textContent?.trim();
+    const queueUserName = window.currentUserData?.name 
+      || window.currentUserData?.displayName 
+      || window.currentUserData?.username
+      || userNameFromNav
+      || 'Guest';
+    
+    console.log('🎯 Queue join params:', { sphereId, currentUserId, guestSessionId, queueUserName });
+    
+    try {
+      const response = await fetch('/.netlify/functions/manage-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'join',
+          roomId: sphereId,
+          userId: currentUserId || null,
+          userName: queueUserName,
+          guestName: queueUserName,
+          guestSessionId: currentUserId ? null : guestSessionId,
+        })
+      });
+      
+      const data = await response.json();
+      
+      console.log('🎯 Join queue response:', data);
+      
+      if (data.success) {
+        roomTypeState.inQueue = true;
+        roomTypeState.queuePosition = data.position;
+        showInQueueUI(data.position);
+        if (!data.alreadyInQueue) {
+          showToast(`🎯 Joined queue at position ${data.position}!`);
+        }
+        
+        // Try to broadcast to Firebase (ignore errors)
+        try {
+          broadcastQueueUpdate('join');
+        } catch (e) {
+          console.log('Firebase broadcast skipped');
+        }
+      } else {
+        console.error('❌ Join queue failed:', data.error);
+        showToast(`❌ ${data.error || 'Failed to join queue'}`);
+      }
+    } catch (error) {
+      console.error('Error joining queue:', error);
+      showToast('❌ Failed to join queue');
+    }
+  }
+  
+  // Leave queue
+  async function leaveQueue() {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId) return;
+    
+    const currentUserId = window.currentUserData?.userId || userId;
+    const guestSessionId = getGuestSessionId();
+    
+    try {
+      const response = await fetch('/.netlify/functions/manage-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'leave',
+          roomId: sphereId,
+          userId: currentUserId || null,
+          guestSessionId: currentUserId ? null : guestSessionId,
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        roomTypeState.inQueue = false;
+        roomTypeState.queuePosition = null;
+        showNotInQueueUI();
+        showToast('👋 Left the queue');
+        
+        // Broadcast to Firebase
+        broadcastQueueUpdate('leave');
+      }
+    } catch (error) {
+      console.error('Error leaving queue:', error);
+    }
+  }
+  
+  // Host calls next challenger
+  async function callNextChallenger() {
+    const sphereId = extractSphereId(roomUrl);
+    const currentUserId = window.currentUserData?.userId || userId;
+    
+    if (!sphereId || !currentUserId) return;
+    
+    try {
+      const response = await fetch('/.netlify/functions/manage-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'next',
+          roomId: sphereId,
+          hostId: currentUserId,
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        if (data.nextChallenger) {
+          showToast(`⏭️ Called ${data.nextChallenger.name}!`);
+          roomTypeState.currentChallenger = data.nextChallenger;
+          roomTypeState.challengerTimeLimit = data.nextChallenger.timeLimit;
+          showCurrentChallenger(data.nextChallenger);
+          
+          // Broadcast via LiveKit to notify the new challenger and previous challenger
+          if (livekitRoom && livekitRoom.localParticipant) {
+            try {
+              const challengerUpdate = {
+                type: 'challenger-update',
+                action: 'next',
+                nextChallenger: data.nextChallenger,
+                previousChallenger: data.previousChallenger || null,
+              };
+              const encoder = new TextEncoder();
+              await livekitRoom.localParticipant.publishData(
+                encoder.encode(JSON.stringify(challengerUpdate)),
+                { reliable: true }
+              );
+              console.log('📢 Broadcasted challenger update via LiveKit');
+            } catch (e) {
+              console.log('Could not broadcast challenger update via LiveKit');
+            }
+          }
+        } else {
+          showToast('📭 Queue is empty');
+          hideCurrentChallenger();
+        }
+        
+        // Broadcast to Firebase as backup
+        broadcastQueueUpdate('next');
+      } else {
+        showToast(`❌ ${data.error || 'Failed to call next'}`);
+      }
+    } catch (error) {
+      console.error('Error calling next:', error);
+      showToast('❌ Failed to call next challenger');
+    }
+  }
+  
+  // Challenger clicks "I'm Done"
+  async function challengerDone() {
+    const sphereId = extractSphereId(roomUrl);
+    const currentUserId = window.currentUserData?.userId || userId;
+    const guestSessionId = getGuestSessionId();
+    
+    if (!sphereId) return;
+    
+    try {
+      const response = await fetch('/.netlify/functions/manage-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'done',
+          roomId: sphereId,
+          userId: currentUserId || null,
+          guestSessionId: currentUserId ? null : guestSessionId,
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        roomTypeState.isActiveChallenger = false;
+        hideCurrentChallenger();
+        showNotInQueueUI();
+        showToast('✅ Thanks for participating!');
+        
+        // Broadcast to Firebase
+        broadcastQueueUpdate('done');
+        
+        // CRITICAL: Revert to spectator mode
+        console.log('👋 Challenger clicked Done - reverting to spectator mode...');
+        await revertToSpectatorMode();
+      }
+    } catch (error) {
+      console.error('Error finishing challenge:', error);
+    }
+  }
+  
+  // Host clears entire queue
+  async function clearQueue() {
+    if (!confirm('Clear the entire queue? This cannot be undone.')) return;
+    
+    const sphereId = extractSphereId(roomUrl);
+    const currentUserId = window.currentUserData?.userId || userId;
+    
+    if (!sphereId || !currentUserId) return;
+    
+    try {
+      const response = await fetch('/.netlify/functions/manage-queue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'clear',
+          roomId: sphereId,
+          hostId: currentUserId,
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        showToast('🗑️ Queue cleared');
+        hideCurrentChallenger();
+        
+        // Broadcast to Firebase
+        broadcastQueueUpdate('clear');
+        
+        await refreshQueueState();
+      }
+    } catch (error) {
+      console.error('Error clearing queue:', error);
+    }
+  }
+  
+  // Broadcast queue update via Firebase for real-time sync
+  function broadcastQueueUpdate(action) {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId || !db) return;
+    
+    try {
+      db.ref(`chats/${sphereId}/queueUpdate`).set({
+        action,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+    } catch (e) {
+      console.log('Could not broadcast queue update');
+    }
+  }
+  
+  // Listen for queue updates via Firebase
+  function listenForQueueUpdates() {
+    const sphereId = extractSphereId(roomUrl);
+    if (!sphereId || !db) return;
+    
+    try {
+      db.ref(`chats/${sphereId}/queueUpdate`).on('value', (snapshot) => {
+        const update = snapshot.val();
+        if (update) {
+          // Refresh queue state when we get an update
+          setTimeout(refreshQueueState, 300);
+        }
+      });
+    } catch (e) {
+      console.log('Could not listen for queue updates');
+    }
+  }
+  
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    if (queueRefreshInterval) {
+      clearInterval(queueRefreshInterval);
+    }
+    
+    // Leave queue if in it
+    if (roomTypeState.inQueue || roomTypeState.isActiveChallenger) {
+      const sphereId = extractSphereId(roomUrl);
+      const currentUserId = window.currentUserData?.userId || userId;
+      const guestSessionId = getGuestSessionId();
+      
+      if (sphereId) {
+        // Use sendBeacon for reliable cleanup
+        const data = JSON.stringify({
+          action: 'leave',
+          roomId: sphereId,
+          userId: currentUserId || null,
+          guestSessionId: currentUserId ? null : guestSessionId,
+        });
+        navigator.sendBeacon('/.netlify/functions/manage-queue', data);
+      }
+    }
+  });
+  
+  // Make queue functions global
+  window.joinQueue = joinQueue;
+  window.leaveQueue = leaveQueue;
+  window.callNextChallenger = callNextChallenger;
+  window.challengerDone = challengerDone;
+  window.clearQueue = clearQueue;
 
   // Initialize
   console.log("ChatSpheres Video Chat Room Loading... 🌟");

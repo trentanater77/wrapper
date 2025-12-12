@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partner Admin - ChatSpheres</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Brand CSS -->
+  <link rel="stylesheet" href="/assets/css/brand.css">
+  
+  <style>
+    .admin-container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: var(--space-xl);
+    }
+    
+    .admin-header {
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .admin-title {
+      font-size: 2rem;
+      font-weight: var(--font-weight-extrabold);
+      color: var(--charcoal);
+    }
+    
+    .password-gate {
+      max-width: 400px;
+      margin: 100px auto;
+      text-align: center;
+      background: var(--light-rose);
+      padding: var(--space-xl);
+      border-radius: var(--radius-xl);
+      border: 3px solid var(--rose);
+    }
+    
+    .password-input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--rose);
+      border-radius: 8px;
+      font-size: 1rem;
+      margin: var(--space-md) 0;
+    }
+    
+    .unlock-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--main-red);
+      color: white;
+      border: none;
+      border-radius: 999px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .section {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-lg);
+      border: 2px solid var(--rose);
+    }
+    
+    .section h2 {
+      margin-bottom: var(--space-md);
+      font-size: 1.25rem;
+    }
+    
+    .application-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+      border: 2px solid var(--rose);
+    }
+    
+    .application-card h3 {
+      font-size: 1rem;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .application-meta {
+      font-size: 0.85rem;
+      color: var(--charcoal);
+      opacity: 0.8;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .application-detail {
+      font-size: 0.9rem;
+      margin-bottom: 4px;
+    }
+    
+    .application-actions {
+      display: flex;
+      gap: var(--space-sm);
+      margin-top: var(--space-md);
+    }
+    
+    .approve-btn {
+      flex: 1;
+      padding: 10px;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .approve-btn:hover {
+      background: #059669;
+    }
+    
+    .reject-btn {
+      padding: 10px 20px;
+      background: var(--rose);
+      color: var(--charcoal);
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .partner-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: var(--space-md);
+      margin-bottom: var(--space-sm);
+      border: 2px solid var(--gold);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .partner-info h4 {
+      font-size: 0.95rem;
+      margin-bottom: 2px;
+    }
+    
+    .partner-info p {
+      font-size: 0.8rem;
+      opacity: 0.7;
+    }
+    
+    .partner-badge {
+      background: var(--gold);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+    
+    .quick-add {
+      background: linear-gradient(135deg, #FFD166, #e63946);
+      border-radius: var(--radius-lg);
+      padding: var(--space-lg);
+      color: white;
+    }
+    
+    .quick-add h3 {
+      margin-bottom: var(--space-md);
+    }
+    
+    .quick-add input {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: var(--space-sm);
+    }
+    
+    .quick-add button {
+      width: 100%;
+      padding: 12px;
+      background: white;
+      color: #e63946;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: var(--space-lg);
+      opacity: 0.7;
+    }
+    
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="bg-pattern"></div>
+  
+  <!-- Password Gate -->
+  <div id="password-gate" class="password-gate">
+    <h2>🔐 Admin Access</h2>
+    <p>Enter admin password to continue</p>
+    <input type="password" id="admin-password" class="password-input" placeholder="Password...">
+    <button onclick="checkPassword()" class="unlock-btn">Unlock</button>
+  </div>
+  
+  <!-- Admin Content (hidden until password entered) -->
+  <div id="admin-content" class="admin-container hidden">
+    <div class="admin-header">
+      <h1 class="admin-title">⭐ Partner Admin</h1>
+      <p>Manage Creator Partner applications</p>
+    </div>
+    
+    <!-- Quick Add Partner -->
+    <div class="section quick-add">
+      <h3>⚡ Quick Add Partner</h3>
+      <p style="font-size: 0.9rem; opacity: 0.9; margin-bottom: var(--space-md);">Enter a user's email to make them a partner instantly</p>
+      <input type="email" id="quick-add-email" placeholder="user@email.com">
+      <button onclick="quickAddPartner()">Make Partner (100% Tips)</button>
+    </div>
+    
+    <!-- Pending Applications -->
+    <div class="section">
+      <h2>📝 Pending Applications</h2>
+      <div id="pending-list">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+    
+    <!-- Current Partners -->
+    <div class="section">
+      <h2>⭐ Current Partners</h2>
+      <div id="partners-list">
+        <div class="empty-state">Loading...</div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    const ADMIN_PASSWORD = 'chatspheres2025'; // Change this!
+    let adminUnlocked = false;
+    
+    function checkPassword() {
+      const input = document.getElementById('admin-password').value;
+      if (input === ADMIN_PASSWORD) {
+        adminUnlocked = true;
+        document.getElementById('password-gate').classList.add('hidden');
+        document.getElementById('admin-content').classList.remove('hidden');
+        loadData();
+      } else {
+        alert('Wrong password!');
+      }
+    }
+    
+    // Allow Enter key
+    document.getElementById('admin-password').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') checkPassword();
+    });
+    
+    async function loadData() {
+      await Promise.all([loadPendingApplications(), loadPartners()]);
+    }
+    
+    async function loadPendingApplications() {
+      const listEl = document.getElementById('pending-list');
+      
+      try {
+        const response = await fetch('/.netlify/functions/admin-partners?action=list-pending');
+        const data = await response.json();
+        
+        if (!data.applications || data.applications.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No pending applications 🎉</div>';
+          return;
+        }
+        
+        listEl.innerHTML = data.applications.map(app => `
+          <div class="application-card" id="app-${app.id}">
+            <h3>👤 ${app.email || app.user_id.substring(0, 8)}</h3>
+            <div class="application-meta">Applied: ${new Date(app.created_at).toLocaleDateString()}</div>
+            <div class="application-detail"><strong>Social:</strong> ${app.social_links || 'Not provided'}</div>
+            <div class="application-detail"><strong>Audience:</strong> ${app.audience_size || 'Not provided'}</div>
+            <div class="application-detail"><strong>Content:</strong> ${app.content_type || 'Not provided'}</div>
+            <div class="application-detail"><strong>Why:</strong> ${app.why_partner || 'Not provided'}</div>
+            <div class="application-actions">
+              <button class="approve-btn" onclick="approvePartner('${app.user_id}', '${app.id}')">✅ Approve (100% Tips)</button>
+              <button class="reject-btn" onclick="rejectApplication('${app.id}')">❌</button>
+            </div>
+          </div>
+        `).join('');
+        
+      } catch (error) {
+        listEl.innerHTML = '<div class="empty-state">Error loading applications</div>';
+        console.error(error);
+      }
+    }
+    
+    async function loadPartners() {
+      const listEl = document.getElementById('partners-list');
+      
+      try {
+        const response = await fetch('/.netlify/functions/admin-partners?action=list-partners');
+        const data = await response.json();
+        
+        if (!data.partners || data.partners.length === 0) {
+          listEl.innerHTML = '<div class="empty-state">No partners yet</div>';
+          return;
+        }
+        
+        listEl.innerHTML = data.partners.map(p => `
+          <div class="partner-card">
+            <div class="partner-info">
+              <h4>${p.email || p.user_id.substring(0, 8)}</h4>
+              <p>${p.tier} • ${p.tip_share_percent}% tips • Since ${new Date(p.created_at).toLocaleDateString()}</p>
+            </div>
+            <span class="partner-badge">⭐ Partner</span>
+          </div>
+        `).join('');
+        
+      } catch (error) {
+        listEl.innerHTML = '<div class="empty-state">Error loading partners</div>';
+        console.error(error);
+      }
+    }
+    
+    async function approvePartner(userId, applicationId) {
+      if (!confirm('Approve this partner? They will get 100% of tips.')) return;
+      
+      try {
+        const response = await fetch('/.netlify/functions/admin-partners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'approve',
+            userId: userId,
+            applicationId: applicationId,
+            tipSharePercent: 100,
+            tier: 'founding'
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ Partner approved!');
+          document.getElementById('app-' + applicationId)?.remove();
+          loadPartners();
+        } else {
+          alert('Error: ' + (data.error || 'Failed'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+    
+    async function rejectApplication(applicationId) {
+      if (!confirm('Reject this application?')) return;
+      
+      try {
+        const response = await fetch('/.netlify/functions/admin-partners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'reject',
+            applicationId: applicationId
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          document.getElementById('app-' + applicationId)?.remove();
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+    
+    async function quickAddPartner() {
+      const email = document.getElementById('quick-add-email').value.trim();
+      if (!email) {
+        alert('Please enter an email');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/.netlify/functions/admin-partners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'quick-add',
+            email: email,
+            tipSharePercent: 100,
+            tier: 'founding'
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ Partner added!');
+          document.getElementById('quick-add-email').value = '';
+          loadPartners();
+        } else {
+          alert('Error: ' + (data.error || 'User not found or already a partner'));
+        }
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

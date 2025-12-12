@@ -228,6 +228,13 @@
     .room-type-btn.selected.red { border-color: var(--main-red); }
     .room-type-btn.selected.green { border-color: #10b981; }
     .room-type-btn.selected.regular { border-color: #8b5cf6; }
+    .room-type-btn.selected.creator { border-color: #FFD166; }
+    
+    /* Cover Upload */
+    .cover-upload { border: 2px dashed var(--rose); border-radius: var(--radius-lg); padding: var(--space-lg); text-align: center; cursor: pointer; transition: all var(--transition-fast); background: rgba(255, 182, 185, 0.1); }
+    .cover-upload:hover, .cover-upload.dragover { border-color: var(--main-red); background: rgba(230, 57, 70, 0.1); }
+    .cover-upload.has-image { padding: 0; border-style: solid; border-color: var(--gold); }
+    .cover-upload img { max-width: 100%; max-height: 100px; border-radius: var(--radius-lg); object-fit: cover; }
     .room-type-btn.disabled { opacity: 0.5; cursor: not-allowed; }
     .room-type-icon { font-size: 1.5rem; margin-bottom: var(--space-xs); }
     .room-type-name { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 0.9rem; }
@@ -565,7 +572,7 @@
         <!-- Room Type Selection -->
         <div class="form-group">
           <label class="form-label">Room Type</label>
-          <div class="room-type-selector three-col">
+          <div class="room-type-selector" style="grid-template-columns: 1fr 1fr;">
             <button type="button" id="forum-type-regular" onclick="selectForumRoomType('regular')" class="room-type-btn selected regular">
               <div class="room-type-icon">💬</div>
               <div class="room-type-name">Chat Room</div>
@@ -581,7 +588,50 @@
               <div class="room-type-name">Help</div>
               <div class="room-type-desc">Tips for advice</div>
             </button>
+            <button type="button" id="forum-type-creator" onclick="selectForumRoomType('creator')" class="room-type-btn">
+              <div class="room-type-icon">⭐</div>
+              <div class="room-type-name">Creator</div>
+              <div class="room-type-desc">Queue challengers</div>
+            </button>
           </div>
+        </div>
+        
+        <!-- Creator Room Settings -->
+        <div id="forum-creator-settings" class="form-group" style="display: none;">
+          <label class="form-label">Creator Room Settings</label>
+          <div style="background: var(--rose); padding: var(--space-md); border-radius: var(--radius-lg);">
+            <div style="margin-bottom: var(--space-sm);">
+              <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Time per Challenger (optional)</label>
+              <select id="forum-challenger-time-limit" class="form-input" style="padding: 8px;">
+                <option value="">No limit</option>
+                <option value="60">1 minute</option>
+                <option value="120">2 minutes</option>
+                <option value="180">3 minutes</option>
+                <option value="300">5 minutes</option>
+                <option value="600">10 minutes</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Max Queue Size (optional)</label>
+              <select id="forum-max-queue-size" class="form-input" style="padding: 8px;">
+                <option value="">Unlimited</option>
+                <option value="5">5 people</option>
+                <option value="10">10 people</option>
+                <option value="25">25 people</option>
+                <option value="50">50 people</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Creator Room Partner Warning -->
+        <div id="forum-creator-warning" class="plan-warning red" style="display:none;">
+          <div class="plan-warning-header">
+            <span>⭐</span>
+            <span class="plan-warning-title">Creator Rooms require Partner status</span>
+          </div>
+          <p style="font-size: 0.75rem; margin-top: 4px; opacity: 0.9;">Apply to become a Creator Partner to unlock Creator Rooms.</p>
+          <a href="/affiliate.html#partner-section" style="color: var(--gold);">Apply Now →</a>
         </div>
         
         <div class="form-group">
@@ -592,6 +642,17 @@
         <div class="form-group">
           <label class="form-label">Description (optional)</label>
           <input type="text" class="form-input" id="roomDescription" placeholder="Brief description..." maxlength="500">
+        </div>
+        
+        <!-- Cover Image (optional) -->
+        <div class="form-group">
+          <label class="form-label">Cover Image / GIF (optional)</label>
+          <div id="forum-cover-upload" class="cover-upload" onclick="document.getElementById('forum-cover-input').click()" ondragover="event.preventDefault(); this.classList.add('dragover');" ondragleave="this.classList.remove('dragover');" ondrop="handleForumCoverDrop(event)">
+            <p>📷 Click or drag to upload</p>
+            <p class="form-hint">JPG, PNG, GIF • Max 5MB</p>
+          </div>
+          <input type="file" id="forum-cover-input" accept="image/*,.gif" style="display: none;" onchange="handleForumCoverUpload(event)">
+          <input type="hidden" id="roomCoverImage">
         </div>
         
         <!-- Plan Warning for Free Users -->
@@ -644,6 +705,7 @@
     let currentUser = null, supabaseClient = null, forumData = null, forumSlug = null;
     let selectedForumRoomType = 'regular'; // Default to regular chat room
     let userPlan = 'free'; // User's subscription plan
+    let isCreatorPartner = false; // Whether user is a creator partner
     const categoryIcons = { gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬', business: '💼', education: '📚', fitness: '💪', creative: '🎨', just_chatting: '💬', other: '📁' };
     
     // Plan limits configuration (matches live.html and pricing)
@@ -662,21 +724,26 @@
       const regularBtn = document.getElementById('forum-type-regular');
       const redBtn = document.getElementById('forum-type-red');
       const greenBtn = document.getElementById('forum-type-green');
+      const creatorBtn = document.getElementById('forum-type-creator');
       const greenWarning = document.getElementById('forum-green-warning');
+      const creatorWarning = document.getElementById('forum-creator-warning');
+      const creatorSettings = document.getElementById('forum-creator-settings');
       const planWarning = document.getElementById('forum-plan-warning');
       const createBtn = document.getElementById('createRoomBtn');
       
       // Reset all buttons
-      [regularBtn, redBtn, greenBtn].forEach(btn => {
+      [regularBtn, redBtn, greenBtn, creatorBtn].forEach(btn => {
         if (btn) {
-          btn.classList.remove('selected', 'regular', 'red', 'green');
+          btn.classList.remove('selected', 'regular', 'red', 'green', 'creator');
           btn.style.borderColor = '#FFB6B9';
           btn.style.borderWidth = '2px';
         }
       });
       
-      // Hide all warnings by default
+      // Hide all warnings and settings by default
       if (greenWarning) greenWarning.style.display = 'none';
+      if (creatorWarning) creatorWarning.style.display = 'none';
+      if (creatorSettings) creatorSettings.style.display = 'none';
       if (planWarning) planWarning.style.display = 'none';
       if (createBtn) {
         createBtn.disabled = false;
@@ -719,7 +786,72 @@
             createBtn.style.opacity = '0.5';
           }
         }
+      } else if (type === 'creator') {
+        // Creator room
+        if (creatorBtn) {
+          creatorBtn.classList.add('selected', 'creator');
+          creatorBtn.style.borderColor = '#FFD166';
+          creatorBtn.style.borderWidth = '3px';
+        }
+        
+        // Show creator settings
+        if (creatorSettings) creatorSettings.style.display = 'block';
+        
+        // Check if user is a creator partner
+        if (!isCreatorPartner) {
+          if (creatorWarning) creatorWarning.style.display = 'block';
+          if (createBtn) {
+            createBtn.disabled = true;
+            createBtn.style.opacity = '0.5';
+          }
+        }
       }
+    };
+    
+    // Handle cover image file upload for forum
+    window.handleForumCoverUpload = function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image too large. Max size is 5MB.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const uploadDiv = document.getElementById('forum-cover-upload');
+        uploadDiv.classList.add('has-image');
+        uploadDiv.innerHTML = `<img src="${e.target.result}" alt="Cover preview">`;
+        document.getElementById('roomCoverImage').value = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+    
+    // Handle drag and drop for forum cover
+    window.handleForumCoverDrop = function(event) {
+      event.preventDefault();
+      event.target.classList.remove('dragover');
+      
+      const file = event.dataTransfer.files[0];
+      if (!file || !file.type.startsWith('image/')) {
+        alert('Please drop an image file');
+        return;
+      }
+      
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image too large. Max size is 5MB.');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const uploadDiv = document.getElementById('forum-cover-upload');
+        uploadDiv.classList.add('has-image');
+        uploadDiv.innerHTML = `<img src="${e.target.result}" alt="Cover preview">`;
+        document.getElementById('roomCoverImage').value = e.target.result;
+      };
+      reader.readAsDataURL(file);
     };
     
     // Parse slug from URL - handles /f/slug and /forum.html?slug=xxx
@@ -2247,6 +2379,14 @@
       selectedForumRoomType = 'regular';
       selectForumRoomType('regular');
       
+      // Reset cover upload
+      const coverUpload = document.getElementById('forum-cover-upload');
+      if (coverUpload) {
+        coverUpload.classList.remove('has-image');
+        coverUpload.innerHTML = `<p>📷 Click or drag to upload</p><p class="form-hint">JPG, PNG, GIF • Max 5MB</p>`;
+      }
+      document.getElementById('roomCoverImage').value = '';
+      
       // selectForumRoomType already handles hiding warnings for regular chat
       // and enabling the create button
       
@@ -2264,6 +2404,7 @@
       
       const title = document.getElementById('roomTitle').value.trim();
       const description = document.getElementById('roomDescription').value.trim();
+      const coverImageUrl = document.getElementById('roomCoverImage')?.value.trim() || null;
       const btn = document.getElementById('createRoomBtn');
       
       if (!title) {
@@ -2280,19 +2421,42 @@
         return;
       }
       
+      // Check if Creator Room is allowed
+      if (selectedForumRoomType === 'creator' && !isCreatorPartner) {
+        alert('Creator Rooms require Creator Partner status.\n\nApply to become a Creator Partner at:\nhttps://sphere.chatspheres.com/affiliate.html#partner-section');
+        return;
+      }
+      
       btn.disabled = true;
       btn.textContent = 'Creating...';
       
+      // Get creator room settings if applicable
+      let challengerTimeLimit = null;
+      let maxQueueSize = null;
+      
+      if (selectedForumRoomType === 'creator') {
+        const timeLimitSelect = document.getElementById('forum-challenger-time-limit');
+        const queueSizeSelect = document.getElementById('forum-max-queue-size');
+        
+        if (timeLimitSelect && timeLimitSelect.value) {
+          challengerTimeLimit = parseInt(timeLimitSelect.value);
+        }
+        if (queueSizeSelect && queueSizeSelect.value) {
+          maxQueueSize = parseInt(queueSizeSelect.value);
+        }
+      }
+      
       // Determine the underlying room type for active_rooms
-      // Database only supports 'red' and 'green' - use 'green' for both regular chat and help
-      // We'll distinguish them via URL parameter (forumRoomType)
+      // Database supports 'red', 'green', 'creator'
       let activeRoomType = 'green'; // default for regular forum chat and help
       if (selectedForumRoomType === 'red') activeRoomType = 'red';
+      else if (selectedForumRoomType === 'creator') activeRoomType = 'creator';
       
-      // Determine forum_rooms type: 'live' for regular, 'debate' for red, 'help' for green
+      // Determine forum_rooms type: 'live' for regular, 'debate' for red, 'help' for green, 'creator' for creator
       let forumRoomType = 'live';
       if (selectedForumRoomType === 'red') forumRoomType = 'debate';
       else if (selectedForumRoomType === 'green') forumRoomType = 'help';
+      else if (selectedForumRoomType === 'creator') forumRoomType = 'creator';
       
       try {
         // Generate a unique room ID
@@ -2308,11 +2472,16 @@
             roomId: roomId,
             hostId: currentUser.id,
             hostName: userName,
-            roomType: activeRoomType, // Use underlying room type (green for regular/help, red for debate)
+            roomType: activeRoomType, // Use underlying room type (green for regular/help, red for debate, creator)
             topic: title,
             description: description,
+            coverImageUrl: coverImageUrl,
             isPublic: forumData.forumType !== 'private',
-            durationMinutes: planLimits.durationMinutes // Apply plan limit
+            durationMinutes: planLimits.durationMinutes, // Apply plan limit
+            // Creator room specific
+            isCreatorRoom: selectedForumRoomType === 'creator',
+            challengerTimeLimit: challengerTimeLimit,
+            maxQueueSize: maxQueueSize,
           })
         });
         
@@ -2452,9 +2621,18 @@
             console.log('ℹ️ No active subscription, using free plan');
           }
         }
+        
+        // Check creator partner status
+        const partnerRes = await fetch(`/.netlify/functions/partner-program?userId=${userId}`);
+        if (partnerRes.ok) {
+          const partnerData = await partnerRes.json();
+          isCreatorPartner = partnerData.isPartner === true;
+          console.log('⭐ Creator Partner status:', isCreatorPartner);
+        }
       } catch (e) {
         userPlan = 'free';
-        console.log('ℹ️ Could not fetch plan, defaulting to free');
+        isCreatorPartner = false;
+        console.log('ℹ️ Could not fetch plan/partner status, defaulting to free');
       }
     }
 

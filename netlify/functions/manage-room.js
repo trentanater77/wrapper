@@ -116,21 +116,25 @@ exports.handler = async function(event) {
       console.log('🧹 Cleanup 1 (past ends_at):', cleanup1.error ? cleanup1.error.message : 'OK');
       
       // Cleanup 2: Mark old rooms without ends_at as ended (> 1 hour old)
+      // EXCLUDE Creator rooms - they only end when host ends them
       const cleanup2 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .is('ends_at', null)
+        .neq('room_type', 'creator')
         .lt('started_at', oneHourAgo);
-      console.log('🧹 Cleanup 2 (null ends_at, > 1hr):', cleanup2.error ? cleanup2.error.message : 'OK');
+      console.log('🧹 Cleanup 2 (null ends_at, > 1hr, non-creator):', cleanup2.error ? cleanup2.error.message : 'OK');
       
       // Cleanup 3: Mark any room started > 3 hours ago as ended (safety net)
+      // EXCLUDE Creator rooms - they can run indefinitely
       const cleanup3 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
+        .neq('room_type', 'creator')
         .lt('started_at', threeHoursAgo);
-      console.log('🧹 Cleanup 3 (> 3hrs old):', cleanup3.error ? cleanup3.error.message : 'OK');
+      console.log('🧹 Cleanup 3 (> 3hrs old, non-creator):', cleanup3.error ? cleanup3.error.message : 'OK');
       
       // Cleanup 4: Also mark 'voting' rooms older than 1 hour as ended
       const cleanup4 = await supabase
@@ -142,13 +146,15 @@ exports.handler = async function(event) {
       
       // Cleanup 5: CRITICAL - Mark rooms with 0 participants that are > 15 minutes old
       // These are abandoned rooms where everyone left
+      // EXCLUDE Creator rooms - they have a longer grace period
       const cleanup5 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .eq('participant_count', 0)
+        .neq('room_type', 'creator')
         .lt('started_at', fifteenMinutesAgo);
-      console.log('🧹 Cleanup 5 (0 participants, > 15min):', cleanup5.error ? cleanup5.error.message : 'OK');
+      console.log('🧹 Cleanup 5 (0 participants, > 15min, non-creator):', cleanup5.error ? cleanup5.error.message : 'OK');
       
       // Cleanup 6: Mark rooms with only spectators (0 participants) older than 5 minutes
       // A debate can't happen without debaters
@@ -163,14 +169,28 @@ exports.handler = async function(event) {
       
       // Cleanup 7: Mark any room with 0 participants older than 2 hours as ended
       // These are definitely abandoned rooms
+      // EXCLUDE Creator rooms - they have a much longer grace period
       const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
       const cleanup7 = await supabase
         .from('active_rooms')
         .update({ status: 'ended', ended_at: now })
         .eq('status', 'live')
         .eq('participant_count', 0)
+        .neq('room_type', 'creator')
         .lt('started_at', twoHoursAgo);
-      console.log('🧹 Cleanup 7 (0 participants, > 2hr):', cleanup7.error ? cleanup7.error.message : 'OK');
+      console.log('🧹 Cleanup 7 (0 participants, > 2hr, non-creator):', cleanup7.error ? cleanup7.error.message : 'OK');
+      
+      // Cleanup 8: Creator rooms only - end if empty for 30+ minutes
+      // Creator rooms end when host leaves, but this catches abandoned rooms
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const cleanup8 = await supabase
+        .from('active_rooms')
+        .update({ status: 'ended', ended_at: now })
+        .eq('status', 'live')
+        .eq('room_type', 'creator')
+        .eq('participant_count', 0)
+        .lt('started_at', thirtyMinutesAgo);
+      console.log('🧹 Cleanup 8 (creator room, 0 participants, > 30min):', cleanup8.error ? cleanup8.error.message : 'OK');
       
       console.log('🧹 Expired room cleanup completed');
       
@@ -305,8 +325,12 @@ exports.handler = async function(event) {
       case 'create': {
         const { 
           roomId, hostId, hostName, hostAvatar,
-          roomType, topic, description, isPublic,
-          durationMinutes 
+          roomType, topic, description, coverImageUrl, isPublic,
+          durationMinutes,
+          // Creator room specific fields
+          isCreatorRoom,
+          challengerTimeLimit,
+          maxQueueSize,
         } = body;
 
         if (!roomId || !hostId) {
@@ -379,8 +403,19 @@ exports.handler = async function(event) {
         }
 
         const duration = durationMinutes || 60;
-        const endsAt = new Date(Date.now() + duration * 60 * 1000);
         const inviteCode = generateInviteCode();
+
+        // Determine if this is a creator room
+        const effectiveRoomType = roomType || 'red';
+        const effectiveIsCreatorRoom = isCreatorRoom || effectiveRoomType === 'creator';
+
+        // Creator rooms don't have an ends_at - they only end when host ends them
+        // Other rooms expire after their duration
+        let endsAt = null;
+        if (!effectiveIsCreatorRoom) {
+          endsAt = new Date(Date.now() + duration * 60 * 1000).toISOString();
+        }
+        console.log(`📅 Room ends_at: ${endsAt || 'null (creator room - no auto-end)'}`);
 
         const { data, error } = await supabase
           .from('active_rooms')
@@ -389,23 +424,84 @@ exports.handler = async function(event) {
             host_id: hostId,
             host_name: hostName || 'Host',
             host_avatar: hostAvatar,
-            room_type: roomType || 'red',
+            room_type: effectiveRoomType,
             topic: topic,
             description: description,
+            cover_image_url: coverImageUrl || null,
             is_public: isPublic !== false,
             participant_count: 1,
             spectator_count: 0,
             pot_amount: 0,
             status: 'live',
             started_at: new Date().toISOString(),
-            ends_at: endsAt.toISOString(),
+            ends_at: endsAt,
             invite_code: inviteCode,
+            // Creator room specific fields
+            is_creator_room: effectiveIsCreatorRoom,
+            challenger_time_limit: effectiveIsCreatorRoom ? (challengerTimeLimit || null) : null,
+            max_queue_size: effectiveIsCreatorRoom ? (maxQueueSize || null) : null,
+            current_challenger_id: null,
+            current_challenger_name: null,
+            current_challenger_started_at: null,
           }, { onConflict: 'room_id' })
           .select()
           .single();
 
-        // Handle table not existing yet (migration not run)
+        // Handle database errors gracefully
         if (error) {
+          console.log(`⚠️ Database error: ${error.code} - ${error.message}`);
+          
+          // Check if it's a missing column error (cover_image_url not migrated yet)
+          if (error.code === '42703' || error.message?.includes('column') || error.message?.includes('cover_image_url')) {
+            console.log(`⚠️ Missing column - trying without cover_image_url`);
+            
+            // Retry without cover_image_url
+            const { data: retryData, error: retryError } = await supabase
+              .from('active_rooms')
+              .upsert({
+                room_id: roomId,
+                host_id: hostId,
+                host_name: hostName || 'Host',
+                host_avatar: hostAvatar,
+                room_type: effectiveRoomType,
+                topic: topic,
+                description: description,
+                is_public: isPublic !== false,
+                participant_count: 1,
+                spectator_count: 0,
+                pot_amount: 0,
+                status: 'live',
+                started_at: new Date().toISOString(),
+                ends_at: endsAt,
+                invite_code: inviteCode,
+                is_creator_room: effectiveIsCreatorRoom,
+                challenger_time_limit: effectiveIsCreatorRoom ? (challengerTimeLimit || null) : null,
+                max_queue_size: effectiveIsCreatorRoom ? (maxQueueSize || null) : null,
+                current_challenger_id: null,
+                current_challenger_name: null,
+                current_challenger_started_at: null,
+              }, { onConflict: 'room_id' })
+              .select()
+              .single();
+            
+            if (!retryError) {
+              console.log(`🏠 Room created (without cover): ${roomId}`);
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                  success: true,
+                  room: retryData,
+                  inviteCode,
+                  inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${inviteCode}`,
+                  warning: 'Cover image not saved - run migration to enable'
+                }),
+              };
+            }
+            // If retry also failed, continue to other error handling
+            error = retryError;
+          }
+          
           if (error.code === '42P01' || error.message?.includes('does not exist')) {
             console.log(`⚠️ active_rooms table not found - room will work via Firebase only`);
             // Still return success - room can work without DB entry
@@ -414,7 +510,12 @@ exports.handler = async function(event) {
               headers,
               body: JSON.stringify({
                 success: true,
-                room: { room_id: roomId, room_type: roomType || 'red', topic },
+                room: { 
+                  room_id: roomId, 
+                  room_type: effectiveRoomType, 
+                  topic,
+                  is_creator_room: effectiveIsCreatorRoom,
+                },
                 inviteCode,
                 inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${inviteCode}`,
                 warning: 'Room created but not saved to database (migration pending)'
@@ -424,7 +525,7 @@ exports.handler = async function(event) {
           throw error;
         }
 
-        console.log(`🏠 Room created: ${roomId} (${roomType || 'red'})`);
+        console.log(`🏠 Room created: ${roomId} (${effectiveRoomType}${effectiveIsCreatorRoom ? ' - Creator Room' : ''})`);
 
         return {
           statusCode: 200,

@@ -447,8 +447,61 @@ exports.handler = async function(event) {
           .select()
           .single();
 
-        // Handle table not existing yet (migration not run)
+        // Handle database errors gracefully
         if (error) {
+          console.log(`⚠️ Database error: ${error.code} - ${error.message}`);
+          
+          // Check if it's a missing column error (cover_image_url not migrated yet)
+          if (error.code === '42703' || error.message?.includes('column') || error.message?.includes('cover_image_url')) {
+            console.log(`⚠️ Missing column - trying without cover_image_url`);
+            
+            // Retry without cover_image_url
+            const { data: retryData, error: retryError } = await supabase
+              .from('active_rooms')
+              .upsert({
+                room_id: roomId,
+                host_id: hostId,
+                host_name: hostName || 'Host',
+                host_avatar: hostAvatar,
+                room_type: effectiveRoomType,
+                topic: topic,
+                description: description,
+                is_public: isPublic !== false,
+                participant_count: 1,
+                spectator_count: 0,
+                pot_amount: 0,
+                status: 'live',
+                started_at: new Date().toISOString(),
+                ends_at: endsAt,
+                invite_code: inviteCode,
+                is_creator_room: effectiveIsCreatorRoom,
+                challenger_time_limit: effectiveIsCreatorRoom ? (challengerTimeLimit || null) : null,
+                max_queue_size: effectiveIsCreatorRoom ? (maxQueueSize || null) : null,
+                current_challenger_id: null,
+                current_challenger_name: null,
+                current_challenger_started_at: null,
+              }, { onConflict: 'room_id' })
+              .select()
+              .single();
+            
+            if (!retryError) {
+              console.log(`🏠 Room created (without cover): ${roomId}`);
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                  success: true,
+                  room: retryData,
+                  inviteCode,
+                  inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${inviteCode}`,
+                  warning: 'Cover image not saved - run migration to enable'
+                }),
+              };
+            }
+            // If retry also failed, continue to other error handling
+            error = retryError;
+          }
+          
           if (error.code === '42P01' || error.message?.includes('does not exist')) {
             console.log(`⚠️ active_rooms table not found - room will work via Firebase only`);
             // Still return success - room can work without DB entry

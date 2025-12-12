@@ -137,6 +137,25 @@ exports.handler = async function(event) {
       };
     }
 
+    // Check KYC verification status
+    const { data: kycStatus } = await supabase
+      .from('kyc_verifications')
+      .select('status')
+      .eq('user_id', userId)
+      .single();
+
+    if (!kycStatus || kycStatus.status !== 'verified') {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Identity verification required',
+          code: 'KYC_REQUIRED',
+          message: 'Please complete identity verification before requesting a payout.'
+        }),
+      };
+    }
+
     const usdAmount = gemsToUsd(requestedGems);
 
     // Create payout request

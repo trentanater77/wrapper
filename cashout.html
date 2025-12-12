@@ -441,6 +441,22 @@
               </div>
             </div>
             
+            <!-- KYC Required Notice -->
+            <div id="kyc-notice" class="info-box warning hidden">
+              <p style="font-weight: 700;">🆔 Identity Verification Required</p>
+              <p style="font-size: 0.875rem; margin-top: 0.5rem;">Before you can cash out, we need to verify your identity. This is required by financial regulations.</p>
+              <button id="kyc-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startKycVerification()">
+                ✓ Verify My Identity
+              </button>
+              <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-sm);">Takes ~2 minutes. You'll need a government-issued ID.</p>
+            </div>
+            
+            <!-- KYC Verified Badge -->
+            <div id="kyc-verified" class="info-box success hidden">
+              <p style="font-weight: 700;">✅ Identity Verified</p>
+              <p style="font-size: 0.875rem;">You're approved for payouts!</p>
+            </div>
+            
             <!-- Pending Notice -->
             <div id="pending-notice" class="info-box warning hidden">
               <p style="font-weight: 700;">⏳ Payout Pending</p>
@@ -546,6 +562,7 @@
     let currentUser = null;
     let supabaseClient = null;
     let payoutData = null;
+    let kycVerified = false;
     
     document.addEventListener('DOMContentLoaded', async () => {
       // Wait a bit for config to load
@@ -615,6 +632,7 @@
           updateNavForUser(currentUser);
           document.getElementById('signin-required').classList.add('hidden');
           document.getElementById('main-content').classList.remove('hidden');
+          await checkKycStatus();
           await loadPayoutData();
         } else {
           showSignInRequired();
@@ -655,6 +673,88 @@
       if (headerGemBadge) headerGemBadge.style.display = 'none';
     }
     
+    // Check KYC verification status
+    async function checkKycStatus() {
+      try {
+        // Check URL params for KYC completion
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('kyc') === 'complete') {
+          // Clear the URL param
+          window.history.replaceState({}, document.title, '/cashout.html');
+          showMessage('✅ Verification submitted! We\'ll update your status shortly.', 'success');
+        }
+        
+        const response = await fetch(`/.netlify/functions/get-kyc-status?userId=${currentUser.id}`);
+        const data = await response.json();
+        
+        kycVerified = data.verified;
+        
+        if (kycVerified) {
+          document.getElementById('kyc-verified').classList.remove('hidden');
+          document.getElementById('kyc-notice').classList.add('hidden');
+        } else if (data.status === 'pending') {
+          document.getElementById('kyc-notice').classList.remove('hidden');
+          document.getElementById('kyc-notice').innerHTML = `
+            <p style="font-weight: 700;">⏳ Verification In Progress</p>
+            <p style="font-size: 0.875rem; margin-top: 0.5rem;">We're reviewing your documents. This usually takes a few minutes.</p>
+            <button class="btn btn-ghost" style="margin-top: var(--space-md);" onclick="location.reload()">
+              🔄 Refresh Status
+            </button>
+          `;
+          document.getElementById('kyc-verified').classList.add('hidden');
+        } else {
+          document.getElementById('kyc-notice').classList.remove('hidden');
+          document.getElementById('kyc-verified').classList.add('hidden');
+        }
+      } catch (error) {
+        console.error('Error checking KYC status:', error);
+        // Default to showing KYC notice if check fails
+        document.getElementById('kyc-notice').classList.remove('hidden');
+      }
+    }
+    
+    // Start KYC verification
+    async function startKycVerification() {
+      const btn = document.getElementById('kyc-btn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Loading...';
+      
+      try {
+        const response = await fetch('/.netlify/functions/create-kyc-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: currentUser.id,
+            userEmail: currentUser.email,
+            returnUrl: `${window.location.origin}/cashout.html?kyc=complete`
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.alreadyVerified) {
+          kycVerified = true;
+          document.getElementById('kyc-verified').classList.remove('hidden');
+          document.getElementById('kyc-notice').classList.add('hidden');
+          showMessage('✅ ' + data.message, 'success');
+          return;
+        }
+        
+        if (data.url) {
+          // Redirect to Stripe Identity verification
+          window.location.href = data.url;
+        } else {
+          throw new Error(data.error || 'Failed to start verification');
+        }
+      } catch (error) {
+        console.error('KYC error:', error);
+        showMessage('❌ ' + error.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '✓ Verify My Identity';
+      }
+    }
+    window.startKycVerification = startKycVerification;
+
     async function loadPayoutData() {
       try {
         const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUser.id}`);
@@ -713,6 +813,9 @@
           document.getElementById('pending-notice').classList.remove('hidden');
           document.getElementById('pending-amount').textContent = 
             `${pending.gems_amount.toLocaleString()} gems ($${parseFloat(pending.usd_amount).toFixed(2)})`;
+          document.getElementById('payout-form').classList.add('hidden');
+        } else if (!kycVerified) {
+          // KYC not verified - show notice, hide form
           document.getElementById('payout-form').classList.add('hidden');
         } else if (payoutData.canRequestPayout) {
           document.getElementById('pending-notice').classList.add('hidden');
@@ -855,7 +958,11 @@
           await loadPayoutData();
         } else {
           // Handle specific error cases from backend
-          if (data.error?.includes('Insufficient')) {
+          if (data.code === 'KYC_REQUIRED') {
+            showMessage('🆔 Please verify your identity first before cashing out.', 'error');
+            document.getElementById('kyc-notice').classList.remove('hidden');
+            document.getElementById('payout-form').classList.add('hidden');
+          } else if (data.error?.includes('Insufficient')) {
             showMessage(`❌ Insufficient gems! You requested ${data.requested?.toLocaleString() || gemsAmount.toLocaleString()} but only have ${data.available?.toLocaleString() || maxGems.toLocaleString()} cashable gems.`, 'error');
           } else {
             throw new Error(data.error || 'Failed to request payout');

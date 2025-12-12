@@ -39,6 +39,9 @@ const RELEVANT_EVENTS = [
   'customer.subscription.deleted',
   'invoice.payment_succeeded',
   'invoice.payment_failed',
+  // Identity verification events
+  'identity.verification_session.verified',
+  'identity.verification_session.requires_input',
 ];
 
 exports.handler = async function(event) {
@@ -103,6 +106,14 @@ exports.handler = async function(event) {
 
         case 'invoice.payment_failed':
           await handlePaymentFailed(stripeEvent.data.object);
+          break;
+
+        case 'identity.verification_session.verified':
+          await handleIdentityVerified(stripeEvent.data.object);
+          break;
+
+        case 'identity.verification_session.requires_input':
+          await handleIdentityRequiresInput(stripeEvent.data.object);
           break;
       }
 
@@ -548,4 +559,85 @@ async function vestReferralGemsOnPurchase(purchasingUserId, purchaseType) {
     console.error('Error in vestReferralGemsOnPurchase:', error);
     // Don't throw - vesting failure shouldn't block the purchase
   }
+}
+
+/**
+ * Handle identity verification completed (KYC)
+ */
+async function handleIdentityVerified(verificationSession) {
+  const userId = verificationSession.metadata?.user_id;
+  const sessionId = verificationSession.id;
+
+  if (!userId) {
+    console.error('❌ No user_id in verification session metadata');
+    return;
+  }
+
+  console.log(`🆔 Identity verified for user ${userId}`);
+
+  // Get verified data from the session
+  const verifiedOutputs = verificationSession.verified_outputs || {};
+  const firstName = verifiedOutputs.first_name || null;
+  const lastName = verifiedOutputs.last_name || null;
+  const dob = verifiedOutputs.dob ? 
+    `${verifiedOutputs.dob.year}-${String(verifiedOutputs.dob.month).padStart(2, '0')}-${String(verifiedOutputs.dob.day).padStart(2, '0')}` : null;
+  const documentType = verifiedOutputs.document?.type || null;
+
+  // Update KYC verification record
+  const { error: kycError } = await supabase
+    .from('kyc_verifications')
+    .upsert({
+      user_id: userId,
+      stripe_verification_id: sessionId,
+      status: 'verified',
+      verified_at: new Date().toISOString(),
+      first_name: firstName,
+      last_name: lastName,
+      date_of_birth: dob,
+      document_type: documentType,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id'
+    });
+
+  if (kycError) {
+    console.error('❌ Error updating KYC verification:', kycError);
+    throw kycError;
+  }
+
+  // Update gem_balances to mark as KYC verified for quick checks
+  await supabase
+    .from('gem_balances')
+    .update({ kyc_verified: true })
+    .eq('user_id', userId);
+
+  console.log(`✅ KYC verification complete for user ${userId}`);
+}
+
+/**
+ * Handle identity verification requiring more input (failed/needs retry)
+ */
+async function handleIdentityRequiresInput(verificationSession) {
+  const userId = verificationSession.metadata?.user_id;
+  const sessionId = verificationSession.id;
+
+  if (!userId) {
+    console.error('❌ No user_id in verification session metadata');
+    return;
+  }
+
+  const lastError = verificationSession.last_error;
+  console.log(`⚠️ Identity verification requires input for user ${userId}: ${lastError?.reason || 'unknown'}`);
+
+  // Update status to show user needs to retry
+  await supabase
+    .from('kyc_verifications')
+    .upsert({
+      user_id: userId,
+      stripe_verification_id: sessionId,
+      status: lastError ? 'failed' : 'pending',
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'user_id'
+    });
 }

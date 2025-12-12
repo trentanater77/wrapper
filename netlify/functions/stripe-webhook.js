@@ -43,6 +43,9 @@ const RELEVANT_EVENTS = [
   'identity.verification_session.verified',
   'identity.verification_session.requires_input',
   'identity.verification_session.canceled',
+  // Connect account events
+  'account.updated',
+  'account.application.deauthorized',
 ];
 
 exports.handler = async function(event) {
@@ -119,6 +122,14 @@ exports.handler = async function(event) {
 
         case 'identity.verification_session.canceled':
           await handleIdentityCanceled(stripeEvent.data.object);
+          break;
+
+        case 'account.updated':
+          await handleConnectAccountUpdated(stripeEvent.data.object);
+          break;
+
+        case 'account.application.deauthorized':
+          await handleConnectAccountDeauthorized(stripeEvent.data.object);
           break;
       }
 
@@ -673,4 +684,107 @@ async function handleIdentityCanceled(verificationSession) {
     });
   
   console.log(`🔄 User ${userId} KYC reset to unverified - can start fresh`);
+}
+
+/**
+ * Handle Stripe Connect account updates
+ * Updates the user's Connect status when Stripe sends account.updated events
+ */
+async function handleConnectAccountUpdated(account) {
+  const accountId = account.id;
+  const userId = account.metadata?.user_id;
+
+  console.log(`🔄 Connect account updated: ${accountId}`);
+
+  // Find user by Stripe account ID if not in metadata
+  let targetUserId = userId;
+  if (!targetUserId) {
+    const { data: userBalance } = await supabase
+      .from('gem_balances')
+      .select('user_id')
+      .eq('stripe_account_id', accountId)
+      .single();
+    
+    targetUserId = userBalance?.user_id;
+  }
+
+  if (!targetUserId) {
+    console.log(`⚠️ No user found for Connect account ${accountId}`);
+    return;
+  }
+
+  // Determine status
+  const chargesEnabled = account.charges_enabled || false;
+  const payoutsEnabled = account.payouts_enabled || false;
+  const detailsSubmitted = account.details_submitted || false;
+  
+  let status = 'pending';
+  let onboardingComplete = false;
+  
+  if (chargesEnabled && payoutsEnabled) {
+    status = 'active';
+    onboardingComplete = true;
+  } else if (account.requirements?.disabled_reason) {
+    status = 'restricted';
+  } else if (detailsSubmitted) {
+    status = 'pending';
+  }
+
+  // Update database
+  const { error } = await supabase
+    .from('gem_balances')
+    .update({
+      stripe_account_status: status,
+      stripe_onboarding_complete: onboardingComplete,
+      stripe_charges_enabled: chargesEnabled,
+      stripe_payouts_enabled: payoutsEnabled,
+      stripe_connected_at: onboardingComplete ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', targetUserId);
+
+  if (error) {
+    console.error('❌ Error updating Connect status:', error);
+    return;
+  }
+
+  console.log(`✅ Connect status updated for user ${targetUserId}: ${status} (payouts: ${payoutsEnabled})`);
+}
+
+/**
+ * Handle Stripe Connect account deauthorization
+ * User disconnected their Stripe account from the platform
+ */
+async function handleConnectAccountDeauthorized(account) {
+  const accountId = account.id;
+
+  console.log(`🚫 Connect account deauthorized: ${accountId}`);
+
+  // Find and update user
+  const { data: userBalance } = await supabase
+    .from('gem_balances')
+    .select('user_id')
+    .eq('stripe_account_id', accountId)
+    .single();
+
+  if (!userBalance) {
+    console.log(`⚠️ No user found for deauthorized account ${accountId}`);
+    return;
+  }
+
+  // Reset Connect status
+  await supabase
+    .from('gem_balances')
+    .update({
+      stripe_account_id: null,
+      stripe_account_status: 'not_connected',
+      stripe_onboarding_complete: false,
+      stripe_charges_enabled: false,
+      stripe_payouts_enabled: false,
+      stripe_connected_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userBalance.user_id);
+
+  console.log(`✅ Connect status reset for user ${userBalance.user_id}`);
 }

@@ -4,6 +4,9 @@
  * Request Payout
  * 
  * Allows hosts to request a payout of their cashable gems.
+ * Uses Stripe Connect for automatic payouts if connected.
+ * Falls back to manual PayPal/Venmo if not connected.
+ * 
  * Minimum payout: 500 gems ($4.95)
  * Conversion rate: 100 gems = $0.99
  * 
@@ -11,8 +14,10 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const Stripe = require('stripe');
 const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
 
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
@@ -25,6 +30,20 @@ const MIN_PAYOUT_GEMS = 500; // Minimum 500 gems = $4.95
 
 function gemsToUsd(gems) {
   return Math.round((gems / GEMS_PER_DOLLAR_UNIT) * DOLLAR_RATE * 100) / 100;
+}
+
+/**
+ * Check if user is a creator partner (gets 100% of tips)
+ */
+async function isCreatorPartner(userId) {
+  const { data } = await supabase
+    .from('creator_partners')
+    .select('status, tip_share_percent')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+  
+  return data ? { isPartner: true, tipSharePercent: data.tip_share_percent || 100 } : { isPartner: false, tipSharePercent: 80 };
 }
 
 const headers = {
@@ -137,37 +156,55 @@ exports.handler = async function(event) {
       };
     }
 
-    // Check KYC verification status
-    const { data: kycStatus } = await supabase
-      .from('kyc_verifications')
-      .select('status')
+    const usdAmount = gemsToUsd(requestedGems);
+    const usdAmountCents = Math.round(usdAmount * 100); // Stripe uses cents
+
+    // Get user's Stripe Connect status and KYC status
+    const { data: balanceData } = await supabase
+      .from('gem_balances')
+      .select('stripe_account_id, stripe_payouts_enabled, kyc_verified')
       .eq('user_id', userId)
       .single();
 
-    if (!kycStatus || kycStatus.status !== 'verified') {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ 
-          error: 'Identity verification required',
-          code: 'KYC_REQUIRED',
-          message: 'Please complete identity verification before requesting a payout.'
-        }),
-      };
+    const hasStripeConnect = balanceData?.stripe_account_id && balanceData?.stripe_payouts_enabled;
+    
+    // If using Stripe Connect, KYC is handled by Stripe
+    // If using manual payout, require our KYC
+    if (!hasStripeConnect) {
+      const { data: kycStatus } = await supabase
+        .from('kyc_verifications')
+        .select('status')
+        .eq('user_id', userId)
+        .single();
+
+      if (!kycStatus || kycStatus.status !== 'verified') {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ 
+            error: 'Identity verification required',
+            code: 'KYC_REQUIRED',
+            message: 'Please complete identity verification or connect your Stripe account before requesting a payout.'
+          }),
+        };
+      }
     }
 
-    const usdAmount = gemsToUsd(requestedGems);
+    // Determine payout method
+    const useStripeConnect = hasStripeConnect && !payoutMethod; // Default to Connect if available
+    const effectivePayoutMethod = useStripeConnect ? 'stripe_connect' : (payoutMethod || 'paypal');
 
-    // Create payout request
+    // Create payout request record first
     const { data: payoutRequest, error: insertError } = await supabase
       .from('payout_requests')
       .insert({
         user_id: userId,
         gems_amount: requestedGems,
         usd_amount: usdAmount,
-        payout_method: payoutMethod || 'paypal',
-        payout_email: payoutEmail,
-        status: 'pending'
+        payout_method: effectivePayoutMethod,
+        payout_email: useStripeConnect ? null : payoutEmail,
+        status: useStripeConnect ? 'processing' : 'pending',
+        auto_payout: useStripeConnect,
       })
       .select()
       .single();
@@ -177,18 +214,116 @@ exports.handler = async function(event) {
       throw insertError;
     }
 
-    // Deduct gems from cashable balance (hold them)
+    // Deduct gems from cashable balance
     const newCashableBalance = cashableGems - requestedGems;
     await supabase
       .from('gem_balances')
       .update({ 
         cashable_gems: newCashableBalance,
-        payout_email: payoutEmail,
-        payout_method: payoutMethod || 'paypal',
+        payout_email: payoutEmail || balanceData?.payout_email,
+        payout_method: effectivePayoutMethod,
         updated_at: new Date().toISOString()
       })
       .eq('user_id', userId);
 
+    // If using Stripe Connect, process payout automatically
+    if (useStripeConnect) {
+      try {
+        console.log(`💳 Processing Stripe Connect payout: $${usdAmount} to ${balanceData.stripe_account_id}`);
+        
+        // Create transfer to connected account
+        const transfer = await stripe.transfers.create({
+          amount: usdAmountCents,
+          currency: 'usd',
+          destination: balanceData.stripe_account_id,
+          metadata: {
+            user_id: userId,
+            payout_request_id: payoutRequest.id,
+            gems_amount: requestedGems.toString(),
+          },
+          description: `ChatSpheres payout: ${requestedGems} gems`,
+        });
+
+        console.log(`✅ Transfer created: ${transfer.id}`);
+
+        // Update payout request with transfer ID and mark as completed
+        await supabase
+          .from('payout_requests')
+          .update({
+            stripe_transfer_id: transfer.id,
+            status: 'completed',
+            processed_at: new Date().toISOString(),
+            completed_at: new Date().toISOString(),
+          })
+          .eq('id', payoutRequest.id);
+
+        // Log transaction
+        await supabase
+          .from('gem_transactions')
+          .insert({
+            user_id: userId,
+            transaction_type: 'payout_completed',
+            amount: -requestedGems,
+            wallet_type: 'cashable',
+            description: `Instant payout: ${requestedGems} gems → $${usdAmount} (Stripe Connect)`,
+            stripe_payment_id: transfer.id,
+          });
+
+        console.log(`💸 Instant payout completed: ${userId} received $${usdAmount}`);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            instant: true,
+            request: {
+              id: payoutRequest.id,
+              gemsAmount: requestedGems,
+              usdAmount,
+              payoutMethod: 'stripe_connect',
+              status: 'completed',
+              transferId: transfer.id,
+            },
+            newCashableBalance,
+            message: `🎉 Instant payout complete! $${usdAmount} has been sent to your connected bank account.`,
+          }),
+        };
+
+      } catch (stripeError) {
+        console.error('❌ Stripe Connect payout failed:', stripeError);
+        
+        // Refund gems back to user
+        await supabase
+          .from('gem_balances')
+          .update({ 
+            cashable_gems: cashableGems, // Restore original balance
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId);
+
+        // Update payout request to failed
+        await supabase
+          .from('payout_requests')
+          .update({
+            status: 'rejected',
+            admin_notes: `Stripe error: ${stripeError.message}`,
+          })
+          .eq('id', payoutRequest.id);
+
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            error: 'Payout failed',
+            message: 'There was an issue processing your payout. Your gems have been restored. Please try again or contact support.',
+            code: 'STRIPE_ERROR',
+          }),
+        };
+      }
+    }
+
+    // Manual payout (PayPal/Venmo) - existing flow
     // Log transaction
     await supabase
       .from('gem_transactions')
@@ -197,26 +332,27 @@ exports.handler = async function(event) {
         transaction_type: 'payout_request',
         amount: -requestedGems,
         wallet_type: 'cashable',
-        description: `Payout request: ${requestedGems} gems → $${usdAmount} (${payoutMethod || 'paypal'})`
+        description: `Payout request: ${requestedGems} gems → $${usdAmount} (${effectivePayoutMethod})`
       });
 
-    console.log(`💸 Payout request created: ${userId} requested ${requestedGems} gems ($${usdAmount})`);
+    console.log(`💸 Manual payout request created: ${userId} requested ${requestedGems} gems ($${usdAmount})`);
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         success: true,
+        instant: false,
         request: {
           id: payoutRequest.id,
           gemsAmount: requestedGems,
           usdAmount,
-          payoutMethod: payoutMethod || 'paypal',
+          payoutMethod: effectivePayoutMethod,
           payoutEmail,
           status: 'pending'
         },
         newCashableBalance,
-        message: `Payout request submitted! You'll receive $${usdAmount} via ${payoutMethod || 'PayPal'} within 3-5 business days.`
+        message: `Payout request submitted! You'll receive $${usdAmount} via ${effectivePayoutMethod} within 3-5 business days.`
       }),
     };
 

@@ -259,16 +259,16 @@ CREATE OR REPLACE FUNCTION get_queue_position(
     p_guest_session_id TEXT DEFAULT NULL
 )
 RETURNS TABLE (
-    position INTEGER,
+    "position" INTEGER,
     total_in_queue BIGINT,
-    status TEXT
+    queue_status TEXT
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-        rq.position,
+        rq.queue_position as "position",
         (SELECT COUNT(*) FROM room_queue WHERE room_id = p_room_id AND status = 'waiting') as total_in_queue,
-        rq.status
+        rq.status as queue_status
     FROM room_queue rq
     WHERE rq.room_id = p_room_id
       AND (

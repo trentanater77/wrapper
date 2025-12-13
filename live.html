@@ -186,9 +186,19 @@
       background: linear-gradient(135deg, #FFD166 0%, #e63946 100%);
     }
     
+    .room-tab.creator {
+      background: var(--light-rose);
+      color: var(--charcoal);
+    }
+    
+    .room-tab.creator:hover {
+      background: var(--gold);
+    }
+    
     .room-tab.active.creator {
       background: linear-gradient(135deg, #FFD166 0%, #e63946 100%);
       border-color: #FFD166;
+      color: white;
     }
     
     /* Cover Upload */
@@ -1058,7 +1068,7 @@
           <button class="room-tab green" data-type="green" onclick="filterRooms('green')">
             🟢 Help
           </button>
-          <button class="room-tab" data-type="creator" onclick="filterRooms('creator')" style="background: linear-gradient(135deg, #FFD166 0%, #e63946 100%); color: white;">
+          <button class="room-tab creator" data-type="creator" onclick="filterRooms('creator')">
             ⭐ Creator
           </button>
           <button class="room-tab forum" data-type="forum" onclick="filterRooms('forum')">
@@ -2052,6 +2062,8 @@
       document.getElementById('loading-state').classList.add('hidden');
       document.getElementById('rooms-grid').classList.add('hidden');
       
+      const emptyEl = document.getElementById('empty-state');
+      
       // Check if there are upcoming events to show
       try {
         const response = await fetch('/.netlify/functions/schedule-room?upcoming=true');
@@ -2060,7 +2072,6 @@
         
         if (upcoming.length > 0) {
           // Show upcoming events instead of empty state
-          const emptyEl = document.getElementById('empty-state');
           emptyEl.classList.remove('hidden');
           emptyEl.innerHTML = `
             <div class="empty-state-icon">📅</div>
@@ -2077,8 +2088,17 @@
         console.log('Could not check upcoming events:', e);
       }
       
-      // No upcoming events - show default empty state
-      document.getElementById('empty-state').classList.remove('hidden');
+      // No live rooms AND no upcoming events - show "Coming soon" message
+      emptyEl.classList.remove('hidden');
+      emptyEl.innerHTML = `
+        <div class="empty-state-icon">🚀</div>
+        <h2 class="empty-state-title">Coming Soon!</h2>
+        <p class="empty-state-text">No live rooms or upcoming events yet. Be the first to start a conversation!</p>
+        <button onclick="window.openCreateRoomModal()" class="btn btn-primary">🎯 Create a Room</button>
+        <div style="margin-top: 20px;">
+          <a href="/schedule-room.html" class="btn btn-secondary">📅 Schedule an Event</a>
+        </div>
+      `;
     }
     
     // ============================================

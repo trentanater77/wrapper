@@ -173,7 +173,10 @@
         <h3>🚀 Start Your Community</h3>
         <p>Create a forum and earn 10% of all tips from rooms in your community!</p>
       </div>
-      <a href="/create-forum" class="create-btn">+ Create Forum</a>
+      <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+        <a href="/create-forum" class="create-btn">+ Create Forum</a>
+        <a href="/schedule-room.html" class="create-btn" style="background: var(--gold); color: var(--charcoal);">📅 Schedule Event</a>
+      </div>
     </div>
     
     <div class="controls-row">
@@ -184,6 +187,7 @@
       <div class="filter-tabs">
         <button class="filter-tab active" data-filter="top">🔥 Top</button>
         <button class="filter-tab" data-filter="live">📺 Live</button>
+        <button class="filter-tab" data-filter="upcoming">📅 Events</button>
         <button class="filter-tab" data-filter="new">✨ New</button>
         <button class="filter-tab" data-filter="joined" id="joinedTab" style="display:none;">⭐ My Forums</button>
       </div>
@@ -340,6 +344,13 @@
       isLoading = true;
       
       const container = document.getElementById('forumsContainer');
+      
+      // Handle upcoming events filter separately
+      if (currentFilter === 'upcoming' && !isBackgroundRefresh) {
+        await loadUpcomingEvents();
+        isLoading = false;
+        return;
+      }
       
       // Only show loading on initial load, not background refresh
       if (!isBackgroundRefresh) {
@@ -584,6 +595,146 @@
 
     function formatNumber(n) { return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : n.toString(); }
     function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
+
+    // ============================================
+    // UPCOMING EVENTS FOR FORUMS
+    // ============================================
+    async function loadUpcomingEvents() {
+      const container = document.getElementById('forumsContainer');
+      container.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>Loading upcoming events...</p></div>';
+      
+      try {
+        const response = await fetch('/.netlify/functions/schedule-room?upcoming=true');
+        const data = await response.json();
+        const events = data.events || [];
+        
+        if (events.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-state-icon">📅</div>
+              <h2>No Upcoming Events</h2>
+              <p>Be the first to schedule an event!</p>
+              ${currentUser ? '<a href="/schedule-room.html" class="create-btn">📅 Schedule Event</a>' : '<a href="/login.html?redirect=/schedule-room.html" class="create-btn">Sign In to Schedule</a>'}
+            </div>
+          `;
+          return;
+        }
+        
+        const eventsHtml = events.map(event => renderEventCard(event)).join('');
+        container.innerHTML = `
+          <div class="forums-grid">${eventsHtml}</div>
+          <div style="text-align: center; margin-top: var(--space-xl); padding: var(--space-lg); background: var(--rose); border-radius: var(--radius-lg);">
+            <p style="margin-bottom: var(--space-sm);">Want to host your own event?</p>
+            <a href="/schedule-room.html" class="create-btn" style="display: inline-block;">📅 Schedule an Event</a>
+          </div>
+        `;
+      } catch (error) {
+        console.error('Error loading upcoming events:', error);
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">😕</div>
+            <h2>Could not load events</h2>
+            <p>Please try again later</p>
+          </div>
+        `;
+      }
+    }
+    
+    function renderEventCard(event) {
+      const scheduledAt = new Date(event.scheduled_at);
+      const now = new Date();
+      const diffMs = scheduledAt - now;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+      
+      let timeDisplay;
+      if (diffDays > 0) {
+        timeDisplay = `in ${diffDays} day${diffDays > 1 ? 's' : ''}`;
+      } else if (diffHours > 0) {
+        timeDisplay = `in ${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+      } else {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        timeDisplay = diffMins > 0 ? `in ${diffMins} min` : 'Starting soon!';
+      }
+      
+      const dateDisplay = scheduledAt.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+      
+      const isHost = currentUser && event.host_id === currentUser.id;
+      
+      const typeEmoji = event.room_type === 'creator' ? '⭐' : event.room_type === 'red' ? '🔴' : '🟢';
+      const typeLabel = event.room_type === 'creator' ? 'Creator' : event.room_type === 'red' ? 'Debate' : 'Help';
+      
+      return `
+        <div class="forum-card" style="cursor: pointer;" onclick="handleEventClick('${event.id}', ${isHost})">
+          <div class="forum-card-banner" style="background: linear-gradient(135deg, var(--gold) 0%, var(--main-red) 100%);">
+            ${event.cover_image_url ? `<img src="${event.cover_image_url}" loading="lazy">` : ''}
+            <div class="forum-card-icon">${typeEmoji}</div>
+          </div>
+          <div class="forum-card-body">
+            <div class="forum-card-name">
+              ${escapeHtml(event.title)}
+              <span style="font-size: 0.65rem; background: var(--gold); color: var(--charcoal); padding: 3px 8px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold);">${typeLabel}</span>
+            </div>
+            <div class="forum-card-slug">📅 ${dateDisplay} · ${timeDisplay}</div>
+            <div class="forum-card-desc">${escapeHtml(event.description || 'An upcoming event on ChatSpheres')}</div>
+            <div class="forum-card-stats">
+              <span class="forum-card-stat">👤 ${escapeHtml(event.host_name || 'Host')}</span>
+              <span class="forum-card-stat">🔔 ${event.reminderCount || 0} interested</span>
+            </div>
+            ${isHost ? `
+              <button onclick="event.stopPropagation(); goLive('${event.id}')" class="create-btn" style="width: 100%; margin-top: var(--space-sm); justify-content: center;">
+                🔴 Go Live Now
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+    
+    function handleEventClick(eventId, isHost) {
+      if (!isHost) {
+        // Redirect to live page with upcoming filter to set reminder
+        window.location.href = '/live.html?filter=upcoming';
+      }
+    }
+    window.handleEventClick = handleEventClick;
+    
+    async function goLive(eventId) {
+      if (!currentUser) {
+        alert('Please sign in to go live');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/.netlify/functions/schedule-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'go-live',
+            eventId,
+            hostId: currentUser.id,
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          window.location.href = `/index.html?room=${data.roomId}&mode=participant&roomType=creator&host=true`;
+        } else {
+          throw new Error(data.error || 'Failed to go live');
+        }
+      } catch (error) {
+        console.error('Error going live:', error);
+        alert('Failed to start event: ' + error.message);
+      }
+    }
+    window.goLive = goLive;
 
     // Auto-refresh forum list every 30 seconds to update live room counts
     // Uses background refresh to not interrupt user's scroll position

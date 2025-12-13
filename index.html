@@ -16002,9 +16002,15 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
   
   // Refresh queue state from server
+  let lastQueueLogTime = 0;
+  let queueRefreshCount = 0;
   async function refreshQueueState() {
+    queueRefreshCount++;
     const sphereId = extractSphereId(roomUrl);
-    if (!sphereId) return;
+    if (!sphereId) {
+      console.log('⚠️ Queue refresh skipped - no sphereId');
+      return;
+    }
     
     const rawUserId = window.currentUserData?.userId || userId;
     const currentUserId = getValidUuidOrNull(rawUserId);
@@ -16019,7 +16025,27 @@ function ensureSpectatorTracksForParticipant(participant) {
       }
       
       const response = await fetch(url);
+      
+      if (!response.ok) {
+        console.error('❌ Queue refresh failed:', response.status, response.statusText);
+        return;
+      }
+      
       const data = await response.json();
+      
+      // Log queue state for debugging
+      const now = Date.now();
+      // Always log first 3 refreshes, or when queue has items, or every 10 seconds
+      if (queueRefreshCount <= 3 || data.totalInQueue > 0 || data.activeChallenger || (now - lastQueueLogTime > 10000)) {
+        console.log('📋 Queue refresh #' + queueRefreshCount + ':', { 
+          roomId: sphereId,
+          total: data.totalInQueue, 
+          activeChallenger: data.activeChallenger?.name || null,
+          position: data.position,
+          queueItems: data.queue?.length || 0
+        });
+        lastQueueLogTime = now;
+      }
       
       // Update queue display
       updateQueueDisplay(data);
@@ -16077,6 +16103,16 @@ function ensureSpectatorTracksForParticipant(participant) {
     const queueList = document.getElementById('queue-list');
     const queueCount = document.getElementById('queue-count');
     
+    // Debug: Log if queue has items
+    if (data.totalInQueue > 0) {
+      console.log('🎯 Updating queue display:', { 
+        total: data.totalInQueue, 
+        queueItems: data.queue?.length,
+        hasQueueList: !!queueList,
+        hasQueueCount: !!queueCount
+      });
+    }
+    
     if (queueCount) {
       queueCount.textContent = `${data.totalInQueue} waiting`;
     }
@@ -16096,7 +16132,11 @@ function ensureSpectatorTracksForParticipant(participant) {
         if (data.queue.length > 10) {
           queueList.innerHTML += `<p class="text-yellow-200 text-xs text-center mt-1">+${data.queue.length - 10} more...</p>`;
         }
+        
+        console.log('✅ Queue display updated with', data.queue.length, 'entries');
       }
+    } else {
+      console.warn('⚠️ Queue list element not found!');
     }
   }
   

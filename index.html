@@ -7101,9 +7101,19 @@ async function initializeApp() {
       
       if (!isSpectatorParticipant) {
         // A debater left - update spectator view
+        console.log('🔄 Spectator mode: Participant left, cleaning up video slot');
         removeSpectatorParticipant(participantId);
         updateSpectatorParticipants();
         showToast(`👋 ${participantDisplayName} left the conversation`);
+        
+        // CRITICAL: Force overlay visible if no participants remain
+        const remainingCount = (spectatorParticipant1 ? 1 : 0) + (spectatorParticipant2 ? 1 : 0);
+        console.log('📊 Remaining participants after leave:', remainingCount);
+        
+        if (remainingCount === 0) {
+          console.log('📺 All participants left - showing waiting overlay');
+          forceSpectatorOverlayVisible('no-participants');
+        }
         
         // Check for auto-end if Red Room
         if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
@@ -7479,7 +7489,21 @@ async function initializeApp() {
     if (overlayText) {
       const participantCount = (spectatorParticipant1 ? 1 : 0) + (spectatorParticipant2 ? 1 : 0);
       
-      if (reason === 'camera-off' && participantCount > 0) {
+      if (reason === 'no-participants' || participantCount === 0) {
+        // All participants left - show waiting message
+        overlayText.innerHTML = `
+          <div class="w-20 h-20 mx-auto mb-4 bg-gray-500 rounded-full flex items-center justify-center shadow-lg">
+            <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <p class="font-bold text-2xl text-white mb-2">⏳ Waiting for Participants</p>
+          <p class="text-lg text-gold mt-2">The conversation will begin when someone joins!</p>
+          <div class="mt-6 px-8 py-4 bg-gray-600 rounded-full text-white text-lg font-bold">
+            🐱 Stay tuned...
+          </div>
+        `;
+      } else if (reason === 'camera-off' && participantCount > 0) {
         overlayText.innerHTML = `
           <div class="w-20 h-20 mx-auto mb-4 bg-yellow-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
             <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -9040,15 +9064,52 @@ function ensureSpectatorTracksForParticipant(participant) {
     const remoteVideo = document.getElementById('remote-video');
     const placeholder = document.getElementById('remote-placeholder');
     
-    remoteVideo.style.display = 'none';
-    placeholder.style.display = 'flex';
+    console.log('🔄 Hiding remote video, showing waiting placeholder');
+    
+    if (remoteVideo) {
+      remoteVideo.style.display = 'none';
+      remoteVideo.classList.add('hidden');
+      // Clear the srcObject to release resources
+      remoteVideo.srcObject = null;
+    }
+    
+    if (placeholder) {
+      placeholder.style.display = 'flex';
+      placeholder.classList.remove('hidden');
+      
+      // Reset placeholder to "waiting for participant" state
+      const content = placeholder.querySelector('.text-center.text-white.relative.z-10');
+      if (content) {
+        content.innerHTML = `
+          <div class="w-16 h-16 mx-auto mb-4 bg-main-red rounded-full flex items-center justify-center shadow-lg">
+            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/>
+            </svg>
+          </div>
+          <p class="font-bold text-lg text-white">Waiting for your chat partner...</p>
+          <p class="text-sm text-gold mt-1">🐱 They might be joining soon!</p>
+        `;
+      }
+    }
+    
+    // Clear stored participant info
+    otherParticipantId = null;
+    otherParticipantName = null;
   }
 
   function hideSpectatorVideo() {
-    // This function is called when screen sharing stops
-    // For the new layout, we don't need to do anything here since
-    // hideSpectatorScreenShare() handles the screen share cleanup
-    console.log('🛑 Spectator video track stopped - handled by screen share function');
+    // This function is called when a participant's video stops (leaves or camera off)
+    console.log('🛑 Spectator video hiding - checking participant state');
+    
+    // Check if we have any remaining participants
+    const remainingCount = (spectatorParticipant1 ? 1 : 0) + (spectatorParticipant2 ? 1 : 0);
+    
+    if (remainingCount === 0) {
+      console.log('📺 No participants remaining - showing waiting overlay');
+      forceSpectatorOverlayVisible('no-participants');
+    } else {
+      console.log(`📺 ${remainingCount} participant(s) still present`);
+    }
   }
 
   function hideScreenShareVideo() {
@@ -9510,27 +9571,68 @@ function ensureSpectatorTracksForParticipant(participant) {
       const localVideoEl = document.getElementById('local-video');
       const placeholder = document.getElementById('local-placeholder');
       
+      console.log('📹 Toggling camera:', { currentState: isCameraOn, desiredState });
+      
       try {
         await livekitRoom.localParticipant.setCameraEnabled(desiredState);
         isCameraOn = !!livekitRoom.localParticipant.isCameraEnabled;
+        
+        console.log('📹 Camera state after toggle:', isCameraOn);
         
         if (cameraBtn) {
           cameraBtn.classList.toggle('active', !isCameraOn);
         }
         
         if (isCameraOn) {
+          // CRITICAL: Re-attach video track when turning camera back on
+          // Wait a moment for the track to be ready
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          // Get the new camera track from LiveKit
+          const cameraPub = livekitRoom.localParticipant.getTrackPublication('camera');
+          const cameraTrack = cameraPub?.track?.mediaStreamTrack || cameraPub?.track;
+          
+          console.log('📹 Re-attaching camera track:', { 
+            hasCameraPub: !!cameraPub, 
+            hasTrack: !!cameraTrack,
+            trackState: cameraTrack?.readyState
+          });
+          
+          if (cameraTrack && localVideoEl) {
+            // Create new MediaStream with the track
+            if (cameraTrack instanceof MediaStreamTrack) {
+              localVideoEl.srcObject = new MediaStream([cameraTrack]);
+            } else if (cameraTrack.mediaStreamTrack) {
+              localVideoEl.srcObject = new MediaStream([cameraTrack.mediaStreamTrack]);
+            }
+            
+            // Ensure video is playing
+            localVideoEl.muted = true;
+            localVideoEl.play().catch(e => console.log('📹 Local video play:', e.message));
+          }
+          
           if (localVideoEl) localVideoEl.style.display = 'block';
           if (placeholder) placeholder.style.display = 'none';
           showToast('📹 Camera on');
         } else {
-          if (localVideoEl) localVideoEl.style.display = 'none';
+          if (localVideoEl) {
+            localVideoEl.style.display = 'none';
+            // Clear srcObject to fully release camera
+            localVideoEl.srcObject = null;
+          }
           if (placeholder) placeholder.style.display = 'flex';
           updateLocalPlaceholderForCameraOff();
           showToast('📷 Camera off');
         }
       } catch (error) {
         console.error('❌ Failed to toggle camera:', error);
-        showToast('❌ Camera toggle failed');
+        showToast('❌ Camera toggle failed - try refreshing');
+        
+        // Attempt recovery
+        try {
+          isCameraOn = !!livekitRoom?.localParticipant?.isCameraEnabled;
+          if (cameraBtn) cameraBtn.classList.toggle('active', !isCameraOn);
+        } catch (e) {}
       }
     }
 

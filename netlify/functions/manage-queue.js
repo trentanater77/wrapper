@@ -30,6 +30,16 @@ exports.handler = async function(event) {
     return { statusCode: 204, headers, body: '' };
   }
 
+  // Verify Supabase configuration
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+    console.error('❌ Missing Supabase configuration');
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'Server configuration error', message: 'Database not configured' }),
+    };
+  }
+
   // GET: Get queue status for a room
   if (event.httpMethod === 'GET') {
     try {
@@ -160,24 +170,41 @@ exports.handler = async function(event) {
         const { userId, userName, guestName, guestSessionId } = body;
 
         console.log('🎯 JOIN queue request:', { roomId, userId, userName, guestName, guestSessionId });
+        console.log('🎯 Full request body:', JSON.stringify(body));
 
         // Must have either userId or guestSessionId
         if (!userId && !guestSessionId) {
           console.log('❌ No user ID or guest session ID provided');
+          console.log('❌ Body received:', JSON.stringify(body));
           return {
             statusCode: 400,
             headers,
-            body: JSON.stringify({ error: 'User ID or guest session ID is required' }),
+            body: JSON.stringify({ 
+              error: 'User ID or guest session ID is required',
+              received: { userId, guestSessionId, hasBody: !!body }
+            }),
           };
         }
 
         // Check if room exists and is a creator room
-        const { data: room, error: roomError } = await supabase
-          .from('active_rooms')
-          .select('room_type, is_creator_room, max_queue_size, host_id')
-          .eq('room_id', roomId)
-          .eq('status', 'live')
-          .single();
+        let room, roomError;
+        try {
+          const result = await supabase
+            .from('active_rooms')
+            .select('room_type, is_creator_room, max_queue_size, host_id')
+            .eq('room_id', roomId)
+            .eq('status', 'live')
+            .single();
+          room = result.data;
+          roomError = result.error;
+        } catch (e) {
+          console.error('❌ Room lookup exception:', e);
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Database error during room lookup', message: e.message }),
+          };
+        }
 
         console.log('🏠 Room lookup result:', { room, roomError });
         
@@ -186,7 +213,7 @@ exports.handler = async function(event) {
           return {
             statusCode: 404,
             headers,
-            body: JSON.stringify({ error: 'Room not found or not live' }),
+            body: JSON.stringify({ error: 'Room not found or not live', details: roomError?.message }),
           };
         }
 
@@ -211,21 +238,35 @@ exports.handler = async function(event) {
         }
 
         // Check if already in queue
-        let existingQuery = supabase
-          .from('room_queue')
-          .select('*')
-          .eq('room_id', roomId)
-          .in('status', ['waiting', 'active']);
+        let existing = null;
+        try {
+          let existingQuery = supabase
+            .from('room_queue')
+            .select('*')
+            .eq('room_id', roomId)
+            .in('status', ['waiting', 'active']);
 
-        if (userId) {
-          existingQuery = existingQuery.eq('user_id', userId);
-        } else {
-          existingQuery = existingQuery.eq('guest_session_id', guestSessionId);
+          if (userId) {
+            existingQuery = existingQuery.eq('user_id', userId);
+          } else {
+            existingQuery = existingQuery.eq('guest_session_id', guestSessionId);
+          }
+
+          const { data, error: existingError } = await existingQuery.single();
+          
+          // Error code PGRST116 means no rows found, which is expected
+          if (existingError && existingError.code !== 'PGRST116') {
+            console.log('⚠️ Existing check query note:', existingError.code, existingError.message);
+          }
+          
+          existing = data;
+        } catch (e) {
+          console.error('❌ Check existing exception:', e);
+          // Continue - treat as not in queue
         }
 
-        const { data: existing } = await existingQuery.single();
-
         if (existing) {
+          console.log('✅ Already in queue:', existing);
           return {
             statusCode: 200,
             headers,
@@ -238,35 +279,53 @@ exports.handler = async function(event) {
             }),
           };
         }
+        
+        console.log('✅ Not already in queue, proceeding to join');
 
         // Check queue size limit
         if (room.max_queue_size) {
-          const { count } = await supabase
-            .from('room_queue')
-            .select('*', { count: 'exact', head: true })
-            .eq('room_id', roomId)
-            .eq('status', 'waiting');
+          try {
+            const { count, error: countError } = await supabase
+              .from('room_queue')
+              .select('*', { count: 'exact', head: true })
+              .eq('room_id', roomId)
+              .eq('status', 'waiting');
 
-          if (count >= room.max_queue_size) {
-            return {
-              statusCode: 400,
-              headers,
-              body: JSON.stringify({ error: 'Queue is full' }),
-            };
+            console.log('📊 Queue count:', count, countError);
+
+            if (!countError && count >= room.max_queue_size) {
+              return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'Queue is full' }),
+              };
+            }
+          } catch (e) {
+            console.error('❌ Queue count exception:', e);
+            // Continue - don't block join if count check fails
           }
         }
 
         // Get next position
-        const { data: lastInQueue } = await supabase
-          .from('room_queue')
-          .select('queue_position')
-          .eq('room_id', roomId)
-          .eq('status', 'waiting')
-          .order('queue_position', { ascending: false })
-          .limit(1)
-          .single();
+        let nextPosition = 1;
+        try {
+          const { data: lastInQueue, error: posError } = await supabase
+            .from('room_queue')
+            .select('queue_position')
+            .eq('room_id', roomId)
+            .eq('status', 'waiting')
+            .order('queue_position', { ascending: false })
+            .limit(1)
+            .single();
 
-        const nextPosition = (lastInQueue?.queue_position || 0) + 1;
+          console.log('📍 Last in queue:', lastInQueue, posError);
+          nextPosition = (lastInQueue?.queue_position || 0) + 1;
+        } catch (e) {
+          console.error('❌ Position lookup exception:', e);
+          // Default to position 1
+        }
+        
+        console.log('📍 Next position will be:', nextPosition);
 
         // Add to queue
         const queueEntry = {
@@ -280,16 +339,36 @@ exports.handler = async function(event) {
 
         console.log('📝 Inserting queue entry:', queueEntry);
         
-        const { data: newEntry, error: insertError } = await supabase
-          .from('room_queue')
-          .insert(queueEntry)
-          .select()
-          .single();
+        let newEntry, insertError;
+        try {
+          const result = await supabase
+            .from('room_queue')
+            .insert(queueEntry)
+            .select()
+            .single();
+          newEntry = result.data;
+          insertError = result.error;
+        } catch (e) {
+          console.error('❌ Insert exception:', e);
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Database insert failed', 
+              message: e.message,
+              queueEntry 
+            }),
+          };
+        }
 
         console.log('📝 Insert result:', { newEntry, insertError });
 
         if (insertError) {
           console.log('❌ Insert error:', insertError);
+          console.log('❌ Insert error code:', insertError.code);
+          console.log('❌ Insert error message:', insertError.message);
+          console.log('❌ Insert error details:', insertError.details);
+          
           // Handle unique constraint violation
           if (insertError.code === '23505') {
             return {
@@ -302,7 +381,30 @@ exports.handler = async function(event) {
               }),
             };
           }
-          throw insertError;
+          
+          // Handle table not found
+          if (insertError.code === '42P01') {
+            return {
+              statusCode: 500,
+              headers,
+              body: JSON.stringify({ 
+                error: 'Queue table not found. Please run database migrations.',
+                code: insertError.code
+              }),
+            };
+          }
+          
+          // Handle other errors with more detail
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Failed to join queue',
+              message: insertError.message,
+              code: insertError.code,
+              hint: insertError.hint || null
+            }),
+          };
         }
 
         console.log(`✅ User joined queue: ${roomId} at position ${nextPosition}`);
@@ -585,12 +687,15 @@ exports.handler = async function(event) {
 
   } catch (error) {
     console.error('❌ Error managing queue:', error);
+    console.error('❌ Error details:', JSON.stringify(error, null, 2));
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
         error: 'Failed to manage queue',
-        message: error.message 
+        message: error.message,
+        code: error.code,
+        details: error.details || error.hint || null
       }),
     };
   }

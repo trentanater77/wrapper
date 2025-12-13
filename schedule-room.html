@@ -578,6 +578,10 @@
     async function loadUserForums() {
       if (!currentUserId) return;
       
+      // Check if forum was passed in URL (coming from a specific forum page)
+      const urlParams = new URLSearchParams(window.location.search);
+      const preselectedForumSlug = urlParams.get('forum');
+      
       try {
         // Load forums where user is owner or moderator
         const response = await fetch(`/.netlify/functions/list-forums?userId=${currentUserId}&filter=joined`);
@@ -603,6 +607,15 @@
                 option.dataset.name = forum.name;
                 select.appendChild(option);
               });
+              
+              // Auto-select forum if passed in URL
+              if (preselectedForumSlug) {
+                const matchingForum = userForums.find(f => f.slug === preselectedForumSlug);
+                if (matchingForum) {
+                  select.value = matchingForum.id;
+                  console.log(`📅 Auto-selected forum: ${matchingForum.name} (${preselectedForumSlug})`);
+                }
+              }
             }
           }
         }

@@ -47,6 +47,8 @@
     .btn-leave:hover { border-color: var(--main-red); color: var(--main-red); }
     .btn-start-room { background: var(--gold); color: var(--charcoal); padding: var(--space-sm) var(--space-xl); border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: var(--space-xs); }
     .btn-start-room:hover { filter: brightness(1.1); }
+    .btn-schedule-event { background: #8b5cf6; color: white; padding: var(--space-sm) var(--space-xl); border: none; border-radius: var(--radius-lg); font-family: var(--font-family); font-weight: var(--font-weight-bold); font-size: 1rem; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: var(--space-xs); }
+    .btn-schedule-event:hover { filter: brightness(1.1); }
     
     .forum-content { max-width: 1000px; margin: var(--space-xl) auto; padding: 0 var(--space-lg); display: grid; grid-template-columns: 1fr 320px; gap: var(--space-lg); }
     @media (max-width: 800px) { .forum-content { grid-template-columns: 1fr; } }
@@ -1153,6 +1155,8 @@
         }
         // Only members can start rooms
         html += `<button class="btn-start-room" onclick="openCreateRoomModal()">🎬 Start Room</button>`;
+        // Members can also schedule events for this forum
+        html += `<a href="/schedule-room.html?forum=${encodeURIComponent(forumData.slug)}" class="btn-schedule-event">📅 Schedule Event</a>`;
       } else {
         html += `<button class="btn-join" onclick="joinForum()">+ Join Forum</button>`;
       }

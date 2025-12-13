@@ -975,8 +975,24 @@
           userStatus: data.user || {},
           moderators: data.moderators || [],
           announcements: data.announcements || [],
-          rooms: data.activeRooms || []
+          rooms: data.activeRooms || [],
+          upcomingEvents: [] // Will be populated below
         };
+        
+        // Fetch upcoming events for this forum
+        try {
+          const eventsRes = await fetch(`/.netlify/functions/schedule-room?upcoming=true`);
+          const eventsData = await eventsRes.json();
+          if (eventsData.events) {
+            // Filter to only events for this forum
+            forumData.upcomingEvents = eventsData.events.filter(e => 
+              e.forum_id === forumData.id || e.forum_slug === forumSlug
+            );
+            console.log(`📅 Found ${forumData.upcomingEvents.length} upcoming events for this forum`);
+          }
+        } catch (eventsError) {
+          console.log('Could not load upcoming events:', eventsError);
+        }
         
         document.title = `${forumData.name} - ChatSpheres`;
         renderForum(forumData);
@@ -1090,7 +1106,7 @@
           <section class="rooms-section">
             <h2>🎬 Rooms</h2>
             <div class="rooms-list" id="roomsList">
-              ${renderRooms(forum.rooms)}
+              ${renderRooms(forum.rooms, forum.upcomingEvents || [])}
             </div>
           </section>
           
@@ -1169,8 +1185,22 @@
       return html;
     }
 
-    function renderRooms(rooms) {
+    function renderRooms(rooms, upcomingEvents = []) {
       if (!rooms?.length) {
+        // Check if there are upcoming events for this forum
+        if (upcomingEvents.length > 0) {
+          return `
+            <div class="empty-rooms" style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 2px solid var(--gold);">
+              <div class="empty-rooms-icon">📅</div>
+              <h3>No Live Rooms Right Now</h3>
+              <p>But there ${upcomingEvents.length === 1 ? 'is 1 upcoming event' : `are ${upcomingEvents.length} upcoming events`} scheduled!</p>
+            </div>
+            <div style="margin-top: var(--space-lg);">
+              <h3 style="color: var(--charcoal); margin-bottom: var(--space-md); display: flex; align-items: center; gap: var(--space-sm);">📅 Upcoming Events</h3>
+              ${upcomingEvents.map(event => renderUpcomingEventCard(event)).join('')}
+            </div>
+          `;
+        }
         return `
           <div class="empty-rooms">
             <div class="empty-rooms-icon">📺</div>
@@ -1262,6 +1292,86 @@
         `;
       }).join('');
     }
+    
+    function renderUpcomingEventCard(event) {
+      const scheduledAt = new Date(event.scheduled_at);
+      const now = new Date();
+      const diffMs = scheduledAt - now;
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffDays = Math.floor(diffHours / 24);
+      
+      let timeDisplay;
+      if (diffDays > 0) {
+        timeDisplay = `in ${diffDays} day${diffDays > 1 ? 's' : ''}`;
+      } else if (diffHours > 0) {
+        timeDisplay = `in ${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+      } else {
+        const diffMins = Math.floor(diffMs / (1000 * 60));
+        timeDisplay = diffMins > 0 ? `in ${diffMins} min` : 'Starting soon!';
+      }
+      
+      const dateStr = scheduledAt.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit'
+      });
+      
+      const isHost = currentUser && event.host_id === currentUser.id;
+      const typeEmoji = event.room_type === 'creator' ? '⭐' : event.room_type === 'red' ? '🔴' : '🟢';
+      
+      return `
+        <div class="room-card" style="cursor: pointer; border-color: var(--gold); background: linear-gradient(135deg, #fffbeb, white);" onclick="${isHost ? `goLiveFromEvent('${event.id}')` : `window.location.href='/live.html'`}">
+          <div class="room-card-header">
+            <span class="room-card-title">${typeEmoji} ${escapeHtml(event.title)}</span>
+            <span class="waiting-badge" style="background: var(--gold);">📅 ${timeDisplay}</span>
+          </div>
+          <div class="room-card-host">Hosted by ${escapeHtml(event.host_name || 'Host')}</div>
+          <div class="room-card-stats">
+            <span>📅 ${dateStr}</span>
+            <span>🔔 ${event.reminderCount || 0} interested</span>
+          </div>
+          ${isHost ? `
+            <div class="room-card-action" style="background: linear-gradient(135deg, #FFD166, #e63946);">🔴 Go Live Now</div>
+          ` : `
+            <div class="room-card-action" style="background: var(--gold); color: var(--charcoal);">🔔 View Event</div>
+          `}
+        </div>
+      `;
+    }
+    
+    window.goLiveFromEvent = async function(eventId) {
+      if (!currentUser) {
+        alert('Please sign in first');
+        return;
+      }
+      
+      if (!confirm('Start this event now?')) return;
+      
+      try {
+        const response = await fetch('/.netlify/functions/schedule-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'go-live',
+            eventId,
+            hostId: currentUser.id,
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          window.location.href = `/index.html?room=${data.roomId}&mode=participant&roomType=creator&host=true&forum=${forumData?.id || ''}`;
+        } else {
+          throw new Error(data.error || 'Failed to go live');
+        }
+      } catch (error) {
+        console.error('Error going live:', error);
+        alert('Failed to start event: ' + error.message);
+      }
+    };
 
     function showPrivatePrompt(slug, forum) {
       document.getElementById('pageContent').innerHTML = `
@@ -2575,7 +2685,7 @@
             const roomsList = document.getElementById('roomsList');
             if (roomsList && newRooms) {
               forumData.rooms = newRooms;
-              roomsList.innerHTML = renderRooms(newRooms);
+              roomsList.innerHTML = renderRooms(newRooms, forumData.upcomingEvents || []);
               console.log('🔄 Room counts refreshed');
             }
           }

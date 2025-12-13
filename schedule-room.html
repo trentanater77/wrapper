@@ -796,12 +796,6 @@
     }
     window.clearForumSelection = clearForumSelection;
     
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-    
     // ============================================
     // COVER IMAGE UPLOAD
     // ============================================
@@ -941,10 +935,13 @@
     // LOAD MY EVENTS
     // ============================================
     async function loadMyEvents() {
+      console.log('📅 Loading my events for user:', currentUserId);
       try {
         const response = await fetch(`/.netlify/functions/schedule-room?hostId=${currentUserId}`);
         const data = await response.json();
+        console.log('📅 Events API response:', data);
         myEvents = (data.events || []).filter(e => e.status === 'scheduled');
+        console.log('📅 Filtered scheduled events:', myEvents.length);
         
         renderMyEvents();
       } catch (error) {
@@ -955,6 +952,8 @@
     function renderMyEvents() {
       const listEl = document.getElementById('events-list');
       const noEventsEl = document.getElementById('no-events');
+      
+      console.log('📅 Rendering events:', myEvents.length);
       
       if (myEvents.length === 0) {
         listEl.innerHTML = '';
@@ -973,10 +972,15 @@
           minute: '2-digit'
         });
         
+        // Show forum badge if event is associated with a forum
+        const forumBadge = event.forum_slug 
+          ? `<span style="background: #8b5cf6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; margin-left: 8px;">🌐 f/${escapeHtml(event.forum_slug)}</span>` 
+          : '';
+        
         return `
           <div class="event-item">
             <div class="event-info">
-              <h3>${escapeHtml(event.title)}</h3>
+              <h3>${escapeHtml(event.title)}${forumBadge}</h3>
               <p>📅 ${dateStr} • 🔔 ${event.reminderCount || 0} interested</p>
             </div>
             <div class="event-actions">

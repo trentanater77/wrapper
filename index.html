@@ -15904,7 +15904,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     const sphereId = extractSphereId(roomUrl);
     if (!sphereId) return;
     
-    const currentUserId = window.currentUserData?.userId || userId;
+    const rawUserId = window.currentUserData?.userId || userId;
+    const currentUserId = getValidUuidOrNull(rawUserId);
     const guestSessionId = getGuestSessionId();
     
     try {
@@ -16314,8 +16315,12 @@ function ensureSpectatorTracksForParticipant(participant) {
       return;
     }
     
-    const currentUserId = window.currentUserData?.userId || (typeof userId !== 'undefined' ? userId : null);
+    // Get user ID - must be a valid UUID (not a guest_ string)
+    const rawUserId = window.currentUserData?.userId || (typeof userId !== 'undefined' ? userId : null);
+    const currentUserId = getValidUuidOrNull(rawUserId);
     const guestSessionId = getGuestSessionId();
+    
+    console.log('🎯 User ID validation:', { rawUserId, isValidUuid: !!currentUserId, currentUserId });
     
     // Get username with multiple fallbacks
     const userNameFromNav = document.querySelector('.nav-username')?.textContent?.trim();
@@ -16334,7 +16339,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         body: JSON.stringify({
           action: 'join',
           roomId: sphereId,
-          userId: currentUserId || null,
+          userId: currentUserId,
           userName: queueUserName,
           guestName: queueUserName,
           guestSessionId: currentUserId ? null : guestSessionId,
@@ -16369,12 +16374,24 @@ function ensureSpectatorTracksForParticipant(participant) {
     }
   }
   
+  // Helper: Validate if a string is a valid UUID (not a guest_ or cs_ string)
+  function getValidUuidOrNull(id) {
+    if (!id || typeof id !== 'string') return null;
+    if (id.startsWith('guest_') || id.startsWith('cs_')) return null;
+    // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return id;
+    }
+    return null;
+  }
+  
   // Leave queue
   async function leaveQueue() {
     const sphereId = extractSphereId(roomUrl);
     if (!sphereId) return;
     
-    const currentUserId = window.currentUserData?.userId || userId;
+    const rawUserId = window.currentUserData?.userId || userId;
+    const currentUserId = getValidUuidOrNull(rawUserId);
     const guestSessionId = getGuestSessionId();
     
     try {
@@ -16384,7 +16401,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         body: JSON.stringify({
           action: 'leave',
           roomId: sphereId,
-          userId: currentUserId || null,
+          userId: currentUserId,
           guestSessionId: currentUserId ? null : guestSessionId,
         })
       });
@@ -16470,7 +16487,8 @@ function ensureSpectatorTracksForParticipant(participant) {
   // Challenger clicks "I'm Done"
   async function challengerDone() {
     const sphereId = extractSphereId(roomUrl);
-    const currentUserId = window.currentUserData?.userId || userId;
+    const rawUserId = window.currentUserData?.userId || userId;
+    const currentUserId = getValidUuidOrNull(rawUserId);
     const guestSessionId = getGuestSessionId();
     
     if (!sphereId) return;
@@ -16482,7 +16500,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         body: JSON.stringify({
           action: 'done',
           roomId: sphereId,
-          userId: currentUserId || null,
+          userId: currentUserId,
           guestSessionId: currentUserId ? null : guestSessionId,
         })
       });
@@ -16585,7 +16603,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     // Leave queue if in it
     if (roomTypeState.inQueue || roomTypeState.isActiveChallenger) {
       const sphereId = extractSphereId(roomUrl);
-      const currentUserId = window.currentUserData?.userId || userId;
+      const rawUserId = window.currentUserData?.userId || userId;
+      const currentUserId = getValidUuidOrNull(rawUserId);
       const guestSessionId = getGuestSessionId();
       
       if (sphereId) {
@@ -16593,7 +16612,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         const data = JSON.stringify({
           action: 'leave',
           roomId: sphereId,
-          userId: currentUserId || null,
+          userId: currentUserId,
           guestSessionId: currentUserId ? null : guestSessionId,
         });
         navigator.sendBeacon('/.netlify/functions/manage-queue', data);

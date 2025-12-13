@@ -70,15 +70,49 @@ exports.handler = async function(event) {
         };
       }
 
-      // List events
+      // List events - only select needed columns to avoid payload size issues
+      // (cover_image_url can be very large if it's a base64 data URL)
+      // Note: forum columns may not exist yet if migration hasn't run
+      const baseColumns = 'id,host_id,host_name,host_avatar,title,description,room_type,scheduled_at,timezone,status,challenger_time_limit,max_queue_size,room_id,created_at,updated_at';
+      
+      // First try with forum columns, fall back to base columns if they don't exist
+      let selectColumns = baseColumns;
+      let forumColumnsExist = true;
+      
+      // Try a quick check for forum columns
+      try {
+        const { error: checkError } = await supabase
+          .from('scheduled_events')
+          .select('forum_id')
+          .limit(1);
+        if (checkError && checkError.message?.includes('column')) {
+          forumColumnsExist = false;
+          console.log('📅 Forum columns not found, using base columns only');
+        } else {
+          selectColumns = baseColumns + ',forum_id,forum_slug,forum_name';
+        }
+      } catch (e) {
+        forumColumnsExist = false;
+      }
+      
       let query = supabase
         .from('scheduled_events')
-        .select('*')
+        .select(selectColumns)
         .order('scheduled_at', { ascending: true });
 
       if (hostId) {
-        // Get events for a specific host
-        query = query.eq('host_id', hostId);
+        // Get events for a specific host - only scheduled events
+        query = query.eq('host_id', hostId).eq('status', 'scheduled');
+      }
+      
+      // Filter by forum if specified (only if forum columns exist)
+      const { forumId, forumSlug } = params;
+      if (forumColumnsExist) {
+        if (forumId) {
+          query = query.eq('forum_id', forumId);
+        } else if (forumSlug) {
+          query = query.eq('forum_slug', forumSlug);
+        }
       }
 
       if (upcoming === 'true') {

@@ -981,17 +981,20 @@
         
         // Fetch upcoming events for this forum
         try {
-          const eventsRes = await fetch(`/.netlify/functions/schedule-room?upcoming=true`);
+          const eventsRes = await fetch(`/.netlify/functions/schedule-room?upcoming=true&forumSlug=${encodeURIComponent(forumSlug)}`);
           const eventsData = await eventsRes.json();
+          console.log('📅 Events API response:', eventsData);
           if (eventsData.events) {
-            // Filter to only events for this forum
+            // API tries to filter by forumSlug, but if forum columns don't exist in DB,
+            // we need to filter client-side as a fallback
             forumData.upcomingEvents = eventsData.events.filter(e => 
-              e.forum_id === forumData.id || e.forum_slug === forumSlug
+              e.forum_slug === forumSlug || e.forum_id === forumData.id
             );
-            console.log(`📅 Found ${forumData.upcomingEvents.length} upcoming events for this forum`);
+            console.log(`📅 Found ${forumData.upcomingEvents.length} upcoming events for this forum (filtered from ${eventsData.events.length})`);
           }
         } catch (eventsError) {
           console.log('Could not load upcoming events:', eventsError);
+          forumData.upcomingEvents = [];
         }
         
         document.title = `${forumData.name} - ChatSpheres`;
@@ -1290,7 +1293,12 @@
             ${canEndRoom ? `<button class="end-room-btn" onclick="endRoom('${roomId}', event)" title="End this room">✕ End Room</button>` : ''}
           </div>
         `;
-      }).join('');
+      }).join('') + (upcomingEvents.length > 0 ? `
+        <div style="margin-top: var(--space-xl); padding-top: var(--space-lg); border-top: 2px solid var(--rose);">
+          <h3 style="color: var(--charcoal); margin-bottom: var(--space-md); display: flex; align-items: center; gap: var(--space-sm);">📅 Upcoming Events (${upcomingEvents.length})</h3>
+          ${upcomingEvents.map(event => renderUpcomingEventCard(event)).join('')}
+        </div>
+      ` : '');
     }
     
     function renderUpcomingEventCard(event) {

@@ -1193,13 +1193,10 @@
         // Check if there are upcoming events for this forum
         if (upcomingEvents.length > 0) {
           return `
-            <div class="empty-rooms" style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 2px solid var(--gold);">
-              <div class="empty-rooms-icon">📅</div>
-              <h3>No Live Rooms Right Now</h3>
-              <p>But there ${upcomingEvents.length === 1 ? 'is 1 upcoming event' : `are ${upcomingEvents.length} upcoming events`} scheduled!</p>
-            </div>
-            <div style="margin-top: var(--space-lg);">
-              <h3 style="color: var(--charcoal); margin-bottom: var(--space-md); display: flex; align-items: center; gap: var(--space-sm);">📅 Upcoming Events</h3>
+            <div style="margin-bottom: var(--space-lg);">
+              <h3 style="color: var(--charcoal); margin-bottom: var(--space-md); display: flex; align-items: center; gap: var(--space-sm);">
+                📅 Upcoming Events (${upcomingEvents.length})
+              </h3>
               ${upcomingEvents.map(event => renderUpcomingEventCard(event)).join('')}
             </div>
           `;

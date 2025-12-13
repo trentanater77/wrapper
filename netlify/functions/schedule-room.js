@@ -173,6 +173,9 @@ exports.handler = async function(event) {
           maxQueueSize,
           scheduledAt,
           timezone,
+          forumId,
+          forumSlug,
+          forumName,
         } = body;
 
         if (!hostId || !title || !scheduledAt) {
@@ -196,23 +199,31 @@ exports.handler = async function(event) {
           };
         }
 
+        // Build the insert object
+        const eventData = {
+          host_id: hostId,
+          host_name: hostName || 'Host',
+          host_avatar: hostAvatar,
+          title,
+          description,
+          cover_image_url: coverImageUrl,
+          room_type: roomType || 'creator',
+          challenger_time_limit: challengerTimeLimit,
+          max_queue_size: maxQueueSize,
+          scheduled_at: scheduledAt,
+          timezone: timezone || 'UTC',
+          status: 'scheduled',
+        };
+        
+        // Add forum fields if provided (these columns may not exist yet)
+        if (forumId) eventData.forum_id = forumId;
+        if (forumSlug) eventData.forum_slug = forumSlug;
+        if (forumName) eventData.forum_name = forumName;
+
         // Create the scheduled event
         const { data: newEvent, error } = await supabase
           .from('scheduled_events')
-          .insert({
-            host_id: hostId,
-            host_name: hostName || 'Host',
-            host_avatar: hostAvatar,
-            title,
-            description,
-            cover_image_url: coverImageUrl,
-            room_type: roomType || 'creator',
-            challenger_time_limit: challengerTimeLimit,
-            max_queue_size: maxQueueSize,
-            scheduled_at: scheduledAt,
-            timezone: timezone || 'UTC',
-            status: 'scheduled',
-          })
+          .insert(eventData)
           .select()
           .single();
 
@@ -369,28 +380,36 @@ exports.handler = async function(event) {
         const isCreatorRoom = scheduledEvent.room_type === 'creator';
         const endsAt = isCreatorRoom ? null : new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString();
 
+        // Build room data
+        const roomData = {
+          room_id: roomId,
+          host_id: hostId,
+          host_name: scheduledEvent.host_name,
+          host_avatar: scheduledEvent.host_avatar,
+          room_type: scheduledEvent.room_type,
+          topic: scheduledEvent.title,
+          description: scheduledEvent.description,
+          is_public: true,
+          is_creator_room: isCreatorRoom,
+          challenger_time_limit: scheduledEvent.challenger_time_limit,
+          max_queue_size: scheduledEvent.max_queue_size,
+          participant_count: 1,
+          spectator_count: 0,
+          pot_amount: 0,
+          status: 'live',
+          started_at: now.toISOString(),
+          ends_at: endsAt,
+        };
+        
+        // Add forum info if present in scheduled event
+        if (scheduledEvent.forum_id) roomData.forum_id = scheduledEvent.forum_id;
+        if (scheduledEvent.forum_slug) roomData.forum_slug = scheduledEvent.forum_slug;
+        if (scheduledEvent.forum_name) roomData.forum_name = scheduledEvent.forum_name;
+
         // Create the live room
         const { data: room, error: roomError } = await supabase
           .from('active_rooms')
-          .insert({
-            room_id: roomId,
-            host_id: hostId,
-            host_name: scheduledEvent.host_name,
-            host_avatar: scheduledEvent.host_avatar,
-            room_type: scheduledEvent.room_type,
-            topic: scheduledEvent.title,
-            description: scheduledEvent.description,
-            is_public: true,
-            is_creator_room: isCreatorRoom,
-            challenger_time_limit: scheduledEvent.challenger_time_limit,
-            max_queue_size: scheduledEvent.max_queue_size,
-            participant_count: 1,
-            spectator_count: 0,
-            pot_amount: 0,
-            status: 'live',
-            started_at: now.toISOString(),
-            ends_at: endsAt,
-          })
+          .insert(roomData)
           .select()
           .single();
 

@@ -669,6 +669,7 @@
       
       const typeEmoji = event.room_type === 'creator' ? '⭐' : event.room_type === 'red' ? '🔴' : '🟢';
       const typeLabel = event.room_type === 'creator' ? 'Creator' : event.room_type === 'red' ? 'Debate' : 'Help';
+      const forumBadge = event.forum_slug ? `<span style="font-size: 0.65rem; background: #8b5cf6; color: white; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold);">🌐 f/${escapeHtml(event.forum_slug)}</span>` : '';
       
       return `
         <div class="forum-card" style="cursor: pointer;" onclick="handleEventClick('${event.id}', ${isHost})">
@@ -680,8 +681,10 @@
             <div class="forum-card-name">
               ${escapeHtml(event.title)}
               <span style="font-size: 0.65rem; background: var(--gold); color: var(--charcoal); padding: 3px 8px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold);">${typeLabel}</span>
+              ${forumBadge}
             </div>
             <div class="forum-card-slug">📅 ${dateDisplay} · ${timeDisplay}</div>
+            ${event.forum_name ? `<p style="font-size: 0.8rem; color: #8b5cf6; margin-bottom: 4px;">📍 From: ${escapeHtml(event.forum_name)}</p>` : ''}
             <div class="forum-card-desc">${escapeHtml(event.description || 'An upcoming event on ChatSpheres')}</div>
             <div class="forum-card-stats">
               <span class="forum-card-stat">👤 ${escapeHtml(event.host_name || 'Host')}</span>

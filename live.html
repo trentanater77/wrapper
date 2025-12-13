@@ -2198,10 +2198,16 @@
       // Check if current user is the host
       const isHost = currentUserId && event.host_id === currentUserId;
       
+      // Show forum badge if this event is from a forum
+      const forumBadge = event.forum_slug ? `<span class="type-badge forum-badge" style="background: #8b5cf6; margin-left: 4px;">🌐 f/${escapeHtml(event.forum_slug)}</span>` : '';
+      
       return `
         <div class="event-card" data-event-id="${event.id}">
           <div class="event-card-header">
-            <span class="type-badge creator-badge">⭐ ${event.room_type === 'creator' ? 'Creator' : event.room_type === 'red' ? 'Debate' : 'Help'}</span>
+            <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+              <span class="type-badge creator-badge">⭐ ${event.room_type === 'creator' ? 'Creator' : event.room_type === 'red' ? 'Debate' : 'Help'}</span>
+              ${forumBadge}
+            </div>
             <span class="event-time-badge">📅 ${timeDisplay}</span>
           </div>
           
@@ -2213,6 +2219,7 @@
           
           <div class="event-card-body">
             <h3 class="event-title">${escapeHtml(event.title)}</h3>
+            ${event.forum_name ? `<p style="font-size: 0.8rem; color: #8b5cf6; margin-bottom: 4px;">📍 From: ${escapeHtml(event.forum_name)}</p>` : ''}
             ${event.description ? `<p class="event-description">${escapeHtml(event.description)}</p>` : ''}
             
             <div class="event-host">

@@ -390,6 +390,15 @@
           <textarea id="event-description" class="form-input form-textarea" placeholder="Tell people what to expect..." maxlength="500"></textarea>
         </div>
         
+        <!-- Forum Selection (optional) -->
+        <div class="form-group" id="forum-selection-group" style="display: none;">
+          <label class="form-label">Associate with Forum (optional)</label>
+          <select id="forum-select" class="form-input">
+            <option value="">No forum - standalone event</option>
+          </select>
+          <p class="form-hint">Link this event to a forum you own or moderate. The event will show on both Live and Forums pages.</p>
+        </div>
+        
         <!-- Cover Image (optional) -->
         <div class="form-group">
           <label class="form-label">Cover Image (optional)</label>
@@ -526,6 +535,9 @@
           document.getElementById('schedule-form').style.display = 'block';
           document.getElementById('my-events').style.display = 'block';
           
+          // Load user's forums for the dropdown
+          await loadUserForums();
+          
           // Load my events
           loadMyEvents();
         }
@@ -557,6 +569,47 @@
       }
     }
     window.selectRoomType = selectRoomType;
+    
+    // ============================================
+    // FORUM SELECTION
+    // ============================================
+    let userForums = [];
+    
+    async function loadUserForums() {
+      if (!currentUserId) return;
+      
+      try {
+        // Load forums where user is owner or moderator
+        const response = await fetch(`/.netlify/functions/list-forums?userId=${currentUserId}&filter=joined`);
+        const data = await response.json();
+        
+        if (data.forums && data.forums.length > 0) {
+          // Filter to only forums where user is owner or moderator
+          userForums = data.forums.filter(f => f.userRole === 'owner' || f.userRole === 'moderator');
+          
+          if (userForums.length > 0) {
+            // Show the forum selection dropdown
+            const forumGroup = document.getElementById('forum-selection-group');
+            if (forumGroup) forumGroup.style.display = 'block';
+            
+            // Populate the dropdown
+            const select = document.getElementById('forum-select');
+            if (select) {
+              userForums.forEach(forum => {
+                const option = document.createElement('option');
+                option.value = forum.id;
+                option.textContent = `🌐 ${forum.name} (f/${forum.slug})`;
+                option.dataset.slug = forum.slug;
+                option.dataset.name = forum.name;
+                select.appendChild(option);
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user forums:', error);
+      }
+    }
     
     // ============================================
     // COVER IMAGE UPLOAD
@@ -623,6 +676,19 @@
       submitBtn.textContent = 'Scheduling...';
       submitBtn.disabled = true;
       
+      // Get selected forum info
+      let forumId = null;
+      let forumSlug = null;
+      let forumName = null;
+      
+      const forumSelect = document.getElementById('forum-select');
+      if (forumSelect && forumSelect.value) {
+        forumId = forumSelect.value;
+        const selectedOption = forumSelect.options[forumSelect.selectedIndex];
+        forumSlug = selectedOption.dataset.slug;
+        forumName = selectedOption.dataset.name;
+      }
+      
       try {
         const response = await fetch('/.netlify/functions/schedule-room', {
           method: 'POST',
@@ -640,13 +706,17 @@
             maxQueueSize,
             scheduledAt: scheduledAt.toISOString(),
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            forumId,
+            forumSlug,
+            forumName,
           })
         });
         
         const data = await response.json();
         
         if (data.success) {
-          alert('Event scheduled! It will appear on the Live page under "Upcoming".');
+          const forumMsg = forumSlug ? ` and Forums (f/${forumSlug})` : '';
+          alert(`Event scheduled! It will appear on the Live page under "Upcoming"${forumMsg}.`);
           
           // Reset form
           document.getElementById('schedule-form').reset();

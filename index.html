@@ -16024,14 +16024,30 @@ function ensureSpectatorTracksForParticipant(participant) {
         url += `&guestSessionId=${guestSessionId}`;
       }
       
+      // Log refresh request details for first 3 refreshes
+      if (queueRefreshCount <= 3) {
+        console.log('🔍 Queue refresh request #' + queueRefreshCount + ':', { 
+          sphereId, 
+          currentUserId, 
+          guestSessionId, 
+          urlUsed: url 
+        });
+      }
+      
       const response = await fetch(url);
       
       if (!response.ok) {
-        console.error('❌ Queue refresh failed:', response.status, response.statusText);
+        const errorText = await response.text().catch(() => 'Unable to read error body');
+        console.error('❌ Queue refresh failed:', response.status, response.statusText, errorText);
         return;
       }
       
       const data = await response.json();
+      
+      // Log full queue state for first few refreshes to help diagnose issues
+      if (queueRefreshCount <= 3) {
+        console.log('🔍 Full queue data (refresh #' + queueRefreshCount + '):', JSON.stringify(data));
+      }
       
       // Log queue state for debugging
       const now = Date.now();
@@ -16103,15 +16119,16 @@ function ensureSpectatorTracksForParticipant(participant) {
     const queueList = document.getElementById('queue-list');
     const queueCount = document.getElementById('queue-count');
     
-    // Debug: Log if queue has items
-    if (data.totalInQueue > 0) {
-      console.log('🎯 Updating queue display:', { 
-        total: data.totalInQueue, 
-        queueItems: data.queue?.length,
-        hasQueueList: !!queueList,
-        hasQueueCount: !!queueCount
-      });
-    }
+    // Debug: Log queue display update details
+    console.log('🎯 updateQueueDisplay called:', { 
+      total: data.totalInQueue, 
+      queueItems: data.queue?.length || 0,
+      userPosition: data.position,
+      userStatus: data.userStatus,
+      hasQueueList: !!queueList,
+      hasQueueCount: !!queueCount,
+      hasActiveChallenger: !!data.activeChallenger
+    });
     
     if (queueCount) {
       queueCount.textContent = `${data.totalInQueue} waiting`;
@@ -16491,6 +16508,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       const data = await response.json();
       
       console.log('🎯 Join queue response:', data);
+      console.log('🎯 Join queue position:', data.position, 'status:', data.status, 'alreadyInQueue:', data.alreadyInQueue);
       
       if (data.success) {
         roomTypeState.inQueue = true;

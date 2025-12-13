@@ -46,7 +46,7 @@ exports.handler = async function(event) {
       const params = event.queryStringParameters || {};
       const { roomId, userId, guestSessionId } = params;
 
-      console.log('📥 GET queue request:', { roomId, userId, guestSessionId });
+      console.log('📥 GET queue request:', { roomId, userId, guestSessionId, timestamp: new Date().toISOString() });
 
       if (!roomId) {
         return {
@@ -64,7 +64,30 @@ exports.handler = async function(event) {
         .eq('status', 'waiting')
         .order('queue_position', { ascending: true });
       
-      console.log('📋 Queue query result:', { queue, queueError });
+      // Debug: Also check for ALL entries in the room (any status) to diagnose issues
+      const { data: allEntries } = await supabase
+        .from('room_queue')
+        .select('id, status, queue_position, user_id, guest_session_id, guest_name, created_at')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      if (allEntries && allEntries.length > 0) {
+        console.log('📊 All queue entries for room (debug):', allEntries.map(e => ({
+          id: e.id,
+          status: e.status,
+          pos: e.queue_position,
+          name: e.guest_name,
+          userId: e.user_id?.substring(0, 8),
+          guestSession: e.guest_session_id?.substring(0, 15)
+        })));
+      }
+      
+      console.log('📋 Queue query result:', { 
+        queueLength: queue?.length || 0, 
+        queueError,
+        queueItems: queue?.map(q => ({ id: q.id, status: q.status, position: q.queue_position, guestSessionId: q.guest_session_id?.substring(0, 10), userId: q.user_id?.substring(0, 10) }))
+      });
 
       if (queueError) {
         // Table might not exist yet
@@ -91,21 +114,38 @@ exports.handler = async function(event) {
       let userStatus = null;
       
       if (userId || guestSessionId) {
+        console.log('🔍 Looking for user in queue:', { 
+          lookingForUserId: userId, 
+          lookingForGuestSessionId: guestSessionId,
+          queueLength: queue?.length || 0
+        });
+        
         const userEntry = queue.find(q => 
           (userId && q.user_id === userId) || 
           (guestSessionId && q.guest_session_id === guestSessionId)
         );
         
         if (userEntry) {
+          console.log('✅ Found user in queue:', { 
+            position: userEntry.queue_position, 
+            status: userEntry.status,
+            matchedByUserId: userId && userEntry.user_id === userId,
+            matchedByGuestSession: guestSessionId && userEntry.guest_session_id === guestSessionId
+          });
           userPosition = userEntry.queue_position;
           userStatus = userEntry.status;
         } else if (activeChallenger) {
           // Check if user is the active challenger
           if ((userId && activeChallenger.user_id === userId) ||
               (guestSessionId && activeChallenger.guest_session_id === guestSessionId)) {
+            console.log('✅ User is the active challenger');
             userStatus = 'active';
             userPosition = 0; // Currently active
+          } else {
+            console.log('ℹ️ User not found in queue or as active challenger');
           }
+        } else {
+          console.log('ℹ️ User not found in queue, no active challenger');
         }
       }
 
@@ -266,7 +306,14 @@ exports.handler = async function(event) {
         }
 
         if (existing) {
-          console.log('✅ Already in queue:', existing);
+          console.log('✅ Already in queue:', { 
+            id: existing.id, 
+            status: existing.status, 
+            position: existing.queue_position,
+            room_id: existing.room_id,
+            guestSessionId: existing.guest_session_id,
+            userId: existing.user_id
+          });
           return {
             statusCode: 200,
             headers,

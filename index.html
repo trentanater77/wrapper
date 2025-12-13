@@ -16514,7 +16514,9 @@ function ensureSpectatorTracksForParticipant(participant) {
         roomTypeState.inQueue = true;
         roomTypeState.queuePosition = data.position;
         showInQueueUI(data.position);
-        if (!data.alreadyInQueue) {
+        if (data.reactivated) {
+          showToast(`🎯 Rejoined queue at position ${data.position}!`);
+        } else if (!data.alreadyInQueue) {
           showToast(`🎯 Joined queue at position ${data.position}!`);
         }
         

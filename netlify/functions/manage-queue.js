@@ -416,8 +416,73 @@ exports.handler = async function(event) {
           console.log('❌ Insert error message:', insertError.message);
           console.log('❌ Insert error details:', insertError.details);
           
-          // Handle unique constraint violation
+          // Handle unique constraint violation - reactivate old entry
           if (insertError.code === '23505') {
+            console.log('🔄 Unique constraint violation - looking for old entry to reactivate');
+            
+            // Find the old entry (any status)
+            let oldEntryQuery = supabase
+              .from('room_queue')
+              .select('*')
+              .eq('room_id', roomId);
+            
+            if (userId) {
+              oldEntryQuery = oldEntryQuery.eq('user_id', userId);
+            } else {
+              oldEntryQuery = oldEntryQuery.eq('guest_session_id', guestSessionId);
+            }
+            
+            const { data: oldEntry, error: oldEntryError } = await oldEntryQuery.single();
+            
+            console.log('🔍 Old entry lookup:', { oldEntry: oldEntry ? { id: oldEntry.id, status: oldEntry.status, position: oldEntry.queue_position } : null, oldEntryError });
+            
+            if (oldEntry && (oldEntry.status === 'left' || oldEntry.status === 'completed')) {
+              // Reactivate the old entry
+              const newPosition = nextPosition; // Use the position we calculated earlier
+              
+              const { data: reactivated, error: reactivateError } = await supabase
+                .from('room_queue')
+                .update({ 
+                  status: 'waiting', 
+                  queue_position: newPosition,
+                  guest_name: guestName || (userId ? userName : 'Guest'),
+                  joined_at: new Date().toISOString(),
+                  ended_at: null
+                })
+                .eq('id', oldEntry.id)
+                .select()
+                .single();
+              
+              console.log('🔄 Reactivated old entry:', { reactivated, reactivateError });
+              
+              if (!reactivateError && reactivated) {
+                return {
+                  statusCode: 200,
+                  headers,
+                  body: JSON.stringify({
+                    success: true,
+                    position: reactivated.queue_position,
+                    queueId: reactivated.id,
+                    reactivated: true,
+                  }),
+                };
+              }
+            } else if (oldEntry && (oldEntry.status === 'waiting' || oldEntry.status === 'active')) {
+              // Entry is already active/waiting
+              return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                  success: true,
+                  message: 'Already in queue',
+                  position: oldEntry.queue_position,
+                  status: oldEntry.status,
+                  alreadyInQueue: true,
+                }),
+              };
+            }
+            
+            // Fallback if lookup fails
             return {
               statusCode: 200,
               headers,

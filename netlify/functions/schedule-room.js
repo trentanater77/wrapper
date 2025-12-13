@@ -199,7 +199,7 @@ exports.handler = async function(event) {
           };
         }
 
-        // Build the insert object
+        // Build the insert object - base fields only
         const eventData = {
           host_id: hostId,
           host_name: hostName || 'Host',
@@ -214,18 +214,37 @@ exports.handler = async function(event) {
           timezone: timezone || 'UTC',
           status: 'scheduled',
         };
-        
-        // Add forum fields if provided (these columns may not exist yet)
-        if (forumId) eventData.forum_id = forumId;
-        if (forumSlug) eventData.forum_slug = forumSlug;
-        if (forumName) eventData.forum_name = forumName;
 
-        // Create the scheduled event
-        const { data: newEvent, error } = await supabase
+        // Try to create the scheduled event first without forum fields
+        let { data: newEvent, error } = await supabase
           .from('scheduled_events')
           .insert(eventData)
           .select()
           .single();
+
+        // If forum fields were provided and insert succeeded, try to update with forum info
+        if (!error && newEvent && (forumId || forumSlug || forumName)) {
+          const forumUpdate = {};
+          if (forumId) forumUpdate.forum_id = forumId;
+          if (forumSlug) forumUpdate.forum_slug = forumSlug;
+          if (forumName) forumUpdate.forum_name = forumName;
+          
+          // Try to update - if columns don't exist, this will fail silently
+          const { data: updated, error: updateError } = await supabase
+            .from('scheduled_events')
+            .update(forumUpdate)
+            .eq('id', newEvent.id)
+            .select()
+            .single();
+          
+          if (!updateError && updated) {
+            newEvent = updated;
+            console.log(`📅 Added forum info to event: ${forumSlug}`);
+          } else if (updateError) {
+            // Forum columns don't exist yet - that's okay, just log it
+            console.log(`📅 Forum columns not available (run migration): ${updateError.message}`);
+          }
+        }
 
         if (error) {
           if (error.code === '42P01') {
@@ -235,6 +254,7 @@ exports.handler = async function(event) {
               body: JSON.stringify({ error: 'Scheduled events table not found. Please run migration.' }),
             };
           }
+          console.error('❌ Error creating scheduled event:', error);
           throw error;
         }
 

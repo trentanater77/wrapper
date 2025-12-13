@@ -154,6 +154,71 @@
       gap: var(--space-md);
     }
     
+    .forum-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 2px solid var(--rose);
+      border-top: none;
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+    
+    .forum-dropdown-item {
+      padding: var(--space-sm) var(--space-md);
+      cursor: pointer;
+      transition: background var(--transition-fast);
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .forum-dropdown-item:hover {
+      background: var(--light-rose);
+    }
+    
+    .forum-dropdown-item.no-results {
+      color: var(--charcoal);
+      opacity: 0.6;
+      cursor: default;
+    }
+    
+    .forum-dropdown-item.no-results:hover {
+      background: transparent;
+    }
+    
+    .selected-forum-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      background: #8b5cf6;
+      color: white;
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-lg);
+      font-size: 0.9rem;
+      font-weight: var(--font-weight-bold);
+    }
+    
+    .selected-forum-tag button {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0;
+      margin-left: var(--space-xs);
+      opacity: 0.8;
+    }
+    
+    .selected-forum-tag button:hover {
+      opacity: 1;
+    }
+    
     .creator-settings {
       background: var(--rose);
       padding: var(--space-md);
@@ -393,10 +458,12 @@
         <!-- Forum Selection (optional) -->
         <div class="form-group" id="forum-selection-group" style="display: none;">
           <label class="form-label">Associate with Forum (optional)</label>
-          <select id="forum-select" class="form-input">
-            <option value="">No forum - standalone event</option>
-          </select>
-          <p class="form-hint">Link this event to a forum you own or moderate. The event will show on both Live and Forums pages.</p>
+          <div style="position: relative;">
+            <input type="text" id="forum-search" class="form-input" placeholder="🔍 Search your forums..." autocomplete="off">
+            <input type="hidden" id="forum-select-value">
+            <div id="forum-dropdown" class="forum-dropdown" style="display: none;"></div>
+          </div>
+          <div id="selected-forum-badge" style="display: none; margin-top: 8px;"></div>
         </div>
         
         <!-- Cover Image (optional) -->
@@ -571,9 +638,10 @@
     window.selectRoomType = selectRoomType;
     
     // ============================================
-    // FORUM SELECTION
+    // FORUM SELECTION (Searchable)
     // ============================================
     let userForums = [];
+    let selectedForum = null;
     
     async function loadUserForums() {
       if (!currentUserId) return;
@@ -583,38 +651,28 @@
       const preselectedForumSlug = urlParams.get('forum');
       
       try {
-        // Load forums where user is owner or moderator
+        // Load ALL forums where user is a member (not just owner/mod)
         const response = await fetch(`/.netlify/functions/list-forums?userId=${currentUserId}&filter=joined`);
         const data = await response.json();
         
         if (data.forums && data.forums.length > 0) {
-          // Filter to only forums where user is owner or moderator
-          userForums = data.forums.filter(f => f.userRole === 'owner' || f.userRole === 'moderator');
+          // Include ALL forums user is a member of (member, moderator, or owner)
+          userForums = data.forums;
           
           if (userForums.length > 0) {
-            // Show the forum selection dropdown
+            // Show the forum selection section
             const forumGroup = document.getElementById('forum-selection-group');
             if (forumGroup) forumGroup.style.display = 'block';
             
-            // Populate the dropdown
-            const select = document.getElementById('forum-select');
-            if (select) {
-              userForums.forEach(forum => {
-                const option = document.createElement('option');
-                option.value = forum.id;
-                option.textContent = `🌐 ${forum.name} (f/${forum.slug})`;
-                option.dataset.slug = forum.slug;
-                option.dataset.name = forum.name;
-                select.appendChild(option);
-              });
-              
-              // Auto-select forum if passed in URL
-              if (preselectedForumSlug) {
-                const matchingForum = userForums.find(f => f.slug === preselectedForumSlug);
-                if (matchingForum) {
-                  select.value = matchingForum.id;
-                  console.log(`📅 Auto-selected forum: ${matchingForum.name} (${preselectedForumSlug})`);
-                }
+            // Set up search input
+            setupForumSearch();
+            
+            // Auto-select forum if passed in URL
+            if (preselectedForumSlug) {
+              const matchingForum = userForums.find(f => f.slug === preselectedForumSlug);
+              if (matchingForum) {
+                selectForum(matchingForum);
+                console.log(`📅 Auto-selected forum: ${matchingForum.name} (${preselectedForumSlug})`);
               }
             }
           }
@@ -622,6 +680,126 @@
       } catch (error) {
         console.error('Error loading user forums:', error);
       }
+    }
+    
+    function setupForumSearch() {
+      const searchInput = document.getElementById('forum-search');
+      const dropdown = document.getElementById('forum-dropdown');
+      
+      if (!searchInput || !dropdown) return;
+      
+      // Show dropdown on focus
+      searchInput.addEventListener('focus', () => {
+        showForumDropdown('');
+      });
+      
+      // Filter on input
+      searchInput.addEventListener('input', (e) => {
+        showForumDropdown(e.target.value);
+      });
+      
+      // Hide dropdown on click outside
+      document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.style.display = 'none';
+        }
+      });
+    }
+    
+    function showForumDropdown(searchTerm) {
+      const dropdown = document.getElementById('forum-dropdown');
+      if (!dropdown) return;
+      
+      const term = searchTerm.toLowerCase().trim();
+      const filtered = term 
+        ? userForums.filter(f => 
+            f.name.toLowerCase().includes(term) || 
+            f.slug.toLowerCase().includes(term)
+          )
+        : userForums;
+      
+      if (filtered.length === 0) {
+        dropdown.innerHTML = `<div class="forum-dropdown-item no-results">No forums found</div>`;
+      } else {
+        dropdown.innerHTML = filtered.map(forum => `
+          <div class="forum-dropdown-item" data-id="${forum.id}" data-slug="${forum.slug}" data-name="${escapeHtml(forum.name)}">
+            🌐 ${escapeHtml(forum.name)} <span style="opacity: 0.6; font-size: 0.85rem;">f/${escapeHtml(forum.slug)}</span>
+          </div>
+        `).join('');
+        
+        // Add click handlers
+        dropdown.querySelectorAll('.forum-dropdown-item:not(.no-results)').forEach(item => {
+          item.addEventListener('click', () => {
+            const forum = {
+              id: item.dataset.id,
+              slug: item.dataset.slug,
+              name: item.dataset.name
+            };
+            selectForum(forum);
+            dropdown.style.display = 'none';
+          });
+        });
+      }
+      
+      dropdown.style.display = 'block';
+    }
+    
+    function selectForum(forum) {
+      selectedForum = forum;
+      
+      const searchInput = document.getElementById('forum-search');
+      const badge = document.getElementById('selected-forum-badge');
+      
+      if (searchInput) {
+        searchInput.value = '';
+        searchInput.placeholder = '🔍 Search to change forum...';
+      }
+      
+      if (badge) {
+        badge.style.display = 'block';
+        badge.innerHTML = `
+          <span class="selected-forum-tag">
+            🌐 ${escapeHtml(forum.name)} (f/${escapeHtml(forum.slug)})
+            <button type="button" onclick="clearForumSelection()" title="Remove">✕</button>
+          </span>
+        `;
+      }
+      
+      // Store value
+      const hiddenInput = document.getElementById('forum-select-value');
+      if (hiddenInput) {
+        hiddenInput.value = forum.id;
+        hiddenInput.dataset.slug = forum.slug;
+        hiddenInput.dataset.name = forum.name;
+      }
+    }
+    
+    function clearForumSelection() {
+      selectedForum = null;
+      
+      const searchInput = document.getElementById('forum-search');
+      const badge = document.getElementById('selected-forum-badge');
+      const hiddenInput = document.getElementById('forum-select-value');
+      
+      if (searchInput) {
+        searchInput.placeholder = '🔍 Search your forums...';
+      }
+      if (badge) {
+        badge.style.display = 'none';
+        badge.innerHTML = '';
+      }
+      if (hiddenInput) {
+        hiddenInput.value = '';
+        delete hiddenInput.dataset.slug;
+        delete hiddenInput.dataset.name;
+      }
+    }
+    window.clearForumSelection = clearForumSelection;
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
     }
     
     // ============================================
@@ -689,17 +867,16 @@
       submitBtn.textContent = 'Scheduling...';
       submitBtn.disabled = true;
       
-      // Get selected forum info
+      // Get selected forum info from hidden input
       let forumId = null;
       let forumSlug = null;
       let forumName = null;
       
-      const forumSelect = document.getElementById('forum-select');
-      if (forumSelect && forumSelect.value) {
-        forumId = forumSelect.value;
-        const selectedOption = forumSelect.options[forumSelect.selectedIndex];
-        forumSlug = selectedOption.dataset.slug;
-        forumName = selectedOption.dataset.name;
+      const forumInput = document.getElementById('forum-select-value');
+      if (forumInput && forumInput.value) {
+        forumId = forumInput.value;
+        forumSlug = forumInput.dataset.slug;
+        forumName = forumInput.dataset.name;
       }
       
       try {
@@ -727,6 +904,11 @@
         
         const data = await response.json();
         
+        if (!response.ok) {
+          console.error('Server error:', response.status, data);
+          throw new Error(data.error || data.message || `Server error: ${response.status}`);
+        }
+        
         if (data.success) {
           const forumMsg = forumSlug ? ` and Forums (f/${forumSlug})` : '';
           alert(`Event scheduled! It will appear on the Live page under "Upcoming"${forumMsg}.`);
@@ -739,6 +921,7 @@
             <p class="form-hint">Recommended: 1200x630px</p>
           `;
           document.getElementById('cover-url').value = '';
+          clearForumSelection();
           
           // Reload my events
           loadMyEvents();

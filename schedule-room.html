@@ -363,13 +363,49 @@
       border-radius: var(--radius-lg);
     }
     
+    /* Responsive - Mobile */
     @media (max-width: 768px) {
+      .schedule-hero {
+        padding: var(--space-lg) 0 var(--space-md);
+      }
+      
       .schedule-title {
-        font-size: 1.75rem;
+        font-size: 1.5rem;
+      }
+      
+      .schedule-subtitle {
+        font-size: 0.9rem;
+      }
+      
+      .schedule-form {
+        padding: var(--space-md);
+        margin: 0 var(--space-sm);
+      }
+      
+      .form-label {
+        font-size: 0.85rem;
+      }
+      
+      .form-input {
+        padding: var(--space-sm);
+        font-size: 0.9rem;
       }
       
       .room-type-selector {
         grid-template-columns: 1fr;
+        gap: var(--space-sm);
+      }
+      
+      .room-type-btn {
+        padding: var(--space-sm);
+      }
+      
+      .room-type-icon {
+        font-size: 1.5rem;
+      }
+      
+      .room-type-name {
+        font-size: 0.9rem;
       }
       
       .datetime-row {
@@ -378,6 +414,68 @@
       
       .creator-settings-row {
         grid-template-columns: 1fr;
+      }
+      
+      .submit-btn {
+        padding: var(--space-md);
+        font-size: 1rem;
+      }
+      
+      .my-events {
+        margin-top: var(--space-lg);
+        padding: var(--space-md);
+      }
+      
+      .my-events h2 {
+        font-size: 1.25rem;
+      }
+      
+      .event-item {
+        flex-direction: column;
+        gap: var(--space-sm);
+      }
+      
+      .event-actions {
+        width: 100%;
+        justify-content: stretch;
+      }
+      
+      .event-btn {
+        flex: 1;
+        text-align: center;
+      }
+      
+      /* Forum dropdown mobile */
+      .forum-dropdown {
+        max-height: 150px;
+      }
+      
+      .selected-forum-tag {
+        font-size: 0.8rem;
+      }
+    }
+    
+    /* Responsive - Small Mobile */
+    @media (max-width: 480px) {
+      .schedule-title {
+        font-size: 1.25rem;
+      }
+      
+      .schedule-form {
+        padding: var(--space-sm);
+        border-width: 2px;
+      }
+      
+      .room-type-btn {
+        padding: var(--space-xs);
+      }
+      
+      .room-type-icon {
+        font-size: 1.25rem;
+      }
+      
+      .form-input {
+        padding: 10px;
       }
     }
   </style>

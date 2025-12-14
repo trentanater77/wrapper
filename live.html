@@ -2071,15 +2071,24 @@
         const upcoming = data.events || [];
         
         if (upcoming.length > 0) {
-          // Show upcoming events instead of empty state
+          // Show upcoming events directly instead of just a message
           emptyEl.classList.remove('hidden');
           emptyEl.innerHTML = `
-            <div class="empty-state-icon">📅</div>
-            <h2 class="empty-state-title">No Live Rooms Right Now</h2>
-            <p class="empty-state-text">But there are ${upcoming.length} upcoming event${upcoming.length > 1 ? 's' : ''} scheduled!</p>
-            <button onclick="filterRooms('upcoming')" class="btn btn-primary">📅 View Upcoming Events</button>
-            <div style="margin-top: 20px;">
-              <a href="/schedule-room.html" class="btn btn-secondary">➕ Schedule Your Own</a>
+            <div style="text-align: center; margin-bottom: var(--space-xl);">
+              <h2 class="empty-state-title" style="margin-bottom: var(--space-sm);">📅 Upcoming Events</h2>
+              <p class="empty-state-text">No live rooms right now, but check out these scheduled events!</p>
+            </div>
+            <div class="rooms-grid" style="max-width: 1200px; margin: 0 auto;">
+              ${upcoming.slice(0, 6).map(event => renderEventCard(event)).join('')}
+            </div>
+            ${upcoming.length > 6 ? `
+              <div style="text-align: center; margin-top: var(--space-lg);">
+                <button onclick="filterRooms('upcoming')" class="btn btn-secondary">View All ${upcoming.length} Events</button>
+              </div>
+            ` : ''}
+            <div style="text-align: center; margin-top: var(--space-xl); padding-top: var(--space-lg); border-top: 2px solid var(--rose);">
+              <p style="color: var(--charcoal); opacity: 0.7; margin-bottom: var(--space-md);">Want to host your own event?</p>
+              <a href="/schedule-room.html" class="btn btn-primary">➕ Schedule Your Own</a>
             </div>
           `;
           return;

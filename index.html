@@ -8660,6 +8660,8 @@ async function initializeApp() {
           if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
             placeholder.style.display = 'none';
             placeholder.classList.add('hidden');
+            // Now that frames are rendering, remove the click overlay so the spectator can actually see the video.
+            checkAndHideClickOverlay();
           }
         } catch (_) {}
       };
@@ -8848,21 +8850,31 @@ function ensureSpectatorTracksForParticipant(participant) {
     const placeholder1 = document.getElementById('spectator-placeholder-1');
     const placeholder2 = document.getElementById('spectator-placeholder-2');
     
-    // CRITICAL: Check for active videos (cameras ON, not just participants present)
-    const hasActiveVideo1 = video1 && video1.srcObject && !video1.classList.contains('hidden') && 
-                           video1.style.display !== 'none' && 
-                           (!placeholder1 || placeholder1.style.display === 'none');
-    const hasActiveVideo2 = video2 && video2.srcObject && !video2.classList.contains('hidden') && 
-                           video2.style.display !== 'none' && 
-                           (!placeholder2 || placeholder2.style.display === 'none');
+    // Treat a video as "active" when we actually have frames (videoWidth/videoHeight).
+    // This avoids the false-positive/false-negative loops where srcObject is set but
+    // the UI still looks blank.
+    const hasFrames1 = Boolean(video1 && video1.videoWidth > 0 && video1.videoHeight > 0);
+    const hasFrames2 = Boolean(video2 && video2.videoWidth > 0 && video2.videoHeight > 0);
+
+    const hasActiveVideo1 = Boolean(
+      video1 && video1.srcObject && !video1.classList.contains('hidden') &&
+      video1.style.display !== 'none' &&
+      (!placeholder1 || placeholder1.style.display === 'none') &&
+      hasFrames1
+    );
+    const hasActiveVideo2 = Boolean(
+      video2 && video2.srcObject && !video2.classList.contains('hidden') &&
+      video2.style.display !== 'none' &&
+      (!placeholder2 || placeholder2.style.display === 'none') &&
+      hasFrames2
+    );
     
     console.log(`🎬 OVERLAY CHECK - ActiveVideo1: ${hasActiveVideo1}, ActiveVideo2: ${hasActiveVideo2}, UserInteracted: ${userHasInteracted}`);
 
-    // On non-Safari browsers, spectator video should render immediately without needing a click.
-    // Keep audio gated behind a gesture, but don't block the video UI.
-    const canAutoplayMutedVideo = !isSafari && !isIOS && !isMobileSafari;
-    if (canAutoplayMutedVideo && (hasActiveVideo1 || hasActiveVideo2)) {
-      console.log('🎬 Hiding overlay - muted spectator video can autoplay on this browser');
+    // If we have frames, NEVER keep the overlay blocking the view (all browsers).
+    // Audio can still be gated by browser policy, but video should be visible.
+    if (hasActiveVideo1 || hasActiveVideo2) {
+      console.log('🎬 Hiding overlay - spectator video has frames');
       clickOverlay.classList.remove('spectator-overlay-force-visible');
       clickOverlay.style.display = 'none';
       clickOverlay.style.opacity = '0';
@@ -8875,16 +8887,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     const hasParticipants = (spectatorParticipant1 !== null) || (spectatorParticipant2 !== null);
     const camerasOff = hasParticipants && !hasActiveVideo1 && !hasActiveVideo2;
     
-    // ONLY hide overlay if user has clicked AND videos are actually playing with cameras on
-    if (userHasInteracted && areVideosPlaying() && (hasActiveVideo1 || hasActiveVideo2)) {
-      console.log('🎬 Hiding overlay - user interacted and videos playing with cameras on');
-      clickOverlay.classList.remove('spectator-overlay-force-visible');
-      clickOverlay.style.display = 'none';
-      clickOverlay.style.opacity = '0';
-      clickOverlay.style.visibility = 'hidden';
-      clickOverlay.style.pointerEvents = 'none';
-      return;
-    }
+    // If we reach here, we don't have visible frames yet. Keep the overlay visible.
     
     // ALWAYS show the overlay if cameras are off OR user hasn't interacted
     console.log('🎬 FORCING overlay to be visible');

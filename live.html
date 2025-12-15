@@ -2312,22 +2312,24 @@
     // ============================================
     let upcomingEvents = [];
     let userReminders = {}; // eventId -> true/false
-    let upcomingEventsLoading = false; // Prevent duplicate loads
+    let lastUpcomingRender = 0; // Debounce - prevent rapid re-renders
     
     async function loadUpcomingEvents() {
-      // Prevent duplicate calls
-      if (upcomingEventsLoading) {
-        console.log('📅 Upcoming events already loading, skipping...');
+      const now = Date.now();
+      // Debounce - don't reload if we just rendered within 2 seconds
+      if (now - lastUpcomingRender < 2000) {
+        console.log('📅 Skipping - recently loaded upcoming events');
         return;
       }
-      upcomingEventsLoading = true;
+      lastUpcomingRender = now;
       
       const loadingEl = document.getElementById('upcoming-loading');
       const emptyEl = document.getElementById('upcoming-empty');
       const gridEl = document.getElementById('upcoming-grid');
       
-      // Clear any existing content to prevent duplicates
+      // Clear any existing content FIRST to prevent duplicates
       if (gridEl) gridEl.innerHTML = '';
+      upcomingEvents = []; // Reset array
       
       // Show loading
       if (loadingEl) loadingEl.classList.remove('hidden');
@@ -2339,8 +2341,16 @@
         const response = await fetch('/.netlify/functions/schedule-room?upcoming=true');
         const data = await response.json();
         console.log('📅 Upcoming events response:', data);
-        upcomingEvents = data.events || [];
-        console.log('📅 Found', upcomingEvents.length, 'upcoming events');
+        
+        // Deduplicate by ID
+        const seenIds = new Set();
+        upcomingEvents = (data.events || []).filter(event => {
+          if (seenIds.has(event.id)) return false;
+          seenIds.add(event.id);
+          return true;
+        });
+        
+        console.log('📅 Found', upcomingEvents.length, 'unique upcoming events');
         
         // Check user's reminders if logged in
         if (currentUserId) {
@@ -2356,12 +2366,10 @@
         }
         
         renderUpcomingEvents();
-        upcomingEventsLoading = false;
       } catch (error) {
         console.error('Error loading upcoming events:', error);
         if (loadingEl) loadingEl.classList.add('hidden');
         if (emptyEl) emptyEl.classList.remove('hidden');
-        upcomingEventsLoading = false;
       }
     }
     
@@ -2374,14 +2382,32 @@
       
       if (upcomingEvents.length === 0) {
         if (emptyEl) emptyEl.classList.remove('hidden');
-        if (gridEl) gridEl.classList.add('hidden');
+        if (gridEl) {
+          gridEl.classList.add('hidden');
+          gridEl.innerHTML = ''; // Ensure grid is empty
+        }
         return;
       }
       
       if (emptyEl) emptyEl.classList.add('hidden');
       if (gridEl) {
+        // Clear first, then set new content
+        gridEl.innerHTML = '';
         gridEl.classList.remove('hidden');
-        gridEl.innerHTML = upcomingEvents.map(event => renderEventCard(event)).join('');
+        
+        // Render unique events only
+        const renderedIds = new Set();
+        const html = upcomingEvents
+          .filter(event => {
+            if (renderedIds.has(event.id)) return false;
+            renderedIds.add(event.id);
+            return true;
+          })
+          .map(event => renderEventCard(event))
+          .join('');
+        
+        gridEl.innerHTML = html;
+        console.log('📅 Rendered', renderedIds.size, 'event cards');
       }
     }
     

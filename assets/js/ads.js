@@ -1,6 +1,7 @@
 /**
- * ChatSpheres Ad Management System
+ * ChatSpheres Ad Management System v2.0
  * Handles Monetag integration with subscription-based ad control
+ * Updated: 2024-12-15
  * 
  * Plans WITHOUT ads (ad-free):
  * - ad_free_plus
@@ -11,7 +12,10 @@
  * - free
  * - host_pro
  * 
- * Note: Google AdSense code commented out for potential future use
+ * Ad Formats:
+ * - Push Notifications (zone 10329017)
+ * - Vignette Banner (zone 10329015)
+ * - In-Page Push (zone 10329140)
  */
 
 (function() {
@@ -216,25 +220,6 @@
     
     console.log('✅ [ChatSpheres Ads] All ad scripts injected');
   }
-
-  /* Google AdSense - Commented out for potential future use
-  function loadAdSenseScript() {
-    if (document.querySelector('script[src*="adsbygoogle"]')) {
-      console.log('AdSense script already loaded');
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_PUBLISHER_ID}`;
-    script.crossOrigin = 'anonymous';
-    script.onerror = () => {
-      console.warn('AdSense script failed to load (might be blocked by ad blocker)');
-      hideAllAds();
-    };
-    document.head.appendChild(script);
-  }
-  */
 
   // ========================================
   // AD SLOT MANAGEMENT

@@ -283,15 +283,18 @@ body {
   background: var(--light-rose);
   padding: calc(var(--header-height) + var(--space-lg)) var(--space-lg) var(--space-lg);
   transform: translateX(-100%); /* Hidden - slides from LEFT */
-  transition: transform var(--transition-normal);
+  transition: transform var(--transition-normal), visibility 0s linear var(--transition-normal);
   z-index: calc(var(--z-fixed) + 5);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  visibility: hidden; /* Hidden by default */
 }
 
 .nav-menu.active {
   transform: translateX(0); /* Visible */
+  visibility: visible; /* Show when active */
+  transition: transform var(--transition-normal), visibility 0s linear 0s;
 }
 
 /* Nav Close Button */

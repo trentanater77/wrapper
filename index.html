@@ -15211,6 +15211,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     // FALLBACK: Check localStorage for pending rating on page load
     // This catches users who navigate directly to index.html with a pending rating
     setTimeout(() => {
+      // Never prompt ratings while spectating (can cover the spectator UI and feels unrelated).
+      if (isSpectator) return;
       const existingData = getPendingRatingFromStorage();
       if (existingData && existingData.ratedId && !document.getElementById('rating-modal').classList.contains('active')) {
         console.log('📊 DOMContentLoaded: Found pending rating, checking if modal should show...');
@@ -15221,6 +15223,10 @@ function ensureSpectatorTracksForParticipant(participant) {
   
   // Show rating modal after call ends
   function showRatingModal(otherUserId, otherUserName) {
+    if (isSpectator) {
+      console.log('⏭️ Skipping rating modal - spectator mode');
+      return;
+    }
     if (!otherUserId || !window.currentUserData?.userId) {
       console.log('⏭️ Skipping rating modal - missing user data');
       return;
@@ -15729,6 +15735,10 @@ function ensureSpectatorTracksForParticipant(participant) {
   
   // Check for pending rating on page load - checks localStorage FIRST, then database
   async function checkPendingRating() {
+    if (isSpectator) {
+      console.log('⏭️ Skipping pending rating check - spectator mode');
+      return;
+    }
     if (!window.currentUserData?.userId || window.currentUserData.isGuest) {
       console.log('⏭️ Skipping pending rating check - no user or guest');
       return;
@@ -15751,6 +15761,10 @@ function ensureSpectatorTracksForParticipant(participant) {
         console.log('📊 Found pending rating in database - showing modal');
         // Show rating modal for previous call
         setTimeout(() => {
+          if (isSpectator) {
+            console.log('⏭️ Skipping database rating modal - spectator mode');
+            return;
+          }
           pendingRatingData = {
             raterId: window.currentUserData.userId,
             ratedId: data.pendingRating.otherUserId,

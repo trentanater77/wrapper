@@ -1211,6 +1211,15 @@
           <input type="text" id="room-search" class="search-input" placeholder="🔍 Search rooms by topic or host..." oninput="searchRooms(this.value)">
         </div>
         
+        <!-- Schedule Event CTA -->
+        <div class="schedule-cta" style="display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, var(--light-rose) 0%, #fff 100%); border: 2px solid var(--rose); border-radius: var(--radius-lg); padding: var(--space-md) var(--space-lg); margin-bottom: var(--space-md); flex-wrap: wrap; gap: var(--space-sm);">
+          <div style="display: flex; align-items: center; gap: var(--space-sm);">
+            <span style="font-size: 1.5rem;">📅</span>
+            <span style="font-weight: var(--font-weight-bold); color: var(--charcoal);">Want to host your own event?</span>
+          </div>
+          <a href="/schedule-room.html" class="btn btn-primary" style="white-space: nowrap;">➕ Schedule Your Own</a>
+        </div>
+
         <!-- Room Type Tabs -->
         <div class="room-tabs">
           <button class="room-tab active" data-type="all" onclick="filterRooms('all')">
@@ -1873,11 +1882,14 @@
       const emptyEl = document.getElementById('empty-state');
       
       if (type === 'upcoming') {
-        // Show upcoming section, hide rooms
+        // Show upcoming section, hide rooms and empty state completely
         if (upcomingSection) upcomingSection.classList.remove('hidden');
         if (roomsGrid) roomsGrid.classList.add('hidden');
         if (loadingEl) loadingEl.classList.add('hidden');
-        if (emptyEl) emptyEl.classList.add('hidden');
+        if (emptyEl) {
+          emptyEl.classList.add('hidden');
+          emptyEl.innerHTML = ''; // Clear empty state content to prevent duplicates
+        }
         loadUpcomingEvents();
       } else {
         // Show rooms, hide upcoming
@@ -2245,10 +2257,6 @@
                 <button onclick="filterRooms('upcoming')" class="btn btn-secondary">View All ${upcoming.length} Events</button>
               </div>
             ` : ''}
-            <div style="text-align: center; margin-top: var(--space-xl); padding-top: var(--space-lg); border-top: 2px solid var(--rose);">
-              <p style="color: var(--charcoal); opacity: 0.7; margin-bottom: var(--space-md);">Want to host your own event?</p>
-              <a href="/schedule-room.html" class="btn btn-primary">➕ Schedule Your Own</a>
-            </div>
           `;
           return;
         }

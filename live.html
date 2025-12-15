@@ -1211,13 +1211,18 @@
           <input type="text" id="room-search" class="search-input" placeholder="🔍 Search rooms by topic or host..." oninput="searchRooms(this.value)">
         </div>
         
-        <!-- Schedule Event CTA -->
-        <div class="schedule-cta" style="display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, var(--light-rose) 0%, #fff 100%); border: 2px solid var(--rose); border-radius: var(--radius-lg); padding: var(--space-md) var(--space-lg); margin-bottom: var(--space-md); flex-wrap: wrap; gap: var(--space-sm);">
-          <div style="display: flex; align-items: center; gap: var(--space-sm);">
-            <span style="font-size: 1.5rem;">📅</span>
-            <span style="font-weight: var(--font-weight-bold); color: var(--charcoal);">Want to host your own event?</span>
+        <!-- Schedule Event CTA - Branded -->
+        <div class="schedule-cta" style="display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, var(--main-red) 0%, #c41d3a 100%); border-radius: var(--radius-xl); padding: var(--space-lg); margin-bottom: var(--space-lg); flex-wrap: wrap; gap: var(--space-md); box-shadow: 0 4px 15px rgba(230, 57, 70, 0.3);">
+          <div style="display: flex; align-items: center; gap: var(--space-md);">
+            <div style="background: rgba(255,255,255,0.2); border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
+              <span style="font-size: 1.5rem;">📅</span>
+            </div>
+            <div>
+              <div style="font-weight: var(--font-weight-bold); color: white; font-size: 1.1rem;">Want to host your own event?</div>
+              <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem;">Schedule a live session and let your audience know!</div>
+            </div>
           </div>
-          <a href="/schedule-room.html" class="btn btn-primary" style="white-space: nowrap;">➕ Schedule Your Own</a>
+          <a href="/schedule-room.html" class="btn" style="background: white; color: var(--main-red); font-weight: var(--font-weight-bold); padding: var(--space-md) var(--space-xl); white-space: nowrap; border-radius: var(--radius-lg); text-decoration: none; transition: transform 0.2s, box-shadow 0.2s;" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.2)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='none';">➕ Schedule Your Own</a>
         </div>
 
         <!-- Room Type Tabs -->
@@ -2229,17 +2234,40 @@
     }
     window.joinRoom = joinRoom;
     
+    let emptyStateLoading = false; // Prevent duplicate calls
+    
     async function showEmptyState() {
+      // Prevent duplicate calls
+      if (emptyStateLoading) {
+        console.log('⏳ Empty state already loading, skipping...');
+        return;
+      }
+      emptyStateLoading = true;
+      
       document.getElementById('loading-state').classList.add('hidden');
       document.getElementById('rooms-grid').classList.add('hidden');
       
       const emptyEl = document.getElementById('empty-state');
       
+      // Clear any existing content first
+      emptyEl.innerHTML = '';
+      
       // Check if there are upcoming events to show
       try {
         const response = await fetch('/.netlify/functions/schedule-room?upcoming=true');
         const data = await response.json();
-        const upcoming = data.events || [];
+        let upcoming = data.events || [];
+        
+        // Deduplicate events by ID
+        const seenIds = new Set();
+        upcoming = upcoming.filter(event => {
+          if (seenIds.has(event.id)) {
+            console.log('🔄 Filtering duplicate event:', event.id);
+            return false;
+          }
+          seenIds.add(event.id);
+          return true;
+        });
         
         if (upcoming.length > 0) {
           // Show upcoming events directly instead of just a message
@@ -2258,6 +2286,7 @@
               </div>
             ` : ''}
           `;
+          emptyStateLoading = false;
           return;
         }
       } catch (e) {
@@ -2275,6 +2304,7 @@
           <a href="/schedule-room.html" class="btn btn-secondary">📅 Schedule an Event</a>
         </div>
       `;
+      emptyStateLoading = false;
     }
     
     // ============================================

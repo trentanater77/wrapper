@@ -169,3 +169,76 @@ div[id*="vignette"] {
     margin-top: 60px !important;
   }
 }
+
+/* ============================================
+   SIDEBAR & UI PROTECTION
+   Ensure ads don't block important UI elements
+   ============================================ */
+
+/* Sidebar navigation should always be accessible */
+.sidebar,
+.side-nav,
+.mobile-menu,
+.menu-toggle,
+.hamburger,
+[class*="sidebar"],
+[id*="sidebar"],
+button[aria-label*="menu"],
+.nav-toggle {
+  z-index: 100000 !important;
+  position: relative;
+}
+
+/* Ensure menu button is always clickable */
+.mobile-nav-toggle,
+.menu-btn,
+.nav-menu-btn {
+  z-index: 100001 !important;
+}
+
+/* Monetag In-Page Push - position away from corners with navigation */
+/* These typically show in bottom-right or top-right corners */
+div[class*="inpage"],
+div[id*="inpage"],
+div[class*="push-notification"],
+div[id*="push"] {
+  /* Keep away from top navigation area */
+  top: auto !important;
+  bottom: 20px !important;
+  /* Keep away from left sidebar */
+  left: auto !important;
+  right: 20px !important;
+  /* Limit size to be less intrusive */
+  max-width: 350px !important;
+  max-height: 120px !important;
+}
+
+/* Vignette overlay - make close button more visible */
+div[class*="vignette"] button,
+div[id*="vignette"] button,
+div[class*="vignette"] [class*="close"],
+div[id*="vignette"] [class*="close"] {
+  z-index: 100002 !important;
+  opacity: 1 !important;
+}
+
+/* Prevent ads from covering modals */
+.modal,
+.modal-overlay,
+[class*="modal"],
+[role="dialog"] {
+  z-index: 100003 !important;
+}
+
+/* On mobile, push in-page ads to bottom only */
+@media (max-width: 768px) {
+  div[class*="inpage"],
+  div[id*="inpage"],
+  div[class*="push-notification"] {
+    top: auto !important;
+    bottom: 10px !important;
+    left: 10px !important;
+    right: 10px !important;
+    max-width: calc(100% - 20px) !important;
+  }
+}

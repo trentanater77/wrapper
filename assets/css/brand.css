@@ -275,8 +275,8 @@ body {
 .nav-menu {
   position: fixed;
   top: 0;
-  left: 0; /* Slide from LEFT */
-  right: auto; /* Ensure right is not set */
+  left: 0 !important; /* Force LEFT side */
+  right: auto !important; /* Never on right */
   width: 320px;
   max-width: 85vw;
   height: 100vh;

@@ -391,11 +391,10 @@ header,
 
 /* Navigation menus and overlays - highest priority when open */
 /* Force LEFT side positioning to avoid ads on right */
-/* Note: No !important on transform so JavaScript can override */
 .nav-menu,
 #nav-menu {
-  left: 0;
-  right: auto;
+  left: 0 !important;
+  right: auto !important;
 }
 
 .nav-menu,

@@ -8899,16 +8899,20 @@ function ensureSpectatorTracksForParticipant(participant) {
     const placeholder1 = document.getElementById('spectator-placeholder-1');
     const placeholder2 = document.getElementById('spectator-placeholder-2');
     
-    // SIMPLIFIED: Just check if videos have sources and placeholders are hidden (cameras on)
-    // Don't check paused/readyState as these can be unreliable due to autoplay restrictions
-    const video1Active = video1 && video1.srcObject && video1.style.display !== 'none' &&
-                         (!placeholder1 || placeholder1.style.display === 'none' || placeholder1.classList.contains('hidden'));
-    const video2Active = video2 && video2.srcObject && video2.style.display !== 'none' &&
-                         (!placeholder2 || placeholder2.style.display === 'none' || placeholder2.classList.contains('hidden'));
+    const placeholder1Hidden = (!placeholder1 || placeholder1.style.display === 'none' || placeholder1.classList.contains('hidden'));
+    const placeholder2Hidden = (!placeholder2 || placeholder2.style.display === 'none' || placeholder2.classList.contains('hidden'));
+
+    const isStrictAutoplayBrowser = isSafari || isIOS || isMobileSafari;
+    const video1Active = video1 && video1.srcObject && video1.style.display !== 'none' && placeholder1Hidden;
+    const video2Active = video2 && video2.srcObject && video2.style.display !== 'none' && placeholder2Hidden;
+
+    // On iOS Safari, srcObject can exist while playback is still blocked; confirm "playing" more strictly.
+    const video1Playing = video1Active && (!isStrictAutoplayBrowser || (!video1.paused && video1.readyState >= 2 && video1.videoWidth > 0));
+    const video2Playing = video2Active && (!isStrictAutoplayBrowser || (!video2.paused && video2.readyState >= 2 && video2.videoWidth > 0));
     
-    console.log(`🎥 Video Status Check - Video1: ${video1Active}, Video2: ${video2Active}`);
+    console.log(`🎥 Video Status Check - Video1: ${video1Playing}, Video2: ${video2Playing}`);
     
-    return video1Active || video2Active;
+    return video1Playing || video2Playing;
   }
 
   function getParticipantName(participantId) {
@@ -14805,19 +14809,59 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     // Show appropriate feedback based on what's available
     if (playPromises.length > 0) {
-      // Hide overlay immediately since we have videos to play
-      clickOverlay.style.opacity = '0';
-      clickOverlay.style.transform = 'scale(0.95)';
-      setTimeout(() => {
-        clickOverlay.style.display = 'none';
-      }, 300);
-      
+      // IMPORTANT (iOS Safari / Mobile Safari):
+      // Don't hide the overlay until we have a confirmed playing video. Safari can still reject play()
+      // even after a tap, and hiding early results in a "blank" spectator area.
+      const isStrictAutoplayBrowser = isSafari || isIOS || isMobileSafari;
+      if (!isStrictAutoplayBrowser) {
+        // Non-Safari browsers: hide overlay immediately for best UX
+        clickOverlay.style.opacity = '0';
+        clickOverlay.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+          clickOverlay.style.display = 'none';
+        }, 300);
+      } else {
+        // Safari: keep overlay visible but indicate we're starting playback
+        const overlayText = clickOverlay?.querySelector('.text-center.text-white');
+        if (overlayText) {
+          const participantCount = (spectatorParticipant1 ? 1 : 0) + (spectatorParticipant2 ? 1 : 0);
+          overlayText.innerHTML = `
+            <div class="w-20 h-20 mx-auto mb-4 bg-green-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
+              <svg class="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>
+              </svg>
+            </div>
+            <p class="font-bold text-2xl text-white mb-2">Starting video…</p>
+            <p class="text-sm text-gold mt-2">${participantCount > 0 ? 'Tap again if video doesn’t start.' : 'Waiting for participants…'}</p>
+            <div class="mt-4 px-4 py-2 bg-green-500 rounded-full text-sm font-bold animate-bounce">
+              👆 Tap to Start
+            </div>
+          `;
+        }
+      }
+
       Promise.allSettled(playPromises).then((results) => {
         const successCount = results.filter(r => r.status === 'fulfilled' && r.value).length;
         if (successCount > 0) {
           showToast(`🎬 Now watching ${successCount} participant${successCount > 1 ? 's' : ''}! 👀`);
         } else {
           showToast('🎬 Videos ready! They may start playing shortly...');
+        }
+
+        // Safari: only hide overlay AFTER we confirm video playback, to avoid blank screens.
+        if (isSafari || isIOS || isMobileSafari) {
+          setTimeout(() => {
+            if (areVideosPlaying()) {
+              clickOverlay.classList.remove('spectator-overlay-force-visible');
+              clickOverlay.style.display = 'none';
+              clickOverlay.style.opacity = '0';
+              clickOverlay.style.visibility = 'hidden';
+              clickOverlay.style.pointerEvents = 'none';
+            } else {
+              console.log('🍎 Safari: video not confirmed playing yet; keeping overlay visible.');
+              forceSpectatorOverlayVisible('ready-to-watch');
+            }
+          }, 600);
         }
         
         // Check if videos are actually playing after a short delay

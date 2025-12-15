@@ -31,21 +31,21 @@
     # - OpenAI API
     # Security is maintained through other measures (input sanitization, rate limiting)
 
-# Cache static assets for better performance
+# Cache static assets - shorter cache for JS/CSS to allow updates
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=3600, must-revalidate"
 
 [[headers]]
   for = "*.css"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=3600, must-revalidate"
 
 [[headers]]
   for = "*.js"
   [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    Cache-Control = "public, max-age=3600, must-revalidate"
 
 # Don't cache HTML for fresh content
 [[headers]]

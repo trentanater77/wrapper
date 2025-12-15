@@ -59,13 +59,6 @@ window.openFeedbackModal = function() {
       return;
     }
 
-    // Force nav menu to LEFT side on initialization
-    navMenu.style.position = 'fixed';
-    navMenu.style.top = '0';
-    navMenu.style.left = '0';
-    navMenu.style.right = 'auto';
-    navMenu.style.transform = 'translateX(-100%)';
-
     // Set up event listeners
     setupEventListeners();
     
@@ -75,7 +68,7 @@ window.openFeedbackModal = function() {
     // Initialize scroll effects
     initScrollEffects();
 
-    console.log('✅ Navigation initialized (menu on LEFT)');
+    console.log('✅ Navigation initialized');
   }
 
   /**
@@ -133,10 +126,8 @@ window.openFeedbackModal = function() {
     isMenuOpen = true;
     menuToggle.classList.add('active');
     navMenu.classList.add('active');
-    // Force left side and visible transform (override any inline styles)
-    navMenu.style.left = '0';
-    navMenu.style.right = 'auto';
-    navMenu.style.transform = 'translateX(0)';
+    // Clear any inline transform so CSS .active class takes over
+    navMenu.style.transform = '';
     if (navOverlay) navOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
     
@@ -152,10 +143,8 @@ window.openFeedbackModal = function() {
     isMenuOpen = false;
     menuToggle.classList.remove('active');
     navMenu.classList.remove('active');
-    // Force left side and hidden transform
-    navMenu.style.left = '0';
-    navMenu.style.right = 'auto';
-    navMenu.style.transform = 'translateX(-100%)';
+    // Clear any inline transform so CSS takes over
+    navMenu.style.transform = '';
     if (navOverlay) navOverlay.classList.remove('active');
     document.body.style.overflow = '';
     

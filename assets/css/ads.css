@@ -390,17 +390,12 @@ header,
 }
 
 /* Navigation menus and overlays - highest priority when open */
-/* Also force LEFT side positioning to avoid ads on right */
+/* Force LEFT side positioning to avoid ads on right */
+/* Note: No !important on transform so JavaScript can override */
 .nav-menu,
 #nav-menu {
-  left: 0 !important;
-  right: auto !important;
-  transform: translateX(-100%) !important; /* Hidden state - slides from left */
-}
-
-.nav-menu.active,
-#nav-menu.active {
-  transform: translateX(0) !important; /* Visible state */
+  left: 0;
+  right: auto;
 }
 
 .nav-menu,

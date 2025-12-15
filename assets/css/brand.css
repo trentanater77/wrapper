@@ -275,14 +275,14 @@ body {
 .nav-menu {
   position: fixed;
   top: 0;
-  left: 0 !important; /* Slide from LEFT - !important to override any other styles */
-  right: auto !important; /* Ensure right is not set */
+  left: 0; /* Slide from LEFT */
+  right: auto; /* Ensure right is not set */
   width: 320px;
   max-width: 85vw;
   height: 100vh;
   background: var(--light-rose);
   padding: calc(var(--header-height) + var(--space-lg)) var(--space-lg) var(--space-lg);
-  transform: translateX(-100%) !important; /* Slide from LEFT */
+  transform: translateX(-100%); /* Hidden - slides from LEFT */
   transition: transform var(--transition-normal);
   z-index: calc(var(--z-fixed) + 5);
   overflow-y: auto;
@@ -291,7 +291,7 @@ body {
 }
 
 .nav-menu.active {
-  transform: translateX(0) !important;
+  transform: translateX(0); /* Visible */
 }
 
 /* Nav Close Button */

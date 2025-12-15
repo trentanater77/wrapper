@@ -247,28 +247,28 @@ div[id*="vignette"] [class*="close"],
 }
 
 /* Modals always above ads - NEVER reposition */
-.modal,
-.modal-overlay,
-[class*="modal"],
-[id*="modal"],
-[role="dialog"],
-.dialog,
-.popup {
+/* Only target actual modal CONTAINERS (direct body children or with -modal suffix in ID) */
+body > .modal,
+body > .modal-overlay,
+body > [role="dialog"],
+body > .dialog,
+body > .popup,
+#create-room-modal,
+#auth-modal,
+#rating-modal,
+#tip-modal,
+#share-modal,
+#upgrade-modal,
+#branding-modal,
+#bug-report-modal,
+#end-debate-modal,
+#recording-consent-modal,
+#report-modal,
+#spectator-management-modal,
+#switch-modal,
+#video-modal,
+#winner-announcement-modal {
   z-index: 100003 !important;
-  /* Ensure modals keep their intended centering */
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  max-width: none !important;
-  max-height: none !important;
-}
-
-/* Modal inner content should be centered */
-[id*="modal"] > div,
-.modal > div,
-.modal-content {
-  margin: auto;
 }
 
 /* ============================================
@@ -331,18 +331,17 @@ body.nav-open div[class*="push"] {
 
 /* Ultra-specific targeting for the In-Page Push ad widget */
 /* These ads typically have these characteristics */
-/* IMPORTANT: Exclude modals, navs, menus from being moved */
-body > div:not([id*="modal"]):not([id*="nav"]):not([id*="menu"]):not([class*="modal"]):not([class*="nav"]):not([class*="menu"])[style*="fixed"][style*="right"],
-body > div:not([id*="modal"]):not([id*="nav"]):not([id*="menu"]):not([class*="modal"]):not([class*="nav"]):not([class*="menu"])[style*="position: fixed"]:not([style*="top:0"]):not([style*="top: 0"]),
-body > div:not([id*="modal"]):not([id*="nav"]):not([id*="menu"]):not([class*="modal"]):not([class*="nav"]):not([class*="menu"])[style*="position:fixed"]:not([style*="top:0"]):not([style*="top: 0"]) {
+/* IMPORTANT: Exclude modals (have top:0), navs, menus from being moved */
+/* Only target elements that DON'T have top:0 (fullscreen modals have top:0) */
+body > div:not([id*="modal"]):not([id*="nav"]):not([id*="menu"]):not([class*="modal"]):not([class*="nav"]):not([class*="menu"]):not([style*="top:0"]):not([style*="bottom:0"])[style*="fixed"][style*="right"] {
   top: auto !important;
   bottom: 80px !important;
 }
 
 /* Target common Monetag container patterns - move to bottom */
-body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([id*="nav"]):not([id*="menu"]):not([id*="modal"])[style*="position: fixed"],
-body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([id*="nav"]):not([id*="menu"]):not([id*="modal"])[style*="z-index: 9"],
-body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([id*="nav"]):not([id*="menu"]):not([id*="modal"])[style*="z-index:9"] {
+/* Exclude fullscreen elements (have top:0 and bottom:0) - these are modals */
+body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([id*="nav"]):not([id*="menu"]):not([id*="modal"]):not([style*="top:0"]):not([style*="bottom:0"])[style*="z-index: 9"],
+body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([id*="nav"]):not([id*="menu"]):not([id*="modal"]):not([style*="top:0"]):not([style*="bottom:0"])[style*="z-index:9"] {
   top: auto !important;
   bottom: 80px !important;
   left: auto !important;

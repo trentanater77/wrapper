@@ -14,6 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/brand.css">
+  <link rel="stylesheet" href="/assets/css/ads.css">
   
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 64 64' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='24' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3Ccircle cx='40' cy='32' r='18' stroke='%23e63946' stroke-width='4' fill='none'/%3E%3C/svg%3E">
   
@@ -104,7 +105,7 @@
 <body>
   <div class="bg-pattern"></div>
   
-  <header class="site-header">
+  <header class="site-header" style="position: relative; z-index: 500000;">
     <div class="header-container">
       <a href="/explore.html" class="site-logo">
         <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -115,11 +116,11 @@
         </svg>
         <span class="site-logo-text">ChatSpheres</span>
       </a>
-      <div class="header-actions">
+      <div class="header-actions" style="position: relative; z-index: 999999;">
         <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'">
           <span>💎</span><span class="gem-count">0</span>
         </div>
-        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu" style="z-index: 999999; position: relative; pointer-events: auto;">
           <span class="menu-bar"></span><span class="menu-bar"></span><span class="menu-bar"></span>
         </button>
       </div>

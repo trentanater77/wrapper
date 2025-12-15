@@ -703,29 +703,31 @@
   <div class="bg-pattern"></div>
   
   <!-- Header -->
-  <header class="site-header">
+  <header class="site-header" style="position: relative; z-index: 500000;">
     <div class="header-container">
-      <a href="/explore.html" class="site-logo">
-        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
-          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
-          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        </svg>
-        <span class="site-logo-text">ChatSpheres</span>
-      </a>
-      
+      <!-- Left side: Menu button -->
+      <div class="header-left" style="display: flex; align-items: center; gap: var(--space-sm); z-index: 999999;">
+        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu" style="z-index: 999999; position: relative; pointer-events: auto;">
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+          <span class="menu-bar"></span>
+        </button>
+        <a href="/explore.html" class="site-logo">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+            <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+            <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+            <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          </svg>
+          <span class="site-logo-text">ChatSpheres</span>
+        </a>
+      </div>
+      <!-- Right side: Gem badge -->
       <div class="header-actions">
         <div id="header-gem-badge" class="header-gem-badge" style="display: none;" onclick="window.location.href='/cashout.html'" title="Your gems">
           <span>💎</span>
           <span class="gem-count">0</span>
         </div>
-        
-        <button id="menu-toggle" class="menu-toggle" aria-label="Toggle menu">
-          <span class="menu-bar"></span>
-          <span class="menu-bar"></span>
-          <span class="menu-bar"></span>
-        </button>
       </div>
     </div>
   </header>

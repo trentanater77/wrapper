@@ -269,11 +269,7 @@
       }
     }
 
-    // In-Page Push DISABLED - was blocking menu in top-right corner
-    // Monetag doesn't allow position configuration for this format
-    // Zone ID was: 10329140, script: https://nap5k.com/tag.min.js
-    // To re-enable, uncomment the code below:
-    /*
+    // In-Page Push - Re-enabled (menu moved to left side to avoid conflict)
     if (!document.querySelector('script[data-monetag-inpage]')) {
       try {
         (function(s) {
@@ -287,9 +283,8 @@
         console.error('In-Page Push script error:', e);
       }
     }
-    */
     
-    console.log('✅ [ChatSpheres Ads] Ad scripts injected (In-Page Push disabled)');
+    console.log('✅ [ChatSpheres Ads] All ad scripts injected');
     
     // Start monitoring for ad elements and reposition them
     startAdRepositioning();

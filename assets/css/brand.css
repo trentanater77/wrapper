@@ -424,6 +424,13 @@ body {
   gap: var(--space-sm);
 }
 
+/* Header left side - menu and logo together */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .header-gem-badge {
   display: flex;
   align-items: center;

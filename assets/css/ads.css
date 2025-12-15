@@ -122,123 +122,174 @@ body.ads-hidden .ad-container {
 }
 
 /* ============================================
-   MONETAG ADS - POSITIONING FIXES
+   MONETAG ADS - LESS INTRUSIVE POSITIONING
    Prevent ads from covering navigation/UI
    ============================================ */
 
-/* Ensure navigation stays above all ads */
+/* 
+ * Z-INDEX HIERARCHY (highest to lowest):
+ * 999999 - Mobile menu overlay/sidebar when open
+ * 500000 - Navigation bar and menu buttons
+ * 100003 - Modals and dialogs
+ * 9999   - All Monetag ads
+ */
+
+/* Ensure navigation stays ABOVE all ads */
 nav,
 .navigation,
 .nav-container,
 header,
-.header {
-  z-index: 99999 !important;
+.header,
+.top-nav,
+.main-nav {
+  z-index: 500000 !important;
   position: relative;
 }
 
-/* Push Monetag vignette/overlay ads below navigation */
-/* Monetag typically uses high z-index, we need to ensure our nav is higher */
-body {
-  /* Ensure body doesn't clip overlapping elements */
-  overflow-x: hidden;
+/* Mobile menu and sidebar - HIGHEST priority */
+.mobile-menu,
+.mobile-nav,
+.side-menu,
+.sidebar-menu,
+.nav-sidebar,
+.menu-overlay,
+.mobile-menu-overlay,
+[class*="mobile-menu"],
+[class*="side-menu"],
+[id*="mobile-menu"],
+[id*="side-menu"] {
+  z-index: 999999 !important;
 }
 
-/* Monetag In-Page Push typically appears in corner - ensure it doesn't cover nav */
-/* These selectors target common Monetag ad containers */
+/* Menu toggle buttons - always clickable */
+.menu-toggle,
+.hamburger,
+.nav-toggle,
+.mobile-nav-toggle,
+.menu-btn,
+.nav-menu-btn,
+button[aria-label*="menu"],
+button[aria-label*="Menu"],
+[class*="hamburger"],
+[class*="menu-toggle"],
+[id*="menu-toggle"] {
+  z-index: 999998 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+}
+
+/* ALL Monetag ad elements - lower z-index */
 div[id^="monetag"],
 div[class*="monetag"],
 div[id*="push"],
+div[class*="push"],
+div[id*="inpage"],
+div[class*="inpage"],
+div[id*="vignette"],
+div[class*="vignette"],
 iframe[src*="monetag"],
 iframe[src*="3nbf4"],
 iframe[src*="nap5k"],
 iframe[src*="gizokraijaw"] {
-  /* Don't let ads go above navigation (z-index 99999) */
   z-index: 9999 !important;
+  /* Never cover the top 80px where nav is */
+  pointer-events: auto;
 }
 
-/* Vignette ads - ensure they have margin from top for nav */
+/* Vignette ads - push down below navigation */
 div[class*="vignette"],
 div[id*="vignette"] {
-  margin-top: 70px !important; /* Account for nav height */
+  margin-top: 80px !important;
+  /* Make close button easier to find */
 }
 
-/* Mobile adjustments for ads */
-@media (max-width: 768px) {
-  div[class*="vignette"],
-  div[id*="vignette"] {
-    margin-top: 60px !important;
-  }
-}
-
-/* ============================================
-   SIDEBAR & UI PROTECTION
-   Ensure ads don't block important UI elements
-   ============================================ */
-
-/* Sidebar navigation should always be accessible */
-.sidebar,
-.side-nav,
-.mobile-menu,
-.menu-toggle,
-.hamburger,
-[class*="sidebar"],
-[id*="sidebar"],
-button[aria-label*="menu"],
-.nav-toggle {
-  z-index: 100000 !important;
-  position: relative;
-}
-
-/* Ensure menu button is always clickable */
-.mobile-nav-toggle,
-.menu-btn,
-.nav-menu-btn {
-  z-index: 100001 !important;
-}
-
-/* Monetag In-Page Push - position away from corners with navigation */
-/* These typically show in bottom-right or top-right corners */
+/* In-Page Push - position in bottom corner, away from menu */
 div[class*="inpage"],
 div[id*="inpage"],
 div[class*="push-notification"],
-div[id*="push"] {
-  /* Keep away from top navigation area */
+div[id*="notification"] {
   top: auto !important;
   bottom: 20px !important;
-  /* Keep away from left sidebar */
   left: auto !important;
   right: 20px !important;
-  /* Limit size to be less intrusive */
-  max-width: 350px !important;
-  max-height: 120px !important;
+  max-width: 320px !important;
+  max-height: 100px !important;
 }
 
-/* Vignette overlay - make close button more visible */
+/* Make ad close buttons always visible and clickable */
 div[class*="vignette"] button,
 div[id*="vignette"] button,
 div[class*="vignette"] [class*="close"],
-div[id*="vignette"] [class*="close"] {
-  z-index: 100002 !important;
+div[id*="vignette"] [class*="close"],
+[class*="ad-close"],
+[class*="close-ad"] {
+  z-index: 10000 !important;
   opacity: 1 !important;
+  pointer-events: auto !important;
+  /* Make close button bigger and easier to tap */
+  min-width: 30px !important;
+  min-height: 30px !important;
 }
 
-/* Prevent ads from covering modals */
+/* Modals always above ads */
 .modal,
 .modal-overlay,
 [class*="modal"],
-[role="dialog"] {
+[role="dialog"],
+.dialog,
+.popup {
   z-index: 100003 !important;
 }
 
-/* On mobile, push in-page ads to bottom only */
+/* ============================================
+   MOBILE-SPECIFIC AD POSITIONING
+   Even less intrusive on small screens
+   ============================================ */
+
 @media (max-width: 768px) {
+  /* Push vignette further down on mobile */
+  div[class*="vignette"],
+  div[id*="vignette"] {
+    margin-top: 70px !important;
+  }
+  
+  /* In-page push - smaller and at bottom */
   div[class*="inpage"],
   div[id*="inpage"],
   div[class*="push-notification"] {
-    top: auto !important;
     bottom: 10px !important;
     left: 10px !important;
     right: 10px !important;
     max-width: calc(100% - 20px) !important;
+    max-height: 80px !important;
   }
+  
+  /* Ensure hamburger menu is always tappable */
+  .hamburger,
+  .menu-toggle,
+  [class*="hamburger"] {
+    z-index: 999999 !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* ============================================
+   PREVENT ADS FROM BLOCKING INTERACTIONS
+   ============================================ */
+
+/* Ensure clickable elements are always accessible */
+a, button, input, select, textarea,
+[role="button"], [tabindex] {
+  position: relative;
+}
+
+/* When mobile menu is open, hide ads temporarily */
+body.menu-open div[class*="vignette"],
+body.menu-open div[class*="inpage"],
+body.menu-open div[class*="push"],
+body.nav-open div[class*="vignette"],
+body.nav-open div[class*="inpage"],
+body.nav-open div[class*="push"] {
+  display: none !important;
 }

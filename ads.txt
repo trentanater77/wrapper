@@ -1,1 +1,5 @@
-google.com, pub-8986841930339200, DIRECT, f08c47fec0942fa0
+# Monetag ads.txt
+monetag.com, pub-10328898, DIRECT
+
+# Google AdSense - Commented out, kept for potential future use
+# google.com, pub-8986841930339200, DIRECT, f08c47fec0942fa0

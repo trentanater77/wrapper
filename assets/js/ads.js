@@ -5,12 +5,12 @@
  * 
  * Plans WITHOUT ads (ad-free):
  * - ad_free_plus
- * - ad_free_premium  
+ * - ad_free_premium
+ * - host_pro
  * - pro_bundle
- * 
+ *
  * Plans WITH ads:
  * - free
- * - host_pro
  * 
  * Ad Formats:
  * - Push Notifications (zone 10329017)
@@ -31,7 +31,8 @@
   // const ADSENSE_PUBLISHER_ID = 'ca-pub-8986841930339200';
   
   // Plans that should NOT see ads
-  const AD_FREE_PLANS = ['ad_free_plus', 'ad_free_premium', 'pro_bundle'];
+  // NOTE: Keep this aligned with your product promises; this is enforced client-side.
+  const AD_FREE_PLANS = ['ad_free_plus', 'ad_free_premium', 'host_pro', 'pro_bundle'];
   
   // State
   let userPlan = 'free';
@@ -101,6 +102,14 @@
           }
         } catch (e) {
           console.log('Could not get session from supabaseClient');
+        }
+      }
+
+      // Fallback: use the already-initialized app user (works even when storage is blocked)
+      if (!userId) {
+        const appUserId = window.currentUserData?.userId;
+        if (typeof appUserId === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(appUserId)) {
+          userId = appUserId;
         }
       }
       
@@ -727,7 +736,11 @@
       console.log('Monetag ads refresh automatically');
     },
     // Monetag-specific
-    getZoneId: () => MONETAG_ZONE_ID,
+    getZoneId: () => ({
+      push: MONETAG_PUSH_ZONE_ID,
+      vignette: MONETAG_VIGNETTE_ZONE_ID,
+      inpage: MONETAG_INPAGE_PUSH_ZONE_ID
+    }),
     isServiceWorkerRegistered: () => serviceWorkerRegistered
   };
 

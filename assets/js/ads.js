@@ -394,10 +394,11 @@
     
     // Check if element is safe (not an ad)
     function isSafeElement(el) {
-      if (!el || !el.id && !el.className) return false;
+      if (!el) return true; // If no element, don't touch it
       
       const id = el.id || '';
       const className = el.className?.toString?.() || el.className || '';
+      const style = el.getAttribute('style') || '';
       
       // Check against safe lists
       if (SAFE_IDS.some(safeId => id === safeId || id.includes(safeId))) return true;
@@ -406,6 +407,10 @@
       // Additional safe patterns
       if (id.includes('nav') || id.includes('menu') || id.includes('modal') || id.includes('header')) return true;
       if (className.includes('nav') || className.includes('menu') || className.includes('modal') || className.includes('header')) return true;
+      
+      // Fullscreen elements (modals) have top:0 and bottom:0 - NEVER touch these
+      if (style.includes('top:0') && style.includes('bottom:0')) return true;
+      if (style.includes('top: 0') && style.includes('bottom: 0')) return true;
       
       return false;
     }

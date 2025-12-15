@@ -1507,9 +1507,10 @@
         if (createBtn) createBtn.style.display = 'block';
         if (signinPrompt) signinPrompt.style.display = 'none';
         
-        // Show plan warning for free users
+        // Show plan warning for free users (hide for any pro plan)
         if (planWarning) {
-          planWarning.style.display = (userPlan === 'free') ? 'block' : 'none';
+          const hasProPlan = ['host_pro', 'pro_bundle', 'ad_free_plus', 'ad_free_premium'].includes(userPlan);
+          planWarning.style.display = hasProPlan ? 'none' : 'block';
         }
       }
       
@@ -1634,8 +1635,9 @@
           greenBtn.style.borderWidth = '3px';
         }
         
-        // Check if user has pro plan for green rooms
-        if (userPlan === 'free' && currentUserId) {
+        // Check if user has pro plan for green rooms (host_pro or pro_bundle can create green rooms)
+        const canCreateGreenRoom = ['host_pro', 'pro_bundle'].includes(userPlan);
+        if (!canCreateGreenRoom && currentUserId) {
           if (greenProWarning) greenProWarning.style.display = 'block';
           if (createBtn) {
             createBtn.disabled = true;
@@ -2272,11 +2274,22 @@
     // ============================================
     let upcomingEvents = [];
     let userReminders = {}; // eventId -> true/false
+    let upcomingEventsLoading = false; // Prevent duplicate loads
     
     async function loadUpcomingEvents() {
+      // Prevent duplicate calls
+      if (upcomingEventsLoading) {
+        console.log('📅 Upcoming events already loading, skipping...');
+        return;
+      }
+      upcomingEventsLoading = true;
+      
       const loadingEl = document.getElementById('upcoming-loading');
       const emptyEl = document.getElementById('upcoming-empty');
       const gridEl = document.getElementById('upcoming-grid');
+      
+      // Clear any existing content to prevent duplicates
+      if (gridEl) gridEl.innerHTML = '';
       
       // Show loading
       if (loadingEl) loadingEl.classList.remove('hidden');
@@ -2305,10 +2318,12 @@
         }
         
         renderUpcomingEvents();
+        upcomingEventsLoading = false;
       } catch (error) {
         console.error('Error loading upcoming events:', error);
         if (loadingEl) loadingEl.classList.add('hidden');
         if (emptyEl) emptyEl.classList.remove('hidden');
+        upcomingEventsLoading = false;
       }
     }
     

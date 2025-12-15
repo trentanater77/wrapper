@@ -120,3 +120,52 @@ body.ads-hidden .ad-container {
 .chatspheres-ad-container:empty::before {
   display: none;
 }
+
+/* ============================================
+   MONETAG ADS - POSITIONING FIXES
+   Prevent ads from covering navigation/UI
+   ============================================ */
+
+/* Ensure navigation stays above all ads */
+nav,
+.navigation,
+.nav-container,
+header,
+.header {
+  z-index: 99999 !important;
+  position: relative;
+}
+
+/* Push Monetag vignette/overlay ads below navigation */
+/* Monetag typically uses high z-index, we need to ensure our nav is higher */
+body {
+  /* Ensure body doesn't clip overlapping elements */
+  overflow-x: hidden;
+}
+
+/* Monetag In-Page Push typically appears in corner - ensure it doesn't cover nav */
+/* These selectors target common Monetag ad containers */
+div[id^="monetag"],
+div[class*="monetag"],
+div[id*="push"],
+iframe[src*="monetag"],
+iframe[src*="3nbf4"],
+iframe[src*="nap5k"],
+iframe[src*="gizokraijaw"] {
+  /* Don't let ads go above navigation (z-index 99999) */
+  z-index: 9999 !important;
+}
+
+/* Vignette ads - ensure they have margin from top for nav */
+div[class*="vignette"],
+div[id*="vignette"] {
+  margin-top: 70px !important; /* Account for nav height */
+}
+
+/* Mobile adjustments for ads */
+@media (max-width: 768px) {
+  div[class*="vignette"],
+  div[id*="vignette"] {
+    margin-top: 60px !important;
+  }
+}

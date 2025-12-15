@@ -217,18 +217,24 @@
   <div class="bg-pattern"></div>
   
   <!-- Simple Header -->
-  <header class="site-header">
+  <header class="site-header" style="position: relative; z-index: 500000;">
     <div class="header-container">
-      <a href="/explore.html" class="site-logo">
-        <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
-          <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
-          <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-          <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
-        </svg>
-        <span class="site-logo-text">ChatSpheres</span>
-      </a>
-      <a href="/explore.html" class="btn btn-ghost">← Back to App</a>
+      <!-- Left side: Logo -->
+      <div class="header-left" style="display: flex; align-items: center; gap: var(--space-sm);">
+        <a href="/explore.html" class="site-logo">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+            <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
+            <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+            <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
+          </svg>
+          <span class="site-logo-text">ChatSpheres</span>
+        </a>
+      </div>
+      <!-- Right side: Back button -->
+      <div class="header-actions">
+        <a href="/explore.html" class="btn btn-ghost">← Back to App</a>
+      </div>
     </div>
   </header>
   

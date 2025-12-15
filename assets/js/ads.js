@@ -261,7 +261,7 @@
     // Cross-browser compatibility settings
     script.async = true;
     script.defer = false;
-    script.crossOrigin = 'anonymous'; // Help with CORS in strict browsers
+    // Note: Do NOT set crossOrigin - Monetag scripts don't support CORS preflight
     script.src = src;
     
     script.onload = function() {
@@ -367,7 +367,8 @@
                       'feedback-widget', 'feedback-modal', 'nav-menu', 'nav-overlay',
                       'rating-modal', 'tip-modal', 'spectator-container'];
     const SAFE_CLASSES = ['navigation', 'nav-container', 'header', 'video-header', 
-                          'modal', 'feedback', 'tooltip', 'dropdown'];
+                          'modal', 'feedback', 'tooltip', 'dropdown',
+                          'bg-circles', 'bg-pattern', 'bg-'];
     
     // Create a protective overlay for the menu button area
     function protectMenuArea() {

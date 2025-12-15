@@ -122,6 +122,21 @@
                   radial-gradient(circle at 70% 30%, rgba(255, 209, 102, 0.1) 0%, transparent 50%);
       pointer-events: none;
     }
+
+    /* Spectator view hardening (esp. iOS Safari/WebView) */
+    #video-interface {
+      min-height: 100vh;
+    }
+
+    /* Ensure the spectator video region never collapses to 0 height */
+    #spectator-layout .aspect-video {
+      min-height: 240px;
+      background: #22223B;
+    }
+
+    #spectator-participants-container {
+      min-height: 240px;
+    }
     
     .vesica-accent {
       position: absolute;
@@ -8456,18 +8471,45 @@ async function initializeApp() {
       console.log(`🔄 Camera turned back on for participant ${participantId} in slot ${existingSlot}`);
       
       try {
+        // iOS Safari is very sensitive to attribute order for MediaStream playback.
+        // Set attributes BEFORE assigning srcObject.
+        if (videoElement) {
+          videoElement.muted = true;
+          videoElement.autoplay = true;
+          videoElement.playsInline = true;
+          videoElement.setAttribute('playsinline', '');
+          videoElement.setAttribute('webkit-playsinline', '');
+        }
+
         videoElement.srcObject = new MediaStream([track]);
-        
-        // CRITICAL: Hide placeholder and show video when camera turns back on
-        placeholder.style.display = 'none';
-        placeholder.classList.add('hidden');
+
+        // Show video element, but only hide the placeholder once we have frames.
         videoElement.classList.remove('hidden');
         videoElement.style.display = 'block';
+        if (placeholder) {
+          placeholder.classList.remove('hidden');
+          placeholder.style.display = 'flex';
+        }
         
         // Force video visibility styles
         videoElement.style.visibility = 'visible';
         videoElement.style.opacity = '1';
         hideWaitingOverlay();
+
+        const revealWhenReady = () => {
+          try {
+            if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+              if (placeholder) {
+                placeholder.style.display = 'none';
+                placeholder.classList.add('hidden');
+              }
+            }
+          } catch (_) {}
+        };
+
+        videoElement.addEventListener('loadedmetadata', revealWhenReady, { once: true });
+        videoElement.addEventListener('playing', revealWhenReady, { once: true });
+        setTimeout(revealWhenReady, 800);
         
         console.log(`✅ Spectator video restored for participant ${participantId} - camera back on`);
         
@@ -8489,7 +8531,7 @@ async function initializeApp() {
           console.log('🍎 Safari: Waiting for user interaction to play video');
         }
         
-        // CRITICAL: Hide overlay when camera turns back on
+        // CRITICAL: Hide overlay when camera turns back on (once viewable)
         setTimeout(() => {
           checkAndHideClickOverlay();
         }, 100);
@@ -8562,6 +8604,13 @@ async function initializeApp() {
     }
     
     try {
+      // iOS Safari/WebView: set attributes BEFORE assigning srcObject to avoid black/blank video.
+      videoElement.muted = true;
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.setAttribute('playsinline', '');
+      videoElement.setAttribute('webkit-playsinline', '');
+
       // Set up video stream
       videoElement.srcObject = new MediaStream([track]);
       // Spectators should be able to autoplay video without a gesture.
@@ -8588,9 +8637,9 @@ async function initializeApp() {
         badgeEl.classList.remove('hidden');
       }
       
-      // Force hide placeholder and show video element
-      placeholder.style.display = 'none';
-      placeholder.classList.add('hidden');
+      // Show placeholder until we confirm frames are rendering (prevents "blank" on iOS Safari)
+      placeholder.classList.remove('hidden');
+      placeholder.style.display = 'flex';
       videoElement.classList.remove('hidden');
       videoElement.style.display = 'block';
       
@@ -8604,10 +8653,20 @@ async function initializeApp() {
       videoElement.style.height = '100%';
       videoElement.style.objectFit = 'cover';
       
-      // Force placeholder to hide
-      placeholder.style.display = 'none';
-      placeholder.classList.add('hidden');
       hideWaitingOverlay();
+
+      const revealWhenReady = () => {
+        try {
+          if (videoElement.videoWidth > 0 && videoElement.videoHeight > 0) {
+            placeholder.style.display = 'none';
+            placeholder.classList.add('hidden');
+          }
+        } catch (_) {}
+      };
+
+      videoElement.addEventListener('loadedmetadata', revealWhenReady, { once: true });
+      videoElement.addEventListener('playing', revealWhenReady, { once: true });
+      setTimeout(revealWhenReady, 800);
       
       // Get comprehensive debugging info
       const debugInfo = {
@@ -9044,6 +9103,13 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     try {
       console.log('📺 Setting up spectator screen share');
+      // iOS Safari/WebView: set attributes BEFORE assigning srcObject.
+      spectatorScreenShare.muted = true;
+      spectatorScreenShare.autoplay = true;
+      spectatorScreenShare.playsInline = true;
+      spectatorScreenShare.setAttribute('playsinline', '');
+      spectatorScreenShare.setAttribute('webkit-playsinline', '');
+
       spectatorScreenShare.srcObject = new MediaStream([track]);
       spectatorScreenShare.classList.remove('hidden');
       spectatorScreenShare.style.display = 'block';

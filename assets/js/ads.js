@@ -46,26 +46,28 @@
   async function initAds() {
     if (adsInitialized) return;
     
-    console.log('🎯 Initializing ChatSpheres Ad System (Monetag)...');
+    console.log('🎯 [ChatSpheres Ads] Starting initialization...');
     
     // Check user's subscription status
     await checkUserSubscription();
     
     // If user has ad-free plan, hide all ads and don't load Monetag
     if (!adsEnabled) {
-      console.log('✨ Ad-free plan detected - hiding all ads');
+      console.log('✨ [ChatSpheres Ads] Ad-free plan detected - hiding all ads');
       hideAllAds();
       return;
     }
     
-    // Register Monetag service worker
-    await registerServiceWorker();
+    console.log('📢 [ChatSpheres Ads] User should see ads, loading Monetag...');
     
-    // Load Monetag scripts
+    // Load Monetag scripts FIRST (don't wait for service worker)
     loadMonetagScripts();
     
+    // Register Monetag service worker (for push notifications)
+    registerServiceWorker();
+    
     adsInitialized = true;
-    console.log('✅ Ad system initialized (Monetag)');
+    console.log('✅ [ChatSpheres Ads] Initialization complete!');
   }
 
   /**
@@ -78,7 +80,7 @@
       const supabaseConfig = config.supabase || {};
       
       if (!window.supabase || !supabaseConfig.url || !supabaseConfig.anonKey) {
-        console.log('📢 No auth available - showing ads (free user)');
+        console.log('📢 [ChatSpheres Ads] No auth available - showing ads (free user)');
         adsEnabled = true;
         return;
       }
@@ -119,7 +121,7 @@
       }
 
       if (!userId) {
-        console.log('📢 No user logged in - showing ads');
+        console.log('📢 [ChatSpheres Ads] No user logged in - showing ads');
         adsEnabled = true;
         return;
       }
@@ -164,45 +166,55 @@
    * Load Monetag ad scripts
    */
   function loadMonetagScripts() {
-    // Load Push Notifications script
+    console.log('📦 [ChatSpheres Ads] Loading Monetag scripts...');
+    
+    // Load Push Notifications script (exact format from Monetag)
     if (!document.querySelector('script[data-monetag-push]')) {
-      const pushScript = document.createElement('script');
-      pushScript.async = true;
-      pushScript.setAttribute('data-monetag-push', 'true');
-      pushScript.setAttribute('data-cfasync', 'false');
-      pushScript.src = `https://${MONETAG_DOMAIN}/act/files/tag.min.js?z=${MONETAG_PUSH_ZONE_ID}`;
-      pushScript.onerror = () => {
-        console.warn('Monetag Push script failed to load (might be blocked by ad blocker)');
-      };
-      document.head.appendChild(pushScript);
-      console.log('📱 Monetag Push Notifications script loaded');
+      try {
+        const pushScript = document.createElement('script');
+        pushScript.setAttribute('data-monetag-push', 'true');
+        pushScript.setAttribute('data-cfasync', 'false');
+        pushScript.async = true;
+        pushScript.src = 'https://3nbf4.com/act/files/tag.min.js?z=10329017';
+        pushScript.onload = () => console.log('📱 [ChatSpheres Ads] Push Notifications loaded');
+        pushScript.onerror = () => console.warn('⚠️ Push script blocked or failed');
+        document.head.appendChild(pushScript);
+      } catch (e) {
+        console.error('Push script error:', e);
+      }
     }
 
-    // Load Vignette Banner script
+    // Load Vignette Banner script (exact format from Monetag)
     if (!document.querySelector('script[data-monetag-vignette]')) {
-      const vignetteScript = document.createElement('script');
-      vignetteScript.setAttribute('data-monetag-vignette', 'true');
-      vignetteScript.dataset.zone = MONETAG_VIGNETTE_ZONE_ID;
-      vignetteScript.src = 'https://gizokraijaw.net/vignette.min.js';
-      vignetteScript.onerror = () => {
-        console.warn('Monetag Vignette script failed to load (might be blocked by ad blocker)');
-      };
-      document.body.appendChild(vignetteScript);
-      console.log('🎨 Monetag Vignette Banner script loaded');
+      try {
+        (function(s) {
+          s.setAttribute('data-monetag-vignette', 'true');
+          s.dataset.zone = '10329015';
+          s.src = 'https://gizokraijaw.net/vignette.min.js';
+          s.onload = function() { console.log('🎨 [ChatSpheres Ads] Vignette Banner loaded'); };
+          s.onerror = function() { console.warn('⚠️ Vignette script blocked or failed'); };
+        })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+      } catch (e) {
+        console.error('Vignette script error:', e);
+      }
     }
 
-    // Load In-Page Push script (notification-style banner)
+    // Load In-Page Push script (exact format from Monetag)
     if (!document.querySelector('script[data-monetag-inpage]')) {
-      const inpageScript = document.createElement('script');
-      inpageScript.setAttribute('data-monetag-inpage', 'true');
-      inpageScript.dataset.zone = MONETAG_INPAGE_PUSH_ZONE_ID;
-      inpageScript.src = 'https://nap5k.com/tag.min.js';
-      inpageScript.onerror = () => {
-        console.warn('Monetag In-Page Push script failed to load (might be blocked by ad blocker)');
-      };
-      document.body.appendChild(inpageScript);
-      console.log('💬 Monetag In-Page Push script loaded');
+      try {
+        (function(s) {
+          s.setAttribute('data-monetag-inpage', 'true');
+          s.dataset.zone = '10329140';
+          s.src = 'https://nap5k.com/tag.min.js';
+          s.onload = function() { console.log('💬 [ChatSpheres Ads] In-Page Push loaded'); };
+          s.onerror = function() { console.warn('⚠️ In-Page Push script blocked or failed'); };
+        })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+      } catch (e) {
+        console.error('In-Page Push script error:', e);
+      }
     }
+    
+    console.log('✅ [ChatSpheres Ads] All ad scripts injected');
   }
 
   /* Google AdSense - Commented out for potential future use

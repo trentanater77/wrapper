@@ -18,7 +18,8 @@
   'use strict';
 
   // Monetag Configuration
-  const MONETAG_ZONE_ID = 10328898;
+  const MONETAG_PUSH_ZONE_ID = 10329017;
+  const MONETAG_VIGNETTE_ZONE_ID = 10329015;
   const MONETAG_DOMAIN = '3nbf4.com';
   
   // Google AdSense - Commented out for potential future use

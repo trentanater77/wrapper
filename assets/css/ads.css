@@ -203,17 +203,32 @@ div[id*="vignette"] {
   /* Make close button easier to find */
 }
 
-/* In-Page Push - position in bottom corner, away from menu */
+/* In-Page Push - FORCE to bottom corner, away from menu */
+/* Target all possible Monetag containers aggressively */
 div[class*="inpage"],
 div[id*="inpage"],
 div[class*="push-notification"],
-div[id*="notification"] {
+div[id*="notification"],
+div[class*="push"],
+div[id*="push"],
+/* Common Monetag container patterns */
+body > div[style*="position: fixed"],
+body > div[style*="position:fixed"],
+body > div[style*="z-index: 9"],
+body > div[style*="z-index:9"],
+body > div[style*="top: 0"],
+body > div[style*="top:0"],
+body > div[style*="right: 0"],
+body > div[style*="right:0"] {
   top: auto !important;
   bottom: 20px !important;
   left: auto !important;
   right: 20px !important;
   max-width: 320px !important;
-  max-height: 100px !important;
+  max-height: 120px !important;
+  /* Force reposition */
+  transform: none !important;
+  margin-top: 0 !important;
 }
 
 /* Make ad close buttons always visible and clickable */
@@ -292,4 +307,46 @@ body.nav-open div[class*="vignette"],
 body.nav-open div[class*="inpage"],
 body.nav-open div[class*="push"] {
   display: none !important;
+}
+
+/* ============================================
+   NAVIGATION SAFE ZONE
+   Force top-right area to be ad-free
+   ============================================ */
+
+/* Create a safe zone in the top 80px of the page */
+/* Any fixed element in that area that's not navigation should be pushed down */
+body > div:not(.navigation):not(.nav-container):not(nav):not(header):not([class*="nav"]) {
+  /* If it's fixed and in the top area, it might be an ad */
+}
+
+/* Ultra-specific targeting for the In-Page Push ad widget */
+/* These ads typically have these characteristics */
+body > div[style*="fixed"][style*="right"] {
+  top: auto !important;
+  bottom: 80px !important;
+}
+
+/* Ensure navigation link area is ALWAYS on top */
+.nav-links,
+.nav-right,
+.nav-actions,
+.user-menu,
+.profile-menu,
+.auth-buttons,
+[class*="nav-link"],
+[class*="nav-right"],
+[class*="user-menu"],
+[class*="auth"] {
+  z-index: 999999 !important;
+  position: relative !important;
+}
+
+/* Add pointer-events protection to nav area */
+nav, .navigation, header, .header {
+  pointer-events: auto !important;
+}
+
+nav *, .navigation *, header *, .header * {
+  pointer-events: auto !important;
 }

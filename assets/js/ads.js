@@ -219,6 +219,68 @@
     }
     
     console.log('✅ [ChatSpheres Ads] All ad scripts injected');
+    
+    // Start monitoring for ad elements and reposition them
+    startAdRepositioning();
+  }
+
+  /**
+   * Monitor for Monetag ad elements and reposition them away from navigation
+   */
+  function startAdRepositioning() {
+    // Reposition any ads that appear in the top-right (menu area)
+    function repositionAds() {
+      // Find all fixed position elements that might be ads
+      const allFixed = document.querySelectorAll('body > div');
+      
+      allFixed.forEach(el => {
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        
+        // Check if it's fixed, in top-right area, and not navigation
+        if (style.position === 'fixed' && 
+            rect.top < 100 && 
+            rect.right > window.innerWidth - 400 &&
+            !el.classList.contains('navigation') &&
+            !el.classList.contains('nav-container') &&
+            !el.id.includes('nav') &&
+            !el.classList.toString().includes('nav') &&
+            !el.classList.toString().includes('menu') &&
+            !el.classList.toString().includes('feedback')) {
+          
+          // This is likely an ad in the menu area - move it to bottom
+          el.style.setProperty('top', 'auto', 'important');
+          el.style.setProperty('bottom', '20px', 'important');
+          el.style.setProperty('right', '20px', 'important');
+          el.style.setProperty('max-width', '320px', 'important');
+          el.style.setProperty('z-index', '9999', 'important');
+          console.log('📍 [ChatSpheres Ads] Repositioned ad element to bottom');
+        }
+      });
+    }
+    
+    // Run immediately and then every 2 seconds for the first 30 seconds
+    repositionAds();
+    let checkCount = 0;
+    const interval = setInterval(() => {
+      repositionAds();
+      checkCount++;
+      if (checkCount >= 15) { // Stop after 30 seconds
+        clearInterval(interval);
+        console.log('📍 [ChatSpheres Ads] Stopped ad repositioning checks');
+      }
+    }, 2000);
+    
+    // Also use MutationObserver to catch new ads
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach(mutation => {
+        if (mutation.addedNodes.length > 0) {
+          setTimeout(repositionAds, 100);
+        }
+      });
+    });
+    
+    observer.observe(document.body, { childList: true, subtree: false });
   }
 
   // ========================================

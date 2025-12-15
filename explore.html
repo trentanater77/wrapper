@@ -103,6 +103,13 @@
       50% { transform: translate(30px, -30px) scale(1.1); }
     }
     
+    /* Hide background circles on mobile - they cause display issues */
+    @media (max-width: 768px) {
+      .bg-circles {
+        display: none;
+      }
+    }
+    
     /* Header */
     .site-header {
       position: fixed;

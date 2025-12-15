@@ -275,13 +275,13 @@ body {
 .nav-menu {
   position: fixed;
   top: 0;
-  right: 0;
+  left: 0; /* Changed from right: 0 - now slides from LEFT */
   width: 320px;
   max-width: 85vw;
   height: 100vh;
   background: var(--light-rose);
   padding: calc(var(--header-height) + var(--space-lg)) var(--space-lg) var(--space-lg);
-  transform: translateX(100%);
+  transform: translateX(-100%); /* Changed from 100% - slides from LEFT */
   transition: transform var(--transition-normal);
   z-index: calc(var(--z-fixed) + 5);
   overflow-y: auto;
@@ -293,11 +293,11 @@ body {
   transform: translateX(0);
 }
 
-/* Nav Close Button (Mobile) */
+/* Nav Close Button */
 .nav-close {
   position: absolute;
   top: var(--space-md);
-  right: var(--space-md);
+  right: var(--space-md); /* Keep close button on right side of sidebar */
   width: 40px;
   height: 40px;
   display: flex;

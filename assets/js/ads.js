@@ -167,10 +167,76 @@
   }
 
   /**
+   * Inject aggressive CSS to override Monetag inline styles
+   */
+  function injectProtectionCSS() {
+    if (document.getElementById('chatspheres-ad-protection')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'chatspheres-ad-protection';
+    style.textContent = `
+      /* NUCLEAR OPTION: Force ALL fixed elements in top-right to bottom */
+      /* This uses very high specificity to override inline styles */
+      
+      body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not(#nav-menu):not(#nav-overlay):not([id*="nav"]):not([id*="menu"]):not([id*="modal"]):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([class*="header"]) {
+        /* If this element ends up being fixed in the top area, move it */
+      }
+      
+      /* Menu buttons - ALWAYS on top */
+      #video-menu-toggle,
+      #menu-toggle,
+      .menu-toggle,
+      button[aria-label="Toggle menu"],
+      button[aria-label*="menu" i] {
+        z-index: 999999 !important;
+        position: relative !important;
+        pointer-events: auto !important;
+        isolation: isolate !important;
+      }
+      
+      /* Headers - very high z-index */
+      header,
+      .header,
+      .video-header,
+      .site-header,
+      nav.main-nav {
+        z-index: 500000 !important;
+        position: relative !important;
+        isolation: isolate !important;
+      }
+      
+      /* Navigation overlays - highest z-index when open */
+      #video-mobile-nav,
+      #nav-overlay,
+      #nav-menu,
+      .mobile-nav,
+      .nav-overlay {
+        z-index: 1000000 !important;
+      }
+      
+      /* Any element marked as repositioned by our JS */
+      [data-repositioned="true"] {
+        top: auto !important;
+        bottom: 100px !important;
+        left: auto !important;
+        right: 20px !important;
+        max-width: 320px !important;
+        max-height: 120px !important;
+        z-index: 9999 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    console.log('🛡️ [ChatSpheres Ads] Protection CSS injected');
+  }
+
+  /**
    * Load Monetag ad scripts
    */
   function loadMonetagScripts() {
     console.log('📦 [ChatSpheres Ads] Loading Monetag scripts...');
+    
+    // First inject our protection CSS
+    injectProtectionCSS();
     
     // Load Push Notifications script (exact format from Monetag)
     if (!document.querySelector('script[data-monetag-push]')) {
@@ -226,132 +292,213 @@
 
   /**
    * Monitor for Monetag ad elements and reposition them away from navigation
-   * This is AGGRESSIVE - we want menu to ALWAYS be accessible
+   * This is ULTRA AGGRESSIVE - we want menu to ALWAYS be accessible
    */
   function startAdRepositioning() {
+    // Known safe element IDs and classes - never move these
+    const SAFE_IDS = ['video-interface', 'video-mobile-nav', 'auth-modal', 'landing-page', 
+                      'feedback-widget', 'feedback-modal', 'nav-menu', 'nav-overlay',
+                      'rating-modal', 'tip-modal', 'spectator-container'];
+    const SAFE_CLASSES = ['navigation', 'nav-container', 'header', 'video-header', 
+                          'modal', 'feedback', 'tooltip', 'dropdown'];
+    
     // Create a protective overlay for the menu button area
     function protectMenuArea() {
-      const menuBtn = document.getElementById('video-menu-toggle');
-      if (menuBtn) {
-        // Ensure menu button has highest z-index
-        menuBtn.style.setProperty('z-index', '999999', 'important');
-        menuBtn.style.setProperty('position', 'relative', 'important');
-        menuBtn.style.setProperty('pointer-events', 'auto', 'important');
-      }
+      // Protect all menu buttons
+      const menuButtons = document.querySelectorAll('#video-menu-toggle, #menu-toggle, .menu-toggle, .hamburger, [aria-label*="menu"]');
+      menuButtons.forEach(btn => {
+        btn.style.setProperty('z-index', '999999', 'important');
+        btn.style.setProperty('position', 'relative', 'important');
+        btn.style.setProperty('pointer-events', 'auto', 'important');
+      });
       
-      // Protect the header area
-      const header = document.querySelector('.video-header, header, .header');
-      if (header) {
+      // Protect all headers
+      const headers = document.querySelectorAll('.video-header, header, .header, .site-header');
+      headers.forEach(header => {
         header.style.setProperty('z-index', '500000', 'important');
         header.style.setProperty('position', 'relative', 'important');
-      }
+      });
     }
     
-    // Reposition any ads that appear in the top area (especially top-right menu area)
+    // Check if element is safe (not an ad)
+    function isSafeElement(el) {
+      if (!el || !el.id && !el.className) return false;
+      
+      const id = el.id || '';
+      const className = el.className?.toString?.() || el.className || '';
+      
+      // Check against safe lists
+      if (SAFE_IDS.some(safeId => id === safeId || id.includes(safeId))) return true;
+      if (SAFE_CLASSES.some(safeCls => className.includes(safeCls))) return true;
+      
+      // Additional safe patterns
+      if (id.includes('nav') || id.includes('menu') || id.includes('modal') || id.includes('header')) return true;
+      if (className.includes('nav') || className.includes('menu') || className.includes('modal') || className.includes('header')) return true;
+      
+      return false;
+    }
+    
+    // Force move an element to bottom-right
+    function moveToBottom(el, reason) {
+      el.style.setProperty('top', 'auto', 'important');
+      el.style.setProperty('bottom', '100px', 'important');
+      el.style.setProperty('left', 'auto', 'important');
+      el.style.setProperty('right', '20px', 'important');
+      el.style.setProperty('max-width', '320px', 'important');
+      el.style.setProperty('max-height', '120px', 'important');
+      el.style.setProperty('z-index', '9999', 'important');
+      el.style.setProperty('overflow', 'hidden', 'important');
+      el.dataset.repositioned = 'true';
+      console.log('📍 [ChatSpheres Ads] Moved to bottom:', reason, el.id || el.className?.toString?.()?.slice(0,50) || 'anon');
+    }
+    
+    // Main repositioning function
     function repositionAds() {
       protectMenuArea();
       
-      // Find ALL fixed/absolute position elements that might be ads
-      const allElements = document.querySelectorAll('body > div, body > iframe');
-      
-      allElements.forEach(el => {
+      // Strategy 1: Find ALL fixed elements and check if they're in the danger zone
+      document.querySelectorAll('body > *').forEach(el => {
+        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'LINK') return;
+        if (el.dataset.repositioned === 'true') return;
+        if (isSafeElement(el)) return;
+        
         const style = window.getComputedStyle(el);
         const rect = el.getBoundingClientRect();
         
-        // Skip known good elements
-        const skipIds = ['video-interface', 'video-mobile-nav', 'auth-modal', 'landing-page', 'feedback-widget', 'feedback-modal'];
-        const skipClasses = ['navigation', 'nav-container', 'header', 'video-header', 'modal', 'feedback'];
-        
-        if (skipIds.some(id => el.id === id || el.id?.includes(id))) return;
-        if (skipClasses.some(cls => el.classList?.contains(cls) || el.className?.includes?.(cls))) return;
-        if (el.id?.includes('nav') || el.id?.includes('menu') || el.id?.includes('modal')) return;
-        if (el.className?.includes?.('nav') || el.className?.includes?.('menu') || el.className?.includes?.('modal')) return;
-        
-        // Check if element is positioned in a problematic area
         const isFixed = style.position === 'fixed';
         const isAbsolute = style.position === 'absolute';
-        const isInTopArea = rect.top < 120; // Top 120px is navigation zone
-        const isInRightArea = rect.right > window.innerWidth - 300; // Right 300px includes menu
-        const hasHighZIndex = parseInt(style.zIndex) > 10000;
+        const zIndex = parseInt(style.zIndex) || 0;
         
-        // If it's fixed/absolute in the top-right corner with high z-index, it's likely an ad
-        if ((isFixed || isAbsolute) && isInTopArea && (isInRightArea || hasHighZIndex)) {
-          // Check if it looks like an ad (has iframes, images, or specific ad attributes)
-          const hasAdContent = el.querySelector('iframe') || 
-                              el.querySelector('img') || 
-                              el.hasAttribute('data-zone') ||
-                              el.innerHTML?.length > 100;
-          
-          if (hasAdContent || hasHighZIndex) {
-            // FORCE move to bottom-right corner
-            el.style.setProperty('top', 'auto', 'important');
-            el.style.setProperty('bottom', '80px', 'important');
-            el.style.setProperty('left', 'auto', 'important');
-            el.style.setProperty('right', '20px', 'important');
-            el.style.setProperty('max-width', '320px', 'important');
-            el.style.setProperty('max-height', '150px', 'important');
-            el.style.setProperty('z-index', '9999', 'important');
-            el.style.setProperty('overflow', 'hidden', 'important');
-            console.log('📍 [ChatSpheres Ads] Repositioned element to bottom:', el.id || el.className || 'anonymous');
+        // Danger zone: top 100px, especially top-right
+        const inTopZone = rect.top >= -10 && rect.top < 100;
+        const inRightZone = rect.right > window.innerWidth - 350;
+        const coversTopRight = inTopZone && inRightZone;
+        const hasHighZ = zIndex > 10000;
+        
+        // If fixed/absolute in danger zone with suspicious z-index
+        if ((isFixed || isAbsolute) && (coversTopRight || (inTopZone && hasHighZ))) {
+          // Make sure it's not empty
+          if (el.offsetWidth > 10 && el.offsetHeight > 10) {
+            moveToBottom(el, 'top-zone');
           }
         }
         
-        // Also check for iframes that might be covering the menu
-        if (el.tagName === 'IFRAME') {
-          const iframeRect = el.getBoundingClientRect();
-          if (iframeRect.top < 100 && iframeRect.right > window.innerWidth - 300) {
-            el.style.setProperty('top', 'auto', 'important');
-            el.style.setProperty('bottom', '80px', 'important');
-            el.style.setProperty('max-width', '320px', 'important');
-            el.style.setProperty('z-index', '9999', 'important');
-            console.log('📍 [ChatSpheres Ads] Repositioned iframe to bottom');
+        // Also catch elements with very high z-index that might cover menu
+        if ((isFixed || isAbsolute) && hasHighZ && rect.top < 150) {
+          if (el.offsetWidth > 10 && el.offsetHeight > 10) {
+            moveToBottom(el, 'high-z');
           }
         }
       });
       
-      // Extra: Look for Monetag-specific elements by their script sources
-      document.querySelectorAll('iframe[src*="monetag"], iframe[src*="3nbf4"], iframe[src*="nap5k"]').forEach(iframe => {
-        iframe.style.setProperty('top', 'auto', 'important');
-        iframe.style.setProperty('bottom', '80px', 'important');
-        iframe.style.setProperty('left', 'auto', 'important');
-        iframe.style.setProperty('right', '20px', 'important');
-        iframe.style.setProperty('z-index', '9999', 'important');
+      // Strategy 2: Target iframes specifically (ads often use iframes)
+      document.querySelectorAll('iframe').forEach(iframe => {
+        if (iframe.dataset.repositioned === 'true') return;
+        
+        const rect = iframe.getBoundingClientRect();
+        const style = window.getComputedStyle(iframe);
+        const isFixed = style.position === 'fixed';
+        
+        // Check parent too
+        const parent = iframe.parentElement;
+        const parentStyle = parent ? window.getComputedStyle(parent) : null;
+        const parentFixed = parentStyle?.position === 'fixed';
+        
+        if ((isFixed || parentFixed) && rect.top < 100 && rect.right > window.innerWidth - 350) {
+          if (parentFixed && parent && !isSafeElement(parent)) {
+            moveToBottom(parent, 'iframe-parent');
+          } else if (isFixed) {
+            moveToBottom(iframe, 'iframe');
+          }
+        }
+        
+        // Also check for Monetag-specific iframe sources
+        const src = iframe.src || '';
+        if (src.includes('monetag') || src.includes('3nbf4') || src.includes('nap5k') || src.includes('gizokraijaw')) {
+          const container = iframe.closest('div[style*="fixed"]') || iframe.parentElement;
+          if (container && !isSafeElement(container)) {
+            moveToBottom(container, 'monetag-iframe');
+          }
+        }
+      });
+      
+      // Strategy 3: Look for dynamically added divs with inline fixed positioning
+      document.querySelectorAll('div[style*="position: fixed"], div[style*="position:fixed"]').forEach(div => {
+        if (div.dataset.repositioned === 'true') return;
+        if (isSafeElement(div)) return;
+        
+        const rect = div.getBoundingClientRect();
+        if (rect.top < 100 && rect.width > 50 && rect.height > 30) {
+          moveToBottom(div, 'inline-fixed');
+        }
+      });
+      
+      // Strategy 4: Elements with onclick or data attributes suggesting ads
+      document.querySelectorAll('[data-zone], [onclick*="click"], [onclick*="track"]').forEach(el => {
+        if (el.dataset.repositioned === 'true') return;
+        if (isSafeElement(el)) return;
+        
+        const rect = el.getBoundingClientRect();
+        const style = window.getComputedStyle(el);
+        
+        if ((style.position === 'fixed' || style.position === 'absolute') && rect.top < 100) {
+          moveToBottom(el, 'data-zone');
+        }
       });
     }
     
     // Run immediately
     repositionAds();
     
-    // Run every 500ms for the first 60 seconds (more aggressive)
-    let checkCount = 0;
-    const interval = setInterval(() => {
+    // Run every 200ms for first 30 seconds (very aggressive)
+    let fastCheckCount = 0;
+    const fastInterval = setInterval(() => {
       repositionAds();
-      checkCount++;
-      if (checkCount >= 120) { // Stop after 60 seconds (120 * 500ms)
-        clearInterval(interval);
-        console.log('📍 [ChatSpheres Ads] Stopped frequent ad repositioning, switching to observer only');
+      fastCheckCount++;
+      if (fastCheckCount >= 150) { // 150 * 200ms = 30 seconds
+        clearInterval(fastInterval);
+        console.log('📍 [ChatSpheres Ads] Completed fast repositioning phase');
       }
-    }, 500);
+    }, 200);
     
-    // Also run every 5 seconds indefinitely to catch lazy-loaded ads
-    setInterval(repositionAds, 5000);
+    // Then every 2 seconds indefinitely
+    setInterval(repositionAds, 2000);
     
-    // MutationObserver to catch new ads as they're added
+    // MutationObserver for immediate response to new elements
     const observer = new MutationObserver((mutations) => {
+      let shouldCheck = false;
       mutations.forEach(mutation => {
         if (mutation.addedNodes.length > 0) {
-          // Run immediately and after a short delay (some ads take time to position)
-          repositionAds();
-          setTimeout(repositionAds, 100);
-          setTimeout(repositionAds, 500);
+          mutation.addedNodes.forEach(node => {
+            if (node.nodeType === 1 && node.tagName !== 'SCRIPT') {
+              shouldCheck = true;
+            }
+          });
+        }
+        // Also watch for style changes
+        if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
+          shouldCheck = true;
         }
       });
+      
+      if (shouldCheck) {
+        repositionAds();
+        setTimeout(repositionAds, 50);
+        setTimeout(repositionAds, 200);
+        setTimeout(repositionAds, 500);
+      }
     });
     
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { 
+      childList: true, 
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style']
+    });
     
-    // Also observe the document element for any changes
     observer.observe(document.documentElement, { childList: true, subtree: false });
+    
+    console.log('🛡️ [ChatSpheres Ads] Menu protection active');
   }
 
   // ========================================

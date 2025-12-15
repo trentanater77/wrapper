@@ -314,17 +314,26 @@ body.nav-open div[class*="push"] {
    Force top-right area to be ad-free
    ============================================ */
 
-/* Create a safe zone in the top 80px of the page */
-/* Any fixed element in that area that's not navigation should be pushed down */
-body > div:not(.navigation):not(.nav-container):not(nav):not(header):not([class*="nav"]) {
-  /* If it's fixed and in the top area, it might be an ad */
-}
-
 /* Ultra-specific targeting for the In-Page Push ad widget */
 /* These ads typically have these characteristics */
-body > div[style*="fixed"][style*="right"] {
+body > div[style*="fixed"][style*="right"],
+body > div[style*="position: fixed"],
+body > div[style*="position:fixed"] {
   top: auto !important;
   bottom: 80px !important;
+}
+
+/* Target common Monetag container patterns - move to bottom */
+body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([id*="nav"]):not([id*="menu"]):not([id*="modal"])[style*="position: fixed"],
+body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([id*="nav"]):not([id*="menu"]):not([id*="modal"])[style*="z-index: 9"],
+body > div:not(#video-interface):not(#video-mobile-nav):not(#auth-modal):not(#landing-page):not(#feedback-widget):not(#feedback-modal):not([class*="nav"]):not([class*="menu"]):not([class*="modal"]):not([id*="nav"]):not([id*="menu"]):not([id*="modal"])[style*="z-index:9"] {
+  top: auto !important;
+  bottom: 80px !important;
+  left: auto !important;
+  right: 20px !important;
+  max-width: 320px !important;
+  max-height: 150px !important;
+  z-index: 9999 !important;
 }
 
 /* Ensure navigation link area is ALWAYS on top */
@@ -343,10 +352,70 @@ body > div[style*="fixed"][style*="right"] {
 }
 
 /* Add pointer-events protection to nav area */
-nav, .navigation, header, .header {
+nav, .navigation, header, .header, .video-header {
   pointer-events: auto !important;
 }
 
-nav *, .navigation *, header *, .header * {
+nav *, .navigation *, header *, .header *, .video-header * {
   pointer-events: auto !important;
+}
+
+/* ============================================
+   MENU BUTTON - HIGHEST PRIORITY
+   ALL hamburger menus must ALWAYS be clickable
+   ============================================ */
+
+#video-menu-toggle,
+#menu-toggle,
+.menu-toggle,
+.hamburger,
+[class*="menu-toggle"],
+[id*="menu-toggle"],
+button[aria-label="Toggle menu"],
+button[aria-label*="menu"] {
+  z-index: 999999 !important;
+  position: relative !important;
+  pointer-events: auto !important;
+}
+
+/* Make the header itself a high z-index container */
+.video-header,
+header.video-header,
+header,
+.header,
+.site-header,
+.main-header {
+  z-index: 500000 !important;
+  position: relative !important;
+}
+
+/* Navigation menus and overlays - highest priority when open */
+.nav-menu,
+.nav-overlay,
+#nav-menu,
+#nav-overlay,
+#video-mobile-nav,
+.mobile-nav {
+  z-index: 1000000 !important;
+}
+
+/* Create invisible click-through shield above ads */
+.video-header::after,
+header::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  z-index: 100000;
+  pointer-events: none;
+  /* This creates a layer that's ABOVE ads but doesn't block our menu */
+}
+
+/* The menu toggle needs to be ABOVE that shield */
+#video-menu-toggle,
+#menu-toggle,
+.menu-toggle {
+  z-index: 999999 !important;
 }

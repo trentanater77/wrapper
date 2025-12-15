@@ -226,61 +226,132 @@
 
   /**
    * Monitor for Monetag ad elements and reposition them away from navigation
+   * This is AGGRESSIVE - we want menu to ALWAYS be accessible
    */
   function startAdRepositioning() {
-    // Reposition any ads that appear in the top-right (menu area)
-    function repositionAds() {
-      // Find all fixed position elements that might be ads
-      const allFixed = document.querySelectorAll('body > div');
+    // Create a protective overlay for the menu button area
+    function protectMenuArea() {
+      const menuBtn = document.getElementById('video-menu-toggle');
+      if (menuBtn) {
+        // Ensure menu button has highest z-index
+        menuBtn.style.setProperty('z-index', '999999', 'important');
+        menuBtn.style.setProperty('position', 'relative', 'important');
+        menuBtn.style.setProperty('pointer-events', 'auto', 'important');
+      }
       
-      allFixed.forEach(el => {
+      // Protect the header area
+      const header = document.querySelector('.video-header, header, .header');
+      if (header) {
+        header.style.setProperty('z-index', '500000', 'important');
+        header.style.setProperty('position', 'relative', 'important');
+      }
+    }
+    
+    // Reposition any ads that appear in the top area (especially top-right menu area)
+    function repositionAds() {
+      protectMenuArea();
+      
+      // Find ALL fixed/absolute position elements that might be ads
+      const allElements = document.querySelectorAll('body > div, body > iframe');
+      
+      allElements.forEach(el => {
         const style = window.getComputedStyle(el);
         const rect = el.getBoundingClientRect();
         
-        // Check if it's fixed, in top-right area, and not navigation
-        if (style.position === 'fixed' && 
-            rect.top < 100 && 
-            rect.right > window.innerWidth - 400 &&
-            !el.classList.contains('navigation') &&
-            !el.classList.contains('nav-container') &&
-            !el.id.includes('nav') &&
-            !el.classList.toString().includes('nav') &&
-            !el.classList.toString().includes('menu') &&
-            !el.classList.toString().includes('feedback')) {
+        // Skip known good elements
+        const skipIds = ['video-interface', 'video-mobile-nav', 'auth-modal', 'landing-page', 'feedback-widget', 'feedback-modal'];
+        const skipClasses = ['navigation', 'nav-container', 'header', 'video-header', 'modal', 'feedback'];
+        
+        if (skipIds.some(id => el.id === id || el.id?.includes(id))) return;
+        if (skipClasses.some(cls => el.classList?.contains(cls) || el.className?.includes?.(cls))) return;
+        if (el.id?.includes('nav') || el.id?.includes('menu') || el.id?.includes('modal')) return;
+        if (el.className?.includes?.('nav') || el.className?.includes?.('menu') || el.className?.includes?.('modal')) return;
+        
+        // Check if element is positioned in a problematic area
+        const isFixed = style.position === 'fixed';
+        const isAbsolute = style.position === 'absolute';
+        const isInTopArea = rect.top < 120; // Top 120px is navigation zone
+        const isInRightArea = rect.right > window.innerWidth - 300; // Right 300px includes menu
+        const hasHighZIndex = parseInt(style.zIndex) > 10000;
+        
+        // If it's fixed/absolute in the top-right corner with high z-index, it's likely an ad
+        if ((isFixed || isAbsolute) && isInTopArea && (isInRightArea || hasHighZIndex)) {
+          // Check if it looks like an ad (has iframes, images, or specific ad attributes)
+          const hasAdContent = el.querySelector('iframe') || 
+                              el.querySelector('img') || 
+                              el.hasAttribute('data-zone') ||
+                              el.innerHTML?.length > 100;
           
-          // This is likely an ad in the menu area - move it to bottom
-          el.style.setProperty('top', 'auto', 'important');
-          el.style.setProperty('bottom', '20px', 'important');
-          el.style.setProperty('right', '20px', 'important');
-          el.style.setProperty('max-width', '320px', 'important');
-          el.style.setProperty('z-index', '9999', 'important');
-          console.log('📍 [ChatSpheres Ads] Repositioned ad element to bottom');
+          if (hasAdContent || hasHighZIndex) {
+            // FORCE move to bottom-right corner
+            el.style.setProperty('top', 'auto', 'important');
+            el.style.setProperty('bottom', '80px', 'important');
+            el.style.setProperty('left', 'auto', 'important');
+            el.style.setProperty('right', '20px', 'important');
+            el.style.setProperty('max-width', '320px', 'important');
+            el.style.setProperty('max-height', '150px', 'important');
+            el.style.setProperty('z-index', '9999', 'important');
+            el.style.setProperty('overflow', 'hidden', 'important');
+            console.log('📍 [ChatSpheres Ads] Repositioned element to bottom:', el.id || el.className || 'anonymous');
+          }
         }
+        
+        // Also check for iframes that might be covering the menu
+        if (el.tagName === 'IFRAME') {
+          const iframeRect = el.getBoundingClientRect();
+          if (iframeRect.top < 100 && iframeRect.right > window.innerWidth - 300) {
+            el.style.setProperty('top', 'auto', 'important');
+            el.style.setProperty('bottom', '80px', 'important');
+            el.style.setProperty('max-width', '320px', 'important');
+            el.style.setProperty('z-index', '9999', 'important');
+            console.log('📍 [ChatSpheres Ads] Repositioned iframe to bottom');
+          }
+        }
+      });
+      
+      // Extra: Look for Monetag-specific elements by their script sources
+      document.querySelectorAll('iframe[src*="monetag"], iframe[src*="3nbf4"], iframe[src*="nap5k"]').forEach(iframe => {
+        iframe.style.setProperty('top', 'auto', 'important');
+        iframe.style.setProperty('bottom', '80px', 'important');
+        iframe.style.setProperty('left', 'auto', 'important');
+        iframe.style.setProperty('right', '20px', 'important');
+        iframe.style.setProperty('z-index', '9999', 'important');
       });
     }
     
-    // Run immediately and then every 2 seconds for the first 30 seconds
+    // Run immediately
     repositionAds();
+    
+    // Run every 500ms for the first 60 seconds (more aggressive)
     let checkCount = 0;
     const interval = setInterval(() => {
       repositionAds();
       checkCount++;
-      if (checkCount >= 15) { // Stop after 30 seconds
+      if (checkCount >= 120) { // Stop after 60 seconds (120 * 500ms)
         clearInterval(interval);
-        console.log('📍 [ChatSpheres Ads] Stopped ad repositioning checks');
+        console.log('📍 [ChatSpheres Ads] Stopped frequent ad repositioning, switching to observer only');
       }
-    }, 2000);
+    }, 500);
     
-    // Also use MutationObserver to catch new ads
+    // Also run every 5 seconds indefinitely to catch lazy-loaded ads
+    setInterval(repositionAds, 5000);
+    
+    // MutationObserver to catch new ads as they're added
     const observer = new MutationObserver((mutations) => {
       mutations.forEach(mutation => {
         if (mutation.addedNodes.length > 0) {
+          // Run immediately and after a short delay (some ads take time to position)
+          repositionAds();
           setTimeout(repositionAds, 100);
+          setTimeout(repositionAds, 500);
         }
       });
     });
     
-    observer.observe(document.body, { childList: true, subtree: false });
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    // Also observe the document element for any changes
+    observer.observe(document.documentElement, { childList: true, subtree: false });
   }
 
   // ========================================

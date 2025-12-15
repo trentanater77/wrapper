@@ -1621,8 +1621,8 @@
 
 <!-- Main Video Chat Interface -->
 <div id="video-interface" class="hidden">
-  <!-- Header -->
-  <header class="video-header" style="background: var(--light-rose); border-bottom: 2px solid var(--rose); padding: 0.75rem 1rem;">
+  <!-- Header - HIGH Z-INDEX to stay above ads -->
+  <header class="video-header" style="background: var(--light-rose); border-bottom: 2px solid var(--rose); padding: 0.75rem 1rem; position: relative; z-index: 500000;">
     <div class="header-inner max-w-7xl mx-auto flex items-center justify-between">
       <!-- Logo & Controls - Left Side -->
       <div class="header-left flex items-center space-x-3">
@@ -1642,8 +1642,8 @@
           <span id="gem-count" class="text-sm font-bold" style="color: var(--charcoal);">0</span>
         </div>
         
-        <!-- Hamburger Menu Toggle (always visible) -->
-        <button id="video-menu-toggle" onclick="toggleVideoMenu()" class="ml-2 p-2 rounded-lg transition-colors hover:opacity-80 flex-shrink-0" style="background: var(--gold);" aria-label="Toggle menu">
+        <!-- Hamburger Menu Toggle (always visible) - HIGH Z-INDEX to stay above ads -->
+        <button id="video-menu-toggle" onclick="toggleVideoMenu()" class="ml-2 p-2 rounded-lg transition-colors hover:opacity-80 flex-shrink-0" style="background: var(--gold); z-index: 999999; position: relative; pointer-events: auto;" aria-label="Toggle menu">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: var(--charcoal);">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 6h16M4 12h16M4 18h16"/>
           </svg>

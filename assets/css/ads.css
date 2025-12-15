@@ -317,6 +317,41 @@ body > .popup,
 }
 
 /* ============================================
+   SPECTATOR LAYOUT PROTECTION
+   Ensure spectator view is properly visible
+   ============================================ */
+
+/* Force spectator layout to display properly when not hidden */
+#spectator-layout:not(.hidden) {
+  display: grid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure spectator video container has proper dimensions */
+#spectator-layout .aspect-video {
+  min-height: 200px !important;
+  width: 100% !important;
+}
+
+/* Spectator click overlay - visible by default, hidden when user interacts */
+/* Use :not(.hidden) selector to ensure it shows unless explicitly hidden */
+#spectator-click-overlay:not(.hidden):not([style*="display: none"]) {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 9999 !important;
+  pointer-events: auto !important;
+}
+
+/* Spectator participants container should always be visible */
+#spectator-participants-container {
+  display: grid !important;
+  visibility: visible !important;
+  min-height: 200px !important;
+}
+
+/* ============================================
    MOBILE-SPECIFIC AD POSITIONING
    Even less intrusive on small screens
    ============================================ */

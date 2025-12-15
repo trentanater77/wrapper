@@ -30,7 +30,7 @@
   <link rel="stylesheet" href="/assets/css/brand.css?v=3">
   
   <!-- Ads CSS -->
-  <link rel="stylesheet" href="/assets/css/ads.css?v=7">
+  <link rel="stylesheet" href="/assets/css/ads.css?v=8">
 
   <style>
     * {
@@ -6166,11 +6166,37 @@ async function initializeApp() {
 
   function setupSpectatorMode() {
     // Hide participant layout, show spectator layout
-    document.getElementById('participant-layout').style.display = 'none';
-    document.getElementById('spectator-layout').classList.remove('hidden');
+    const participantLayout = document.getElementById('participant-layout');
+    const spectatorLayout = document.getElementById('spectator-layout');
+    
+    if (participantLayout) {
+      participantLayout.style.display = 'none';
+      participantLayout.classList.add('hidden');
+    }
+    
+    if (spectatorLayout) {
+      // CRITICAL: Remove hidden class AND clear any inline display style
+      spectatorLayout.classList.remove('hidden');
+      spectatorLayout.style.display = 'grid'; // Force grid display
+      spectatorLayout.style.visibility = 'visible';
+      spectatorLayout.style.opacity = '1';
+      console.log('📺 Spectator layout forced visible:', spectatorLayout.style.display);
+    }
     
     // Set up live indicator
-    document.getElementById('live-indicator').classList.remove('hidden');
+    const liveIndicator = document.getElementById('live-indicator');
+    if (liveIndicator) {
+      liveIndicator.classList.remove('hidden');
+    }
+    
+    // Also ensure the spectator click overlay is visible
+    const clickOverlay = document.getElementById('spectator-click-overlay');
+    if (clickOverlay) {
+      clickOverlay.style.display = 'flex';
+      clickOverlay.style.visibility = 'visible';
+      clickOverlay.style.opacity = '1';
+      console.log('📺 Click overlay forced visible');
+    }
     
     console.log('👀 Spectator mode enabled');
   }

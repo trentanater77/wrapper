@@ -163,20 +163,31 @@
    * Load Monetag ad scripts
    */
   function loadMonetagScripts() {
-    // Monetag's main ad script (Multitag)
-    // This enables push notifications and interstitial ads
-    if (!document.querySelector('script[data-monetag-loaded]')) {
-      const script = document.createElement('script');
-      script.async = true;
-      script.setAttribute('data-monetag-loaded', 'true');
-      script.setAttribute('data-cfasync', 'false');
-      script.src = `https://${MONETAG_DOMAIN}/tag.min.js`;
-      script.setAttribute('data-zone', MONETAG_ZONE_ID);
-      script.onerror = () => {
-        console.warn('Monetag script failed to load (might be blocked by ad blocker)');
+    // Load Push Notifications script
+    if (!document.querySelector('script[data-monetag-push]')) {
+      const pushScript = document.createElement('script');
+      pushScript.async = true;
+      pushScript.setAttribute('data-monetag-push', 'true');
+      pushScript.setAttribute('data-cfasync', 'false');
+      pushScript.src = `https://${MONETAG_DOMAIN}/act/files/tag.min.js?z=${MONETAG_PUSH_ZONE_ID}`;
+      pushScript.onerror = () => {
+        console.warn('Monetag Push script failed to load (might be blocked by ad blocker)');
       };
-      document.head.appendChild(script);
-      console.log('📊 Monetag tag script loaded');
+      document.head.appendChild(pushScript);
+      console.log('📱 Monetag Push Notifications script loaded');
+    }
+
+    // Load Vignette Banner script
+    if (!document.querySelector('script[data-monetag-vignette]')) {
+      const vignetteScript = document.createElement('script');
+      vignetteScript.setAttribute('data-monetag-vignette', 'true');
+      vignetteScript.dataset.zone = MONETAG_VIGNETTE_ZONE_ID;
+      vignetteScript.src = 'https://gizokraijaw.net/vignette.min.js';
+      vignetteScript.onerror = () => {
+        console.warn('Monetag Vignette script failed to load (might be blocked by ad blocker)');
+      };
+      document.body.appendChild(vignetteScript);
+      console.log('🎨 Monetag Vignette Banner script loaded');
     }
   }
 

@@ -1,6 +1,7 @@
 /**
- * ChatSpheres Ad Management System
- * Handles Google AdSense integration with subscription-based ad control
+ * ChatSpheres Ad Management System v2.1
+ * Handles Monetag integration with subscription-based ad control
+ * Updated: 2024-12-15
  * 
  * Plans WITHOUT ads (ad-free):
  * - ad_free_plus
@@ -10,13 +11,37 @@
  * Plans WITH ads:
  * - free
  * - host_pro
+ * 
+ * Ad Formats (Monetag Zones):
+ * - Push Notifications (zone 10329017) - HTTPS required
+ * - Vignette Banner (zone 10329015) - interstitial on page enter/exit
+ * - In-Page Push (zone 10329140) - notification-style banners
+ * - OnClick/Popunder (zone 10329543) - triggered on user click
  */
 
 (function() {
   'use strict';
 
-  // Configuration
-  const ADSENSE_PUBLISHER_ID = 'ca-pub-8986841930339200';
+  // Monetag Configuration - All 4 zones
+  const MONETAG_CONFIG = {
+    pushNotifications: {
+      zoneId: 10329017,
+      domain: '3nbf4.com',
+      scriptUrl: 'https://3nbf4.com/act/files/tag.min.js?z=10329017'
+    },
+    vignetteBanner: {
+      zoneId: 10329015,
+      scriptUrl: 'https://gizokraijaw.net/vignette.min.js'
+    },
+    inPagePush: {
+      zoneId: 10329140,
+      scriptUrl: 'https://nap5k.com/tag.min.js'
+    },
+    onClickPopunder: {
+      zoneId: 10329543,
+      scriptUrl: 'https://3nbf4.com/act/files/tag.min.js?z=10329543'
+    }
+  };
   
   // Plans that should NOT see ads
   const AD_FREE_PLANS = ['ad_free_plus', 'ad_free_premium', 'pro_bundle'];
@@ -25,6 +50,7 @@
   let userPlan = 'free';
   let adsEnabled = true;
   let adsInitialized = false;
+  let serviceWorkerRegistered = false;
 
   // ========================================
   // INITIALIZATION
@@ -37,26 +63,28 @@
   async function initAds() {
     if (adsInitialized) return;
     
-    console.log('🎯 Initializing ChatSpheres Ad System...');
+    console.log('🎯 [ChatSpheres Ads] Starting initialization...');
     
     // Check user's subscription status
     await checkUserSubscription();
     
-    // If user has ad-free plan, hide all ads and don't load AdSense
+    // If user has ad-free plan, hide all ads and don't load Monetag
     if (!adsEnabled) {
-      console.log('✨ Ad-free plan detected - hiding all ads');
+      console.log('✨ [ChatSpheres Ads] Ad-free plan detected - hiding all ads');
       hideAllAds();
       return;
     }
     
-    // Load AdSense script dynamically
-    loadAdSenseScript();
+    console.log('📢 [ChatSpheres Ads] User should see ads, loading Monetag...');
     
-    // Initialize ad slots
-    initializeAdSlots();
+    // Load all Monetag scripts
+    loadMonetagScripts();
+    
+    // Register Monetag service worker (for push notifications)
+    registerServiceWorker();
     
     adsInitialized = true;
-    console.log('✅ Ad system initialized');
+    console.log('✅ [ChatSpheres Ads] Initialization complete!');
   }
 
   /**
@@ -69,7 +97,7 @@
       const supabaseConfig = config.supabase || {};
       
       if (!window.supabase || !supabaseConfig.url || !supabaseConfig.anonKey) {
-        console.log('📢 No auth available - showing ads (free user)');
+        console.log('📢 [ChatSpheres Ads] No auth available - showing ads (free user)');
         adsEnabled = true;
         return;
       }
@@ -110,7 +138,7 @@
       }
 
       if (!userId) {
-        console.log('📢 No user logged in - showing ads');
+        console.log('📢 [ChatSpheres Ads] No user logged in - showing ads');
         adsEnabled = true;
         return;
       }
@@ -131,23 +159,127 @@
   }
 
   /**
-   * Load the Google AdSense script
+   * Register Monetag service worker for Push Notifications
    */
-  function loadAdSenseScript() {
-    if (document.querySelector('script[src*="adsbygoogle"]')) {
-      console.log('AdSense script already loaded');
-      return;
+  async function registerServiceWorker() {
+    if (serviceWorkerRegistered) return;
+    
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js', {
+          scope: '/'
+        });
+        console.log('📱 Monetag Service Worker registered:', registration.scope);
+        serviceWorkerRegistered = true;
+      } catch (error) {
+        console.warn('Monetag Service Worker registration failed:', error);
+      }
+    } else {
+      console.warn('Service Workers not supported in this browser');
     }
+  }
 
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_PUBLISHER_ID}`;
-    script.crossOrigin = 'anonymous';
-    script.onerror = () => {
-      console.warn('AdSense script failed to load (might be blocked by ad blocker)');
-      hideAllAds();
-    };
-    document.head.appendChild(script);
+  /**
+   * Load all Monetag ad scripts
+   */
+  function loadMonetagScripts() {
+    console.log('📦 [ChatSpheres Ads] Loading Monetag scripts...');
+    
+    // 1. Push Notifications (zone 10329017) - requires HTTPS and service worker
+    loadPushNotifications();
+    
+    // 2. Vignette Banner (zone 10329015) - interstitial ads
+    loadVignetteBanner();
+    
+    // 3. In-Page Push (zone 10329140) - notification-style banners
+    loadInPagePush();
+    
+    // 4. OnClick/Popunder (zone 10329543) - triggered on user clicks
+    loadOnClickPopunder();
+    
+    console.log('✅ [ChatSpheres Ads] All ad scripts injected');
+  }
+
+  /**
+   * Load Push Notifications script
+   */
+  function loadPushNotifications() {
+    if (document.querySelector('script[data-monetag-push]')) return;
+    
+    try {
+      const script = document.createElement('script');
+      script.setAttribute('data-monetag-push', 'true');
+      script.setAttribute('data-cfasync', 'false');
+      script.async = true;
+      script.src = MONETAG_CONFIG.pushNotifications.scriptUrl;
+      script.onload = () => console.log('📱 [ChatSpheres Ads] Push Notifications loaded');
+      script.onerror = () => console.warn('⚠️ Push Notifications script blocked or failed');
+      document.head.appendChild(script);
+    } catch (e) {
+      console.error('Push Notifications script error:', e);
+    }
+  }
+
+  /**
+   * Load Vignette Banner script (interstitial)
+   * Uses exact Monetag format for proper impression tracking
+   */
+  function loadVignetteBanner() {
+    if (document.querySelector('script[data-monetag-vignette]')) return;
+    
+    try {
+      // Use Monetag's exact script injection format
+      (function(s) {
+        s.setAttribute('data-monetag-vignette', 'true');
+        s.dataset.zone = String(MONETAG_CONFIG.vignetteBanner.zoneId);
+        s.src = MONETAG_CONFIG.vignetteBanner.scriptUrl;
+        s.onload = function() { console.log('🎨 [ChatSpheres Ads] Vignette Banner loaded'); };
+        s.onerror = function() { console.warn('⚠️ Vignette Banner script blocked or failed'); };
+      })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+    } catch (e) {
+      console.error('Vignette Banner script error:', e);
+    }
+  }
+
+  /**
+   * Load In-Page Push script (notification-style banners)
+   * Uses exact Monetag format for proper impression tracking
+   */
+  function loadInPagePush() {
+    if (document.querySelector('script[data-monetag-inpage]')) return;
+    
+    try {
+      // Use Monetag's exact script injection format
+      (function(s) {
+        s.setAttribute('data-monetag-inpage', 'true');
+        s.dataset.zone = String(MONETAG_CONFIG.inPagePush.zoneId);
+        s.src = MONETAG_CONFIG.inPagePush.scriptUrl;
+        s.onload = function() { console.log('💬 [ChatSpheres Ads] In-Page Push loaded'); };
+        s.onerror = function() { console.warn('⚠️ In-Page Push script blocked or failed'); };
+      })([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+    } catch (e) {
+      console.error('In-Page Push script error:', e);
+    }
+  }
+
+  /**
+   * Load OnClick/Popunder script
+   */
+  function loadOnClickPopunder() {
+    if (document.querySelector('script[data-monetag-onclick]')) return;
+    
+    try {
+      const script = document.createElement('script');
+      script.setAttribute('data-monetag-onclick', 'true');
+      script.setAttribute('data-cfasync', 'false');
+      script.async = true;
+      script.src = MONETAG_CONFIG.onClickPopunder.scriptUrl;
+      script.onload = () => console.log('👆 [ChatSpheres Ads] OnClick/Popunder loaded');
+      script.onerror = () => console.warn('⚠️ OnClick/Popunder script blocked or failed');
+      document.head.appendChild(script);
+    } catch (e) {
+      console.error('OnClick/Popunder script error:', e);
+    }
   }
 
   // ========================================
@@ -156,22 +288,15 @@
 
   /**
    * Initialize all ad slots on the page
+   * For Monetag, most ad types are handled automatically via the service worker
    */
   function initializeAdSlots() {
-    // Wait for AdSense to be ready
-    setTimeout(() => {
-      const adSlots = document.querySelectorAll('.chatspheres-ad');
-      adSlots.forEach(slot => {
-        if (!slot.dataset.adInitialized) {
-          try {
-            (window.adsbygoogle = window.adsbygoogle || []).push({});
-            slot.dataset.adInitialized = 'true';
-          } catch (e) {
-            console.warn('Could not initialize ad slot:', e);
-          }
-        }
-      });
-    }, 1000);
+    const adSlots = document.querySelectorAll('.chatspheres-ad');
+    adSlots.forEach(slot => {
+      if (!slot.dataset.adInitialized) {
+        slot.dataset.adInitialized = 'true';
+      }
+    });
   }
 
   /**
@@ -188,6 +313,18 @@
     // Add class to body for CSS-based hiding
     document.body.classList.add('ads-hidden');
     document.body.classList.remove('ads-visible');
+    
+    // Unregister service worker for ad-free users
+    if ('serviceWorker' in navigator && serviceWorkerRegistered) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        registrations.forEach(registration => {
+          if (registration.active?.scriptURL?.includes('sw.js')) {
+            registration.unregister();
+            console.log('📱 Monetag Service Worker unregistered for ad-free user');
+          }
+        });
+      });
+    }
   }
 
   /**
@@ -209,12 +346,11 @@
   // ========================================
 
   /**
-   * Create a banner ad container
+   * Create a banner ad container for Monetag
    * @param {string} position - 'header', 'footer', 'sidebar', 'inline'
-   * @param {string} slotId - Optional specific ad slot ID from AdSense
    * @returns {HTMLElement} The ad container element
    */
-  function createAdBanner(position = 'inline', slotId = null) {
+  function createAdBanner(position = 'inline') {
     const container = document.createElement('div');
     container.className = `chatspheres-ad-container chatspheres-ad-${position}`;
     
@@ -223,35 +359,12 @@
       return container;
     }
 
-    // Create the AdSense ins element
-    const ins = document.createElement('ins');
-    ins.className = 'adsbygoogle chatspheres-ad';
-    ins.style.display = 'block';
+    const adDiv = document.createElement('div');
+    adDiv.className = 'chatspheres-ad monetag-ad';
+    adDiv.style.display = 'block';
+    adDiv.style.width = '100%';
     
-    // Set ad format based on position
-    switch (position) {
-      case 'header':
-      case 'footer':
-        ins.setAttribute('data-ad-format', 'horizontal');
-        ins.setAttribute('data-full-width-responsive', 'true');
-        break;
-      case 'sidebar':
-        ins.setAttribute('data-ad-format', 'vertical');
-        break;
-      case 'inline':
-      default:
-        ins.setAttribute('data-ad-format', 'auto');
-        ins.setAttribute('data-full-width-responsive', 'true');
-        break;
-    }
-
-    ins.setAttribute('data-ad-client', ADSENSE_PUBLISHER_ID);
-    
-    if (slotId) {
-      ins.setAttribute('data-ad-slot', slotId);
-    }
-
-    container.appendChild(ins);
+    container.appendChild(adDiv);
     return container;
   }
 
@@ -287,15 +400,6 @@
         break;
     }
 
-    // Initialize the ad
-    setTimeout(() => {
-      try {
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-      } catch (e) {
-        console.warn('Could not push ad:', e);
-      }
-    }, 100);
-
     return adContainer;
   }
 
@@ -313,12 +417,12 @@
     createAdBanner: createAdBanner,
     insertAd: insertAd,
     refresh: () => {
-      if (adsEnabled && window.adsbygoogle) {
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {}
-      }
-    }
+      // Monetag handles ad refresh automatically
+      console.log('Monetag ads refresh automatically');
+    },
+    // Monetag-specific
+    getConfig: () => MONETAG_CONFIG,
+    isServiceWorkerRegistered: () => serviceWorkerRegistered
   };
 
   // Auto-initialize when DOM is ready

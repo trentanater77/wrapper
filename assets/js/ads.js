@@ -20,6 +20,7 @@
   // Monetag Configuration
   const MONETAG_PUSH_ZONE_ID = 10329017;
   const MONETAG_VIGNETTE_ZONE_ID = 10329015;
+  const MONETAG_INPAGE_PUSH_ZONE_ID = 10329140;
   const MONETAG_DOMAIN = '3nbf4.com';
   
   // Google AdSense - Commented out for potential future use
@@ -188,6 +189,19 @@
       };
       document.body.appendChild(vignetteScript);
       console.log('🎨 Monetag Vignette Banner script loaded');
+    }
+
+    // Load In-Page Push script (notification-style banner)
+    if (!document.querySelector('script[data-monetag-inpage]')) {
+      const inpageScript = document.createElement('script');
+      inpageScript.setAttribute('data-monetag-inpage', 'true');
+      inpageScript.dataset.zone = MONETAG_INPAGE_PUSH_ZONE_ID;
+      inpageScript.src = 'https://nap5k.com/tag.min.js';
+      inpageScript.onerror = () => {
+        console.warn('Monetag In-Page Push script failed to load (might be blocked by ad blocker)');
+      };
+      document.body.appendChild(inpageScript);
+      console.log('💬 Monetag In-Page Push script loaded');
     }
   }
 

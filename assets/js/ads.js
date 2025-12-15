@@ -369,10 +369,15 @@
     // Known safe element IDs and classes - never move these
     const SAFE_IDS = ['video-interface', 'video-mobile-nav', 'auth-modal', 'landing-page', 
                       'feedback-widget', 'feedback-modal', 'nav-menu', 'nav-overlay',
-                      'rating-modal', 'tip-modal', 'spectator-container'];
+                      'rating-modal', 'tip-modal', 'spectator-container',
+                      'waiting-overlay', 'loading-overlay', 'video-container',
+                      'local-video', 'remote-video', 'chat-container', 'controls',
+                      'participant', 'spectator', 'room-info', 'timer'];
     const SAFE_CLASSES = ['navigation', 'nav-container', 'header', 'video-header', 
                           'modal', 'feedback', 'tooltip', 'dropdown',
-                          'bg-circles', 'bg-pattern', 'bg-'];
+                          'bg-circles', 'bg-pattern', 'bg-',
+                          'overlay', 'loading', 'waiting', 'video', 'container',
+                          'participant', 'spectator', 'controls', 'chat'];
     
     // Create a protective overlay for the menu button area
     function protectMenuArea() {

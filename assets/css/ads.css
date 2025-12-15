@@ -284,6 +284,31 @@ body > .popup,
   justify-content: center !important;
 }
 
+/* Video interface overlays - NEVER reposition */
+#waiting-overlay,
+#loading-overlay,
+#video-interface,
+#video-container,
+[class*="overlay"],
+[class*="waiting"],
+[class*="loading"],
+[id*="overlay"],
+[id*="waiting"],
+[id*="loading"] {
+  /* Only reset if they were incorrectly repositioned */
+}
+
+/* Ensure overlays are NOT constrained */
+#waiting-overlay,
+#loading-overlay,
+.waiting-overlay,
+.loading-overlay {
+  max-width: none !important;
+  max-height: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
 /* ============================================
    MOBILE-SPECIFIC AD POSITIONING
    Even less intrusive on small screens

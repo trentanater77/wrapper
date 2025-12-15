@@ -2349,13 +2349,13 @@
           <!-- Main Conversation Area - Both Participants -->
           <div class="relative bg-charcoal rounded-2xl overflow-hidden aspect-video chatspheres-pattern">
             <!-- Screen Share Video (takes full space when active) -->
-            <video id="spectator-screen-share" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+            <video id="spectator-screen-share" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
             
             <!-- Two-Participant Layout -->
             <div id="spectator-participants-container" class="w-full h-full grid grid-cols-2 gap-1">
               <!-- Participant 1 -->
               <div class="relative bg-charcoal">
-                <video id="spectator-participant-1" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+                <video id="spectator-participant-1" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
                 <div id="spectator-placeholder-1" class="absolute inset-0 flex items-center justify-center video-placeholder">
                   <div class="text-center text-white">
                     <div class="w-12 h-12 mx-auto mb-2 bg-main-red rounded-full flex items-center justify-center">
@@ -2372,7 +2372,7 @@
               
               <!-- Participant 2 -->
               <div class="relative bg-charcoal">
-                <video id="spectator-participant-2" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+                <video id="spectator-participant-2" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
                 <div id="spectator-placeholder-2" class="absolute inset-0 flex items-center justify-center video-placeholder">
                   <div class="text-center text-white">
                     <div class="w-12 h-12 mx-auto mb-2 bg-gold rounded-full flex items-center justify-center">
@@ -8564,6 +8564,11 @@ async function initializeApp() {
     try {
       // Set up video stream
       videoElement.srcObject = new MediaStream([track]);
+      // Spectators should be able to autoplay video without a gesture.
+      // Keep video muted (audio comes from separate audio element).
+      videoElement.muted = true;
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
       
       // Update participant name - check for new text span structure
       const nameTextEl = document.getElementById(`spectator-name-text-${participantSlot}`);
@@ -8677,15 +8682,15 @@ async function initializeApp() {
       updateSpectatorExpandButtons();
       
       // Ensure video plays - auto-play if user has already interacted
-      if (userHasInteracted) {
-        videoElement.play().then(() => {
-          console.log(`✅ Spectator video playing for participant ${participantId}`);
-        }).catch(err => {
-          console.log(`🎥 Video will auto-play after interaction for participant ${participantId}`);
-        });
-      } else {
-        console.log(`🎥 Video ready to play after user interaction for participant ${participantId}`);
-      }
+      // NOTE: Even without user interaction, muted video can autoplay on most browsers (Edge/Chrome/Firefox).
+      // Safari/iOS are stricter, so we still allow the overlay to request a click there.
+      videoElement.play().then(() => {
+        console.log(`✅ Spectator video playing for participant ${participantId}`);
+        // If video is playing, we should not keep the overlay blocking the view.
+        checkAndHideClickOverlay();
+      }).catch(err => {
+        console.log(`🎥 Spectator video play blocked (likely needs gesture):`, err?.message || err);
+      });
       
       // Update Red Room pot targets when spectators see participants
       if (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'red') {
@@ -8793,6 +8798,19 @@ function ensureSpectatorTracksForParticipant(participant) {
                            (!placeholder2 || placeholder2.style.display === 'none');
     
     console.log(`🎬 OVERLAY CHECK - ActiveVideo1: ${hasActiveVideo1}, ActiveVideo2: ${hasActiveVideo2}, UserInteracted: ${userHasInteracted}`);
+
+    // On non-Safari browsers, spectator video should render immediately without needing a click.
+    // Keep audio gated behind a gesture, but don't block the video UI.
+    const canAutoplayMutedVideo = !isSafari && !isIOS && !isMobileSafari;
+    if (canAutoplayMutedVideo && (hasActiveVideo1 || hasActiveVideo2)) {
+      console.log('🎬 Hiding overlay - muted spectator video can autoplay on this browser');
+      clickOverlay.classList.remove('spectator-overlay-force-visible');
+      clickOverlay.style.display = 'none';
+      clickOverlay.style.opacity = '0';
+      clickOverlay.style.visibility = 'hidden';
+      clickOverlay.style.pointerEvents = 'none';
+      return;
+    }
     
     // CRITICAL: Check if participants exist but cameras are off
     const hasParticipants = (spectatorParticipant1 !== null) || (spectatorParticipant2 !== null);

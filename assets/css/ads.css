@@ -406,19 +406,9 @@ header,
   z-index: 1000000 !important;
 }
 
-/* Create invisible click-through shield above ads */
-.video-header::after,
-header::after {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 80px;
-  z-index: 100000;
-  pointer-events: none;
-  /* This creates a layer that's ABOVE ads but doesn't block our menu */
-}
+/* NOTE: Removed the header::after shield - it was causing a visible 
+   brownish square on mobile. The menu z-index is high enough to stay 
+   above ads without this extra layer. */
 
 /* The menu toggle needs to be ABOVE that shield */
 #video-menu-toggle,

@@ -269,14 +269,18 @@
     };
     
     script.onerror = function(e) {
-      console.warn(`⚠️ Script failed to load: ${src}`, e);
+      // Only log on final failure to reduce console noise
       if (retries > 0) {
-        console.log(`🔄 Retrying... (${retries} attempts left)`);
         setTimeout(() => {
           loadScript(src, attributes, onSuccess, onError, retries - 1);
         }, 1000);
-      } else if (onError) {
-        onError(e);
+      } else {
+        // Final failure - check if it's a known browser blocking issue
+        const browser = detectBrowser();
+        if (browser === 'Firefox' || browser === 'Safari') {
+          console.info(`ℹ️ [ChatSpheres Ads] Ad script blocked by ${browser} privacy protections (expected)`);
+        }
+        if (onError) onError(e);
       }
     };
     
@@ -315,7 +319,7 @@
             'data-cfasync': 'false'
           },
           () => console.log('📱 [ChatSpheres Ads] Push Notifications loaded'),
-          () => console.warn('⚠️ Push Notifications blocked (browser privacy settings?)')
+          () => {} // Silent - already logged by loadScript
         );
       }
 
@@ -329,7 +333,7 @@
               'data': { zone: MONETAG_VIGNETTE_ZONE_ID.toString() }
             },
             () => console.log('🎨 [ChatSpheres Ads] Vignette Banner loaded'),
-            () => console.warn('⚠️ Vignette Banner blocked (browser privacy settings?)')
+            () => {} // Silent - already logged by loadScript
           );
         }
       }, 100);
@@ -344,7 +348,7 @@
               'data': { zone: MONETAG_INPAGE_PUSH_ZONE_ID.toString() }
             },
             () => console.log('💬 [ChatSpheres Ads] In-Page Push loaded'),
-            () => console.warn('⚠️ In-Page Push blocked (browser privacy settings?)')
+            () => {} // Silent - already logged by loadScript
           );
         }
       }, 200);

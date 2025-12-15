@@ -1684,12 +1684,24 @@
       }
     };
     
+    // Prevent double initialization
+    let liveRoomsInitialized = false;
+    let roomRefreshInterval = null;
+    
     // Load rooms on page load
     document.addEventListener('DOMContentLoaded', () => {
+      if (liveRoomsInitialized) {
+        console.log('⚠️ Live rooms already initialized, skipping...');
+        return;
+      }
+      liveRoomsInitialized = true;
+      
       console.log('📦 DOM loaded, initializing live rooms...');
       loadRooms();
       // Refresh every 15 seconds to keep list fresh
-      setInterval(loadRooms, 15000);
+      if (!roomRefreshInterval) {
+        roomRefreshInterval = setInterval(loadRooms, 15000);
+      }
       
       // Check auth state for create room
       checkAuthForCreateRoom();
@@ -1887,18 +1899,34 @@
       const emptyEl = document.getElementById('empty-state');
       
       if (type === 'upcoming') {
-        // Show upcoming section, hide rooms and empty state completely
-        if (upcomingSection) upcomingSection.classList.remove('hidden');
-        if (roomsGrid) roomsGrid.classList.add('hidden');
+        // COMPLETELY hide and clear everything else
+        if (roomsGrid) {
+          roomsGrid.classList.add('hidden');
+          roomsGrid.innerHTML = '';
+        }
         if (loadingEl) loadingEl.classList.add('hidden');
         if (emptyEl) {
           emptyEl.classList.add('hidden');
-          emptyEl.innerHTML = ''; // Clear empty state content to prevent duplicates
+          emptyEl.style.display = 'none'; // Force hide
+          emptyEl.innerHTML = ''; // Clear content
+        }
+        // Show upcoming section
+        if (upcomingSection) {
+          upcomingSection.classList.remove('hidden');
+          upcomingSection.style.display = ''; // Ensure visible
         }
         loadUpcomingEvents();
       } else {
-        // Show rooms, hide upcoming
-        if (upcomingSection) upcomingSection.classList.add('hidden');
+        // COMPLETELY hide upcoming section
+        if (upcomingSection) {
+          upcomingSection.classList.add('hidden');
+          upcomingSection.style.display = 'none'; // Force hide
+        }
+        // Clear the upcoming grid when leaving
+        const upcomingGrid = document.getElementById('upcoming-grid');
+        if (upcomingGrid) upcomingGrid.innerHTML = '';
+        // Reset empty state display
+        if (emptyEl) emptyEl.style.display = '';
         renderRooms();
       }
     }
@@ -2237,6 +2265,12 @@
     let emptyStateLoading = false; // Prevent duplicate calls
     
     async function showEmptyState() {
+      // Don't show empty state if we're on the upcoming tab
+      if (currentFilter === 'upcoming') {
+        console.log('⏳ Skipping empty state - on upcoming tab');
+        return;
+      }
+      
       // Prevent duplicate calls
       if (emptyStateLoading) {
         console.log('⏳ Empty state already loading, skipping...');

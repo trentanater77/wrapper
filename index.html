@@ -6211,6 +6211,78 @@ async function initializeApp() {
     // Hide participant layout, show spectator layout
     const participantLayout = document.getElementById('participant-layout');
     const spectatorLayout = document.getElementById('spectator-layout');
+
+    // Apply minimal inline styles so the spectator video area renders result even if
+    // Tailwind/other CSS is blocked/overridden (common with tracking protection / in-app browsers).
+    function applySpectatorInlineFallbackStyles() {
+      if (!isSpectator) return;
+
+      const layout = document.getElementById('spectator-layout');
+      if (layout) {
+        layout.style.display = 'grid';
+        layout.style.visibility = 'visible';
+        layout.style.opacity = '1';
+        // Basic grid fallback
+        layout.style.gap = layout.style.gap || '1.5rem';
+      }
+
+      // Ensure the main video container has a real height even if aspect-ratio utilities fail.
+      const v1 = document.getElementById('spectator-participant-1');
+      const v2 = document.getElementById('spectator-participant-2');
+      const screen = document.getElementById('spectator-screen-share');
+      const participantsContainer = document.getElementById('spectator-participants-container');
+      const clickOverlay = document.getElementById('spectator-click-overlay');
+
+      const mainContainer =
+        (participantsContainer && participantsContainer.closest('.aspect-video')) ||
+        (v1 && v1.closest('.aspect-video')) ||
+        (screen && screen.closest('.aspect-video'));
+
+      if (mainContainer) {
+        mainContainer.style.position = 'relative';
+        mainContainer.style.overflow = 'hidden';
+        mainContainer.style.borderRadius = '1rem';
+        mainContainer.style.background = mainContainer.style.background || '#22223B';
+        // Height fallback if aspect-ratio isn't applied
+        mainContainer.style.minHeight = '240px';
+        mainContainer.style.height = mainContainer.style.height || 'min(56.25vw, 60vh)';
+        mainContainer.style.width = '100%';
+      }
+
+      const forceVideoEl = (el) => {
+        if (!el) return;
+        el.style.display = el.style.display || 'block';
+        el.style.width = '100%';
+        el.style.height = '100%';
+        el.style.objectFit = 'cover';
+        el.style.background = '#000';
+      };
+
+      if (participantsContainer) {
+        participantsContainer.style.display = 'grid';
+        participantsContainer.style.gridTemplateColumns = '1fr 1fr';
+        participantsContainer.style.gap = '4px';
+        participantsContainer.style.width = '100%';
+        participantsContainer.style.height = '100%';
+        participantsContainer.style.minHeight = '240px';
+      }
+
+      forceVideoEl(v1);
+      forceVideoEl(v2);
+      forceVideoEl(screen);
+
+      // Ensure overlay is positioned correctly even without Tailwind classes.
+      if (clickOverlay) {
+        clickOverlay.style.position = 'absolute';
+        clickOverlay.style.top = '0';
+        clickOverlay.style.left = '0';
+        clickOverlay.style.right = '0';
+        clickOverlay.style.bottom = '0';
+        clickOverlay.style.display = clickOverlay.style.display || 'flex';
+        clickOverlay.style.alignItems = 'center';
+        clickOverlay.style.justifyContent = 'center';
+      }
+    }
     
     if (participantLayout) {
       participantLayout.style.display = 'none';
@@ -6240,6 +6312,9 @@ async function initializeApp() {
       clickOverlay.style.opacity = '1';
       console.log('📺 Click overlay forced visible');
     }
+
+    // Last: apply inline fallbacks after toggling display/classes.
+    applySpectatorInlineFallbackStyles();
     
     console.log('👀 Spectator mode enabled');
   }

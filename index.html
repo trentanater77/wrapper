@@ -3884,6 +3884,9 @@
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
     const isMobileSafari = isSafari && isIOS;
     let userGestureReceived = false;
+    let tipTtsUnlocked = false;
+    let tipTtsVoicesReady = false;
+    let tipTtsQueue = [];
     
     console.log(`🌐 Browser Detection - Safari: ${isSafari}, iOS: ${isIOS}, Mobile Safari: ${isMobileSafari}`);
     
@@ -3893,6 +3896,8 @@
         userGestureReceived = true;
         console.log('👆 User gesture received - Safari media access now possible');
       }
+
+      unlockTipTtsFromGesture();
     }
     
     // Add gesture listeners for Safari
@@ -4871,6 +4876,7 @@
       if (isSafari) {
         userGestureReceived = true;
         console.log('🍎 Safari: User gesture marked as received');
+        unlockTipTtsFromGesture();
       }
       
       const token = await fetchLiveKitAccessToken({
@@ -12193,16 +12199,15 @@ function ensureSpectatorTracksForParticipant(participant) {
   // TEXT-TO-SPEECH (FREE!)
   // ============================================
   
-  function speakTipMessage(senderName, recipientName, amount, message) {
-    if (!('speechSynthesis' in window)) {
-      console.warn('TTS not supported');
-      return;
-    }
-    
-    // Cancel any ongoing speech
-    speechSynthesis.cancel();
-    
-    // Build the message with recipient
+  function sanitizeTipTtsText(text) {
+    if (typeof text !== 'string') return '';
+    let t = text.replace(/\s+/g, ' ').trim();
+    t = t.replace(/(.)\1{6,}/g, '$1$1$1');
+    if (t.length > 220) t = t.slice(0, 220) + '…';
+    return t;
+  }
+  
+  function buildTipTtsText(senderName, recipientName, amount, message) {
     let text;
     if (recipientName) {
       text = `${senderName} tipped ${recipientName} ${amount} gems!`;
@@ -12212,16 +12217,84 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (message) {
       text += ` They say: ${message}`;
     }
+    return sanitizeTipTtsText(text);
+  }
+  
+  function pickTipTtsVoice(voices) {
+    if (!Array.isArray(voices) || voices.length === 0) return null;
+    const preferredNameParts = ['Google', 'Natural', 'Samantha', 'Alex', 'Victoria', 'Daniel', 'Karen', 'Moira', 'Tessa', 'Zira'];
+    const preferred = voices.find(v => v && /^en(-|_)?/i.test(v.lang) && (v.default || preferredNameParts.some(p => v.name?.includes(p))));
+    if (preferred) return preferred;
+    const enVoice = voices.find(v => v && /^en(-|_)?/i.test(v.lang));
+    if (enVoice) return enVoice;
+    return voices[0] || null;
+  }
+  
+  function unlockTipTtsFromGesture() {
+    if (tipTtsUnlocked) return;
+    tipTtsUnlocked = true;
+    if ('speechSynthesis' in window) {
+      try {
+        speechSynthesis.getVoices();
+        const warmup = new SpeechSynthesisUtterance(' ');
+        warmup.volume = 0;
+        speechSynthesis.speak(warmup);
+        speechSynthesis.cancel();
+      } catch (e) {}
+    }
+    flushTipTtsQueue();
+  }
+  
+  function flushTipTtsQueue() {
+    if (!tipTtsUnlocked) return;
+    if (!('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return;
+    tipTtsVoicesReady = true;
+    const toPlay = tipTtsQueue.slice(0, 10);
+    tipTtsQueue = tipTtsQueue.slice(10);
+    toPlay.forEach(item => {
+      speakTipMessage(item.senderName, item.recipientName, item.amount, item.message, { bypassQueue: true });
+    });
+  }
+  
+  function speakTipMessage(senderName, recipientName, amount, message, options) {
+    if (!('speechSynthesis' in window)) {
+      console.warn('TTS not supported');
+      return;
+    }
+    const opts = options || {};
+    if (!opts.bypassQueue && (!tipTtsUnlocked || !userGestureReceived)) {
+      tipTtsQueue.push({ senderName, recipientName, amount, message });
+      if (tipTtsQueue.length > 20) tipTtsQueue = tipTtsQueue.slice(-20);
+      return;
+    }
+    
+    const text = buildTipTtsText(senderName, recipientName, amount, message);
+    if (!text) return;
+    
+    try {
+      speechSynthesis.resume();
+    } catch (e) {}
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
+    utterance.rate = isMobileSafari ? 0.92 : 0.97;
     utterance.pitch = 1.0;
-    utterance.volume = 0.8;
+    utterance.volume = 1.0;
     
-    // Try to use a nice voice
     const voices = speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => v.name.includes('Google') || v.name.includes('Natural')) || voices[0];
-    if (preferredVoice) utterance.voice = preferredVoice;
+    if (!voices || voices.length === 0) {
+      tipTtsQueue.push({ senderName, recipientName, amount, message });
+      if (tipTtsQueue.length > 20) tipTtsQueue = tipTtsQueue.slice(-20);
+      return;
+    }
+    const preferredVoice = pickTipTtsVoice(voices);
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+      if (preferredVoice.lang) utterance.lang = preferredVoice.lang;
+    } else {
+      utterance.lang = 'en-US';
+    }
     
     speechSynthesis.speak(utterance);
     console.log('🔊 TTS:', text);
@@ -12229,8 +12302,16 @@ function ensureSpectatorTracksForParticipant(participant) {
   
   // Pre-load voices
   if ('speechSynthesis' in window) {
-    speechSynthesis.getVoices();
-    speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+    const updateVoices = () => {
+      const voices = speechSynthesis.getVoices();
+      if (voices && voices.length) {
+        tipTtsVoicesReady = true;
+        flushTipTtsQueue();
+      }
+      return voices;
+    };
+    updateVoices();
+    speechSynthesis.onvoiceschanged = updateVoices;
   }
   
   // Make functions globally available

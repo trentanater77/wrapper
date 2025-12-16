@@ -379,6 +379,8 @@
     const SAFE_IDS = ['video-interface', 'video-mobile-nav', 'auth-modal', 'landing-page', 
                       'feedback-widget', 'feedback-modal', 'nav-menu', 'nav-overlay',
                       'rating-modal', 'tip-modal', 'spectator-container',
+                      'tip-animation-overlay', 'tip-particles-container', 'tip-gif-display',
+                      'tip-announcement', 'tip-announcement-amount', 'tip-announcement-sender', 'tip-announcement-message',
                       'waiting-overlay', 'loading-overlay', 'video-container',
                       'local-video', 'remote-video', 'chat-container', 'controls',
                       'participant', 'spectator', 'room-info', 'timer'];

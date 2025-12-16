@@ -2138,15 +2138,9 @@
       const roomId = room.room_id;
       const roomType = room.room_type || 'red';
       const topic = encodeURIComponent(room.topic || '');
-      
-      // For forum rooms, extract forum ID from room_id (format: forum-{forumId8chars}-{timestamp})
-      let forumParam = '';
-      if (isForumRoom) {
-        // room_id format: forum-{first8charsOfForumId}-{timestamp}
-        // We need to pass the forum context for revenue split
-        // The forum ID is stored in the room but we may need to look it up
-        forumParam = '&fromLive=true';
-      }
+
+      const forumId = room.forum_id || '';
+      const forumRoomTypeForLink = room.forum_room_type || '';
       
       // Cover image
       const coverImageHtml = room.cover_image_url ? `
@@ -2194,20 +2188,20 @@
             
             <div class="room-actions">
               ${isCreator ? `
-                <button onclick="joinRoom('${roomId}', 'queue', '${roomType}', '${topic}')" class="room-btn room-btn-primary" style="background: linear-gradient(135deg, #FFD166, #e63946);">
+                <button onclick="joinRoom('${roomId}', 'queue', '${roomType}', '${topic}', '${forumId}', '${forumRoomTypeForLink}')" class="room-btn room-btn-primary" style="background: linear-gradient(135deg, #FFD166, #e63946);">
                   🎯 Join Queue
                 </button>
               ` : `
-              <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}')" class="room-btn room-btn-secondary">
+              <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}', '${forumId}', '${forumRoomTypeForLink}')" class="room-btn room-btn-secondary">
                 👁️ Watch
               </button>
               `}
               ${!isCreator ? (room.participant_count >= 2 ? `
-                <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}')" class="room-btn room-btn-primary" title="Room is full - joining as spectator">
+                <button onclick="joinRoom('${roomId}', 'spectator', '${roomType}', '${topic}', '${forumId}', '${forumRoomTypeForLink}')" class="room-btn room-btn-primary" title="Room is full - joining as spectator">
                   👁️ Watch (Full)
                 </button>
               ` : `
-                <button onclick="joinRoom('${roomId}', 'participant', '${roomType}', '${topic}')" class="room-btn room-btn-primary">
+                <button onclick="joinRoom('${roomId}', 'participant', '${roomType}', '${topic}', '${forumId}', '${forumRoomTypeForLink}')" class="room-btn room-btn-primary">
                   🚀 Join
                 </button>
               `) : ''}
@@ -2218,7 +2212,7 @@
     }
     
     // Join room with status check first
-    async function joinRoom(roomId, mode, roomType, topic) {
+    async function joinRoom(roomId, mode, roomType, topic, forumIdFromCard, forumRoomTypeFromCard) {
       // Show loading state
       const card = document.querySelector(`[data-room-id="${roomId}"]`);
       if (card) {
@@ -2254,14 +2248,20 @@
           loadRooms(); // Refresh the room list
           return;
         }
-        
-        // Room is active, navigate to it
-        window.location.href = `/index.html?room=${roomId}&mode=${mode}&roomType=${roomType}&topic=${topic}`;
+
+        const forumId = data?.room?.forum_id || forumIdFromCard || null;
+        const forumRoomType = data?.room?.forum_room_type || forumRoomTypeFromCard || null;
+        let targetUrl = `/index.html?room=${roomId}&mode=${mode}&roomType=${roomType}&topic=${topic}`;
+        if (forumId) targetUrl += `&forum=${encodeURIComponent(forumId)}`;
+        if (forumRoomType) targetUrl += `&forumRoomType=${encodeURIComponent(forumRoomType)}`;
+        window.location.href = targetUrl;
         
       } catch (error) {
         console.error('Error checking room status:', error);
-        // If check fails, try to join anyway
-        window.location.href = `/index.html?room=${roomId}&mode=${mode}&roomType=${roomType}&topic=${topic}`;
+        let targetUrl = `/index.html?room=${roomId}&mode=${mode}&roomType=${roomType}&topic=${topic}`;
+        if (forumIdFromCard) targetUrl += `&forum=${encodeURIComponent(forumIdFromCard)}`;
+        if (forumRoomTypeFromCard) targetUrl += `&forumRoomType=${encodeURIComponent(forumRoomTypeFromCard)}`;
+        window.location.href = targetUrl;
       }
     }
     window.joinRoom = joinRoom;

@@ -69,6 +69,23 @@ exports.handler = async function(event) {
         const isEmpty = data.participant_count === 0 && data.room_type === 'red';
         const startedAt = new Date(data.started_at).getTime();
         const isStale = isEmpty && (now - startedAt) > 5 * 60 * 1000; // Empty for > 5 min
+
+        let forumRoomType = null;
+        let forumId = null;
+        const isForumRoom = typeof roomId === 'string' && roomId.startsWith('forum-');
+        if (isForumRoom) {
+          try {
+            const { data: forumRoom, error: forumRoomError } = await supabase
+              .from('forum_rooms')
+              .select('room_type, forum_id')
+              .eq('room_id', roomId)
+              .single();
+            if (!forumRoomError && forumRoom) {
+              forumRoomType = forumRoom.room_type || null;
+              forumId = forumRoom.forum_id || null;
+            }
+          } catch (e) {}
+        }
         
         if (isEnded || isExpired || isStale) {
           // Mark as ended if not already
@@ -83,7 +100,7 @@ exports.handler = async function(event) {
             statusCode: 200,
             headers,
             body: JSON.stringify({ 
-              room: { ...data, status: 'ended' },
+              room: { ...data, status: 'ended', forum_room_type: forumRoomType, forum_id: forumId },
               status: 'ended',
               reason: isEnded ? 'manually_ended' : isExpired ? 'expired' : 'abandoned'
             }),
@@ -93,7 +110,7 @@ exports.handler = async function(event) {
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ room: data, status: 'live' }),
+          body: JSON.stringify({ room: { ...data, forum_room_type: forumRoomType, forum_id: forumId }, status: 'live' }),
         };
       }
 
@@ -290,12 +307,12 @@ exports.handler = async function(event) {
         try {
           const { data: forumRooms, error: forumError } = await supabase
             .from('forum_rooms')
-            .select('room_id, room_type')
+            .select('room_id, room_type, forum_id')
             .in('room_id', forumRoomIds);
           
           if (!forumError && forumRooms) {
             forumRooms.forEach(fr => {
-              forumRoomTypes[fr.room_id] = fr.room_type;
+              forumRoomTypes[fr.room_id] = { room_type: fr.room_type, forum_id: fr.forum_id || null };
             });
             console.log('📋 Forum room types loaded:', Object.keys(forumRoomTypes).length);
           }
@@ -307,7 +324,8 @@ exports.handler = async function(event) {
       // Merge forum_room_type into results
       const enrichedData = data.map(room => ({
         ...room,
-        forum_room_type: forumRoomTypes[room.room_id] || null
+        forum_room_type: forumRoomTypes[room.room_id]?.room_type || null,
+        forum_id: forumRoomTypes[room.room_id]?.forum_id || null
       }));
 
       return {

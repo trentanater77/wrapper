@@ -4063,6 +4063,58 @@
       }
     }
 
+    async function ensureForumContextFromRoomId() {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const existingForum = urlParams.get('forum');
+        const existingForumRoomType = urlParams.get('forumRoomType');
+        if (existingForum && existingForumRoomType) return;
+        if (typeof roomUrl !== 'string' || !roomUrl.startsWith('forum-')) return;
+
+        const sphereId = extractSphereId(roomUrl);
+        if (!sphereId) return;
+        const response = await fetch(`/.netlify/functions/manage-room?roomId=${encodeURIComponent(sphereId)}`);
+        if (!response.ok) return;
+        const data = await response.json();
+        const forumId = data?.room?.forum_id || null;
+        const forumRoomType = data?.room?.forum_room_type || null;
+        if (!forumId && !forumRoomType) return;
+
+        if (!existingForum && forumId) urlParams.set('forum', forumId);
+        if (!existingForumRoomType && forumRoomType) urlParams.set('forumRoomType', forumRoomType);
+        const nextQuery = urlParams.toString();
+        const nextUrl = `${window.location.pathname}?${nextQuery}${window.location.hash || ''}`;
+        window.history.replaceState({}, '', nextUrl);
+      } catch (e) {}
+    }
+
+    const forumDescriptorCache = {};
+    async function getForumDescriptor(forumId) {
+      if (!forumId || typeof forumId !== 'string') return null;
+      const fallbackUserId = (typeof userId !== 'undefined') ? userId : null;
+      const maybeUserId = window.currentUserData?.userId || fallbackUserId;
+      const currentUserId = isValidUuid(maybeUserId) ? maybeUserId : null;
+      const cacheKey = `${forumId}:${typeof currentUserId === 'string' ? currentUserId : ''}`;
+      if (Object.prototype.hasOwnProperty.call(forumDescriptorCache, cacheKey)) return forumDescriptorCache[cacheKey];
+      try {
+        const userParam = typeof currentUserId === 'string' ? `&userId=${encodeURIComponent(currentUserId)}` : '';
+        const response = await fetch(`/.netlify/functions/get-forum?id=${encodeURIComponent(forumId)}${userParam}`);
+        if (!response.ok) {
+          forumDescriptorCache[cacheKey] = null;
+          return null;
+        }
+        const data = await response.json();
+        const slug = data?.forum?.slug || null;
+        const name = data?.forum?.name || null;
+        const descriptor = slug ? `f/${slug}` : name;
+        forumDescriptorCache[cacheKey] = descriptor || null;
+        return forumDescriptorCache[cacheKey];
+      } catch (e) {
+        forumDescriptorCache[cacheKey] = null;
+        return null;
+      }
+    }
+
   function isValidUuid(value) {
     return typeof value === 'string' && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
   }
@@ -5497,7 +5549,7 @@
           !isSpectator) {
         const urlParams = new URLSearchParams(window.location.search);
         const isHost = urlParams.get('host') === 'true';
-        const isForumRoom = urlParams.get('forum');
+        const isForumRoom = urlParams.get('forum') || (typeof roomUrl === 'string' && roomUrl.startsWith('forum-'));
         const isRoomCreator = roomHostData?.isHost || isHost;
         
         // Forum rooms don't end when host leaves - no warning needed
@@ -5621,7 +5673,7 @@
       
       // For FORUM rooms: Don't end when host leaves - room stays until timer expires
       // For regular green rooms: End when host leaves
-      const forumParam = urlParams.get('forum');
+      const forumParam = urlParams.get('forum') || (typeof roomUrl === 'string' && roomUrl.startsWith('forum-'));
       const isRoomCreator = roomHostData?.isHost || isHost;
       
       // Only end non-forum green rooms when host leaves
@@ -5884,7 +5936,7 @@ async function initializeApp() {
     if (topicFromUrl) {
       const topic = decodeURIComponent(topicFromUrl);
       let description;
-      
+
       if (isMatchedRoom) {
         // Matchmaking room
         const matchedTopic = matchedTopicFromUrl ? decodeURIComponent(matchedTopicFromUrl) : null;
@@ -5897,23 +5949,34 @@ async function initializeApp() {
         console.log("✅ Matched topic:", matchedTopic);
         console.log("🎯 Similarity:", similarity);
       } else if (roomTypeFromUrl === 'red') {
-        // Red Room debate
-        description = `🔴 Red Room Debate: "${topic}"`;
-        console.log("✅ Found Red Room topic:", topic);
+        const forumParam = urlParams.get('forum');
+        const isForumRoom = !!forumParam || (typeof roomUrl === 'string' && roomUrl.startsWith('forum-'));
+        if (isForumRoom) {
+          const forumDescriptor = await getForumDescriptor(forumParam);
+          description = `🔴 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
+          console.log("✅ Found Forum Debate room topic:", topic);
+        } else {
+          description = `🔴 Red Room Debate: "${topic}"`;
+          console.log("✅ Found Red Room topic:", topic);
+        }
       } else if (roomTypeFromUrl === 'green') {
         // Green Room - check if it's a forum room and what type
         const forumParam = urlParams.get('forum');
         const forumRoomType = urlParams.get('forumRoomType');
-        if (forumParam && forumRoomType === 'live') {
-          // Forum regular chat room - no help terminology
-          description = `💬 ${topic}`;
+        const isForumRoom = !!forumParam || (typeof roomUrl === 'string' && roomUrl.startsWith('forum-'));
+        if (isForumRoom && forumRoomType === 'live') {
+          const forumDescriptor = await getForumDescriptor(forumParam);
+          description = `💬 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
           console.log("✅ Found Forum Chat room topic:", topic);
-        } else if (forumParam) {
-          // Forum help room
-          description = `🟢 ${topic}`;
+        } else if (isForumRoom && forumRoomType) {
+          const forumDescriptor = await getForumDescriptor(forumParam);
+          description = `🟢 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
           console.log("✅ Found Forum Help room topic:", topic);
+        } else if (isForumRoom) {
+          const forumDescriptor = await getForumDescriptor(forumParam);
+          description = `🌐 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
+          console.log("✅ Found Forum room topic:", topic);
         } else {
-          // Regular green room help session
           description = `🟢 Green Room Help: "${topic}"`;
           console.log("✅ Found Green Room topic:", topic);
         }
@@ -5973,14 +6036,18 @@ async function initializeApp() {
           const urlParams = new URLSearchParams(window.location.search);
           const forumParam = urlParams.get('forum');
           const forumRoomType = urlParams.get('forumRoomType');
+          const isForumRoom = !!forumParam || (typeof roomUrl === 'string' && roomUrl.startsWith('forum-'));
+          const forumDescriptor = isForumRoom ? (await getForumDescriptor(forumParam)) : null;
           let description;
           if (roomType === 'red') {
-            description = `🔴 Red Room Debate: "${topic}"`;
+            description = isForumRoom ? `🔴 ${forumDescriptor || 'Forum Room'}: "${topic}"` : `🔴 Red Room Debate: "${topic}"`;
           } else if (roomType === 'green') {
-            if (forumParam && forumRoomType === 'live') {
-              description = `💬 ${topic}`;
-            } else if (forumParam) {
-              description = `🟢 ${topic}`;
+            if (isForumRoom && forumRoomType === 'live') {
+              description = `💬 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
+            } else if (isForumRoom && forumRoomType) {
+              description = `🟢 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
+            } else if (isForumRoom) {
+              description = `🌐 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
             } else {
               description = `🟢 Green Room Help: "${topic}"`;
             }
@@ -6003,15 +6070,32 @@ async function initializeApp() {
         const response = await fetch(`/.netlify/functions/manage-room?roomId=${sphereId}`);
         if (response.ok) {
           const roomData = await response.json();
-          if (roomData?.topic) {
-            const topic = roomData.topic;
-            const roomType = roomData.room_type || 'red';
+          const roomRecord = roomData?.room || roomData;
+          if (roomRecord?.topic) {
+            const topic = roomRecord.topic;
+            const roomType = roomRecord.room_type || 'red';
             let description;
             if (roomType === 'red') {
-              description = `🔴 Red Room Debate: "${topic}"`;
+              const urlParams = new URLSearchParams(window.location.search);
+              const forumParam = urlParams.get('forum');
+              const isForumRoom = !!forumParam || (typeof roomUrl === 'string' && roomUrl.startsWith('forum-'));
+              const forumDescriptor = isForumRoom ? (await getForumDescriptor(forumParam)) : null;
+              description = isForumRoom ? `🔴 ${forumDescriptor || 'Forum Room'}: "${topic}"` : `🔴 Red Room Debate: "${topic}"`;
             } else if (roomType === 'green') {
-              const forumParam = new URLSearchParams(window.location.search).get('forum');
-              description = forumParam ? `🌐 ${topic}` : `🟢 Green Room Help: "${topic}"`;
+              const urlParams = new URLSearchParams(window.location.search);
+              const forumParam = urlParams.get('forum');
+              const forumRoomType = urlParams.get('forumRoomType');
+              const isForumRoom = !!forumParam || (typeof roomUrl === 'string' && roomUrl.startsWith('forum-'));
+              const forumDescriptor = isForumRoom ? (await getForumDescriptor(forumParam)) : null;
+              if (isForumRoom && forumRoomType === 'live') {
+                description = `💬 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
+              } else if (isForumRoom && forumRoomType) {
+                description = `🟢 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
+              } else if (isForumRoom) {
+                description = `🌐 ${forumDescriptor || 'Forum Room'}: "${topic}"`;
+              } else {
+                description = `🟢 Green Room Help: "${topic}"`;
+              }
             } else {
               description = `Discussing: "${topic}"`;
             }
@@ -6066,6 +6150,7 @@ async function initializeApp() {
       roomUrl: roomUrl?.substring(0, 50) + '...'
     });
     
+    await ensureForumContextFromRoomId();
     await loadRoomInfo();
     console.log('✅ Room info loaded');
     
@@ -12456,7 +12541,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       // Check if this is a regular forum chat room (forumRoomType='live')
       const forumRoomType = urlParams.get('forumRoomType');
-      const forumParam = urlParams.get('forum');
+      const forumParam = urlParams.get('forum') || (typeof roomUrl === 'string' && roomUrl.startsWith('forum-'));
       
       if (forumParam && forumRoomType === 'live') {
         // Regular forum chat - no help UI

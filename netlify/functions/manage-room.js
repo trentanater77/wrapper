@@ -453,7 +453,7 @@ exports.handler = async function(event) {
         }
         console.log(`📅 Room ends_at: ${endsAt || 'null (creator room - no auto-end)'}`);
 
-        const { data, error } = await supabase
+        let { data, error } = await supabase
           .from('active_rooms')
           .upsert({
             room_id: roomId,

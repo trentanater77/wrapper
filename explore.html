@@ -1022,6 +1022,16 @@
           </div>
           <p class="footer-tagline">Talk with purpose. Connect with heart.</p>
         </div>
+
+        <div>
+          <div class="footer-title">Updates</div>
+          <div style="color:#FFB6B9;font-size:0.875rem;opacity:0.95;line-height:1.4;margin-bottom:0.75rem;">Get occasional product updates and new features.</div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <input id="marketing-optin-email" type="email" placeholder="you@example.com" style="flex:1;min-width:190px;padding:10px 12px;border-radius:999px;border:2px solid #FFB6B9;background:rgba(255,255,255,0.08);color:#FCE2E5;outline:none;" />
+            <button class="cta-btn" style="padding:0.6rem 1.25rem;" onclick="marketingOptIn()">Subscribe</button>
+          </div>
+          <div id="marketing-optin-status" style="margin-top:8px;font-size:0.85rem;color:#FFD166;"></div>
+        </div>
         
         <div>
           <div class="footer-title">Product</div>
@@ -1062,6 +1072,67 @@
   <!-- Navigation Script -->
   <script src="/assets/js/navigation.js?v=2"></script>
   <script src="/assets/js/referral.js"></script>
+
+  <script>
+    function setMarketingOptinStatus(message, type) {
+      const el = document.getElementById('marketing-optin-status');
+      if (!el) return;
+      el.textContent = message || '';
+      el.style.color = type === 'error' ? '#FFB6B9' : '#FFD166';
+    }
+
+    function getStoredMarketingEmail() {
+      try {
+        return (localStorage.getItem('marketingEmail') || '').trim();
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setStoredMarketingEmail(email) {
+      try {
+        if (!email) localStorage.removeItem('marketingEmail');
+        else localStorage.setItem('marketingEmail', email);
+      } catch (e) {}
+    }
+
+    window.marketingOptIn = async function() {
+      const input = document.getElementById('marketing-optin-email');
+      const email = (input?.value || '').trim();
+
+      if (!email) {
+        setMarketingOptinStatus('Enter your email to subscribe.', 'error');
+        return;
+      }
+
+      setMarketingOptinStatus('Subscribing...');
+
+      try {
+        const res = await fetch('/.netlify/functions/marketing-optin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, source: 'explore-footer' })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.success) {
+          throw new Error(data?.message || data?.error || 'Subscription failed');
+        }
+
+        setStoredMarketingEmail(email);
+        setMarketingOptinStatus('Subscribed! You can unsubscribe anytime from the footer link in emails.');
+      } catch (e) {
+        setMarketingOptinStatus(e.message || 'Subscription failed', 'error');
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const input = document.getElementById('marketing-optin-email');
+      if (input && !input.value) {
+        const stored = getStoredMarketingEmail();
+        if (stored) input.value = stored;
+      }
+    });
+  </script>
   
   <!-- Auth Script -->
   <script>

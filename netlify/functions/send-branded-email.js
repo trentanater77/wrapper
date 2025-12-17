@@ -107,6 +107,25 @@ function appendUnsubscribeText(text, unsubscribeUrl) {
   return `${text}\n\nUnsubscribe: ${unsubscribeUrl}`;
 }
 
+function wrapMarketingHtml(innerHtml, subject) {
+  const safeSubject = sanitizeText(subject || '', 160);
+  return `
+  <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px 12px; background: #ffffff;">
+    <div style="max-width: 680px; margin: 0 auto; border: 1px solid #f1f1f1; border-radius: 16px; overflow: hidden;">
+      <div style="background: linear-gradient(135deg, #e63946 0%, #ff7a86 100%); color: #fff; padding: 18px 20px;">
+        <div style="font-size: 18px; font-weight: 900; letter-spacing: 0.2px;">ChatSpheres</div>
+        <div style="opacity: 0.92; margin-top: 4px; font-weight: 700;">${safeSubject}</div>
+      </div>
+      <div style="padding: 18px 20px; color: #111827;">
+        ${innerHtml}
+      </div>
+    </div>
+    <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">
+      © ${new Date().getFullYear()} ChatSpheres
+    </div>
+  </div>`;
+}
+
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };
@@ -153,6 +172,7 @@ exports.handler = async function(event) {
     const subject = sanitizeText(body.subject || '', 160);
     let html = typeof body.html === 'string' ? body.html : '';
     let text = sanitizeTextarea(body.text || '', 20000);
+    const wrap = body.wrap !== false;
 
     if (!subject) {
       return {
@@ -205,7 +225,8 @@ exports.handler = async function(event) {
           : `/.netlify/functions/marketing-unsubscribe?token=${encodeURIComponent(r.unsubscribe_token)}`)
         : '';
 
-      const emailHtml = html ? appendUnsubscribeHtml(html, unsubscribeUrl) : '';
+      const baseHtml = html ? (wrap ? wrapMarketingHtml(html, subject) : html) : '';
+      const emailHtml = baseHtml ? appendUnsubscribeHtml(baseHtml, unsubscribeUrl) : '';
       const emailText = text ? appendUnsubscribeText(text, unsubscribeUrl) : '';
 
       try {

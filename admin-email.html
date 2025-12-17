@@ -84,6 +84,11 @@
     <label for="html">HTML (optional)</label>
     <textarea id="html" placeholder="<h2>Hello</h2><p>...</p>"></textarea>
 
+    <div style="display:flex;align-items:center;gap:10px;margin-top:0.75rem;">
+      <input id="wrapHtml" type="checkbox" checked style="width:auto;" />
+      <label for="wrapHtml" style="margin:0;">Wrap HTML in ChatSpheres template</label>
+    </div>
+
     <label for="text">Text (optional)</label>
     <textarea id="text" placeholder="Plain text version..."></textarea>
 
@@ -120,6 +125,7 @@
       const html = document.getElementById('html').value;
       const text = document.getElementById('text').value;
       const max = Number(document.getElementById('max').value || 100);
+      const wrap = !!document.getElementById('wrapHtml').checked;
 
       if (!adminSecret) {
         alert('Admin secret is required');
@@ -151,6 +157,7 @@
             html: html || undefined,
             text: text || undefined,
             max,
+            wrap,
           })
         });
 

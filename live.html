@@ -2390,15 +2390,20 @@
         
         console.log('📅 Found', upcomingEvents.length, 'unique upcoming events');
         
-        // Check user's reminders if logged in
-        if (currentUserId) {
+        // Check reminders for logged-in user or guest email
+        const guestEmail = !currentUserId ? getGuestReminderEmail() : '';
+
+        if (currentUserId || guestEmail) {
           for (const event of upcomingEvents) {
             try {
-              const reminderRes = await fetch(`/.netlify/functions/subscribe-reminder?eventId=${event.id}&userId=${currentUserId}`);
+              const reminderUrl = currentUserId
+                ? `/.netlify/functions/subscribe-reminder?eventId=${event.id}&userId=${currentUserId}`
+                : `/.netlify/functions/subscribe-reminder?eventId=${event.id}&email=${encodeURIComponent(guestEmail)}`;
+              const reminderRes = await fetch(reminderUrl);
               const reminderData = await reminderRes.json();
               userReminders[event.id] = reminderData.hasReminder;
 
-              if (reminderData?.hasReminder && reminderData?.reminder && (reminderData.reminder.notify_email !== true || !reminderData.reminder.email)) {
+              if (currentUserId && reminderData?.hasReminder && reminderData?.reminder && (reminderData.reminder.notify_email !== true || !reminderData.reminder.email)) {
                 try {
                   await fetch('/.netlify/functions/subscribe-reminder', {
                     method: 'POST',
@@ -2595,11 +2600,46 @@
       }
     }
 
+    function getGuestReminderEmail() {
+      try {
+        const email = (localStorage.getItem('guestReminderEmail') || '').trim();
+        return email || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setGuestReminderEmail(email) {
+      try {
+        if (!email) {
+          localStorage.removeItem('guestReminderEmail');
+        } else {
+          localStorage.setItem('guestReminderEmail', email);
+        }
+      } catch (e) {}
+    }
+
+    async function promptForGuestReminderEmail() {
+      const existing = getGuestReminderEmail();
+      const input = window.prompt('Enter your email to get reminder emails:', existing || '');
+      if (input === null) return '';
+      const email = String(input || '').trim();
+      if (!email) return '';
+      setGuestReminderEmail(email);
+      return email;
+    }
+
     async function toggleReminder(eventId) {
+      let guestEmail = '';
       if (!currentUserId) {
-        showToast('Please sign in to set reminders', 'error');
-        window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.href);
-        return;
+        guestEmail = getGuestReminderEmail();
+        if (!guestEmail) {
+          guestEmail = await promptForGuestReminderEmail();
+        }
+        if (!guestEmail) {
+          showToast('Email is required to set a reminder', 'error');
+          return;
+        }
       }
       
       const hasReminder = userReminders[eventId];
@@ -2618,7 +2658,10 @@
       try {
         if (hasReminder) {
           // Remove reminder
-          const res = await fetch(`/.netlify/functions/subscribe-reminder?eventId=${eventId}&userId=${currentUserId}`, {
+          const url = currentUserId
+            ? `/.netlify/functions/subscribe-reminder?eventId=${eventId}&userId=${currentUserId}`
+            : `/.netlify/functions/subscribe-reminder?eventId=${eventId}&email=${encodeURIComponent(guestEmail)}`;
+          const res = await fetch(url, {
             method: 'DELETE'
           });
           const payload = await res.json().catch(() => null);
@@ -2634,7 +2677,8 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               eventId,
-              userId: currentUserId,
+              userId: currentUserId || undefined,
+              email: currentUserId ? undefined : guestEmail,
               notifyBrowser: true,
               notifyEmail: true,
             })

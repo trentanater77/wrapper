@@ -115,28 +115,86 @@ function formatEventTime(iso) {
   }
 }
 
-function buildReminderHtml({ title, hostName, timeDisplay, ctaUrl, ctaLabel, subtitle }) {
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function buildReminderHtml({ title, hostName, timeDisplay, ctaUrl, ctaLabel, subtitle, roomTypeLabel }) {
+  const safeTitle = escapeHtml(title);
+  const safeHost = escapeHtml(hostName);
+  const safeTime = escapeHtml(timeDisplay);
+  const safeSubtitle = escapeHtml(subtitle);
+  const safeRoomType = roomTypeLabel ? escapeHtml(roomTypeLabel) : '';
+  const safeCtaLabel = escapeHtml(ctaLabel);
+  const safeCtaUrl = escapeHtml(ctaUrl);
+
   return `
-    <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px; background: #ffffff;">
-      <div style="max-width: 560px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px; overflow: hidden;">
-        <div style="background: #e63946; color: #fff; padding: 18px 20px;">
-          <div style="font-size: 18px; font-weight: 800;">ChatSpheres</div>
-          <div style="opacity: 0.9; margin-top: 4px;">${subtitle}</div>
+  <div style="margin:0;padding:0;background:#ffffff;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      ${safeSubtitle} — ${safeTitle}
+    </div>
+    <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px 12px; background: #ffffff;">
+      <div style="max-width: 600px; margin: 0 auto; border: 1px solid #f1f1f1; border-radius: 16px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #e63946 0%, #ff7a86 100%); color: #fff; padding: 18px 20px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;">
+              <span style="font-size:18px;">💬</span>
+            </div>
+            <div>
+              <div style="font-size: 18px; font-weight: 900; letter-spacing: 0.2px;">ChatSpheres</div>
+              <div style="opacity: 0.92; margin-top: 2px; font-weight: 700;">${safeSubtitle}</div>
+            </div>
+          </div>
         </div>
-        <div style="padding: 18px 20px;">
-          <div style="font-size: 18px; font-weight: 800; margin-bottom: 6px;">${title}</div>
-          <div style="color: #444; margin-bottom: 10px;">Hosted by <strong>${hostName}</strong></div>
-          <div style="color: #444; margin-bottom: 18px;">Time: <strong>${timeDisplay}</strong></div>
 
-          <a href="${ctaUrl}" style="display: inline-block; background: #111827; color: #fff; text-decoration: none; padding: 12px 16px; border-radius: 10px; font-weight: 700;">${ctaLabel}</a>
+        <div style="padding: 18px 20px 20px; background:#ffffff;">
+          ${safeRoomType ? `<div style="display:inline-block;background:#fce2e5;color:#22223B;border:1px solid #ffb6b9;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:800;">${safeRoomType}</div>` : ''}
 
-          <div style="margin-top: 18px; color: #6b7280; font-size: 12px;">
-            If you didn’t request reminders, you can ignore this email.
+          <div style="font-size: 20px; font-weight: 900; margin: 10px 0 6px; color:#111827; line-height:1.25;">${safeTitle}</div>
+          <div style="color: #374151; margin-bottom: 10px;">Hosted by <strong>${safeHost}</strong></div>
+          <div style="color: #374151; margin-bottom: 16px;">Time: <strong>${safeTime}</strong></div>
+
+          <a href="${safeCtaUrl}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:900;">${safeCtaLabel}</a>
+
+          <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #f3f4f6; color: #6b7280; font-size: 12px; line-height: 1.5;">
+            Manage reminders anytime from <a href="${escapeHtml(process.env.APP_BASE_URL || '')}/live.html" style="color:#e63946;">Live</a>.
+            <br/>If you didn’t request reminders, you can ignore this email.
           </div>
         </div>
       </div>
+      <div style="max-width:600px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
+        © ${new Date().getFullYear()} ChatSpheres
+      </div>
     </div>
+  </div>
   `;
+}
+
+function buildReminderText({ title, hostName, timeDisplay, ctaUrl, subtitle }) {
+  return `ChatSpheres — ${subtitle}
+
+${title}
+Hosted by: ${hostName}
+Time: ${timeDisplay}
+
+Open: ${ctaUrl}
+
+If you didn’t request reminders, you can ignore this email.`;
+}
+
+function formatRoomTypeLabel(roomType) {
+  if (!roomType) return '';
+  const v = String(roomType).toLowerCase();
+  if (v === 'creator') return '⭐ Creator';
+  if (v === 'red') return '🔥 Debate';
+  if (v === 'help') return '🫶 Help';
+  return roomType;
 }
 
 async function sendTMinus10(now) {
@@ -202,6 +260,14 @@ async function sendTMinus10(now) {
         ctaUrl,
         ctaLabel: 'View event',
         subtitle: 'Reminder: starts soon',
+        roomTypeLabel: formatRoomTypeLabel(evt.room_type),
+      });
+      const text = buildReminderText({
+        title: evt.title,
+        hostName: evt.host_name || 'Host',
+        timeDisplay: formatEventTime(evt.scheduled_at),
+        ctaUrl,
+        subtitle: 'Reminder: starts soon',
       });
 
       try {
@@ -210,6 +276,7 @@ async function sendTMinus10(now) {
           to: toEmail,
           subject: `Reminder: ${evt.title} starts soon`,
           html,
+          text,
         });
 
         await supabase
@@ -278,6 +345,14 @@ async function sendLiveNow(now) {
       ctaUrl,
       ctaLabel: hasRoom ? 'Join now' : 'View event',
       subtitle: 'Live now',
+      roomTypeLabel: formatRoomTypeLabel(evt.room_type),
+    });
+    const text = buildReminderText({
+      title: evt.title,
+      hostName: evt.host_name || 'Host',
+      timeDisplay: formatEventTime(evt.scheduled_at),
+      ctaUrl,
+      subtitle: 'Live now',
     });
 
     for (const r of reminders) {
@@ -303,6 +378,7 @@ async function sendLiveNow(now) {
           to: toEmail,
           subject: `Live now: ${evt.title}`,
           html,
+          text,
         });
 
         await supabase

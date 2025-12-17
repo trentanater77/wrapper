@@ -2554,25 +2554,82 @@
       `;
     }
     
+    function showToast(message, type = 'success') {
+      try {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'toast-container';
+          container.style.position = 'fixed';
+          container.style.top = '16px';
+          container.style.left = '50%';
+          container.style.transform = 'translateX(-50%)';
+          container.style.zIndex = '99999';
+          container.style.display = 'flex';
+          container.style.flexDirection = 'column';
+          container.style.gap = '8px';
+          container.style.maxWidth = '90vw';
+          document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.padding = '10px 14px';
+        toast.style.borderRadius = '10px';
+        toast.style.color = '#fff';
+        toast.style.fontSize = '14px';
+        toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.25)';
+        toast.style.border = '1px solid rgba(255,255,255,0.15)';
+        toast.style.background = type === 'error' ? '#dc2626' : '#16a34a';
+        toast.style.backdropFilter = 'blur(6px)';
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transition = 'opacity 250ms ease';
+          setTimeout(() => toast.remove(), 300);
+        }, 2600);
+      } catch (e) {
+        console.warn('Toast failed:', e);
+      }
+    }
+
     async function toggleReminder(eventId) {
       if (!currentUserId) {
-        alert('Please sign in to set reminders');
+        showToast('Please sign in to set reminders', 'error');
         window.location.href = '/login.html?redirect=' + encodeURIComponent(window.location.href);
         return;
       }
       
       const hasReminder = userReminders[eventId];
+
+      const cardEl = document.querySelector(`.event-card[data-event-id="${eventId}"]`);
+      const btnEl = cardEl ? cardEl.querySelector('button.remind-btn') : null;
+      const prevBtnText = btnEl ? btnEl.textContent : '';
+      const prevBtnClass = btnEl ? btnEl.className : '';
+
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.style.opacity = '0.7';
+        btnEl.textContent = hasReminder ? '⏳ Removing…' : '⏳ Setting…';
+      }
       
       try {
         if (hasReminder) {
           // Remove reminder
-          await fetch(`/.netlify/functions/subscribe-reminder?eventId=${eventId}&userId=${currentUserId}`, {
+          const res = await fetch(`/.netlify/functions/subscribe-reminder?eventId=${eventId}&userId=${currentUserId}`, {
             method: 'DELETE'
           });
+          const payload = await res.json().catch(() => null);
+          if (!res.ok) {
+            throw new Error(payload?.error || payload?.message || 'Failed to remove reminder');
+          }
           userReminders[eventId] = false;
+          showToast('Reminder removed');
         } else {
           // Add reminder
-          await fetch('/.netlify/functions/subscribe-reminder', {
+          const res = await fetch('/.netlify/functions/subscribe-reminder', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2582,14 +2639,33 @@
               notifyEmail: true,
             })
           });
+          const payload = await res.json().catch(() => null);
+          if (!res.ok) {
+            throw new Error(payload?.error || payload?.message || 'Failed to set reminder');
+          }
           userReminders[eventId] = true;
+          showToast('Reminder set');
         }
-        
-        // Re-render to update button
-        renderUpcomingEvents();
+
+        if (btnEl) {
+          const isActive = userReminders[eventId] === true;
+          btnEl.className = isActive ? 'remind-btn active' : 'remind-btn';
+          btnEl.textContent = isActive ? '🔔 Reminder Set' : '🔔 Remind Me';
+          btnEl.disabled = false;
+          btnEl.style.opacity = '';
+        } else {
+          renderUpcomingEvents();
+        }
       } catch (error) {
         console.error('Error toggling reminder:', error);
-        alert('Failed to update reminder');
+        showToast(error?.message || 'Failed to update reminder', 'error');
+
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.style.opacity = '';
+          btnEl.textContent = prevBtnText;
+          btnEl.className = prevBtnClass;
+        }
       }
     }
     window.toggleReminder = toggleReminder;

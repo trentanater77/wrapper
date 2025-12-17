@@ -2397,8 +2397,25 @@
               const reminderRes = await fetch(`/.netlify/functions/subscribe-reminder?eventId=${event.id}&userId=${currentUserId}`);
               const reminderData = await reminderRes.json();
               userReminders[event.id] = reminderData.hasReminder;
+
+              if (reminderData?.hasReminder && reminderData?.reminder && (reminderData.reminder.notify_email !== true || !reminderData.reminder.email)) {
+                try {
+                  await fetch('/.netlify/functions/subscribe-reminder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      eventId: event.id,
+                      userId: currentUserId,
+                      notifyBrowser: true,
+                      notifyEmail: true,
+                    })
+                  });
+                } catch (upgradeErr) {
+                  console.warn('Reminder upgrade failed:', upgradeErr);
+                }
+              }
             } catch (e) {
-              userReminders[event.id] = false;
+              console.error('Error checking reminder status:', e);
             }
           }
         }
@@ -2562,6 +2579,7 @@
               eventId,
               userId: currentUserId,
               notifyBrowser: true,
+              notifyEmail: true,
             })
           });
           userReminders[eventId] = true;

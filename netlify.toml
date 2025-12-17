@@ -7,6 +7,10 @@
 [functions]
   node_bundler = "esbuild"
 
+
+[functions."send-event-reminders"]
+  schedule = "*/2 * * * *"
+
 # Security Headers - Basic protection without breaking functionality
 [[headers]]
   for = "/*"

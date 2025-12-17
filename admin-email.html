@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Send Email | ChatSpheres</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/brand.css?v=3">
+
+  <style>
+    body { padding: 2rem; max-width: 1000px; margin: 0 auto; }
+    h1 { color: var(--charcoal); margin-bottom: 0.5rem; }
+    .subtitle { color: var(--charcoal); opacity: 0.7; margin-bottom: 1.5rem; }
+
+    .panel {
+      background: var(--light-rose);
+      border-radius: var(--radius-xl);
+      padding: 1.5rem;
+      border: 3px solid var(--rose);
+      margin-bottom: 1.5rem;
+    }
+
+    label { display: block; font-weight: 700; margin-top: 0.75rem; margin-bottom: 0.35rem; }
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--rose);
+      border-radius: 10px;
+      font-size: 1rem;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: #fff;
+    }
+    textarea { min-height: 140px; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .actions { display: flex; gap: 12px; margin-top: 1rem; flex-wrap: wrap; }
+    .btn {
+      padding: 12px 16px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-weight: 800;
+    }
+    .btn-primary { background: var(--main-red); color: #fff; }
+    .btn-ghost { background: #fff; border: 2px solid var(--rose); color: var(--charcoal); }
+
+    pre { background: #1a1a2e; color: #eee; padding: 1rem; border-radius: var(--radius-lg); overflow-x: auto; }
+
+    @media (max-width: 720px) {
+      .row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Admin - Send Branded Email</h1>
+  <p class="subtitle">Send a test email to one address, or broadcast to all marketing subscribers.</p>
+
+  <div class="panel">
+    <div class="row">
+      <div>
+        <label for="adminSecret">Admin Secret</label>
+        <input id="adminSecret" type="password" placeholder="Paste ADMIN_SECRET" />
+      </div>
+      <div>
+        <label for="testTo">Test Recipient (optional)</label>
+        <input id="testTo" type="email" placeholder="you@example.com (leave empty to broadcast)" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="subject">Subject</label>
+        <input id="subject" type="text" placeholder="Your subject" />
+      </div>
+      <div>
+        <label for="max">Max Recipients (broadcast only)</label>
+        <input id="max" type="number" value="100" min="1" max="500" />
+      </div>
+    </div>
+
+    <label for="html">HTML (optional)</label>
+    <textarea id="html" placeholder="<h2>Hello</h2><p>...</p>"></textarea>
+
+    <label for="text">Text (optional)</label>
+    <textarea id="text" placeholder="Plain text version..."></textarea>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="sendEmail()">Send</button>
+      <button class="btn btn-ghost" onclick="sendTestEmail()">Send Test (send-test-email)</button>
+      <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top: 0;">Result</h2>
+    <pre id="result">(nothing yet)</pre>
+  </div>
+
+  <script>
+    function setResult(obj) {
+      const el = document.getElementById('result');
+      el.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+    }
+
+    function clearForm() {
+      document.getElementById('testTo').value = '';
+      document.getElementById('subject').value = '';
+      document.getElementById('html').value = '';
+      document.getElementById('text').value = '';
+      setResult('(cleared)');
+    }
+
+    async function sendEmail() {
+      const adminSecret = document.getElementById('adminSecret').value.trim();
+      const to = document.getElementById('testTo').value.trim();
+      const subject = document.getElementById('subject').value;
+      const html = document.getElementById('html').value;
+      const text = document.getElementById('text').value;
+      const max = Number(document.getElementById('max').value || 100);
+
+      if (!adminSecret) {
+        alert('Admin secret is required');
+        return;
+      }
+
+      if (!subject) {
+        alert('Subject is required');
+        return;
+      }
+
+      if (!html && !text) {
+        alert('Provide HTML or Text');
+        return;
+      }
+
+      setResult('Sending...');
+
+      try {
+        const res = await fetch('/.netlify/functions/send-branded-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Secret': adminSecret,
+          },
+          body: JSON.stringify({
+            to: to || undefined,
+            subject,
+            html: html || undefined,
+            text: text || undefined,
+            max,
+          })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        setResult({ status: res.status, data });
+      } catch (e) {
+        setResult({ error: e.message });
+      }
+    }
+
+    async function sendTestEmail() {
+      const adminSecret = document.getElementById('adminSecret').value.trim();
+      const to = document.getElementById('testTo').value.trim();
+      const subject = document.getElementById('subject').value || 'ChatSpheres Test Email';
+
+      if (!adminSecret) {
+        alert('Admin secret is required');
+        return;
+      }
+
+      if (!to) {
+        alert('Test recipient email is required');
+        return;
+      }
+
+      setResult('Sending test...');
+
+      try {
+        const res = await fetch('/.netlify/functions/send-test-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Admin-Secret': adminSecret,
+          },
+          body: JSON.stringify({ to, subject })
+        });
+
+        const data = await res.json().catch(() => ({}));
+        setResult({ status: res.status, data });
+      } catch (e) {
+        setResult({ error: e.message });
+      }
+    }
+  </script>
+</body>
+</html>

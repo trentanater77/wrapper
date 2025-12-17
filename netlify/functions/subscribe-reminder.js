@@ -10,6 +10,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const { sanitizeEmail } = require('./utils/sanitize');
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -22,6 +23,21 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, GET, DELETE, OPTIONS',
   'Content-Type': 'application/json',
 };
+
+async function getEmailForUserId(userId) {
+  if (!userId) return '';
+  try {
+    const { data, error } = await supabase.auth.admin.getUserById(userId);
+    if (error) {
+      console.warn('⚠️ Failed to fetch user email:', error.message);
+      return '';
+    }
+    return data?.user?.email || '';
+  } catch (e) {
+    console.warn('⚠️ Failed to fetch user email:', e.message);
+    return '';
+  }
+}
 
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
@@ -50,7 +66,7 @@ exports.handler = async function(event) {
       if (userId) {
         query = query.eq('user_id', userId);
       } else if (email) {
-        query = query.eq('email', email);
+        query = query.eq('email', sanitizeEmail(email) || email);
       } else {
         return {
           statusCode: 400,
@@ -114,7 +130,7 @@ exports.handler = async function(event) {
       if (userId) {
         query = query.eq('user_id', userId);
       } else if (email) {
-        query = query.eq('email', email);
+        query = query.eq('email', sanitizeEmail(email) || email);
       } else {
         return {
           statusCode: 400,
@@ -165,6 +181,16 @@ exports.handler = async function(event) {
       notifyEmail,
     } = body;
 
+    const notifyBrowserValue = notifyBrowser !== false;
+    const notifyEmailValue = notifyEmail !== false;
+
+    let normalizedEmail = sanitizeEmail(email);
+
+    if (!normalizedEmail && userId) {
+      const userEmail = await getEmailForUserId(userId);
+      normalizedEmail = sanitizeEmail(userEmail);
+    }
+
     if (!eventId) {
       return {
         statusCode: 400,
@@ -178,6 +204,14 @@ exports.handler = async function(event) {
         statusCode: 400,
         headers,
         body: JSON.stringify({ error: 'User ID or email is required' }),
+      };
+    }
+
+    if (email && !normalizedEmail) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Invalid email format' }),
       };
     }
 
@@ -207,27 +241,48 @@ exports.handler = async function(event) {
     // Check if already subscribed
     let existingQuery = supabase
       .from('event_reminders')
-      .select('id')
+      .select('id, email')
       .eq('event_id', eventId);
 
     if (userId) {
       existingQuery = existingQuery.eq('user_id', userId);
     } else {
-      existingQuery = existingQuery.eq('email', email);
+      existingQuery = existingQuery.eq('email', normalizedEmail || email);
     }
 
     const { data: existing } = await existingQuery.single();
 
     if (existing) {
       // Update existing reminder
-      const { error: updateError } = await supabase
+      const updatePayload = {
+        push_subscription: pushSubscription || null,
+        notify_browser: notifyBrowserValue,
+        notify_email: notifyEmailValue,
+      };
+
+      if (!existing.email && normalizedEmail) {
+        updatePayload.email = normalizedEmail;
+      }
+
+      let { error: updateError } = await supabase
         .from('event_reminders')
-        .update({
-          push_subscription: pushSubscription || null,
-          notify_browser: notifyBrowser !== false,
-          notify_email: notifyEmail === true,
-        })
+        .update(updatePayload)
         .eq('id', existing.id);
+
+      if (updateError && updateError.code === '23505' && normalizedEmail && userId) {
+        await supabase
+          .from('event_reminders')
+          .delete()
+          .eq('event_id', eventId)
+          .eq('email', normalizedEmail)
+          .is('user_id', null);
+
+        const retry = await supabase
+          .from('event_reminders')
+          .update(updatePayload)
+          .eq('id', existing.id);
+        updateError = retry.error;
+      }
 
       if (updateError) throw updateError;
 
@@ -248,10 +303,10 @@ exports.handler = async function(event) {
       .insert({
         event_id: eventId,
         user_id: userId || null,
-        email: email || null,
+        email: normalizedEmail || null,
         push_subscription: pushSubscription || null,
-        notify_browser: notifyBrowser !== false,
-        notify_email: notifyEmail === true,
+        notify_browser: notifyBrowserValue,
+        notify_email: notifyEmailValue,
       })
       .select()
       .single();

@@ -77,6 +77,8 @@ exports.handler = async function(event) {
         .from('marketing_subscribers')
         .update({
           status: 'unsubscribed',
+          confirm_token: null,
+          confirmed_at: null,
           unsubscribed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })

@@ -2498,7 +2498,7 @@
       
       const hasReminder = userReminders[event.id] || false;
       const reminderBtnClass = hasReminder ? 'remind-btn active' : 'remind-btn';
-      const reminderBtnText = hasReminder ? '🔔 Reminder Set' : '🔔 Remind Me';
+      const reminderBtnText = hasReminder ? '🔔 Reminded' : '🔔 Remind Me';
       
       // Check if current user is the host
       const isHost = currentUserId && event.host_id === currentUserId;
@@ -2688,13 +2688,13 @@
             throw new Error(payload?.error || payload?.message || 'Failed to set reminder');
           }
           userReminders[eventId] = true;
-          showToast('Reminder set');
+          showToast('Reminded');
         }
 
         if (btnEl) {
           const isActive = userReminders[eventId] === true;
           btnEl.className = isActive ? 'remind-btn active' : 'remind-btn';
-          btnEl.textContent = isActive ? '🔔 Reminder Set' : '🔔 Remind Me';
+          btnEl.textContent = isActive ? '🔔 Reminded' : '🔔 Remind Me';
           btnEl.disabled = false;
           btnEl.style.opacity = '';
         } else {

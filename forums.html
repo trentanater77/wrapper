@@ -59,7 +59,7 @@
     .forum-card-name { font-weight: var(--font-weight-bold); color: var(--charcoal); font-size: 1.2rem; margin-bottom: var(--space-xs); display: flex; align-items: center; gap: var(--space-xs); flex-wrap: wrap; }
     .nsfw-badge { font-size: 0.65rem; background: #ef4444; color: white; padding: 3px 8px; border-radius: var(--radius-sm); font-weight: var(--font-weight-bold); }
     .forum-card-slug { color: var(--charcoal); opacity: 0.5; font-size: 0.9rem; margin-bottom: var(--space-sm); }
-    .forum-card-desc { color: var(--charcoal); opacity: 0.7; font-size: 0.95rem; line-height: 1.5; margin-bottom: var(--space-md); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em; }
+    .forum-card-desc { color: var(--charcoal); opacity: 0.7; font-size: 0.95rem; line-height: 1.5; margin-bottom: var(--space-md); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.8em; }
     .forum-card-stats { display: flex; gap: var(--space-lg); font-size: 0.9rem; color: var(--charcoal); }
     .forum-card-stat { display: flex; align-items: center; gap: var(--space-xs); }
     .forum-card-stat.live { color: #10b981; font-weight: var(--font-weight-bold); }
@@ -217,6 +217,7 @@
   <script src="/assets/js/navigation.js?v=2"></script>
   <script>
     let currentFilter = 'top', currentCategory = 'all', currentUser = null, supabaseClient = null;
+    let userReminders = {}; // eventId -> true/false
     const categoryIcons = { gaming: '🎮', technology: '💻', music: '🎵', entertainment: '🎬', business: '💼', education: '📚', fitness: '💪', creative: '🎨', just_chatting: '💬', other: '📁' };
 
     function initSupabase() {
@@ -287,6 +288,16 @@
         } else {
           currentUser = null;
           updateHeaderForGuest();
+        }
+
+        // Refresh the current view so reminder state + joined forums update immediately
+        if (currentFilter === 'upcoming') {
+          loadUpcomingEvents();
+        } else if (currentFilter === 'search') {
+          const q = document.getElementById('searchInput')?.value.trim();
+          loadForums(q || null);
+        } else {
+          loadForums();
         }
       });
       
@@ -598,6 +609,93 @@
     function formatNumber(n) { return n >= 1e6 ? (n/1e6).toFixed(1)+'M' : n >= 1e3 ? (n/1e3).toFixed(1)+'K' : n.toString(); }
     function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t || ''; return d.innerHTML; }
 
+    function showToast(message, type = 'success') {
+      try {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'toast-container';
+          container.style.position = 'fixed';
+          container.style.top = '16px';
+          container.style.left = '50%';
+          container.style.transform = 'translateX(-50%)';
+          container.style.zIndex = '99999';
+          container.style.display = 'flex';
+          container.style.flexDirection = 'column';
+          container.style.gap = '8px';
+          container.style.maxWidth = '90vw';
+          document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.textContent = message;
+        toast.style.padding = '10px 14px';
+        toast.style.borderRadius = '10px';
+        toast.style.color = '#fff';
+        toast.style.fontSize = '14px';
+        toast.style.boxShadow = '0 10px 30px rgba(0,0,0,0.25)';
+        toast.style.border = '1px solid rgba(255,255,255,0.15)';
+        toast.style.background = type === 'error' ? '#dc2626' : '#16a34a';
+        toast.style.backdropFilter = 'blur(6px)';
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transition = 'opacity 250ms ease';
+          setTimeout(() => toast.remove(), 300);
+        }, 2600);
+      } catch (e) {
+        console.warn('Toast failed:', e);
+      }
+    }
+
+    function getGuestReminderEmail() {
+      try {
+        const email = (localStorage.getItem('guestReminderEmail') || '').trim();
+        return email || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    function setGuestReminderEmail(email) {
+      try {
+        if (!email) localStorage.removeItem('guestReminderEmail');
+        else localStorage.setItem('guestReminderEmail', email);
+      } catch (e) {}
+    }
+
+    async function promptForGuestReminderEmail() {
+      const existing = getGuestReminderEmail();
+      const input = window.prompt('Enter your email to get reminder emails:', existing || '');
+      if (input === null) return '';
+      const email = String(input || '').trim();
+      if (!email) return '';
+      setGuestReminderEmail(email);
+      return email;
+    }
+
+    async function hydrateUpcomingEventReminders(events) {
+      userReminders = {};
+      const guestEmail = !currentUser ? getGuestReminderEmail() : '';
+
+      if (!currentUser && !guestEmail) return;
+
+      for (const evt of events) {
+        try {
+          const reminderUrl = currentUser
+            ? `/.netlify/functions/subscribe-reminder?eventId=${evt.id}&userId=${currentUser.id}`
+            : `/.netlify/functions/subscribe-reminder?eventId=${evt.id}&email=${encodeURIComponent(guestEmail)}`;
+          const reminderRes = await fetch(reminderUrl);
+          const reminderData = await reminderRes.json().catch(() => ({}));
+          userReminders[evt.id] = !!reminderData.hasReminder;
+        } catch (e) {
+          console.warn('Reminder status check failed:', e);
+        }
+      }
+    }
+
     // ============================================
     // UPCOMING EVENTS FOR FORUMS
     // ============================================
@@ -621,6 +719,8 @@
           `;
           return;
         }
+
+        await hydrateUpcomingEventReminders(events);
         
         const eventsHtml = events.map(event => renderEventCard(event)).join('');
         container.innerHTML = `
@@ -668,6 +768,8 @@
       });
       
       const isHost = currentUser && event.host_id === currentUser.id;
+      const hasReminder = userReminders[event.id] === true;
+      const remindText = hasReminder ? '🔔 Reminded' : '🔔 Remind Me';
       
       const typeEmoji = event.room_type === 'creator' ? '⭐' : event.room_type === 'red' ? '🔴' : '🟢';
       const typeLabel = event.room_type === 'creator' ? 'Creator' : event.room_type === 'red' ? 'Debate' : 'Help';
@@ -696,7 +798,11 @@
               <button onclick="event.stopPropagation(); goLive('${event.id}')" class="create-btn" style="width: 100%; margin-top: var(--space-sm); justify-content: center;">
                 🔴 Go Live Now
               </button>
-            ` : ''}
+            ` : `
+              <button data-event-id="${event.id}" onclick="event.stopPropagation(); toggleEventReminder('${event.id}', this)" class="create-btn" style="width: 100%; margin-top: var(--space-sm); justify-content: center; background: ${hasReminder ? 'var(--charcoal)' : 'var(--gold)'}; color: ${hasReminder ? 'white' : 'var(--charcoal)'};">
+                ${remindText}
+              </button>
+            `}
           </div>
         </div>
       `;
@@ -704,11 +810,79 @@
     
     function handleEventClick(eventId, isHost) {
       if (!isHost) {
-        // Redirect to live page with upcoming filter to set reminder
+        // Redirect to live page with upcoming filter
         window.location.href = '/live.html?filter=upcoming';
       }
     }
     window.handleEventClick = handleEventClick;
+
+    async function toggleEventReminder(eventId, btnEl) {
+      let guestEmail = '';
+      if (!currentUser) {
+        guestEmail = getGuestReminderEmail();
+        if (!guestEmail) guestEmail = await promptForGuestReminderEmail();
+        if (!guestEmail) {
+          showToast('Email is required to set a reminder', 'error');
+          return;
+        }
+      }
+
+      const hasReminder = userReminders[eventId] === true;
+      const prevText = btnEl ? btnEl.textContent : '';
+      const prevDisabled = btnEl ? btnEl.disabled : false;
+      if (btnEl) {
+        btnEl.disabled = true;
+        btnEl.style.opacity = '0.7';
+        btnEl.textContent = hasReminder ? '⏳ Removing…' : '⏳ Setting…';
+      }
+
+      try {
+        if (hasReminder) {
+          const url = currentUser
+            ? `/.netlify/functions/subscribe-reminder?eventId=${eventId}&userId=${currentUser.id}`
+            : `/.netlify/functions/subscribe-reminder?eventId=${eventId}&email=${encodeURIComponent(guestEmail)}`;
+          const res = await fetch(url, { method: 'DELETE' });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(payload?.error || payload?.message || 'Failed to remove reminder');
+          userReminders[eventId] = false;
+          showToast('Reminder removed');
+        } else {
+          const res = await fetch('/.netlify/functions/subscribe-reminder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              eventId,
+              userId: currentUser ? currentUser.id : undefined,
+              email: currentUser ? undefined : guestEmail,
+              notifyBrowser: true,
+              notifyEmail: true,
+            })
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(payload?.error || payload?.message || 'Failed to set reminder');
+          userReminders[eventId] = true;
+          showToast('Reminded');
+        }
+
+        if (btnEl) {
+          const isActive = userReminders[eventId] === true;
+          btnEl.textContent = isActive ? '🔔 Reminded' : '🔔 Remind Me';
+          btnEl.style.background = isActive ? 'var(--charcoal)' : 'var(--gold)';
+          btnEl.style.color = isActive ? 'white' : 'var(--charcoal)';
+          btnEl.disabled = false;
+          btnEl.style.opacity = '';
+        }
+      } catch (e) {
+        console.error('Error toggling reminder:', e);
+        showToast(e?.message || 'Failed to update reminder', 'error');
+        if (btnEl) {
+          btnEl.disabled = prevDisabled;
+          btnEl.textContent = prevText;
+          btnEl.style.opacity = '';
+        }
+      }
+    }
+    window.toggleEventReminder = toggleEventReminder;
     
     async function goLive(eventId) {
       if (!currentUser) {

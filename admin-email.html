@@ -56,7 +56,7 @@
 </head>
 <body>
   <h1>Admin - Send Branded Email</h1>
-  <p class="subtitle">Send a test email to one address, or broadcast to all marketing subscribers.</p>
+  <p class="subtitle">Send a test email to one address, or broadcast to all confirmed marketing subscribers.</p>
 
   <div class="panel">
     <div class="row">
@@ -81,6 +81,9 @@
       </div>
     </div>
 
+    <label for="text">Message</label>
+    <textarea id="text" placeholder="Write your update here... (plain text is fine)"></textarea>
+
     <label for="html">HTML (optional)</label>
     <textarea id="html" placeholder="<h2>Hello</h2><p>...</p>"></textarea>
 
@@ -88,9 +91,6 @@
       <input id="wrapHtml" type="checkbox" checked style="width:auto;" />
       <label for="wrapHtml" style="margin:0;">Wrap HTML in ChatSpheres template</label>
     </div>
-
-    <label for="text">Text (optional)</label>
-    <textarea id="text" placeholder="Plain text version..."></textarea>
 
     <div class="actions">
       <button class="btn btn-primary" onclick="sendEmail()">Send</button>

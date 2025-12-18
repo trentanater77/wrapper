@@ -1119,7 +1119,11 @@
         }
 
         setStoredMarketingEmail(email);
-        setMarketingOptinStatus('Subscribed! You can unsubscribe anytime from the footer link in emails.');
+        if (data.status === 'pending') {
+          setMarketingOptinStatus('Almost done — check your email to confirm your subscription.');
+        } else {
+          setMarketingOptinStatus('Subscribed! You can unsubscribe anytime from the footer link in emails.');
+        }
       } catch (e) {
         setMarketingOptinStatus(e.message || 'Subscription failed', 'error');
       }

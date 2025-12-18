@@ -107,14 +107,54 @@ function appendUnsubscribeText(text, unsubscribeUrl) {
   return `${text}\n\nUnsubscribe: ${unsubscribeUrl}`;
 }
 
-function wrapMarketingHtml(innerHtml, subject) {
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function htmlToText(html) {
+  const raw = String(html || '')
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\s*\/p\s*>/gi, '\n\n')
+    .replace(/<\s*p\b[^>]*>/gi, '')
+    .replace(/<\s*li\b[^>]*>/gi, '• ')
+    .replace(/<\s*\/li\s*>/gi, '\n')
+    .replace(/<\s*\/ul\s*>/gi, '\n')
+    .replace(/<\s*\/ol\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+
+  return raw.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+function textToHtml(text) {
+  const safe = escapeHtml(text);
+  const withBreaks = safe.replace(/\n/g, '<br/>');
+  return `<div style="font-size:16px;line-height:1.6;">${withBreaks}</div>`;
+}
+
+function wrapMarketingHtml(innerHtml, subject, logoUrl) {
   const safeSubject = sanitizeText(subject || '', 160);
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" alt="ChatSpheres" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:6px;" />`
+    : '<div style="font-size: 18px; font-weight: 900; letter-spacing: 0.2px;">ChatSpheres</div>';
   return `
   <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px 12px; background: #ffffff;">
     <div style="max-width: 680px; margin: 0 auto; border: 1px solid #f1f1f1; border-radius: 16px; overflow: hidden;">
-      <div style="background: linear-gradient(135deg, #e63946 0%, #ff7a86 100%); color: #fff; padding: 18px 20px;">
-        <div style="font-size: 18px; font-weight: 900; letter-spacing: 0.2px;">ChatSpheres</div>
-        <div style="opacity: 0.92; margin-top: 4px; font-weight: 700;">${safeSubject}</div>
+      <div style="background: linear-gradient(135deg, #e63946 0%, #ff7a86 100%); color: #fff; padding: 18px 20px; display:flex; align-items:center; gap:10px;">
+        ${logoHtml}
+        <div style="flex:1;">
+          <div style="opacity: 0.92; font-weight: 800;">${escapeHtml(safeSubject)}</div>
+        </div>
       </div>
       <div style="padding: 18px 20px; color: #111827;">
         ${innerHtml}
@@ -190,6 +230,13 @@ exports.handler = async function(event) {
       };
     }
 
+    if (!html && text) {
+      html = textToHtml(text);
+    }
+    if (!text && html) {
+      text = htmlToText(html);
+    }
+
     const testTo = sanitizeEmail(body.to || '');
     const max = Number.isFinite(body.max) ? Number(body.max) : 100;
 
@@ -200,8 +247,10 @@ exports.handler = async function(event) {
     } else {
       const { data, error } = await supabase
         .from('marketing_subscribers')
-        .select('email, unsubscribe_token')
+        .select('email, unsubscribe_token, confirmed_at, unsubscribed_at')
         .eq('status', 'subscribed')
+        .not('confirmed_at', 'is', null)
+        .is('unsubscribed_at', null)
         .limit(Math.max(1, Math.min(500, max)));
 
       if (error) throw error;
@@ -225,7 +274,9 @@ exports.handler = async function(event) {
           : `/.netlify/functions/marketing-unsubscribe?token=${encodeURIComponent(r.unsubscribe_token)}`)
         : '';
 
-      const baseHtml = html ? (wrap ? wrapMarketingHtml(html, subject) : html) : '';
+      const logoUrl = baseUrl ? `${baseUrl}/assets/icons/icon.svg` : '';
+
+      const baseHtml = html ? (wrap ? wrapMarketingHtml(html, subject, logoUrl) : html) : '';
       const emailHtml = baseHtml ? appendUnsubscribeHtml(baseHtml, unsubscribeUrl) : '';
       const emailText = text ? appendUnsubscribeText(text, unsubscribeUrl) : '';
 
@@ -236,7 +287,9 @@ exports.handler = async function(event) {
           subject,
           html: emailHtml || undefined,
           text: emailText || undefined,
-          extraHeaders: unsubscribeUrl ? { 'List-Unsubscribe': `<${unsubscribeUrl}>` } : undefined,
+          extraHeaders: unsubscribeUrl
+            ? { 'List-Unsubscribe': `<${unsubscribeUrl}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }
+            : undefined,
         });
         results.sent++;
       } catch (e) {

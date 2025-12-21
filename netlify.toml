@@ -2,7 +2,7 @@
   command = "npm run build"
   publish = "."
   functions = "netlify/functions"
-  environment = { SECRETS_SCAN_OMIT_KEYS = "LIVEKIT_RECORDING_LAYOUT,LIVEKIT_URL,APP_BASE_URL" }
+  environment = { SECRETS_SCAN_OMIT_KEYS = "LIVEKIT_RECORDING_LAYOUT,LIVEKIT_URL,APP_BASE_URL,SUBSCRIPTION_BILLING_PROVIDER,SQUARE_ENVIRONMENT" }
 
 [functions]
   node_bundler = "esbuild"

@@ -167,14 +167,14 @@ const GEM_PACKS = {
 };
 
 const SQUARE_SUBSCRIPTION_PLAN_VARIATION_IDS = {
-  host_pro_monthly: process.env.SQUARE_PLANVAR_HOST_PRO_MONTHLY,
-  host_pro_yearly: process.env.SQUARE_PLANVAR_HOST_PRO_YEARLY,
-  ad_free_plus_monthly: process.env.SQUARE_PLANVAR_AD_FREE_PLUS_MONTHLY,
-  ad_free_plus_yearly: process.env.SQUARE_PLANVAR_AD_FREE_PLUS_YEARLY,
-  ad_free_premium_monthly: process.env.SQUARE_PLANVAR_AD_FREE_PREMIUM_MONTHLY,
-  ad_free_premium_yearly: process.env.SQUARE_PLANVAR_AD_FREE_PREMIUM_YEARLY,
-  pro_bundle_monthly: process.env.SQUARE_PLANVAR_PRO_BUNDLE_MONTHLY,
-  pro_bundle_yearly: process.env.SQUARE_PLANVAR_PRO_BUNDLE_YEARLY,
+  host_pro_monthly: process.env.SQUARE_PLANVAR_HOST_PRO_MONTHLY || process.env.SQUARE_PLAN_HOST_PRO_MONTHLY,
+  host_pro_yearly: process.env.SQUARE_PLANVAR_HOST_PRO_YEARLY || process.env.SQUARE_PLAN_HOST_PRO_YEARLY,
+  ad_free_plus_monthly: process.env.SQUARE_PLANVAR_AD_FREE_PLUS_MONTHLY || process.env.SQUARE_PLAN_AD_FREE_PLUS_MONTHLY,
+  ad_free_plus_yearly: process.env.SQUARE_PLANVAR_AD_FREE_PLUS_YEARLY || process.env.SQUARE_PLAN_AD_FREE_PLUS_YEARLY,
+  ad_free_premium_monthly: process.env.SQUARE_PLANVAR_AD_FREE_PREMIUM_MONTHLY || process.env.SQUARE_PLAN_AD_FREE_PREMIUM_MONTHLY,
+  ad_free_premium_yearly: process.env.SQUARE_PLANVAR_AD_FREE_PREMIUM_YEARLY || process.env.SQUARE_PLAN_AD_FREE_PREMIUM_YEARLY,
+  pro_bundle_monthly: process.env.SQUARE_PLANVAR_PRO_BUNDLE_MONTHLY || process.env.SQUARE_PLAN_PRO_BUNDLE_MONTHLY,
+  pro_bundle_yearly: process.env.SQUARE_PLANVAR_PRO_BUNDLE_YEARLY || process.env.SQUARE_PLAN_PRO_BUNDLE_YEARLY,
 };
 
 const SQUARE_SUBSCRIPTION_PRICE_MONEY = {

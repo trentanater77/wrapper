@@ -28,23 +28,42 @@ function getSquareApiBaseUrl() {
 
 async function lookupSquareCustomerIdsByEmail(email) {
   if (!email) return [];
-  const resp = await squareRequest({
-    path: '/v2/customers/search',
-    method: 'POST',
-    body: {
-      query: {
-        filter: {
-          email_address: {
-            exact: String(email).trim(),
+  const needle = String(email).trim();
+
+  const doSearch = async (mode) => {
+    const resp = await squareRequest({
+      path: '/v2/customers/search',
+      method: 'POST',
+      body: {
+        query: {
+          filter: {
+            email_address: {
+              [mode]: needle,
+            },
           },
         },
+        limit: 20,
       },
-      limit: 5,
-    },
-  });
+    });
+    const customers = Array.isArray(resp?.customers) ? resp.customers : [];
+    return customers.map((c) => c?.id).filter(Boolean);
+  };
 
-  const customers = Array.isArray(resp?.customers) ? resp.customers : [];
-  const ids = customers.map((c) => c?.id).filter(Boolean);
+  let ids = [];
+  try {
+    ids = await doSearch('exact');
+  } catch (_) {
+    ids = [];
+  }
+
+  if (!ids.length) {
+    try {
+      ids = await doSearch('fuzzy');
+    } catch (_) {
+      ids = [];
+    }
+  }
+
   return Array.from(new Set(ids));
 }
 
@@ -84,7 +103,9 @@ function pickBestSquareSubscription({ subs, planVariationId }) {
     : list;
   const candidates = withPlan.length ? withPlan : list;
   const active = candidates.find((s) => String(s?.status || '').toUpperCase() === 'ACTIVE');
-  return active || candidates[0] || null;
+  if (active) return active;
+  const paused = candidates.find((s) => String(s?.status || '').toUpperCase() === 'PAUSED');
+  return paused || null;
 }
 
 async function getSquareCustomerIdFromOrder(orderId) {
@@ -465,6 +486,10 @@ exports.handler = async function (event) {
       if (authData?.user?.email) {
         try {
           const emailCustomerIds = await lookupSquareCustomerIdsByEmail(authData.user.email);
+          console.log('🔎 Square email customer lookup', {
+            userId,
+            foundCustomerIds: emailCustomerIds.length,
+          });
           for (const cid of emailCustomerIds) candidateCustomerIds.push(cid);
         } catch (e) {
           console.error('❌ Failed to lookup Square customer by email', e);
@@ -561,6 +586,12 @@ exports.handler = async function (event) {
         if (squareSubId) break;
         try {
           const subs = await listSquareSubscriptionsForCustomer({ customerId: cid });
+          if (subs.length) {
+            console.log('🔎 Square subscriptions for customer', {
+              userId,
+              subsFound: subs.length,
+            });
+          }
           const best = pickBestSquareSubscription({
             subs,
             planVariationId: subscription.square_plan_variation_id,

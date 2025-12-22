@@ -393,6 +393,14 @@ exports.handler = async function(event) {
     const gemsProvider = (process.env.GEMS_BILLING_PROVIDER || 'stripe').trim().toLowerCase();
     const subscriptionProvider = (process.env.SUBSCRIPTION_BILLING_PROVIDER || 'stripe').trim().toLowerCase();
 
+    console.log('🔧 billing providers', {
+      context: process.env.CONTEXT,
+      gemsProvider,
+      subscriptionProvider,
+      hasGemPackKey: Boolean(gemPackKey),
+      hasPriceKey: Boolean(priceKey),
+    });
+
     // Validate required fields
     if (!userId || !userEmail) {
       return {
@@ -406,6 +414,7 @@ exports.handler = async function(event) {
     }
 
     if (priceKey && subscriptionProvider === 'square') {
+      console.log('➡️ routing to Square subscription checkout', { priceKey });
       const result = await createSquareSubscriptionPaymentLink({
         userId,
         priceKey,
@@ -435,6 +444,7 @@ exports.handler = async function(event) {
 
     // If this is a gem pack purchase and Square is selected, route to Square.
     if (gemPackKey && gemsProvider === 'square') {
+      console.log('➡️ routing to Square gem checkout', { gemPackKey });
       const result = await createSquareGemPaymentLink({
         userId,
         gemPackKey,

@@ -156,7 +156,8 @@ async function findSquareSubscriptionByCustomerEmail({ email, planVariationId })
 
       for (const sub of subs) {
         if (!sub?.id || !sub?.customer_id) continue;
-        if (String(sub?.status || '').toUpperCase() !== 'ACTIVE') continue;
+        const st = String(sub?.status || '').toUpperCase();
+        if (st !== 'ACTIVE' && st !== 'PAUSED') continue;
         if (planVariationId && String(sub?.plan_variation_id || '') !== String(planVariationId)) continue;
 
         const customer = await retrieveSquareCustomer(sub.customer_id).catch(() => null);
@@ -181,6 +182,47 @@ async function findSquareSubscriptionByCustomerEmail({ email, planVariationId })
   if (matches.length > 1) {
     throw new Error('Multiple active Square subscriptions matched your email. Please contact support.');
   }
+  return null;
+}
+
+async function findSquareSubscriptionIdFromInvoiceByOrderId({ orderId }) {
+  if (!orderId) return null;
+  if (!SQUARE_LOCATION_ID) return null;
+
+  let cursor = null;
+  for (let i = 0; i < 5; i++) {
+    const resp = await squareRequest({
+      path: '/v2/invoices/search',
+      method: 'POST',
+      body: {
+        query: {
+          filter: {
+            location_ids: [String(SQUARE_LOCATION_ID)],
+          },
+          sort: {
+            field: 'INVOICE_SORT_DATE',
+            order: 'DESC',
+          },
+        },
+        limit: 200,
+        ...(cursor ? { cursor } : {}),
+      },
+    });
+
+    const invoices = Array.isArray(resp?.invoices) ? resp.invoices : [];
+    const hit = invoices.find((inv) => String(inv?.order_id || '') === String(orderId));
+    const subId = hit?.subscription_id || null;
+    if (subId) {
+      return {
+        subscriptionId: subId,
+        customerId: hit?.primary_recipient?.customer_id || null,
+      };
+    }
+
+    cursor = resp?.cursor || null;
+    if (!cursor) break;
+  }
+
   return null;
 }
 
@@ -415,6 +457,7 @@ exports.handler = async function (event) {
     if (subscription.square_subscription_id || subscription.square_customer_id || authData?.user?.email) {
       let squareCustomerId = subscription.square_customer_id || null;
       let squareSubId = subscription.square_subscription_id || null;
+      let pendingOrderId = null;
 
       const candidateCustomerIds = [];
       if (squareCustomerId) candidateCustomerIds.push(squareCustomerId);
@@ -462,6 +505,7 @@ exports.handler = async function (event) {
           if (pending?.square_subscription_id) {
             squareSubId = pending.square_subscription_id;
           } else if (pending?.square_order_id) {
+            pendingOrderId = pending.square_order_id;
             const fromOrder = await getSquareCustomerIdFromOrder(pending.square_order_id);
             console.log('🔎 Square pending order customer resolve', {
               userId,
@@ -471,6 +515,23 @@ exports.handler = async function (event) {
           }
         } catch (e) {
           console.error('❌ Failed to resolve Square customer/sub from pending subscription', e);
+        }
+      }
+
+      if (!squareSubId && pendingOrderId) {
+        try {
+          const match = await findSquareSubscriptionIdFromInvoiceByOrderId({ orderId: pendingOrderId });
+          console.log('🔎 Square invoice lookup', {
+            userId,
+            hasPendingOrderId: true,
+            foundSubscriptionId: Boolean(match?.subscriptionId),
+          });
+          if (match?.subscriptionId) {
+            squareSubId = match.subscriptionId;
+            if (match.customerId) squareCustomerId = match.customerId;
+          }
+        } catch (e) {
+          console.error('❌ Failed to resolve Square subscription from invoice search', e);
         }
       }
 

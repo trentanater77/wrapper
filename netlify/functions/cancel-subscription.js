@@ -26,8 +26,8 @@ function getSquareApiBaseUrl() {
     : 'https://connect.squareup.com';
 }
 
-async function lookupSquareCustomerIdByEmail(email) {
-  if (!email) return null;
+async function lookupSquareCustomerIdsByEmail(email) {
+  if (!email) return [];
   const resp = await squareRequest({
     path: '/v2/customers/search',
     method: 'POST',
@@ -39,12 +39,13 @@ async function lookupSquareCustomerIdByEmail(email) {
           },
         },
       },
-      limit: 1,
+      limit: 5,
     },
   });
 
-  const customer = resp?.customers?.[0];
-  return customer?.id || null;
+  const customers = Array.isArray(resp?.customers) ? resp.customers : [];
+  const ids = customers.map((c) => c?.id).filter(Boolean);
+  return Array.from(new Set(ids));
 }
 
 async function listSquareSubscriptionsForCustomer({ customerId }) {
@@ -285,9 +286,13 @@ exports.handler = async function (event) {
       let squareCustomerId = subscription.square_customer_id || null;
       let squareSubId = subscription.square_subscription_id || null;
 
+      const candidateCustomerIds = [];
+      if (squareCustomerId) candidateCustomerIds.push(squareCustomerId);
+
       if (!squareCustomerId && authData?.user?.email) {
         try {
-          squareCustomerId = await lookupSquareCustomerIdByEmail(authData.user.email);
+          const emailCustomerIds = await lookupSquareCustomerIdsByEmail(authData.user.email);
+          for (const cid of emailCustomerIds) candidateCustomerIds.push(cid);
         } catch (e) {
           console.error('❌ Failed to lookup Square customer by email', e);
         }
@@ -308,21 +313,28 @@ exports.handler = async function (event) {
           if (pending?.square_subscription_id) {
             squareSubId = pending.square_subscription_id;
           } else if (pending?.square_order_id) {
-            squareCustomerId = await getSquareCustomerIdFromOrder(pending.square_order_id);
+            const fromOrder = await getSquareCustomerIdFromOrder(pending.square_order_id);
+            if (fromOrder) candidateCustomerIds.push(fromOrder);
           }
         } catch (e) {
           console.error('❌ Failed to resolve Square customer/sub from pending subscription', e);
         }
       }
 
-      if (!squareSubId && squareCustomerId) {
+      const uniqueCustomerIds = Array.from(new Set(candidateCustomerIds.filter(Boolean)));
+      for (const cid of uniqueCustomerIds) {
+        if (squareSubId) break;
         try {
-          const subs = await listSquareSubscriptionsForCustomer({ customerId: squareCustomerId });
+          const subs = await listSquareSubscriptionsForCustomer({ customerId: cid });
           const best = pickBestSquareSubscription({
             subs,
             planVariationId: subscription.square_plan_variation_id,
           });
-          squareSubId = best?.id || null;
+          if (best?.id) {
+            squareSubId = best.id;
+            squareCustomerId = cid;
+            break;
+          }
         } catch (e) {
           console.error('❌ Failed to list Square subscriptions', e);
         }
@@ -332,6 +344,7 @@ exports.handler = async function (event) {
         userId,
         hasSquareCustomerId: Boolean(squareCustomerId),
         hasSquareSubscriptionId: Boolean(squareSubId),
+        candidateCustomerIds: uniqueCustomerIds.length,
       });
 
       if (!squareSubId) {

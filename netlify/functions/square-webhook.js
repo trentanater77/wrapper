@@ -507,19 +507,58 @@ exports.handler = async function (event) {
           update.canceled_at = canceledIso;
         }
 
+        let targetUserId = null;
         const { data: existingUserSub } = await supabase
           .from('user_subscriptions')
           .select('user_id')
           .eq('square_subscription_id', subscriptionId)
           .maybeSingle();
 
-        if (!existingUserSub?.user_id) {
+        if (existingUserSub?.user_id) {
+          targetUserId = existingUserSub.user_id;
+        }
+
+        if (!targetUserId && customerId) {
+          const { data: byCustomer, error: byCustomerErr } = await supabase
+            .from('user_subscriptions')
+            .select('user_id')
+            .eq('square_customer_id', customerId)
+            .limit(2);
+
+          if (byCustomerErr) throw byCustomerErr;
+          if (Array.isArray(byCustomer) && byCustomer.length === 1) {
+            targetUserId = byCustomer[0].user_id;
+          } else if (Array.isArray(byCustomer) && byCustomer.length > 1) {
+            console.log(`Multiple user_subscriptions rows found for square_customer_id=${customerId}; not linking subscription_id=${subscriptionId}`);
+          }
+        }
+
+        if (!targetUserId && planVariationId) {
+          const cutoffIso = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+          const { data: candidates, error: candidatesErr } = await supabase
+            .from('user_subscriptions')
+            .select('user_id')
+            .is('square_subscription_id', null)
+            .eq('square_plan_variation_id', planVariationId)
+            .neq('plan_type', 'free')
+            .gte('updated_at', cutoffIso)
+            .limit(2);
+
+          if (candidatesErr) throw candidatesErr;
+          if (Array.isArray(candidates) && candidates.length === 1) {
+            targetUserId = candidates[0].user_id;
+          } else if (Array.isArray(candidates) && candidates.length > 1) {
+            console.log(`Multiple candidate user_subscriptions rows found for plan_variation_id=${planVariationId}; not linking subscription_id=${subscriptionId}`);
+          }
+        }
+
+        if (!targetUserId) {
           console.log(`No user_subscriptions row found yet for square_subscription_id=${subscriptionId}; will link on invoice.payment_made`);
         } else {
           const { error: upErr } = await supabase
             .from('user_subscriptions')
             .update(update)
-            .eq('user_id', existingUserSub.user_id);
+            .eq('user_id', targetUserId);
 
           if (upErr) throw upErr;
         }

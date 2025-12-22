@@ -96,6 +96,15 @@ async function getSquareCustomerIdFromOrder(orderId) {
   return resp?.order?.customer_id || null;
 }
 
+async function getSquareCustomerIdFromPayment(paymentId) {
+  if (!paymentId) return null;
+  const resp = await squareRequest({
+    path: `/v2/payments/${encodeURIComponent(paymentId)}`,
+    method: 'GET',
+  });
+  return resp?.payment?.customer_id || null;
+}
+
 async function retrieveSquareCustomer(customerId) {
   if (!customerId) return null;
   const resp = await squareRequest({
@@ -162,6 +171,27 @@ async function findSquareSubscriptionByCustomerEmail({ email, planVariationId })
   if (matches.length === 1) return matches[0];
   if (matches.length > 1) {
     throw new Error('Multiple active Square subscriptions matched your email. Please contact support.');
+  }
+  return null;
+}
+
+async function getSquareCustomerIdFromLatestSubscriptionBonusPayment({ userId }) {
+  const q = supabaseAdmin
+    .from('gem_transactions')
+    .select('square_payment_id, created_at')
+    .eq('user_id', userId)
+    .eq('transaction_type', 'subscription_bonus')
+    .not('square_payment_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  const rows = Array.isArray(data) ? data : [];
+  for (const row of rows) {
+    if (!row?.square_payment_id) continue;
+    const cid = await getSquareCustomerIdFromPayment(row.square_payment_id).catch(() => null);
+    if (cid) return cid;
   }
   return null;
 }
@@ -440,6 +470,15 @@ exports.handler = async function (event) {
           if (fromBonus) candidateCustomerIds.push(fromBonus);
         } catch (e) {
           console.error('❌ Failed to resolve Square customer from subscription bonus order', e);
+        }
+      }
+
+      if (!squareSubId) {
+        try {
+          const fromPayment = await getSquareCustomerIdFromLatestSubscriptionBonusPayment({ userId });
+          if (fromPayment) candidateCustomerIds.push(fromPayment);
+        } catch (e) {
+          console.error('❌ Failed to resolve Square customer from subscription bonus payment', e);
         }
       }
 

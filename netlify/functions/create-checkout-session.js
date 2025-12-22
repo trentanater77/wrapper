@@ -390,8 +390,8 @@ exports.handler = async function(event) {
       metadata       // Optional additional metadata
     } = body;
 
-    const gemsProvider = (process.env.GEMS_BILLING_PROVIDER || 'stripe').toLowerCase();
-    const subscriptionProvider = (process.env.SUBSCRIPTION_BILLING_PROVIDER || 'stripe').toLowerCase();
+    const gemsProvider = (process.env.GEMS_BILLING_PROVIDER || 'stripe').trim().toLowerCase();
+    const subscriptionProvider = (process.env.SUBSCRIPTION_BILLING_PROVIDER || 'stripe').trim().toLowerCase();
 
     // Validate required fields
     if (!userId || !userEmail) {

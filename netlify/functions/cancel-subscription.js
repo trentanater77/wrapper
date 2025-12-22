@@ -49,12 +49,30 @@ async function lookupSquareCustomerIdByEmail(email) {
 
 async function listSquareSubscriptionsForCustomer({ customerId }) {
   if (!customerId) return [];
-  const qs = [];
-  qs.push(`customer_id=${encodeURIComponent(customerId)}`);
-  if (SQUARE_LOCATION_ID) qs.push(`location_id=${encodeURIComponent(SQUARE_LOCATION_ID)}`);
-  const path = `/v2/subscriptions?${qs.join('&')}`;
-  const resp = await squareRequest({ path, method: 'GET' });
-  return Array.isArray(resp?.subscriptions) ? resp.subscriptions : [];
+  const doSearch = async (includeLocation) => {
+    const body = {
+      query: {
+        filter: {
+          customer_ids: [String(customerId)],
+          ...(includeLocation && SQUARE_LOCATION_ID ? { location_ids: [String(SQUARE_LOCATION_ID)] } : {}),
+        },
+      },
+      limit: 10,
+    };
+
+    const resp = await squareRequest({
+      path: '/v2/subscriptions/search',
+      method: 'POST',
+      body,
+    });
+
+    return Array.isArray(resp?.subscriptions) ? resp.subscriptions : [];
+  };
+
+  const primary = await doSearch(true);
+  if (primary.length) return primary;
+  if (SQUARE_LOCATION_ID) return await doSearch(false);
+  return primary;
 }
 
 function pickBestSquareSubscription({ subs, planVariationId }) {

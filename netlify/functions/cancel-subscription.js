@@ -93,7 +93,16 @@ async function getSquareCustomerIdFromOrder(orderId) {
     path: `/v2/orders/${encodeURIComponent(orderId)}`,
     method: 'GET',
   });
-  return resp?.order?.customer_id || null;
+
+  const direct = resp?.order?.customer_id || null;
+  if (direct) return direct;
+
+  const tenders = Array.isArray(resp?.order?.tenders) ? resp.order.tenders : [];
+  const tenderPaymentId = tenders.find((t) => t?.payment_id)?.payment_id || null;
+  if (!tenderPaymentId) return null;
+
+  const fromPayment = await getSquareCustomerIdFromPayment(tenderPaymentId).catch(() => null);
+  return fromPayment || null;
 }
 
 async function getSquareCustomerIdFromPayment(paymentId) {

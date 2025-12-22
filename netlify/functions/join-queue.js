@@ -2,7 +2,7 @@
 // Adds a user to the matchmaking queue in Firebase
 // RATE LIMITED: 60 requests per minute (STANDARD tier)
 
-const admin = require("firebase-admin");
+const { getFirebaseAdmin } = require('./utils/firebase-admin');
 const { createClient } = require('@supabase/supabase-js');
 const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
 
@@ -11,49 +11,6 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
 );
-
-// Initialize Firebase Admin (singleton pattern)
-function getFirebaseAdmin() {
-  if (admin.apps.length > 0) {
-    return admin;
-  }
-
-  // Try to initialize with available credentials
-  const projectId = process.env.FIREBASE_MAIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
-  const databaseURL = process.env.FIREBASE_MAIN_DATABASE_URL || process.env.FIREBASE_DATABASE_URL;
-
-  if (!projectId || !databaseURL) {
-    throw new Error("Firebase configuration missing");
-  }
-
-  // Check for service account JSON
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  let credential;
-  if (serviceAccountJson) {
-    try {
-      const serviceAccount = JSON.parse(serviceAccountJson);
-      credential = admin.credential.cert(serviceAccount);
-    } catch (e) {
-      console.warn("⚠️ Could not parse service account JSON");
-    }
-  } else if (clientEmail && privateKey) {
-    credential = admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey: privateKey.replace(/\\n/g, "\n"),
-    });
-  }
-
-  admin.initializeApp({
-    credential: credential || admin.credential.applicationDefault(),
-    databaseURL,
-  });
-
-  return admin;
-}
 
 exports.handler = async function (event) {
   // Handle CORS preflight
@@ -89,8 +46,8 @@ exports.handler = async function (event) {
         };
       }
 
-      const firebase = getFirebaseAdmin();
-      const db = firebase.database();
+      const firebaseAdmin = getFirebaseAdmin({ requireDatabaseURL: true });
+      const db = firebaseAdmin.database();
       await db.ref(`matchmaking_queue/${userId}`).remove();
 
       console.log(`🗑️ User ${userId} removed from queue`);
@@ -131,7 +88,7 @@ exports.handler = async function (event) {
       };
     }
 
-    const firebase = getFirebaseAdmin();
+    const firebase = getFirebaseAdmin({ requireDatabaseURL: true });
     const db = firebase.database();
 
     // Create queue entry

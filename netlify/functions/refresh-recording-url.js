@@ -7,50 +7,7 @@
  * This is a workaround until recordings are made permanently public.
  */
 
-const admin = require('firebase-admin');
-
-// Initialize Firebase Admin (singleton)
-function getFirebaseAdmin() {
-  if (admin.apps.length > 0) {
-    return admin;
-  }
-
-  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.FIREBASE_MAIN_PROJECT_ID;
-  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET;
-  const databaseURL = process.env.FIREBASE_DATABASE_URL || process.env.FIREBASE_MAIN_DATABASE_URL;
-  
-  if (!projectId || !storageBucket) {
-    throw new Error('Firebase configuration missing');
-  }
-
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  let credential;
-  if (serviceAccountJson) {
-    try {
-      const serviceAccount = JSON.parse(serviceAccountJson);
-      credential = admin.credential.cert(serviceAccount);
-    } catch (e) {
-      console.warn('⚠️ Could not parse service account JSON');
-    }
-  } else if (clientEmail && privateKey) {
-    credential = admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey: privateKey.replace(/\\n/g, '\n'),
-    });
-  }
-
-  admin.initializeApp({
-    credential: credential || admin.credential.applicationDefault(),
-    storageBucket,
-    databaseURL,
-  });
-
-  return admin;
-}
+const { admin, getFirebaseAdmin } = require('./utils/firebase-admin');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -80,7 +37,7 @@ exports.handler = async function(event) {
       };
     }
 
-    const firebase = getFirebaseAdmin();
+    const firebase = getFirebaseAdmin({ requireDatabaseURL: true, requireStorageBucket: true });
     const bucket = firebase.storage().bucket();
     const bucketName = bucket.name;
 

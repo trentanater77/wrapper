@@ -14,6 +14,15 @@ const https = require('https');
 const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
+function loadGeneratedBillingConfig() {
+  try {
+    const mod = require('./_generated/function-config.js');
+    return mod?.billing || {};
+  } catch (_) {
+    return {};
+  }
+}
+
 // Validate Stripe configuration
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 if (!STRIPE_SECRET_KEY) {
@@ -121,15 +130,20 @@ function squareRequest({ path, method, body }) {
 }
 
 // Subscription Price IDs from environment variables
+const GENERATED_BILLING = loadGeneratedBillingConfig();
+const GENERATED_STRIPE_PRICES = GENERATED_BILLING.stripePrices || {};
+const GENERATED_SQUARE_ITEMVARS = GENERATED_BILLING.squareItemVariations || {};
+const GENERATED_SQUARE_PLANVARS = GENERATED_BILLING.squarePlanVariations || {};
+
 const SUBSCRIPTION_PRICE_IDS = {
-  host_pro_monthly: process.env.STRIPE_PRICE_HOST_PRO_MONTHLY,
-  host_pro_yearly: process.env.STRIPE_PRICE_HOST_PRO_YEARLY,
-  ad_free_plus_monthly: process.env.STRIPE_PRICE_AD_FREE_PLUS_MONTHLY,
-  ad_free_plus_yearly: process.env.STRIPE_PRICE_AD_FREE_PLUS_YEARLY,
-  ad_free_premium_monthly: process.env.STRIPE_PRICE_AD_FREE_PREMIUM_MONTHLY,
-  ad_free_premium_yearly: process.env.STRIPE_PRICE_AD_FREE_PREMIUM_YEARLY,
-  pro_bundle_monthly: process.env.STRIPE_PRICE_PRO_BUNDLE_MONTHLY,
-  pro_bundle_yearly: process.env.STRIPE_PRICE_PRO_BUNDLE_YEARLY,
+  host_pro_monthly: process.env.STRIPE_PRICE_HOST_PRO_MONTHLY || GENERATED_STRIPE_PRICES.host_pro_monthly,
+  host_pro_yearly: process.env.STRIPE_PRICE_HOST_PRO_YEARLY || GENERATED_STRIPE_PRICES.host_pro_yearly,
+  ad_free_plus_monthly: process.env.STRIPE_PRICE_AD_FREE_PLUS_MONTHLY || GENERATED_STRIPE_PRICES.ad_free_plus_monthly,
+  ad_free_plus_yearly: process.env.STRIPE_PRICE_AD_FREE_PLUS_YEARLY || GENERATED_STRIPE_PRICES.ad_free_plus_yearly,
+  ad_free_premium_monthly: process.env.STRIPE_PRICE_AD_FREE_PREMIUM_MONTHLY || GENERATED_STRIPE_PRICES.ad_free_premium_monthly,
+  ad_free_premium_yearly: process.env.STRIPE_PRICE_AD_FREE_PREMIUM_YEARLY || GENERATED_STRIPE_PRICES.ad_free_premium_yearly,
+  pro_bundle_monthly: process.env.STRIPE_PRICE_PRO_BUNDLE_MONTHLY || GENERATED_STRIPE_PRICES.pro_bundle_monthly,
+  pro_bundle_yearly: process.env.STRIPE_PRICE_PRO_BUNDLE_YEARLY || GENERATED_STRIPE_PRICES.pro_bundle_yearly,
 };
 
 // Gem Pack definitions with price IDs from environment variables
@@ -137,44 +151,44 @@ const GEM_PACKS = {
   taste_test: { 
     gems: 150, 
     name: 'Taste Test',
-    priceId: process.env.STRIPE_PRICE_GEM_TASTE_TEST,
-    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_TASTE_TEST,
+    priceId: process.env.STRIPE_PRICE_GEM_TASTE_TEST || GENERATED_STRIPE_PRICES.gem_taste_test,
+    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_TASTE_TEST || GENERATED_SQUARE_ITEMVARS.gem_taste_test,
   },
   handful: { 
     gems: 500, 
     name: 'Handful',
-    priceId: process.env.STRIPE_PRICE_GEM_HANDFUL,
-    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_HANDFUL,
+    priceId: process.env.STRIPE_PRICE_GEM_HANDFUL || GENERATED_STRIPE_PRICES.gem_handful,
+    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_HANDFUL || GENERATED_SQUARE_ITEMVARS.gem_handful,
   },
   sack: { 
     gems: 1100, 
     name: 'Sack',
-    priceId: process.env.STRIPE_PRICE_GEM_SACK,
-    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_SACK,
+    priceId: process.env.STRIPE_PRICE_GEM_SACK || GENERATED_STRIPE_PRICES.gem_sack,
+    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_SACK || GENERATED_SQUARE_ITEMVARS.gem_sack,
   },
   chest: { 
     gems: 2500, 
     name: 'Chest',
-    priceId: process.env.STRIPE_PRICE_GEM_CHEST,
-    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_CHEST,
+    priceId: process.env.STRIPE_PRICE_GEM_CHEST || GENERATED_STRIPE_PRICES.gem_chest,
+    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_CHEST || GENERATED_SQUARE_ITEMVARS.gem_chest,
   },
   vault: { 
     gems: 7000, 
     name: 'Vault',
-    priceId: process.env.STRIPE_PRICE_GEM_VAULT,
-    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_VAULT,
+    priceId: process.env.STRIPE_PRICE_GEM_VAULT || GENERATED_STRIPE_PRICES.gem_vault,
+    squareItemVariationId: process.env.SQUARE_ITEMVAR_GEM_VAULT || GENERATED_SQUARE_ITEMVARS.gem_vault,
   },
 };
 
 const SQUARE_SUBSCRIPTION_PLAN_VARIATION_IDS = {
-  host_pro_monthly: process.env.SQUARE_PLANVAR_HOST_PRO_MONTHLY || process.env.SQUARE_PLAN_HOST_PRO_MONTHLY,
-  host_pro_yearly: process.env.SQUARE_PLANVAR_HOST_PRO_YEARLY || process.env.SQUARE_PLAN_HOST_PRO_YEARLY,
-  ad_free_plus_monthly: process.env.SQUARE_PLANVAR_AD_FREE_PLUS_MONTHLY || process.env.SQUARE_PLAN_AD_FREE_PLUS_MONTHLY,
-  ad_free_plus_yearly: process.env.SQUARE_PLANVAR_AD_FREE_PLUS_YEARLY || process.env.SQUARE_PLAN_AD_FREE_PLUS_YEARLY,
-  ad_free_premium_monthly: process.env.SQUARE_PLANVAR_AD_FREE_PREMIUM_MONTHLY || process.env.SQUARE_PLAN_AD_FREE_PREMIUM_MONTHLY,
-  ad_free_premium_yearly: process.env.SQUARE_PLANVAR_AD_FREE_PREMIUM_YEARLY || process.env.SQUARE_PLAN_AD_FREE_PREMIUM_YEARLY,
-  pro_bundle_monthly: process.env.SQUARE_PLANVAR_PRO_BUNDLE_MONTHLY || process.env.SQUARE_PLAN_PRO_BUNDLE_MONTHLY,
-  pro_bundle_yearly: process.env.SQUARE_PLANVAR_PRO_BUNDLE_YEARLY || process.env.SQUARE_PLAN_PRO_BUNDLE_YEARLY,
+  host_pro_monthly: process.env.SQUARE_PLANVAR_HOST_PRO_MONTHLY || process.env.SQUARE_PLAN_HOST_PRO_MONTHLY || GENERATED_SQUARE_PLANVARS.host_pro_monthly,
+  host_pro_yearly: process.env.SQUARE_PLANVAR_HOST_PRO_YEARLY || process.env.SQUARE_PLAN_HOST_PRO_YEARLY || GENERATED_SQUARE_PLANVARS.host_pro_yearly,
+  ad_free_plus_monthly: process.env.SQUARE_PLANVAR_AD_FREE_PLUS_MONTHLY || process.env.SQUARE_PLAN_AD_FREE_PLUS_MONTHLY || GENERATED_SQUARE_PLANVARS.ad_free_plus_monthly,
+  ad_free_plus_yearly: process.env.SQUARE_PLANVAR_AD_FREE_PLUS_YEARLY || process.env.SQUARE_PLAN_AD_FREE_PLUS_YEARLY || GENERATED_SQUARE_PLANVARS.ad_free_plus_yearly,
+  ad_free_premium_monthly: process.env.SQUARE_PLANVAR_AD_FREE_PREMIUM_MONTHLY || process.env.SQUARE_PLAN_AD_FREE_PREMIUM_MONTHLY || GENERATED_SQUARE_PLANVARS.ad_free_premium_monthly,
+  ad_free_premium_yearly: process.env.SQUARE_PLANVAR_AD_FREE_PREMIUM_YEARLY || process.env.SQUARE_PLAN_AD_FREE_PREMIUM_YEARLY || GENERATED_SQUARE_PLANVARS.ad_free_premium_yearly,
+  pro_bundle_monthly: process.env.SQUARE_PLANVAR_PRO_BUNDLE_MONTHLY || process.env.SQUARE_PLAN_PRO_BUNDLE_MONTHLY || GENERATED_SQUARE_PLANVARS.pro_bundle_monthly,
+  pro_bundle_yearly: process.env.SQUARE_PLANVAR_PRO_BUNDLE_YEARLY || process.env.SQUARE_PLAN_PRO_BUNDLE_YEARLY || GENERATED_SQUARE_PLANVARS.pro_bundle_yearly,
 };
 
 const SQUARE_SUBSCRIPTION_PRICE_MONEY = {

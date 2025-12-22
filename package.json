@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "tailwindcss -c tailwind.config.js -i styles/tailwind.input.css -o styles/tailwind.generated.css --minify"
+    "build": "node scripts/generate-function-config.js && tailwindcss -c tailwind.config.js -i styles/tailwind.input.css -o styles/tailwind.generated.css --minify"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

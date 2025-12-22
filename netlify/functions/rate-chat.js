@@ -1,48 +1,7 @@
 // netlify/functions/rate-chat.js
 // Updates user karma after a chat session
 
-const admin = require("firebase-admin");
-
-// Initialize Firebase Admin (singleton pattern)
-function getFirebaseAdmin() {
-  if (admin.apps.length > 0) {
-    return admin;
-  }
-
-  const projectId = process.env.FIREBASE_MAIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
-  const databaseURL = process.env.FIREBASE_MAIN_DATABASE_URL || process.env.FIREBASE_DATABASE_URL;
-
-  if (!projectId || !databaseURL) {
-    throw new Error("Firebase configuration missing");
-  }
-
-  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  let credential;
-  if (serviceAccountJson) {
-    try {
-      const serviceAccount = JSON.parse(serviceAccountJson);
-      credential = admin.credential.cert(serviceAccount);
-    } catch (e) {
-      console.warn("⚠️ Could not parse service account JSON");
-    }
-  } else if (clientEmail && privateKey) {
-    credential = admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey: privateKey.replace(/\\n/g, "\n"),
-    });
-  }
-
-  admin.initializeApp({
-    credential: credential || admin.credential.applicationDefault(),
-    databaseURL,
-  });
-
-  return admin;
-}
+const { getFirebaseAdmin } = require('./utils/firebase-admin');
 
 exports.handler = async function (event) {
   // Handle CORS preflight
@@ -91,7 +50,7 @@ exports.handler = async function (event) {
       };
     }
 
-    const firebase = getFirebaseAdmin();
+    const firebase = getFirebaseAdmin({ requireDatabaseURL: true });
     const db = firebase.database();
 
     // Calculate karma change

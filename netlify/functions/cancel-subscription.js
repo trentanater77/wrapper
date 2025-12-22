@@ -86,6 +86,15 @@ function pickBestSquareSubscription({ subs, planVariationId }) {
   return active || candidates[0] || null;
 }
 
+async function getSquareCustomerIdFromOrder(orderId) {
+  if (!orderId) return null;
+  const resp = await squareRequest({
+    path: `/v2/orders/${encodeURIComponent(orderId)}`,
+    method: 'GET',
+  });
+  return resp?.order?.customer_id || null;
+}
+
 function squareRequest({ path, method, body }) {
   return new Promise((resolve, reject) => {
     const baseUrl = getSquareApiBaseUrl();
@@ -284,6 +293,28 @@ exports.handler = async function (event) {
         }
       }
 
+      if (!squareCustomerId && !squareSubId) {
+        try {
+          const { data: pending, error: pendingErr } = await supabaseAdmin
+            .from('square_pending_subscriptions')
+            .select('square_order_id, square_subscription_id')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (pendingErr) throw pendingErr;
+
+          if (pending?.square_subscription_id) {
+            squareSubId = pending.square_subscription_id;
+          } else if (pending?.square_order_id) {
+            squareCustomerId = await getSquareCustomerIdFromOrder(pending.square_order_id);
+          }
+        } catch (e) {
+          console.error('❌ Failed to resolve Square customer/sub from pending subscription', e);
+        }
+      }
+
       if (!squareSubId && squareCustomerId) {
         try {
           const subs = await listSquareSubscriptionsForCustomer({ customerId: squareCustomerId });
@@ -296,6 +327,12 @@ exports.handler = async function (event) {
           console.error('❌ Failed to list Square subscriptions', e);
         }
       }
+
+      console.log('🔎 Square cancel lookup', {
+        userId,
+        hasSquareCustomerId: Boolean(squareCustomerId),
+        hasSquareSubscriptionId: Boolean(squareSubId),
+      });
 
       if (!squareSubId) {
         return {

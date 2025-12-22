@@ -353,6 +353,7 @@ exports.handler = async function (event) {
       const payment = squareEvent?.data?.object?.payment;
       const paymentId = payment?.id;
       const orderId = payment?.order_id;
+      const paymentCustomerId = payment?.customer_id;
       const status = payment?.status;
 
       if (!paymentId || !orderId) {
@@ -434,6 +435,7 @@ exports.handler = async function (event) {
               .from('user_subscriptions')
               .upsert({
                 user_id: pendingSub.user_id,
+                square_customer_id: paymentCustomerId || null,
                 square_subscription_id: pendingSub.square_subscription_id || null,
                 square_plan_variation_id: pendingSub.square_plan_variation_id,
                 plan_type: pendingSub.plan_type,

@@ -18,11 +18,54 @@ const headers = {
 
 const SQUARE_ENVIRONMENT = (process.env.SQUARE_ENVIRONMENT || 'production').toLowerCase();
 const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
+const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID;
 
 function getSquareApiBaseUrl() {
   return SQUARE_ENVIRONMENT === 'sandbox'
     ? 'https://connect.squareupsandbox.com'
     : 'https://connect.squareup.com';
+}
+
+async function lookupSquareCustomerIdByEmail(email) {
+  if (!email) return null;
+  const resp = await squareRequest({
+    path: '/v2/customers/search',
+    method: 'POST',
+    body: {
+      query: {
+        filter: {
+          email_address: {
+            exact: String(email).trim(),
+          },
+        },
+      },
+      limit: 1,
+    },
+  });
+
+  const customer = resp?.customers?.[0];
+  return customer?.id || null;
+}
+
+async function listSquareSubscriptionsForCustomer({ customerId }) {
+  if (!customerId) return [];
+  const qs = [];
+  qs.push(`customer_id=${encodeURIComponent(customerId)}`);
+  if (SQUARE_LOCATION_ID) qs.push(`location_id=${encodeURIComponent(SQUARE_LOCATION_ID)}`);
+  const path = `/v2/subscriptions?${qs.join('&')}`;
+  const resp = await squareRequest({ path, method: 'GET' });
+  return Array.isArray(resp?.subscriptions) ? resp.subscriptions : [];
+}
+
+function pickBestSquareSubscription({ subs, planVariationId }) {
+  const list = Array.isArray(subs) ? subs : [];
+  if (!list.length) return null;
+  const withPlan = planVariationId
+    ? list.filter((s) => String(s?.plan_variation_id || '') === String(planVariationId))
+    : list;
+  const candidates = withPlan.length ? withPlan : list;
+  const active = candidates.find((s) => String(s?.status || '').toUpperCase() === 'ACTIVE');
+  return active || candidates[0] || null;
 }
 
 function squareRequest({ path, method, body }) {
@@ -211,8 +254,41 @@ exports.handler = async function (event) {
       };
     }
 
-    if (subscription.square_subscription_id) {
-      const squareSubId = subscription.square_subscription_id;
+    if (subscription.square_subscription_id || subscription.square_customer_id || authData?.user?.email) {
+      let squareCustomerId = subscription.square_customer_id || null;
+      let squareSubId = subscription.square_subscription_id || null;
+
+      if (!squareCustomerId && authData?.user?.email) {
+        try {
+          squareCustomerId = await lookupSquareCustomerIdByEmail(authData.user.email);
+        } catch (e) {
+          console.error('❌ Failed to lookup Square customer by email', e);
+        }
+      }
+
+      if (!squareSubId && squareCustomerId) {
+        try {
+          const subs = await listSquareSubscriptionsForCustomer({ customerId: squareCustomerId });
+          const best = pickBestSquareSubscription({
+            subs,
+            planVariationId: subscription.square_plan_variation_id,
+          });
+          squareSubId = best?.id || null;
+        } catch (e) {
+          console.error('❌ Failed to list Square subscriptions', e);
+        }
+      }
+
+      if (!squareSubId) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: 'No cancelable subscription found',
+            message: 'Your Square subscription is still activating. Please wait a moment and try again.',
+          }),
+        };
+      }
 
       const resp = await squareRequest({
         path: `/v2/subscriptions/${squareSubId}/cancel`,
@@ -228,6 +304,8 @@ exports.handler = async function (event) {
         .update({
           canceled_at: canceledIso,
           current_period_end: chargedThroughIso,
+          square_customer_id: squareCustomerId || subscription.square_customer_id || null,
+          square_subscription_id: squareSubId,
           square_subscription_status: squareSub?.status || subscription.square_subscription_status || null,
           updated_at: nowIso,
         })

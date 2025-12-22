@@ -206,6 +206,48 @@ async function findSquareSubscriptionByCustomerEmail({ email, planVariationId })
   return null;
 }
 
+async function findSquareSubscriptionIdFromLatestInvoiceByCustomerId({ customerId }) {
+  if (!customerId) return null;
+  if (!SQUARE_LOCATION_ID) return null;
+
+  let cursor = null;
+  for (let i = 0; i < 5; i++) {
+    const resp = await squareRequest({
+      path: '/v2/invoices/search',
+      method: 'POST',
+      body: {
+        query: {
+          filter: {
+            location_ids: [String(SQUARE_LOCATION_ID)],
+            customer_ids: [String(customerId)],
+          },
+          sort: {
+            field: 'INVOICE_SORT_DATE',
+            order: 'DESC',
+          },
+        },
+        limit: 200,
+        ...(cursor ? { cursor } : {}),
+      },
+    });
+
+    const invoices = Array.isArray(resp?.invoices) ? resp.invoices : [];
+    const hit = invoices.find((inv) => Boolean(inv?.subscription_id));
+    const subId = hit?.subscription_id || null;
+    if (subId) {
+      return {
+        subscriptionId: subId,
+        customerId: hit?.primary_recipient?.customer_id || String(customerId),
+      };
+    }
+
+    cursor = resp?.cursor || null;
+    if (!cursor) break;
+  }
+
+  return null;
+}
+
 async function findSquareSubscriptionIdFromInvoiceByOrderId({ orderId }) {
   if (!orderId) return null;
   if (!SQUARE_LOCATION_ID) return null;
@@ -582,6 +624,27 @@ exports.handler = async function (event) {
       }
 
       const uniqueCustomerIds = Array.from(new Set(candidateCustomerIds.filter(Boolean)));
+
+      if (!squareSubId) {
+        for (const cid of uniqueCustomerIds) {
+          if (squareSubId) break;
+          try {
+            const match = await findSquareSubscriptionIdFromLatestInvoiceByCustomerId({ customerId: cid });
+            console.log('🔎 Square invoice-by-customer lookup', {
+              userId,
+              foundSubscriptionId: Boolean(match?.subscriptionId),
+            });
+            if (match?.subscriptionId) {
+              squareSubId = match.subscriptionId;
+              squareCustomerId = match.customerId || cid;
+              break;
+            }
+          } catch (e) {
+            console.error('❌ Failed to resolve Square subscription from invoice-by-customer search', e);
+          }
+        }
+      }
+
       for (const cid of uniqueCustomerIds) {
         if (squareSubId) break;
         try {

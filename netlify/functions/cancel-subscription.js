@@ -300,15 +300,34 @@ exports.handler = async function (event) {
 
       if (!squareCustomerId && !squareSubId) {
         try {
-          const { data: pending, error: pendingErr } = await supabaseAdmin
+          let pendingQuery = supabaseAdmin
             .from('square_pending_subscriptions')
-            .select('square_order_id, square_subscription_id')
-            .eq('user_id', userId)
+            .select('square_order_id, square_subscription_id, square_plan_variation_id, status, created_at')
+            .eq('user_id', userId);
+
+          if (subscription.square_plan_variation_id) {
+            pendingQuery = pendingQuery.eq('square_plan_variation_id', subscription.square_plan_variation_id);
+          }
+
+          pendingQuery = pendingQuery
+            .in('status', ['pending', 'activated'])
             .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+            .limit(1);
+
+          const { data: pending, error: pendingErr } = await pendingQuery.maybeSingle();
 
           if (pendingErr) throw pendingErr;
+
+          console.log('🔎 Square pending subscription lookup', {
+            userId,
+            found: Boolean(pending?.square_order_id || pending?.square_subscription_id),
+            status: pending?.status || null,
+            hasOrderId: Boolean(pending?.square_order_id),
+            hasSubscriptionId: Boolean(pending?.square_subscription_id),
+            matchesPlanVariation: subscription.square_plan_variation_id
+              ? String(pending?.square_plan_variation_id || '') === String(subscription.square_plan_variation_id)
+              : null,
+          });
 
           if (pending?.square_subscription_id) {
             squareSubId = pending.square_subscription_id;

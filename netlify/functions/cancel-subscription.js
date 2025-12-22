@@ -96,6 +96,97 @@ async function getSquareCustomerIdFromOrder(orderId) {
   return resp?.order?.customer_id || null;
 }
 
+async function retrieveSquareCustomer(customerId) {
+  if (!customerId) return null;
+  const resp = await squareRequest({
+    path: `/v2/customers/${encodeURIComponent(customerId)}`,
+    method: 'GET',
+  });
+  return resp?.customer || null;
+}
+
+async function searchSquareSubscriptionsPage({ cursor, includeLocation }) {
+  const body = {
+    ...(cursor ? { cursor } : {}),
+    limit: 100,
+    query: {
+      filter: {
+        ...(includeLocation && SQUARE_LOCATION_ID ? { location_ids: [String(SQUARE_LOCATION_ID)] } : {}),
+      },
+    },
+  };
+
+  return await squareRequest({
+    path: '/v2/subscriptions/search',
+    method: 'POST',
+    body,
+  });
+}
+
+async function findSquareSubscriptionByCustomerEmail({ email, planVariationId }) {
+  if (!email) return null;
+  const needle = String(email).trim().toLowerCase();
+
+  const matches = [];
+  let cursor = null;
+
+  const trySearch = async (includeLocation) => {
+    cursor = null;
+    for (let i = 0; i < 10; i++) {
+      const resp = await searchSquareSubscriptionsPage({ cursor, includeLocation });
+      const subs = Array.isArray(resp?.subscriptions) ? resp.subscriptions : [];
+
+      for (const sub of subs) {
+        if (!sub?.id || !sub?.customer_id) continue;
+        if (String(sub?.status || '').toUpperCase() !== 'ACTIVE') continue;
+        if (planVariationId && String(sub?.plan_variation_id || '') !== String(planVariationId)) continue;
+
+        const customer = await retrieveSquareCustomer(sub.customer_id).catch(() => null);
+        const customerEmail = String(customer?.email_address || '').trim().toLowerCase();
+        if (customerEmail && customerEmail === needle) {
+          matches.push({ subscriptionId: sub.id, customerId: sub.customer_id });
+          if (matches.length > 1) return;
+        }
+      }
+
+      cursor = resp?.cursor || null;
+      if (!cursor) break;
+    }
+  };
+
+  await trySearch(true);
+  if (!matches.length && SQUARE_LOCATION_ID) {
+    await trySearch(false);
+  }
+
+  if (matches.length === 1) return matches[0];
+  if (matches.length > 1) {
+    throw new Error('Multiple active Square subscriptions matched your email. Please contact support.');
+  }
+  return null;
+}
+
+async function getSquareCustomerIdFromLatestSubscriptionBonusOrder({ userId, planVariationId }) {
+  const q = supabaseAdmin
+    .from('gem_transactions')
+    .select('square_order_id, created_at')
+    .eq('user_id', userId)
+    .eq('transaction_type', 'subscription_bonus')
+    .not('square_order_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const { data, error } = await q;
+  if (error) throw error;
+  const rows = Array.isArray(data) ? data : [];
+  for (const row of rows) {
+    if (!row?.square_order_id) continue;
+    const cid = await getSquareCustomerIdFromOrder(row.square_order_id).catch(() => null);
+    if (cid) return cid;
+  }
+  return null;
+}
+
 function squareRequest({ path, method, body }) {
   return new Promise((resolve, reject) => {
     const baseUrl = getSquareApiBaseUrl();
@@ -289,7 +380,7 @@ exports.handler = async function (event) {
       const candidateCustomerIds = [];
       if (squareCustomerId) candidateCustomerIds.push(squareCustomerId);
 
-      if (!squareCustomerId && authData?.user?.email) {
+      if (authData?.user?.email) {
         try {
           const emailCustomerIds = await lookupSquareCustomerIdsByEmail(authData.user.email);
           for (const cid of emailCustomerIds) candidateCustomerIds.push(cid);
@@ -298,7 +389,7 @@ exports.handler = async function (event) {
         }
       }
 
-      if (!squareCustomerId && !squareSubId) {
+      if (!squareSubId) {
         try {
           let pendingQuery = supabaseAdmin
             .from('square_pending_subscriptions')
@@ -340,6 +431,18 @@ exports.handler = async function (event) {
         }
       }
 
+      if (!squareSubId) {
+        try {
+          const fromBonus = await getSquareCustomerIdFromLatestSubscriptionBonusOrder({
+            userId,
+            planVariationId: subscription.square_plan_variation_id,
+          });
+          if (fromBonus) candidateCustomerIds.push(fromBonus);
+        } catch (e) {
+          console.error('❌ Failed to resolve Square customer from subscription bonus order', e);
+        }
+      }
+
       const uniqueCustomerIds = Array.from(new Set(candidateCustomerIds.filter(Boolean)));
       for (const cid of uniqueCustomerIds) {
         if (squareSubId) break;
@@ -372,7 +475,7 @@ exports.handler = async function (event) {
           headers,
           body: JSON.stringify({
             error: 'No cancelable subscription found',
-            message: 'Your Square subscription is still activating. Please wait a moment and try again.',
+            message: 'Unable to locate your Square subscription. Please wait a moment and try again.',
           }),
         };
       }

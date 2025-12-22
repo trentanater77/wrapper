@@ -17,6 +17,65 @@ function timingSafeEqual(a, b) {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
+async function addSubscriptionBonusGemsFromPayment({ userId, amount, squarePaymentId, squareOrderId }) {
+  const { data: existingTx, error: existingTxErr } = await supabase
+    .from('gem_transactions')
+    .select('id')
+    .eq('transaction_type', 'subscription_bonus')
+    .eq('square_order_id', squareOrderId)
+    .limit(1)
+    .maybeSingle();
+
+  if (existingTxErr) throw existingTxErr;
+  if (existingTx) return;
+
+  const { data: existing } = await supabase
+    .from('gem_balances')
+    .select('id, spendable_gems')
+    .eq('user_id', userId)
+    .single();
+
+  if (!existing) {
+    const { error: insertError } = await supabase
+      .from('gem_balances')
+      .insert({
+        user_id: userId,
+        spendable_gems: amount,
+        cashable_gems: 0,
+        promo_gems: 0,
+      });
+
+    if (insertError) throw insertError;
+  } else {
+    const newBalance = (existing.spendable_gems || 0) + amount;
+    const { error: updateError } = await supabase
+      .from('gem_balances')
+      .update({
+        spendable_gems: newBalance,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', userId);
+
+    if (updateError) throw updateError;
+  }
+
+  const { error: txError } = await supabase
+    .from('gem_transactions')
+    .insert({
+      user_id: userId,
+      transaction_type: 'subscription_bonus',
+      amount,
+      wallet_type: 'spendable',
+      description: `Bonus: ${amount} gems`,
+      square_payment_id: squarePaymentId,
+      square_order_id: squareOrderId,
+    });
+
+  if (txError) {
+    console.error('❌ Error logging subscription gem transaction:', txError);
+  }
+}
+
 function verifySquareWebhookSignature({ signatureHeader, requestBody, notificationUrl, signatureKey }) {
   if (!signatureHeader || !signatureKey || !notificationUrl) return false;
 
@@ -298,7 +357,7 @@ exports.handler = async function (event) {
 
       if (!paymentId || !orderId) {
         console.log('Square payment event missing payment/order id');
-      } else if (status !== 'COMPLETED') {
+      } else if (status !== 'COMPLETED' && status !== 'APPROVED') {
         console.log(`Square payment ${paymentId} status=${status}; skipping`);
       } else {
         const { data: existingTx, error: existingTxError } = await supabase
@@ -310,32 +369,25 @@ exports.handler = async function (event) {
 
         if (existingTxError) throw existingTxError;
 
-        if (existingTx) {
-          await supabase
-            .from('square_pending_gem_purchases')
-            .update({
-              status: 'fulfilled',
-              square_payment_id: paymentId,
-              fulfilled_at: new Date().toISOString(),
-            })
-            .eq('square_order_id', orderId);
-        } else {
-          const { data: pending, error: pendingError } = await supabase
-            .from('square_pending_gem_purchases')
-            .select('*')
-            .eq('square_order_id', orderId)
-            .maybeSingle();
+        const { data: pendingGem, error: pendingGemError } = await supabase
+          .from('square_pending_gem_purchases')
+          .select('*')
+          .eq('square_order_id', orderId)
+          .maybeSingle();
 
-          if (pendingError || !pending) {
-            console.log(`No pending gem purchase found for order ${orderId}`);
-          } else if (pending.status === 'fulfilled') {
+        if (pendingGemError) throw pendingGemError;
+
+        if (pendingGem) {
+          if (pendingGem.status === 'fulfilled') {
             console.log(`Pending purchase already fulfilled for order ${orderId}`);
-          } else {
-            const packName = pending.gem_pack_key || 'Gem Pack';
+          } else if (status !== 'COMPLETED') {
+            console.log(`Square gem purchase payment ${paymentId} status=${status}; waiting for COMPLETED`);
+          } else if (!existingTx) {
+            const packName = pendingGem.gem_pack_key || 'Gem Pack';
 
             await addPurchasedGems({
-              userId: pending.user_id,
-              gems: pending.gems,
+              userId: pendingGem.user_id,
+              gems: pendingGem.gems,
               packName,
               squarePaymentId: paymentId,
               squareOrderId: orderId,
@@ -348,9 +400,76 @@ exports.handler = async function (event) {
                 square_payment_id: paymentId,
                 fulfilled_at: new Date().toISOString(),
               })
-              .eq('id', pending.id);
+              .eq('id', pendingGem.id);
 
-            await vestReferralGemsOnPurchase(pending.user_id, 'gem_purchase');
+            await vestReferralGemsOnPurchase(pendingGem.user_id, 'gem_purchase');
+          }
+        } else {
+          const { data: pendingSub, error: pendingSubError } = await supabase
+            .from('square_pending_subscriptions')
+            .select('*')
+            .eq('square_order_id', orderId)
+            .maybeSingle();
+
+          if (pendingSubError) throw pendingSubError;
+
+          if (!pendingSub) {
+            console.log(`No pending Square order found for order ${orderId}`);
+          } else {
+            const nowIso = new Date().toISOString();
+            let bonus = 0;
+            if (pendingSub.plan_type === 'ad_free_premium' || pendingSub.plan_type === 'pro_bundle') bonus = 1200;
+            else if (pendingSub.plan_type === 'ad_free_plus') bonus = 500;
+
+            console.log('✅ Activating Square subscription from payment event', {
+              userId: pendingSub.user_id,
+              planType: pendingSub.plan_type,
+              billingPeriod: pendingSub.billing_period,
+              orderId,
+              paymentId,
+              status,
+            });
+
+            const { error: subUpsertErr } = await supabase
+              .from('user_subscriptions')
+              .upsert({
+                user_id: pendingSub.user_id,
+                square_subscription_id: pendingSub.square_subscription_id || null,
+                square_plan_variation_id: pendingSub.square_plan_variation_id,
+                plan_type: pendingSub.plan_type,
+                billing_period: pendingSub.billing_period,
+                status: 'active',
+                updated_at: nowIso,
+              }, { onConflict: 'user_id' });
+
+            if (subUpsertErr) throw subUpsertErr;
+
+            await supabase
+              .from('square_pending_subscriptions')
+              .update({
+                status: 'activated',
+                activated_at: nowIso,
+              })
+              .eq('id', pendingSub.id);
+
+            if (status === 'COMPLETED' && !existingTx) {
+              if (bonus > 0) {
+                await addSubscriptionBonusGemsFromPayment({
+                  userId: pendingSub.user_id,
+                  amount: bonus,
+                  squarePaymentId: paymentId,
+                  squareOrderId: orderId,
+                });
+
+                console.log('✅ Granted subscription bonus gems from payment', {
+                  userId: pendingSub.user_id,
+                  orderId,
+                  amount: bonus,
+                });
+              }
+
+              await vestReferralGemsOnPurchase(pendingSub.user_id, 'subscription');
+            }
           }
         }
       }
@@ -428,6 +547,20 @@ exports.handler = async function (event) {
 
         if (existingTxErr) throw existingTxErr;
 
+        let alreadyBonused = Boolean(existingTx);
+        if (!alreadyBonused && orderId) {
+          const { data: existingOrderBonus, error: existingOrderBonusErr } = await supabase
+            .from('gem_transactions')
+            .select('id')
+            .eq('transaction_type', 'subscription_bonus')
+            .eq('square_order_id', orderId)
+            .limit(1)
+            .maybeSingle();
+
+          if (existingOrderBonusErr) throw existingOrderBonusErr;
+          if (existingOrderBonus) alreadyBonused = true;
+        }
+
         let userId = null;
         let planType = null;
         let billingPeriod = null;
@@ -496,7 +629,7 @@ exports.handler = async function (event) {
 
           if (subUpsertErr) throw subUpsertErr;
 
-          if (!existingTx) {
+          if (!alreadyBonused) {
             let bonus = 0;
             if (planType === 'ad_free_premium' || planType === 'pro_bundle') bonus = 1200;
             else if (planType === 'ad_free_plus') bonus = 500;

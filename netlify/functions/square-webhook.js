@@ -275,11 +275,15 @@ exports.handler = async function (event) {
     return { statusCode: 400, body: 'Missing event id/type' };
   }
 
-  const { data: existingEvent } = await supabase
+  const { data: existingEvent, error: existingEventError } = await supabase
     .from('square_events')
     .select('id')
     .eq('id', eventId)
-    .single();
+    .maybeSingle();
+
+  if (existingEventError) {
+    throw existingEventError;
+  }
 
   if (existingEvent) {
     return { statusCode: 200, body: JSON.stringify({ received: true, duplicate: true }) };
@@ -297,12 +301,14 @@ exports.handler = async function (event) {
       } else if (status !== 'COMPLETED') {
         console.log(`Square payment ${paymentId} status=${status}; skipping`);
       } else {
-        const { data: existingTx } = await supabase
+        const { data: existingTx, error: existingTxError } = await supabase
           .from('gem_transactions')
           .select('id')
           .or(`square_payment_id.eq.${paymentId},square_order_id.eq.${orderId}`)
           .limit(1)
-          .single();
+          .maybeSingle();
+
+        if (existingTxError) throw existingTxError;
 
         if (existingTx) {
           await supabase
@@ -318,7 +324,7 @@ exports.handler = async function (event) {
             .from('square_pending_gem_purchases')
             .select('*')
             .eq('square_order_id', orderId)
-            .single();
+            .maybeSingle();
 
           if (pendingError || !pending) {
             console.log(`No pending gem purchase found for order ${orderId}`);

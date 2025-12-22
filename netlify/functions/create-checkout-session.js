@@ -390,8 +390,15 @@ exports.handler = async function(event) {
       metadata       // Optional additional metadata
     } = body;
 
-    const gemsProvider = (process.env.GEMS_BILLING_PROVIDER || 'stripe').trim().toLowerCase();
-    const subscriptionProvider = (process.env.SUBSCRIPTION_BILLING_PROVIDER || 'stripe').trim().toLowerCase();
+    const normalizeProvider = (raw) => {
+      const normalized = String(raw || '').trim().toLowerCase();
+      const candidate = normalized.includes('=') ? normalized.split('=').pop().trim() : normalized;
+      if (candidate === 'square' || candidate === 'stripe') return candidate;
+      return 'stripe';
+    };
+
+    const gemsProvider = normalizeProvider(process.env.GEMS_BILLING_PROVIDER);
+    const subscriptionProvider = normalizeProvider(process.env.SUBSCRIPTION_BILLING_PROVIDER);
 
     console.log('🔧 billing providers', {
       context: process.env.CONTEXT,

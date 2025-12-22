@@ -53,28 +53,36 @@ exports.handler = async function(event) {
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+
+    if (subError) {
+      if (subError.code !== 'PGRST116') throw subError;
+    }
 
     // Get gem balance
     const { data: gemBalance, error: gemError } = await supabase
       .from('gem_balances')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
+
+    if (gemError) {
+      if (gemError.code !== 'PGRST116') throw gemError;
+    }
 
     // Get user profile (badge & branding)
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     // Get main profile (display_name, bio, avatar)
     const { data: mainProfile } = await supabase
       .from('profiles')
       .select('*')
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
     // Get pending payout requests
     const { data: pendingPayouts } = await supabase
@@ -91,7 +99,7 @@ exports.handler = async function(event) {
     const cashableUsd = Math.round((cashableGems / 100) * 0.99 * 100) / 100;
 
     // Determine badge based on plan (auto-assign if not set or set to 'none')
-    const planType = subscription?.plan_type || 'free';
+    const planType = getEffectivePlanType(subscription);
     const autoBadge = getBadgeForPlan(planType);
     // Use auto-badge if user profile badge is not set or is 'none'
     const profileBadge = userProfile?.badge_type;
@@ -147,7 +155,7 @@ exports.handler = async function(event) {
       },
       // Convenience fields
       plan: planType,
-      isActive: subscription?.status === 'active' || !subscription,
+      isActive: (subscription?.status === 'active' || !subscription) && planType !== 'free',
       isPro: planType === 'host_pro' || planType === 'pro_bundle',
       isAdFree: ['ad_free_plus', 'ad_free_premium', 'pro_bundle'].includes(planType),
       isBundle: planType === 'pro_bundle',
@@ -187,6 +195,20 @@ function getBadgeForPlan(planType) {
     case 'ad_free_plus': return 'premium';
     default: return 'none';
   }
+}
+
+function getEffectivePlanType(subscription) {
+  const rawPlan = subscription?.plan_type || 'free';
+  if (rawPlan === 'free') return 'free';
+
+  const status = subscription?.status || 'active';
+  const end = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
+
+  if (status === 'canceled' && end && end.getTime() <= Date.now()) {
+    return 'free';
+  }
+
+  return rawPlan;
 }
 
 /**

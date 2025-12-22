@@ -531,7 +531,7 @@
                     ⚙️ Manage Billing
                   </button>
                 </div>
-                <p style="font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; margin-top: var(--space-md);">
+                <p id="billing-help-text" style="font-size: 0.85rem; color: var(--charcoal); opacity: 0.7; margin-top: var(--space-md);">
                   Cancel your subscription, update payment method, or view invoices in the Stripe billing portal.
                 </p>
               </div>
@@ -748,10 +748,26 @@
       
       const plan = data.plan || 'free';
       const subscription = data.subscription || {};
-      
-      if (plan !== 'free' && subscription.stripe_customer_id) {
+
+      const provider = subscription.stripe_customer_id
+        ? 'stripe'
+        : ((subscription.square_subscription_id || subscription.square_plan_variation_id) ? 'square' : null);
+
+      if (plan !== 'free' && provider) {
         hasSubEl.classList.remove('hidden');
         noSubEl.classList.add('hidden');
+
+        const manageBtn = document.getElementById('manage-billing-btn');
+        const helpText = document.getElementById('billing-help-text');
+        if (manageBtn) {
+          manageBtn.dataset.provider = provider;
+          manageBtn.textContent = provider === 'square' ? '❌ Cancel Subscription' : '⚙️ Manage Billing';
+        }
+        if (helpText) {
+          helpText.textContent = provider === 'square'
+            ? 'Cancel your subscription. Your access remains until the end of your billing period.'
+            : 'Cancel your subscription, update payment method, or view invoices in the Stripe billing portal.';
+        }
         
         // Plan name
         const planNames = {
@@ -764,7 +780,12 @@
         
         // Badge
         const badge = document.getElementById('plan-badge');
-        if (subscription.status === 'active') {
+        if (subscription.canceled_at && subscription.status === 'active') {
+          badge.textContent = 'Canceling';
+          badge.className = 'badge';
+          badge.style.background = 'var(--rose)';
+          badge.style.color = 'var(--charcoal)';
+        } else if (subscription.status === 'active') {
           badge.textContent = 'Active';
           badge.className = 'badge active';
         } else if (subscription.status === 'canceled') {
@@ -916,22 +937,65 @@
       btn.disabled = true;
       
       try {
-        const response = await fetch('/.netlify/functions/create-portal-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: currentUser.id,
-            returnUrl: window.location.href,
-          }),
-        });
-        
-        const data = await response.json();
-        
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error(data.error || 'Failed to open billing portal');
+        const subscription = userData?.subscription || {};
+        const provider = subscription.stripe_customer_id
+          ? 'stripe'
+          : ((subscription.square_subscription_id || subscription.square_plan_variation_id) ? 'square' : null);
+
+        if (provider === 'stripe') {
+          const response = await fetch('/.netlify/functions/create-portal-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: currentUser.id,
+              returnUrl: window.location.href,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (data.url) {
+            window.location.href = data.url;
+            return;
+          }
+
+          throw new Error(data.message || data.error || 'Failed to open billing portal');
         }
+
+        if (provider === 'square') {
+          const ok = confirm('Cancel your subscription? You will keep access until the end of your billing period.');
+          if (!ok) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+            return;
+          }
+
+          const { data: sessionData } = await supabaseClient.auth.getSession();
+          const accessToken = sessionData?.session?.access_token;
+
+          const response = await fetch('/.netlify/functions/cancel-subscription', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+            },
+            body: JSON.stringify({
+              userId: currentUser.id,
+              cancelAtPeriodEnd: true,
+            }),
+          });
+
+          const data = await response.json();
+          if (!response.ok || !data?.success) {
+            throw new Error(data?.message || data?.error || 'Failed to cancel subscription');
+          }
+
+          showMessage('✅ Subscription canceled.', 'success');
+          await loadUserData();
+          return;
+        }
+
+        throw new Error('No active subscription found');
       } catch (error) {
         console.error('Billing portal error:', error);
         showMessage(error.message || 'Failed to open billing portal.', 'error');

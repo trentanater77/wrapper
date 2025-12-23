@@ -13,6 +13,9 @@ const SQUARE_ENVIRONMENT = (process.env.SQUARE_ENVIRONMENT || 'production').toLo
 const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
 const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID;
 
+let cachedSquareLocationIds = null;
+let cachedSquareLocationIdsAtMs = 0;
+
 // Initialize Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -79,6 +82,30 @@ function squareRequest({ path, method, body }) {
   });
 }
 
+async function getSquareLocationIds() {
+  const now = Date.now();
+  if (Array.isArray(cachedSquareLocationIds) && now - cachedSquareLocationIdsAtMs < 5 * 60 * 1000) {
+    return cachedSquareLocationIds;
+  }
+
+  const ids = [];
+  if (SQUARE_LOCATION_ID) ids.push(SQUARE_LOCATION_ID);
+
+  try {
+    const resp = await squareRequest({ path: '/v2/locations', method: 'GET' });
+    const fromApi = Array.isArray(resp?.locations) ? resp.locations.map((l) => l?.id).filter(Boolean) : [];
+    for (const id of fromApi) {
+      if (!ids.includes(id)) ids.push(id);
+    }
+  } catch (e) {
+    // Keep fallback behavior if token cannot list locations.
+  }
+
+  cachedSquareLocationIds = ids;
+  cachedSquareLocationIdsAtMs = now;
+  return ids;
+}
+
 async function getSquareCustomer(customerId) {
   if (!customerId) return null;
   const resp = await squareRequest({
@@ -116,6 +143,7 @@ async function getSquareCustomerIdFromOrder(orderId) {
 }
 
 async function listSquareSubscriptions({ includeLocationFilter, cursor, limit }) {
+  const locationIds = includeLocationFilter ? await getSquareLocationIds().catch(() => []) : [];
   const query = {
     sort: {
       field: 'CREATED_AT',
@@ -123,19 +151,30 @@ async function listSquareSubscriptions({ includeLocationFilter, cursor, limit })
     },
   };
 
-  if (includeLocationFilter && SQUARE_LOCATION_ID) {
-    query.filter = { location_ids: [SQUARE_LOCATION_ID] };
+  if (includeLocationFilter && Array.isArray(locationIds) && locationIds.length) {
+    query.filter = { location_ids: locationIds };
   }
 
-  const resp = await squareRequest({
-    path: '/v2/subscriptions/search',
-    method: 'POST',
-    body: {
-      ...(query.filter ? { query } : { query }),
-      limit: Number(limit || 50),
-      ...(cursor ? { cursor } : {}),
-    },
-  });
+  let resp;
+  try {
+    resp = await squareRequest({
+      path: '/v2/subscriptions/search',
+      method: 'POST',
+      body: {
+        ...(query.filter ? { query } : { query }),
+        limit: Number(limit || 50),
+        ...(cursor ? { cursor } : {}),
+      },
+    });
+  } catch (e) {
+    console.error('❌ Square subscriptions.search failed', {
+      includeLocationFilter,
+      locationIdsCount: Array.isArray(locationIds) ? locationIds.length : 0,
+      cursor: cursor || null,
+      message: e?.message || String(e),
+    });
+    throw e;
+  }
 
   return {
     subscriptions: Array.isArray(resp?.subscriptions) ? resp.subscriptions : [],
@@ -310,10 +349,12 @@ async function lookupSquareCustomerIdByEmail(email) {
 async function findSquareSubscriptionForCustomer({ customerId, planVariationId, createdAfterIso }) {
   if (!customerId || !planVariationId) return null;
 
+  const locationIds = await getSquareLocationIds().catch(() => []);
+
   const listSubs = async ({ includeLocationFilter }) => {
     const filter = { customer_ids: [customerId] };
-    if (includeLocationFilter && SQUARE_LOCATION_ID) {
-      filter.location_ids = [SQUARE_LOCATION_ID];
+    if (includeLocationFilter && Array.isArray(locationIds) && locationIds.length) {
+      filter.location_ids = locationIds;
     }
 
     const resp = await squareRequest({
@@ -338,6 +379,12 @@ async function findSquareSubscriptionForCustomer({ customerId, planVariationId, 
   try {
     subs = await listSubs({ includeLocationFilter: true });
   } catch (e) {
+    console.error('❌ Square subscription search failed (with locations)', {
+      customerId,
+      planVariationId,
+      locationIdsCount: Array.isArray(locationIds) ? locationIds.length : 0,
+      message: e?.message || String(e),
+    });
     subs = [];
   }
 
@@ -345,6 +392,11 @@ async function findSquareSubscriptionForCustomer({ customerId, planVariationId, 
     try {
       subs = await listSubs({ includeLocationFilter: false });
     } catch (e) {
+      console.error('❌ Square subscription search failed (without locations)', {
+        customerId,
+        planVariationId,
+        message: e?.message || String(e),
+      });
       subs = [];
     }
   }

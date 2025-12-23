@@ -67,18 +67,25 @@ function squareRequest({ path, method, body }) {
       return;
     }
 
-    const payload = body ? JSON.stringify(body) : '';
+    const normalizedMethod = String(method || 'GET').toUpperCase();
+    const canHaveBody = normalizedMethod !== 'GET' && normalizedMethod !== 'HEAD';
+    const payload = canHaveBody && body ? JSON.stringify(body) : '';
 
     if (typeof fetch === 'function') {
-      fetch(url, {
-        method,
+      const fetchInit = {
+        method: normalizedMethod,
         headers: {
           'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
           'Square-Version': '2025-10-16',
         },
-        body: payload,
-      })
+      };
+
+      if (payload) {
+        fetchInit.body = payload;
+      }
+
+      fetch(url, fetchInit)
         .then(async (resp) => {
           const data = await resp.json().catch(() => null);
           if (!resp.ok) {
@@ -95,7 +102,7 @@ function squareRequest({ path, method, body }) {
     const req = https.request(
       url,
       {
-        method,
+        method: normalizedMethod,
         headers: {
           'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
@@ -124,7 +131,9 @@ function squareRequest({ path, method, body }) {
     );
 
     req.on('error', reject);
-    req.write(payload);
+    if (payload) {
+      req.write(payload);
+    }
     req.end();
   });
 }

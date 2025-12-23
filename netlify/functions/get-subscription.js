@@ -170,6 +170,12 @@ exports.handler = async function(event) {
   }
 
   try {
+    console.log('🔧 get-subscription', {
+      hasSquareAccessToken: Boolean(SQUARE_ACCESS_TOKEN),
+      context: process.env.CONTEXT,
+      commitRef: process.env.COMMIT_REF || null,
+    });
+
     // Get user ID from query params or body
     let userId;
     
@@ -199,21 +205,39 @@ exports.handler = async function(event) {
       if (subError.code !== 'PGRST116') throw subError;
     }
 
-    if (
-      SQUARE_ACCESS_TOKEN
-      && (!subscription || subscription.plan_type === 'free' || !subscription.square_subscription_id)
-    ) {
-      try {
-        const { data: pending } = await supabase
-          .from('square_pending_subscriptions')
-          .select('*')
-          .eq('user_id', userId)
-          .in('status', ['pending', 'activated'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+    let pending = null;
+    try {
+      const pendingResp = await supabase
+        .from('square_pending_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .in('status', ['pending', 'activated'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      pending = pendingResp?.data || null;
+    } catch (e) {
+      pending = null;
+    }
 
-        const planVariationId = pending?.square_plan_variation_id || null;
+    const pendingCreatedMs = pending?.created_at ? new Date(pending.created_at).getTime() : 0;
+    const pendingIsRecent = pendingCreatedMs && (Date.now() - pendingCreatedMs) < (24 * 60 * 60 * 1000);
+    const pendingPlanVarId = pending?.square_plan_variation_id || null;
+
+    const shouldSquareReconcile = Boolean(SQUARE_ACCESS_TOKEN)
+      && pendingIsRecent
+      && Boolean(pendingPlanVarId)
+      && (
+        !subscription
+        || subscription.plan_type === 'free'
+        || !subscription.square_subscription_id
+        || String(subscription.square_plan_variation_id || '') !== String(pendingPlanVarId)
+        || String(subscription.plan_type || '') !== String(pending?.plan_type || '')
+      );
+
+    if (shouldSquareReconcile) {
+      try {
+        const planVariationId = pendingPlanVarId;
         if (planVariationId) {
           const { data: authUser } = await supabase.auth.admin.getUserById(userId).catch(() => ({ data: null }));
           const email = authUser?.user?.email || null;
@@ -230,10 +254,14 @@ exports.handler = async function(event) {
             userId,
             hasPending: Boolean(pending?.id),
             pendingStatus: pending?.status || null,
+            pendingPlanType: pending?.plan_type || null,
             hasPlanVariationId: Boolean(planVariationId),
             hasOrderId: Boolean(pending?.square_order_id),
             hasEmail: Boolean(email),
             hasCustomerId: Boolean(customerId),
+            currentPlanType: subscription?.plan_type || null,
+            currentPlanVariationId: subscription?.square_plan_variation_id || null,
+            currentSquareSubscriptionId: subscription?.square_subscription_id || null,
           });
 
           const squareSub = customerId

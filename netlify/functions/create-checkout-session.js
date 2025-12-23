@@ -179,9 +179,10 @@ function extractFirstPhaseInfo(variationObj) {
     ? variationObj.subscription_plan_variation_data.phases
     : [];
   const first = phases[0] || null;
+  const phasePrice = first?.pricing?.price || null;
   return {
     cadence: first?.cadence || null,
-    recurring_price_money: first?.recurring_price_money || null,
+    price_money: phasePrice,
   };
 }
 
@@ -204,16 +205,19 @@ async function resolveSquareSubscriptionPlanVariationId({ candidateId, priceKey,
     method: 'GET',
   });
 
+  const fromPlan = Array.isArray(resp?.object?.subscription_plan_data?.subscription_plan_variations)
+    ? resp.object.subscription_plan_data.subscription_plan_variations
+    : [];
   const related = Array.isArray(resp?.related_objects) ? resp.related_objects : [];
-  const variations = related.filter((o) => o?.type === 'SUBSCRIPTION_PLAN_VARIATION' && o?.id);
+  const variations = [...fromPlan, ...related].filter((o) => o?.type === 'SUBSCRIPTION_PLAN_VARIATION' && o?.id);
 
   const summarized = variations.slice(0, 8).map((v) => {
-    const { cadence, recurring_price_money } = extractFirstPhaseInfo(v);
+    const { cadence, price_money } = extractFirstPhaseInfo(v);
     return {
       id: v.id,
       cadence,
-      amount: recurring_price_money?.amount,
-      currency: recurring_price_money?.currency,
+      amount: price_money?.amount,
+      currency: price_money?.currency,
     };
   });
 
@@ -226,8 +230,8 @@ async function resolveSquareSubscriptionPlanVariationId({ candidateId, priceKey,
   });
 
   const strongMatches = variations.filter((v) => {
-    const { cadence, recurring_price_money } = extractFirstPhaseInfo(v);
-    return squareCadenceMatchesBillingPeriod(cadence, billingPeriod) && squareMoneyEquals(recurring_price_money, priceMoney);
+    const { cadence, price_money } = extractFirstPhaseInfo(v);
+    return squareCadenceMatchesBillingPeriod(cadence, billingPeriod) && squareMoneyEquals(price_money, priceMoney);
   });
 
   const cadenceMatches = variations.filter((v) => {

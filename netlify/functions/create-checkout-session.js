@@ -179,7 +179,7 @@ function extractFirstPhaseInfo(variationObj) {
     ? variationObj.subscription_plan_variation_data.phases
     : [];
   const first = phases[0] || null;
-  const phasePrice = first?.recurring_price_money || first?.pricing?.price || null;
+  const phasePrice = first?.recurring_price_money || first?.pricing?.price_money || first?.pricing?.price || null;
   return {
     cadence: first?.cadence || null,
     price_money: phasePrice,

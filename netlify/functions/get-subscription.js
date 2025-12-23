@@ -79,6 +79,15 @@ function squareRequest({ path, method, body }) {
   });
 }
 
+async function getSquareCustomer(customerId) {
+  if (!customerId) return null;
+  const resp = await squareRequest({
+    path: `/v2/customers/${encodeURIComponent(customerId)}`,
+    method: 'GET',
+  });
+  return resp?.customer || null;
+}
+
 async function getSquareCustomerIdFromPayment(paymentId) {
   if (!paymentId) return null;
   const resp = await squareRequest({
@@ -104,6 +113,78 @@ async function getSquareCustomerIdFromOrder(orderId) {
 
   const fromPayment = await getSquareCustomerIdFromPayment(tenderPaymentId).catch(() => null);
   return fromPayment || null;
+}
+
+async function listSquareSubscriptions({ includeLocationFilter, cursor, limit }) {
+  const query = {
+    sort: {
+      field: 'CREATED_AT',
+      order: 'DESC',
+    },
+  };
+
+  if (includeLocationFilter && SQUARE_LOCATION_ID) {
+    query.filter = { location_ids: [SQUARE_LOCATION_ID] };
+  }
+
+  const resp = await squareRequest({
+    path: '/v2/subscriptions/search',
+    method: 'POST',
+    body: {
+      ...(query.filter ? { query } : { query }),
+      limit: Number(limit || 50),
+      ...(cursor ? { cursor } : {}),
+    },
+  });
+
+  return {
+    subscriptions: Array.isArray(resp?.subscriptions) ? resp.subscriptions : [],
+    cursor: resp?.cursor || null,
+  };
+}
+
+async function findSquareSubscriptionByPlanAndEmail({ planVariationId, userEmail, createdAfterIso }) {
+  if (!planVariationId || !userEmail) return null;
+
+  const createdAfterMs = createdAfterIso ? new Date(createdAfterIso).getTime() : 0;
+  const emailLower = String(userEmail).toLowerCase();
+
+  const scan = async (includeLocationFilter) => {
+    let cursor = null;
+    for (let page = 0; page < 5; page++) {
+      const resp = await listSquareSubscriptions({ includeLocationFilter, cursor, limit: 50 });
+      const subs = resp.subscriptions;
+      cursor = resp.cursor;
+
+      const candidates = subs
+        .filter((s) => {
+          if (!s?.id) return false;
+          if (String(s?.plan_variation_id || '') !== String(planVariationId)) return false;
+          const st = String(s?.status || '').toUpperCase();
+          if (st === 'CANCELED' || st === 'DEACTIVATED') return false;
+          const createdMs = s?.created_at ? new Date(s.created_at).getTime() : 0;
+          if (createdAfterMs && createdMs && createdMs < createdAfterMs) return false;
+          return true;
+        })
+        .slice(0, 20);
+
+      for (const sub of candidates) {
+        const custId = sub?.customer_id || null;
+        if (!custId) continue;
+        const cust = await getSquareCustomer(custId).catch(() => null);
+        const custEmail = String(cust?.email_address || '').toLowerCase();
+        if (custEmail && custEmail === emailLower) {
+          return sub;
+        }
+      }
+
+      if (!cursor) break;
+    }
+
+    return null;
+  };
+
+  return (await scan(true)) || (await scan(false));
 }
 
 async function lookupSquareCustomerIdByEmail(email) {
@@ -339,6 +420,14 @@ exports.handler = async function(event) {
             squareSub = customerId
               ? await findSquareSubscriptionForCustomer({ customerId, planVariationId, createdAfterIso }).catch(() => null)
               : null;
+          }
+
+          if (!squareSub?.id && email) {
+            squareSub = await findSquareSubscriptionByPlanAndEmail({
+              planVariationId,
+              userEmail: email,
+              createdAfterIso,
+            }).catch(() => null);
           }
 
           if (!squareSub?.id) {

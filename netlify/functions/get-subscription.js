@@ -79,6 +79,33 @@ function squareRequest({ path, method, body }) {
   });
 }
 
+async function getSquareCustomerIdFromPayment(paymentId) {
+  if (!paymentId) return null;
+  const resp = await squareRequest({
+    path: `/v2/payments/${encodeURIComponent(paymentId)}`,
+    method: 'GET',
+  });
+  return resp?.payment?.customer_id || null;
+}
+
+async function getSquareCustomerIdFromOrder(orderId) {
+  if (!orderId) return null;
+  const resp = await squareRequest({
+    path: `/v2/orders/${encodeURIComponent(orderId)}`,
+    method: 'GET',
+  });
+
+  const direct = resp?.order?.customer_id || null;
+  if (direct) return direct;
+
+  const tenders = Array.isArray(resp?.order?.tenders) ? resp.order.tenders : [];
+  const tenderPaymentId = tenders.find((t) => t?.payment_id)?.payment_id || null;
+  if (!tenderPaymentId) return null;
+
+  const fromPayment = await getSquareCustomerIdFromPayment(tenderPaymentId).catch(() => null);
+  return fromPayment || null;
+}
+
 async function lookupSquareCustomerIdByEmail(email) {
   if (!email) return null;
   const resp = await squareRequest({
@@ -191,13 +218,35 @@ exports.handler = async function(event) {
           const { data: authUser } = await supabase.auth.admin.getUserById(userId).catch(() => ({ data: null }));
           const email = authUser?.user?.email || null;
 
-          const customerId = (pending?.square_customer_id || null) || await lookupSquareCustomerIdByEmail(email).catch(() => null);
+          let customerId = (pending?.square_customer_id || null) || null;
+          if (!customerId && pending?.square_order_id) {
+            customerId = await getSquareCustomerIdFromOrder(pending.square_order_id).catch(() => null);
+          }
+          if (!customerId) {
+            customerId = await lookupSquareCustomerIdByEmail(email).catch(() => null);
+          }
+
+          console.log('🔎 Square subscription reconcile lookup', {
+            userId,
+            hasPending: Boolean(pending?.id),
+            pendingStatus: pending?.status || null,
+            hasPlanVariationId: Boolean(planVariationId),
+            hasOrderId: Boolean(pending?.square_order_id),
+            hasEmail: Boolean(email),
+            hasCustomerId: Boolean(customerId),
+          });
+
           const squareSub = customerId
             ? await findSquareSubscriptionForCustomer({ customerId, planVariationId }).catch(() => null)
             : null;
 
           if (squareSub?.id) {
             const nowIso = new Date().toISOString();
+            console.log('✅ Square subscription reconciled', {
+              userId,
+              subscriptionId: squareSub.id,
+              planVariationId,
+            });
             await supabase
               .from('user_subscriptions')
               .upsert({

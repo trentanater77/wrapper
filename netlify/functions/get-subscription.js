@@ -9,6 +9,10 @@
 
 const { createClient } = require('@supabase/supabase-js');
 
+const SQUARE_ENVIRONMENT = (process.env.SQUARE_ENVIRONMENT || 'production').toLowerCase();
+const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
+const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID;
+
 // Initialize Supabase
 const supabase = createClient(
   process.env.SUPABASE_URL,
@@ -22,6 +26,115 @@ const headers = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Content-Type': 'application/json',
 };
+
+function getSquareApiBaseUrl() {
+  return SQUARE_ENVIRONMENT === 'sandbox'
+    ? 'https://connect.squareupsandbox.com'
+    : 'https://connect.squareup.com';
+}
+
+function squareRequest({ path, method, body }) {
+  return new Promise((resolve, reject) => {
+    const baseUrl = getSquareApiBaseUrl();
+    const url = `${baseUrl}${path}`;
+
+    if (!SQUARE_ACCESS_TOKEN) {
+      reject(new Error('SQUARE_ACCESS_TOKEN not configured'));
+      return;
+    }
+
+    const normalizedMethod = String(method || 'GET').toUpperCase();
+    const canHaveBody = normalizedMethod !== 'GET' && normalizedMethod !== 'HEAD';
+    const payload = canHaveBody && body ? JSON.stringify(body) : '';
+
+    if (typeof fetch !== 'function') {
+      reject(new Error('fetch not available'));
+      return;
+    }
+
+    const fetchInit = {
+      method: normalizedMethod,
+      headers: {
+        'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+        'Content-Type': 'application/json',
+        'Square-Version': '2025-10-16',
+      },
+    };
+
+    if (payload) {
+      fetchInit.body = payload;
+    }
+
+    fetch(url, fetchInit)
+      .then(async (resp) => {
+        const data = await resp.json().catch(() => null);
+        if (!resp.ok) {
+          const message = data?.errors?.[0]?.detail || data?.errors?.[0]?.code || `Square error (${resp.status})`;
+          throw new Error(message);
+        }
+        return data;
+      })
+      .then(resolve)
+      .catch(reject);
+  });
+}
+
+async function lookupSquareCustomerIdByEmail(email) {
+  if (!email) return null;
+  const resp = await squareRequest({
+    path: '/v2/customers/search',
+    method: 'POST',
+    body: {
+      query: {
+        filter: {
+          email_address: { fuzzy: String(email) },
+        },
+        sort: {
+          field: 'CREATED_AT',
+          order: 'DESC',
+        },
+      },
+      limit: 10,
+    },
+  });
+
+  const customers = Array.isArray(resp?.customers) ? resp.customers : [];
+  const exact = customers.find((c) => String(c?.email_address || '').toLowerCase() === String(email).toLowerCase());
+  return (exact || customers[0])?.id || null;
+}
+
+async function findSquareSubscriptionForCustomer({ customerId, planVariationId }) {
+  if (!customerId || !planVariationId) return null;
+
+  const filter = { customer_ids: [customerId] };
+  if (SQUARE_LOCATION_ID) {
+    filter.location_ids = [SQUARE_LOCATION_ID];
+  }
+
+  const resp = await squareRequest({
+    path: '/v2/subscriptions/search',
+    method: 'POST',
+    body: {
+      query: {
+        filter,
+        sort: {
+          field: 'CREATED_AT',
+          order: 'DESC',
+        },
+      },
+      limit: 50,
+    },
+  });
+
+  const subs = Array.isArray(resp?.subscriptions) ? resp.subscriptions : [];
+  const candidates = subs.filter((s) => {
+    if (!s?.id) return false;
+    if (String(s?.plan_variation_id || '') !== String(planVariationId)) return false;
+    const st = String(s?.status || '').toUpperCase();
+    return st === 'ACTIVE' || st === 'PAUSED' || st === 'PENDING';
+  });
+  return candidates[0] || null;
+}
 
 exports.handler = async function(event) {
   // Handle CORS preflight
@@ -49,7 +162,7 @@ exports.handler = async function(event) {
     }
 
     // Get subscription
-    const { data: subscription, error: subError } = await supabase
+    let { data: subscription, error: subError } = await supabase
       .from('user_subscriptions')
       .select('*')
       .eq('user_id', userId)
@@ -57,6 +170,68 @@ exports.handler = async function(event) {
 
     if (subError) {
       if (subError.code !== 'PGRST116') throw subError;
+    }
+
+    if (
+      SQUARE_ACCESS_TOKEN
+      && (!subscription || subscription.plan_type === 'free' || !subscription.square_subscription_id)
+    ) {
+      try {
+        const { data: pending } = await supabase
+          .from('square_pending_subscriptions')
+          .select('*')
+          .eq('user_id', userId)
+          .in('status', ['pending', 'activated'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const planVariationId = pending?.square_plan_variation_id || null;
+        if (planVariationId) {
+          const { data: authUser } = await supabase.auth.admin.getUserById(userId).catch(() => ({ data: null }));
+          const email = authUser?.user?.email || null;
+
+          const customerId = (pending?.square_customer_id || null) || await lookupSquareCustomerIdByEmail(email).catch(() => null);
+          const squareSub = customerId
+            ? await findSquareSubscriptionForCustomer({ customerId, planVariationId }).catch(() => null)
+            : null;
+
+          if (squareSub?.id) {
+            const nowIso = new Date().toISOString();
+            await supabase
+              .from('user_subscriptions')
+              .upsert({
+                user_id: userId,
+                square_customer_id: customerId,
+                square_subscription_id: squareSub.id,
+                square_plan_variation_id: planVariationId,
+                square_subscription_status: squareSub.status || null,
+                plan_type: pending.plan_type,
+                billing_period: pending.billing_period,
+                status: 'active',
+                updated_at: nowIso,
+              }, { onConflict: 'user_id' });
+
+            await supabase
+              .from('square_pending_subscriptions')
+              .update({
+                status: 'activated',
+                square_subscription_id: squareSub.id,
+                activated_at: nowIso,
+              })
+              .eq('id', pending.id);
+
+            const refreshed = await supabase
+              .from('user_subscriptions')
+              .select('*')
+              .eq('user_id', userId)
+              .maybeSingle();
+            subscription = refreshed?.data || subscription;
+          }
+        }
+      } catch (e) {
+        console.error('❌ Square subscription reconcile failed:', e);
+      }
     }
 
     // Get gem balance

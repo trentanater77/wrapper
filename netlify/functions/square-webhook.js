@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const https = require('https');
 const { createClient } = require('@supabase/supabase-js');
 
 const supabase = createClient(
@@ -9,6 +10,133 @@ const supabase = createClient(
 );
 
 const SQUARE_WEBHOOK_SIGNATURE_KEY = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+
+const SQUARE_ENVIRONMENT = (process.env.SQUARE_ENVIRONMENT || 'production').toLowerCase();
+const SQUARE_ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN;
+const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID;
+
+function getSquareApiBaseUrl() {
+  return SQUARE_ENVIRONMENT === 'sandbox'
+    ? 'https://connect.squareupsandbox.com'
+    : 'https://connect.squareup.com';
+}
+
+function squareRequest({ path, method, body }) {
+  return new Promise((resolve, reject) => {
+    const baseUrl = getSquareApiBaseUrl();
+    const url = `${baseUrl}${path}`;
+
+    if (!SQUARE_ACCESS_TOKEN) {
+      reject(new Error('SQUARE_ACCESS_TOKEN not configured'));
+      return;
+    }
+
+    const normalizedMethod = String(method || 'GET').toUpperCase();
+    const canHaveBody = normalizedMethod !== 'GET' && normalizedMethod !== 'HEAD';
+    const payload = canHaveBody && body ? JSON.stringify(body) : '';
+
+    if (typeof fetch === 'function') {
+      const fetchInit = {
+        method: normalizedMethod,
+        headers: {
+          'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Square-Version': '2025-10-16',
+        },
+      };
+
+      if (payload) {
+        fetchInit.body = payload;
+      }
+
+      fetch(url, fetchInit)
+        .then(async (resp) => {
+          const data = await resp.json().catch(() => null);
+          if (!resp.ok) {
+            const message = data?.errors?.[0]?.detail || data?.errors?.[0]?.code || `Square error (${resp.status})`;
+            throw new Error(message);
+          }
+          return data;
+        })
+        .then(resolve)
+        .catch(reject);
+      return;
+    }
+
+    const req = https.request(
+      url,
+      {
+        method: normalizedMethod,
+        headers: {
+          'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Square-Version': '2025-10-16',
+        },
+      },
+      (res) => {
+        let raw = '';
+        res.on('data', (c) => (raw += c));
+        res.on('end', () => {
+          let data = null;
+          try {
+            data = raw ? JSON.parse(raw) : null;
+          } catch (e) {
+            reject(e);
+            return;
+          }
+          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(data);
+          } else {
+            const message = data?.errors?.[0]?.detail || data?.errors?.[0]?.code || `Square error (${res.statusCode})`;
+            reject(new Error(message));
+          }
+        });
+      }
+    );
+
+    req.on('error', reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+async function findSquareSubscriptionForCustomer({ customerId, planVariationId }) {
+  if (!customerId || !planVariationId) return null;
+
+  const filter = { customer_ids: [customerId] };
+  if (SQUARE_LOCATION_ID) {
+    filter.location_ids = [SQUARE_LOCATION_ID];
+  }
+
+  const resp = await squareRequest({
+    path: '/v2/subscriptions/search',
+    method: 'POST',
+    body: {
+      query: {
+        filter,
+        sort: {
+          field: 'CREATED_AT',
+          order: 'DESC',
+        },
+      },
+      limit: 50,
+    },
+  });
+
+  const subs = Array.isArray(resp?.subscriptions) ? resp.subscriptions : [];
+  const candidates = subs.filter((s) => {
+    if (!s?.id) return false;
+    if (s?.plan_variation_id !== planVariationId) return false;
+    const st = String(s?.status || '').toUpperCase();
+    return st === 'ACTIVE' || st === 'PAUSED' || st === 'PENDING';
+  });
+
+  return candidates[0] || null;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function timingSafeEqual(a, b) {
   const aBuf = Buffer.from(a);
@@ -431,13 +559,78 @@ exports.handler = async function (event) {
               status,
             });
 
+            let resolvedSubscriptionId = pendingSub.square_subscription_id || null;
+            let resolvedSquareSubscriptionStatus = null;
+            if (!resolvedSubscriptionId && paymentCustomerId && pendingSub.square_plan_variation_id) {
+              for (let attempt = 1; attempt <= 3; attempt++) {
+                const sub = await findSquareSubscriptionForCustomer({
+                  customerId: paymentCustomerId,
+                  planVariationId: pendingSub.square_plan_variation_id,
+                }).catch((e) => {
+                  console.error('❌ Square subscription search failed after payment', {
+                    orderId,
+                    paymentId,
+                    attempt,
+                    message: e?.message || String(e),
+                  });
+                  return null;
+                });
+
+                resolvedSubscriptionId = sub?.id || null;
+                resolvedSquareSubscriptionStatus = sub?.status || null;
+
+                console.log('🔎 Square subscription resolve after payment', {
+                  orderId,
+                  paymentId,
+                  attempt,
+                  hasCustomerId: Boolean(paymentCustomerId),
+                  planVariationId: pendingSub.square_plan_variation_id,
+                  found: Boolean(resolvedSubscriptionId),
+                });
+
+                if (resolvedSubscriptionId) break;
+                if (attempt < 3) await sleep(750);
+              }
+            }
+
+            let existingSquareSubscriptionId = null;
+            let existingSquareSubscriptionStatus = null;
+            const { data: existingUserSubForUser } = await supabase
+              .from('user_subscriptions')
+              .select('square_subscription_id, square_subscription_status')
+              .eq('user_id', pendingSub.user_id)
+              .maybeSingle();
+
+            if (existingUserSubForUser?.square_subscription_id) {
+              existingSquareSubscriptionId = existingUserSubForUser.square_subscription_id;
+            }
+            if (existingUserSubForUser?.square_subscription_status) {
+              existingSquareSubscriptionStatus = existingUserSubForUser.square_subscription_status;
+            }
+
+            const finalSquareSubscriptionId = resolvedSubscriptionId || existingSquareSubscriptionId;
+            const finalSquareSubscriptionStatus = resolvedSquareSubscriptionStatus || existingSquareSubscriptionStatus;
+
+            if (!finalSquareSubscriptionId) {
+              console.log('⚠️ Square subscription checkout payment completed but no subscription id was found; not activating user subscription', {
+                userId: pendingSub.user_id,
+                orderId,
+                paymentId,
+                hasCustomerId: Boolean(paymentCustomerId),
+                planVariationId: pendingSub.square_plan_variation_id,
+                status,
+              });
+              return;
+            }
+
             const { error: subUpsertErr } = await supabase
               .from('user_subscriptions')
               .upsert({
                 user_id: pendingSub.user_id,
                 square_customer_id: paymentCustomerId || null,
-                square_subscription_id: pendingSub.square_subscription_id || null,
+                square_subscription_id: finalSquareSubscriptionId,
                 square_plan_variation_id: pendingSub.square_plan_variation_id,
+                square_subscription_status: finalSquareSubscriptionStatus,
                 plan_type: pendingSub.plan_type,
                 billing_period: pendingSub.billing_period,
                 status: 'active',
@@ -450,6 +643,7 @@ exports.handler = async function (event) {
               .from('square_pending_subscriptions')
               .update({
                 status: 'activated',
+                square_subscription_id: resolvedSubscriptionId,
                 activated_at: nowIso,
               })
               .eq('id', pendingSub.id);

@@ -450,8 +450,8 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
         price_money: priceMoney,
         location_id: SQUARE_LOCATION_ID,
       },
-      subscription_plan_id: resolvedPlanVariationId,
       checkout_options: {
+        subscription_plan_id: resolvedPlanVariationId,
         redirect_url: successUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/pricing.html?success=true`,
       },
       pre_populated_data: {
@@ -464,7 +464,9 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
     priceKey,
     hasPaymentLinkId: Boolean(resp?.payment_link?.id),
     hasOrderId: Boolean(resp?.payment_link?.order_id),
-    hasSubscriptionPlanId: Boolean(resp?.payment_link?.subscription_plan_id),
+    hasCheckoutOptions: Boolean(resp?.payment_link?.checkout_options),
+    sentSubscriptionPlanId: resolvedPlanVariationId,
+    echoedSubscriptionPlanId: resp?.payment_link?.checkout_options?.subscription_plan_id || null,
   });
 
   const paymentLinkId = resp?.payment_link?.id;

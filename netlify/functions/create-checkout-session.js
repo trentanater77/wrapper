@@ -813,13 +813,25 @@ exports.handler = async function(event) {
 
   } catch (error) {
     console.error('❌ Checkout session error:', error);
+
+    const message = error?.message || String(error);
+    if (message.includes('uses RELATIVE pricing') && message.includes('has no phase price_money')) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Square subscription plan misconfigured',
+          message,
+        }),
+      };
+    }
     
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
         error: 'Failed to create checkout session',
-        message: error.message 
+        message,
       }),
     };
   }

@@ -267,6 +267,36 @@ async function resolveSquareSubscriptionPlanVariationId({ candidateId, priceKey,
   const chosenPhaseCount = chosenPhases.length;
   const chosenPhaseInfo = chosenObj ? extractFirstPhaseInfo(chosenObj) : { cadence: null, price_money: null };
 
+  const chosenPhaseDetails = chosenPhases.map((p) => {
+    const money = p?.recurring_price_money || p?.pricing?.price_money || p?.pricing?.price || null;
+    return {
+      ordinal: p?.ordinal,
+      cadence: p?.cadence,
+      periods: p?.periods,
+      pricingType: p?.pricing?.type || null,
+      hasPricingPriceMoney: Boolean(p?.pricing?.price_money),
+      hasRecurringPriceMoney: Boolean(p?.recurring_price_money),
+      amount: money?.amount,
+      currency: money?.currency,
+    };
+  });
+
+  const hasRelativePricing = chosenPhases.some((p) => String(p?.pricing?.type || '').toUpperCase() === 'RELATIVE');
+
+  if (!chosenPhaseInfo.price_money) {
+    console.log('🔬 Square chosen variation phase details', {
+      priceKey,
+      variationId: chosen,
+      phases: chosenPhaseDetails,
+    });
+  }
+
+  if (!chosenPhaseInfo.price_money && hasRelativePricing) {
+    throw new Error(
+      `Square subscription plan variation ${chosen} for ${priceKey} uses RELATIVE pricing and has no phase price_money. Checkout subscription checkout requires STATIC pricing (a phase price_money/recurring_price_money). Create a new SubscriptionPlanVariation with STATIC pricing and update the SQUARE_PLANVAR_* env var.`
+    );
+  }
+
   if (chosenPhaseCount > 2) {
     throw new Error(`Square subscription plan variation for ${priceKey} has ${chosenPhaseCount} phases. Checkout API only supports one paid phase (or one free phase and one paid phase).`);
   }
@@ -494,24 +524,32 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
   });
   const idempotencyKey = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
 
+  const paymentLinkRequestBody = {
+    idempotency_key: idempotencyKey,
+    quick_pay: {
+      name: `${planType}_${billingPeriod || 'subscription'}`,
+      price_money: effectivePriceMoney,
+      location_id: SQUARE_LOCATION_ID,
+    },
+    checkout_options: {
+      subscription_plan_id: resolvedPlanVariationId,
+      redirect_url: successUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/pricing.html?success=true`,
+    },
+    pre_populated_data: {
+      buyer_email: userEmail,
+    },
+  };
+
+  console.log('🧾 Square payment link request', {
+    priceKey,
+    quickPayPriceMoney: paymentLinkRequestBody.quick_pay.price_money,
+    checkoutOptions: paymentLinkRequestBody.checkout_options,
+  });
+
   const resp = await squareRequest({
     path: '/v2/online-checkout/payment-links',
     method: 'POST',
-    body: {
-      idempotency_key: idempotencyKey,
-      quick_pay: {
-        name: `${planType}_${billingPeriod || 'subscription'}`,
-        price_money: effectivePriceMoney,
-        location_id: SQUARE_LOCATION_ID,
-      },
-      checkout_options: {
-        subscription_plan_id: resolvedPlanVariationId,
-        redirect_url: successUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/pricing.html?success=true`,
-      },
-      pre_populated_data: {
-        buyer_email: userEmail,
-      },
-    },
+    body: paymentLinkRequestBody,
   });
 
   console.log('🔎 Square create payment link response', {

@@ -187,6 +187,47 @@ async function findSquareSubscriptionByPlanAndEmail({ planVariationId, userEmail
   return (await scan(true)) || (await scan(false));
 }
 
+async function findSquareSubscriptionByEmail({ userEmail, createdAfterIso }) {
+  if (!userEmail) return null;
+
+  const createdAfterMs = createdAfterIso ? new Date(createdAfterIso).getTime() : 0;
+  const emailLower = String(userEmail).toLowerCase();
+
+  const scan = async (includeLocationFilter) => {
+    let cursor = null;
+    for (let page = 0; page < 6; page++) {
+      const resp = await listSquareSubscriptions({ includeLocationFilter, cursor, limit: 50 });
+      const subs = resp.subscriptions;
+      cursor = resp.cursor;
+
+      const candidates = subs.filter((s) => {
+        if (!s?.id) return false;
+        const st = String(s?.status || '').toUpperCase();
+        if (st === 'CANCELED' || st === 'DEACTIVATED') return false;
+        const createdMs = s?.created_at ? new Date(s.created_at).getTime() : 0;
+        if (createdAfterMs && createdMs && createdMs < createdAfterMs) return false;
+        return true;
+      }).slice(0, 30);
+
+      for (const sub of candidates) {
+        const custId = sub?.customer_id || null;
+        if (!custId) continue;
+        const cust = await getSquareCustomer(custId).catch(() => null);
+        const custEmail = String(cust?.email_address || '').toLowerCase();
+        if (custEmail && custEmail === emailLower) {
+          return sub;
+        }
+      }
+
+      if (!cursor) break;
+    }
+
+    return null;
+  };
+
+  return (await scan(true)) || (await scan(false));
+}
+
 async function lookupSquareCustomerIdByEmail(email) {
   if (!email) return null;
   const resp = await squareRequest({
@@ -423,8 +464,24 @@ exports.handler = async function(event) {
           }
 
           if (!squareSub?.id && email) {
+            console.log('🔎 Square subscription reconcile: scanning subscriptions by plan variation + customer email', {
+              userId,
+              planVariationId,
+              createdAfterIso,
+            });
             squareSub = await findSquareSubscriptionByPlanAndEmail({
               planVariationId,
+              userEmail: email,
+              createdAfterIso,
+            }).catch(() => null);
+          }
+
+          if (!squareSub?.id && email) {
+            console.log('🔎 Square subscription reconcile: scanning subscriptions by customer email (no plan filter)', {
+              userId,
+              createdAfterIso,
+            });
+            squareSub = await findSquareSubscriptionByEmail({
               userEmail: email,
               createdAfterIso,
             }).catch(() => null);

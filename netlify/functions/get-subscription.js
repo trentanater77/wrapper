@@ -187,6 +187,61 @@ async function findSquareSubscriptionByPlanAndEmail({ planVariationId, userEmail
   return (await scan(true)) || (await scan(false));
 }
 
+async function findSquareSubscriptionByPlanVariationRecent({ planVariationId, createdAfterIso }) {
+  if (!planVariationId) return null;
+
+  const createdAfterMs = createdAfterIso ? new Date(createdAfterIso).getTime() : 0;
+
+  const scan = async (includeLocationFilter) => {
+    let cursor = null;
+    const matches = [];
+
+    for (let page = 0; page < 6; page++) {
+      const resp = await listSquareSubscriptions({ includeLocationFilter, cursor, limit: 50 });
+      const subs = resp.subscriptions;
+      cursor = resp.cursor;
+
+      for (const s of subs) {
+        if (!s?.id) continue;
+        if (String(s?.plan_variation_id || '') !== String(planVariationId)) continue;
+        const st = String(s?.status || '').toUpperCase();
+        if (st === 'CANCELED' || st === 'DEACTIVATED') continue;
+        const createdMs = s?.created_at ? new Date(s.created_at).getTime() : 0;
+        if (createdAfterMs && createdMs && createdMs < createdAfterMs) continue;
+        matches.push(s);
+      }
+
+      if (!cursor) break;
+    }
+
+    if (!matches.length) return null;
+
+    matches.sort((a, b) => {
+      const aMs = a?.created_at ? new Date(a.created_at).getTime() : 0;
+      const bMs = b?.created_at ? new Date(b.created_at).getTime() : 0;
+      return bMs - aMs;
+    });
+
+    if (matches.length > 1) {
+      console.log('⚠️ Multiple Square subscriptions match plan variation; choosing newest', {
+        planVariationId,
+        createdAfterIso,
+        count: matches.length,
+        chosen: {
+          id: matches[0]?.id || null,
+          status: matches[0]?.status || null,
+          customer_id: matches[0]?.customer_id || null,
+          created_at: matches[0]?.created_at || null,
+        },
+      });
+    }
+
+    return matches[0] || null;
+  };
+
+  return (await scan(true)) || (await scan(false));
+}
+
 async function findSquareSubscriptionByEmail({ userEmail, createdAfterIso }) {
   if (!userEmail) return null;
 
@@ -483,6 +538,18 @@ exports.handler = async function(event) {
             });
             squareSub = await findSquareSubscriptionByEmail({
               userEmail: email,
+              createdAfterIso,
+            }).catch(() => null);
+          }
+
+          if (!squareSub?.id) {
+            console.log('🔎 Square subscription reconcile: scanning subscriptions by plan variation only (no customer/email match)', {
+              userId,
+              planVariationId,
+              createdAfterIso,
+            });
+            squareSub = await findSquareSubscriptionByPlanVariationRecent({
+              planVariationId,
               createdAfterIso,
             }).catch(() => null);
           }

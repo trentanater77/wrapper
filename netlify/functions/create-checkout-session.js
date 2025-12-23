@@ -179,7 +179,7 @@ function extractFirstPhaseInfo(variationObj) {
     ? variationObj.subscription_plan_variation_data.phases
     : [];
   const first = phases[0] || null;
-  const phasePrice = first?.pricing?.price || null;
+  const phasePrice = first?.recurring_price_money || first?.pricing?.price || null;
   return {
     cadence: first?.cadence || null,
     price_money: phasePrice,
@@ -241,12 +241,48 @@ async function resolveSquareSubscriptionPlanVariationId({ candidateId, priceKey,
 
   const chosen = (strongMatches[0] || cadenceMatches[0] || variations[0])?.id || null;
   const chosenType = chosen ? await getSquareCatalogObjectType(chosen) : null;
+  let chosenObj = chosen ? (variations.find((v) => v?.id === chosen) || null) : null;
+
+  if (chosen && chosenType === 'SUBSCRIPTION_PLAN_VARIATION') {
+    try {
+      const variationResp = await squareRequest({
+        path: `/v2/catalog/object/${encodeURIComponent(chosen)}`,
+        method: 'GET',
+      });
+      if (variationResp?.object?.type === 'SUBSCRIPTION_PLAN_VARIATION') {
+        chosenObj = variationResp.object;
+      }
+    } catch (e) {
+      console.error('❌ Failed to fetch Square subscription plan variation details', {
+        priceKey,
+        variationId: chosen,
+        message: e?.message || String(e),
+      });
+    }
+  }
+
+  const chosenPhases = Array.isArray(chosenObj?.subscription_plan_variation_data?.phases)
+    ? chosenObj.subscription_plan_variation_data.phases
+    : [];
+  const chosenPhaseCount = chosenPhases.length;
+  const chosenPhaseInfo = chosenObj ? extractFirstPhaseInfo(chosenObj) : { cadence: null, price_money: null };
+
+  if (chosenPhaseCount > 2) {
+    throw new Error(`Square subscription plan variation for ${priceKey} has ${chosenPhaseCount} phases. Checkout API only supports one paid phase (or one free phase and one paid phase).`);
+  }
 
   if (!chosen || chosenType !== 'SUBSCRIPTION_PLAN_VARIATION') {
     throw new Error(`Square subscription plan variation could not be resolved for ${priceKey}. Set SQUARE_PLANVAR_* env vars to SUBSCRIPTION_PLAN_VARIATION IDs.`);
   }
 
-  return { resolvedId: chosen, candidateType: type, resolvedType: chosenType };
+  return {
+    resolvedId: chosen,
+    candidateType: type,
+    resolvedType: chosenType,
+    resolvedPhaseCadence: chosenPhaseInfo.cadence,
+    resolvedPhasePriceMoney: chosenPhaseInfo.price_money,
+    resolvedPhaseCount: chosenPhaseCount,
+  };
 }
 
 // Subscription Price IDs from environment variables
@@ -424,19 +460,37 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
     throw new Error(`Square subscription price not configured for ${priceKey}`);
   }
 
-  const { resolvedId: resolvedPlanVariationId, candidateType, resolvedType } = await resolveSquareSubscriptionPlanVariationId({
+  const {
+    resolvedId: resolvedPlanVariationId,
+    candidateType,
+    resolvedType,
+    resolvedPhaseCadence,
+    resolvedPhasePriceMoney,
+    resolvedPhaseCount,
+  } = await resolveSquareSubscriptionPlanVariationId({
     candidateId: planVariationId,
     priceKey,
     billingPeriod,
     priceMoney,
   });
 
+  const effectivePriceMoney = (resolvedPhasePriceMoney && resolvedPhasePriceMoney.amount != null && resolvedPhasePriceMoney.currency)
+    ? resolvedPhasePriceMoney
+    : priceMoney;
+
   console.log('🔎 Square subscription plan id type', {
     priceKey,
     hasPlanVariationId: Boolean(planVariationId),
+    candidateId: planVariationId,
     type: candidateType,
     resolvedType,
+    resolvedId: resolvedPlanVariationId,
     resolvedChanged: resolvedPlanVariationId !== planVariationId,
+    resolvedPhaseCount,
+    resolvedPhaseCadence,
+    configuredPriceMoney: priceMoney,
+    resolvedPhasePriceMoney: resolvedPhasePriceMoney || null,
+    effectivePriceMoney,
   });
   const idempotencyKey = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
 
@@ -447,7 +501,7 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
       idempotency_key: idempotencyKey,
       quick_pay: {
         name: `${planType}_${billingPeriod || 'subscription'}`,
-        price_money: priceMoney,
+        price_money: effectivePriceMoney,
         location_id: SQUARE_LOCATION_ID,
       },
       checkout_options: {

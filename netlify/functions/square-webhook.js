@@ -746,15 +746,52 @@ exports.handler = async function (event) {
           }
         }
 
+        let pendingMatch = null;
+        if (!targetUserId && planVariationId) {
+          const cutoffIso = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+          const { data: pendingCandidates, error: pendingCandidatesErr } = await supabase
+            .from('square_pending_subscriptions')
+            .select('id, user_id, plan_type, billing_period, created_at')
+            .eq('square_plan_variation_id', planVariationId)
+            .in('status', ['pending', 'activated'])
+            .gte('created_at', cutoffIso)
+            .order('created_at', { ascending: false })
+            .limit(2);
+
+          if (pendingCandidatesErr) throw pendingCandidatesErr;
+
+          if (Array.isArray(pendingCandidates) && pendingCandidates.length === 1) {
+            pendingMatch = pendingCandidates[0];
+            targetUserId = pendingMatch.user_id;
+          } else if (Array.isArray(pendingCandidates) && pendingCandidates.length > 1) {
+            console.log(`Multiple pending Square subscriptions found for plan_variation_id=${planVariationId}; not linking subscription_id=${subscriptionId}`);
+          }
+        }
+
         if (!targetUserId) {
           console.log(`No user_subscriptions row found yet for square_subscription_id=${subscriptionId}; will link on invoice.payment_made`);
         } else {
+          if (pendingMatch?.plan_type) update.plan_type = pendingMatch.plan_type;
+          if (pendingMatch?.billing_period) update.billing_period = pendingMatch.billing_period;
           const { error: upErr } = await supabase
             .from('user_subscriptions')
-            .update(update)
-            .eq('user_id', targetUserId);
+            .upsert({
+              user_id: targetUserId,
+              ...update,
+            }, { onConflict: 'user_id' });
 
           if (upErr) throw upErr;
+
+          if (pendingMatch?.id) {
+            await supabase
+              .from('square_pending_subscriptions')
+              .update({
+                status: 'activated',
+                square_subscription_id: subscriptionId,
+                activated_at: new Date().toISOString(),
+              })
+              .eq('id', pendingMatch.id);
+          }
         }
       }
     }
@@ -832,6 +869,69 @@ exports.handler = async function (event) {
                 activated_at: new Date().toISOString(),
               })
               .eq('id', pending.id);
+          }
+        } else if (subscriptionId) {
+          const { data: pendingBySub, error: pendingBySubErr } = await supabase
+            .from('square_pending_subscriptions')
+            .select('*')
+            .eq('square_subscription_id', subscriptionId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (pendingBySubErr) throw pendingBySubErr;
+
+          if (pendingBySub?.user_id) {
+            userId = pendingBySub.user_id;
+            planType = pendingBySub.plan_type;
+            billingPeriod = pendingBySub.billing_period;
+            squarePlanVariationId = pendingBySub.square_plan_variation_id;
+          } else {
+            let subPlanVarId = null;
+            try {
+              const subResp = await squareRequest({
+                path: `/v2/subscriptions/${encodeURIComponent(subscriptionId)}`,
+                method: 'GET',
+              });
+              subPlanVarId = subResp?.subscription?.plan_variation_id || null;
+            } catch (e) {
+              console.error('❌ Failed to retrieve Square subscription during invoice link', {
+                invoiceId,
+                subscriptionId,
+                message: e?.message || String(e),
+              });
+            }
+
+            if (subPlanVarId) {
+              const cutoffIso = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+              const { data: pendingByPlanVar, error: pendingByPlanVarErr } = await supabase
+                .from('square_pending_subscriptions')
+                .select('*')
+                .eq('square_plan_variation_id', subPlanVarId)
+                .in('status', ['pending', 'activated'])
+                .is('square_subscription_id', null)
+                .gte('created_at', cutoffIso)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+              if (pendingByPlanVarErr) throw pendingByPlanVarErr;
+              if (pendingByPlanVar?.user_id) {
+                userId = pendingByPlanVar.user_id;
+                planType = pendingByPlanVar.plan_type;
+                billingPeriod = pendingByPlanVar.billing_period;
+                squarePlanVariationId = pendingByPlanVar.square_plan_variation_id;
+
+                await supabase
+                  .from('square_pending_subscriptions')
+                  .update({
+                    status: 'activated',
+                    square_subscription_id: subscriptionId,
+                    activated_at: new Date().toISOString(),
+                  })
+                  .eq('id', pendingByPlanVar.id);
+              }
+            }
           }
         }
 

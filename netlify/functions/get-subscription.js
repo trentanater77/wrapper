@@ -144,12 +144,7 @@ async function getSquareCustomerIdFromOrder(orderId) {
 
 async function listSquareSubscriptions({ includeLocationFilter, cursor, limit }) {
   const locationIds = includeLocationFilter ? await getSquareLocationIds().catch(() => []) : [];
-  const query = {
-    sort: {
-      field: 'CREATED_AT',
-      order: 'DESC',
-    },
-  };
+  const query = {};
 
   if (includeLocationFilter && Array.isArray(locationIds) && locationIds.length) {
     query.filter = { location_ids: locationIds };
@@ -176,8 +171,15 @@ async function listSquareSubscriptions({ includeLocationFilter, cursor, limit })
     throw e;
   }
 
+  const subscriptions = Array.isArray(resp?.subscriptions) ? resp.subscriptions : [];
+  subscriptions.sort((a, b) => {
+    const aMs = a?.created_at ? new Date(a.created_at).getTime() : 0;
+    const bMs = b?.created_at ? new Date(b.created_at).getTime() : 0;
+    return bMs - aMs;
+  });
+
   return {
-    subscriptions: Array.isArray(resp?.subscriptions) ? resp.subscriptions : [],
+    subscriptions,
     cursor: resp?.cursor || null,
   };
 }
@@ -363,10 +365,6 @@ async function findSquareSubscriptionForCustomer({ customerId, planVariationId, 
       body: {
         query: {
           filter,
-          sort: {
-            field: 'CREATED_AT',
-            order: 'DESC',
-          },
         },
         limit: 50,
       },
@@ -400,6 +398,12 @@ async function findSquareSubscriptionForCustomer({ customerId, planVariationId, 
       subs = [];
     }
   }
+
+  subs.sort((a, b) => {
+    const aMs = a?.created_at ? new Date(a.created_at).getTime() : 0;
+    const bMs = b?.created_at ? new Date(b.created_at).getTime() : 0;
+    return bMs - aMs;
+  });
 
   const summarized = subs.slice(0, 10).map((s) => ({
     id: s?.id || null,

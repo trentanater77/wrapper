@@ -114,16 +114,17 @@ async function findSquareSubscriptionForCustomer({ customerId, planVariationId }
     body: {
       query: {
         filter,
-        sort: {
-          field: 'CREATED_AT',
-          order: 'DESC',
-        },
       },
       limit: 50,
     },
   });
 
   const subs = Array.isArray(resp?.subscriptions) ? resp.subscriptions : [];
+  subs.sort((a, b) => {
+    const aMs = a?.created_at ? new Date(a.created_at).getTime() : 0;
+    const bMs = b?.created_at ? new Date(b.created_at).getTime() : 0;
+    return bMs - aMs;
+  });
   const candidates = subs.filter((s) => {
     if (!s?.id) return false;
     if (s?.plan_variation_id !== planVariationId) return false;

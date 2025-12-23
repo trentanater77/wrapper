@@ -155,6 +155,96 @@ async function getSquareCatalogObjectType(objectId) {
   }
 }
 
+function squareCadenceMatchesBillingPeriod(cadence, billingPeriod) {
+  const c = String(cadence || '').toUpperCase();
+  const p = String(billingPeriod || '').toLowerCase();
+  if (!c || !p) return false;
+  if (p === 'monthly') {
+    return c.includes('MONTH') || c.includes('THIRTY') || c.includes('30');
+  }
+  if (p === 'yearly') {
+    return c.includes('YEAR') || c.includes('ANNUAL') || c.includes('365') || c.includes('TWELVE');
+  }
+  return false;
+}
+
+function squareMoneyEquals(a, b) {
+  if (!a || !b) return false;
+  return String(a.currency || '').toUpperCase() === String(b.currency || '').toUpperCase()
+    && Number(a.amount) === Number(b.amount);
+}
+
+function extractFirstPhaseInfo(variationObj) {
+  const phases = Array.isArray(variationObj?.subscription_plan_variation_data?.phases)
+    ? variationObj.subscription_plan_variation_data.phases
+    : [];
+  const first = phases[0] || null;
+  return {
+    cadence: first?.cadence || null,
+    recurring_price_money: first?.recurring_price_money || null,
+  };
+}
+
+async function resolveSquareSubscriptionPlanVariationId({ candidateId, priceKey, billingPeriod, priceMoney }) {
+  const type = await getSquareCatalogObjectType(candidateId);
+  if (!type) {
+    return { resolvedId: candidateId, candidateType: null, resolvedType: null };
+  }
+
+  if (type === 'SUBSCRIPTION_PLAN_VARIATION') {
+    return { resolvedId: candidateId, candidateType: type, resolvedType: type };
+  }
+
+  if (type !== 'SUBSCRIPTION_PLAN') {
+    return { resolvedId: candidateId, candidateType: type, resolvedType: type };
+  }
+
+  const resp = await squareRequest({
+    path: `/v2/catalog/object/${encodeURIComponent(candidateId)}?include_related_objects=true`,
+    method: 'GET',
+  });
+
+  const related = Array.isArray(resp?.related_objects) ? resp.related_objects : [];
+  const variations = related.filter((o) => o?.type === 'SUBSCRIPTION_PLAN_VARIATION' && o?.id);
+
+  const summarized = variations.slice(0, 8).map((v) => {
+    const { cadence, recurring_price_money } = extractFirstPhaseInfo(v);
+    return {
+      id: v.id,
+      cadence,
+      amount: recurring_price_money?.amount,
+      currency: recurring_price_money?.currency,
+    };
+  });
+
+  console.log('🔎 Square subscription plan variation candidates', {
+    priceKey,
+    billingPeriod,
+    candidateType: type,
+    candidateCount: variations.length,
+    candidates: summarized,
+  });
+
+  const strongMatches = variations.filter((v) => {
+    const { cadence, recurring_price_money } = extractFirstPhaseInfo(v);
+    return squareCadenceMatchesBillingPeriod(cadence, billingPeriod) && squareMoneyEquals(recurring_price_money, priceMoney);
+  });
+
+  const cadenceMatches = variations.filter((v) => {
+    const { cadence } = extractFirstPhaseInfo(v);
+    return squareCadenceMatchesBillingPeriod(cadence, billingPeriod);
+  });
+
+  const chosen = (strongMatches[0] || cadenceMatches[0] || variations[0])?.id || null;
+  const chosenType = chosen ? await getSquareCatalogObjectType(chosen) : null;
+
+  if (!chosen || chosenType !== 'SUBSCRIPTION_PLAN_VARIATION') {
+    throw new Error(`Square subscription plan variation could not be resolved for ${priceKey}. Set SQUARE_PLANVAR_* env vars to SUBSCRIPTION_PLAN_VARIATION IDs.`);
+  }
+
+  return { resolvedId: chosen, candidateType: type, resolvedType: chosenType };
+}
+
 // Subscription Price IDs from environment variables
 const GENERATED_BILLING = loadGeneratedBillingConfig();
 const GENERATED_STRIPE_PRICES = GENERATED_BILLING.stripePrices || {};
@@ -322,20 +412,28 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
     throw new Error(`Square subscription plan variation not configured for ${priceKey}`);
   }
 
-  const planVarType = await getSquareCatalogObjectType(planVariationId);
-  console.log('🔎 Square subscription plan id type', {
-    priceKey,
-    hasPlanVariationId: Boolean(planVariationId),
-    type: planVarType,
-  });
+  const planType = getPlanTypeFromPriceKey(priceKey);
+  const billingPeriod = getBillingPeriodFromPriceKey(priceKey);
 
   const priceMoney = SQUARE_SUBSCRIPTION_PRICE_MONEY[priceKey];
   if (!priceMoney) {
     throw new Error(`Square subscription price not configured for ${priceKey}`);
   }
 
-  const planType = getPlanTypeFromPriceKey(priceKey);
-  const billingPeriod = getBillingPeriodFromPriceKey(priceKey);
+  const { resolvedId: resolvedPlanVariationId, candidateType, resolvedType } = await resolveSquareSubscriptionPlanVariationId({
+    candidateId: planVariationId,
+    priceKey,
+    billingPeriod,
+    priceMoney,
+  });
+
+  console.log('🔎 Square subscription plan id type', {
+    priceKey,
+    hasPlanVariationId: Boolean(planVariationId),
+    type: candidateType,
+    resolvedType,
+    resolvedChanged: resolvedPlanVariationId !== planVariationId,
+  });
   const idempotencyKey = (crypto.randomUUID ? crypto.randomUUID() : crypto.randomBytes(16).toString('hex'));
 
   const resp = await squareRequest({
@@ -348,7 +446,7 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
         price_money: priceMoney,
         location_id: SQUARE_LOCATION_ID,
       },
-      subscription_plan_id: planVariationId,
+      subscription_plan_id: resolvedPlanVariationId,
       checkout_options: {
         redirect_url: successUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/pricing.html?success=true`,
       },
@@ -379,7 +477,7 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
       user_id: userId,
       plan_type: planType,
       billing_period: billingPeriod,
-      square_plan_variation_id: planVariationId,
+      square_plan_variation_id: resolvedPlanVariationId,
       square_payment_link_id: paymentLinkId,
       square_order_id: orderId,
       idempotency_key: idempotencyKey,

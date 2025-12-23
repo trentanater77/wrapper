@@ -129,6 +129,23 @@ function squareRequest({ path, method, body }) {
   });
 }
 
+async function getSquareCatalogObjectType(objectId) {
+  if (!objectId) return null;
+  try {
+    const resp = await squareRequest({
+      path: `/v2/catalog/object/${encodeURIComponent(objectId)}`,
+      method: 'GET',
+    });
+    return resp?.object?.type || null;
+  } catch (e) {
+    console.error('❌ Failed to retrieve Square catalog object type', {
+      hasObjectId: Boolean(objectId),
+      message: e?.message || String(e),
+    });
+    return null;
+  }
+}
+
 // Subscription Price IDs from environment variables
 const GENERATED_BILLING = loadGeneratedBillingConfig();
 const GENERATED_STRIPE_PRICES = GENERATED_BILLING.stripePrices || {};
@@ -296,6 +313,13 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
     throw new Error(`Square subscription plan variation not configured for ${priceKey}`);
   }
 
+  const planVarType = await getSquareCatalogObjectType(planVariationId);
+  console.log('🔎 Square subscription plan id type', {
+    priceKey,
+    hasPlanVariationId: Boolean(planVariationId),
+    type: planVarType,
+  });
+
   const priceMoney = SQUARE_SUBSCRIPTION_PRICE_MONEY[priceKey];
   if (!priceMoney) {
     throw new Error(`Square subscription price not configured for ${priceKey}`);
@@ -323,6 +347,13 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
         buyer_email: userEmail,
       },
     },
+  });
+
+  console.log('🔎 Square create payment link response', {
+    priceKey,
+    hasPaymentLinkId: Boolean(resp?.payment_link?.id),
+    hasOrderId: Boolean(resp?.payment_link?.order_id),
+    hasSubscriptionPlanId: Boolean(resp?.payment_link?.subscription_plan_id),
   });
 
   const paymentLinkId = resp?.payment_link?.id;

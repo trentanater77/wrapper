@@ -1954,7 +1954,7 @@
       </div>
 
       <!-- Live Chat and Sparks Sidebar -->
-      <div class="lg:col-span-1 space-y-6">
+      <div id="participant-sidebar" class="lg:col-span-1 space-y-6">
         
         <!-- RED ROOM POT DISPLAY (Visible to all in Red Rooms) -->
         <div id="red-room-pot-panel" class="hidden bg-gradient-to-br from-red-600 to-red-800 rounded-2xl shadow-lg border-2 border-red-400 overflow-hidden">
@@ -2303,7 +2303,7 @@
                   </div>
                   <div class="text-main-red">
                     <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 01-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
                     </svg>
                   </div>
                 </div>
@@ -2478,7 +2478,7 @@
       </div>
 
       <!-- Spectator Sidebar (1/4 width) -->
-      <div class="lg:col-span-1 space-y-4">
+      <div id="spectator-sidebar" class="lg:col-span-1 space-y-4">
         
         <!-- RED ROOM POT DISPLAY FOR SPECTATORS -->
         <div id="spectator-red-room-pot-panel" class="hidden bg-gradient-to-br from-red-600 to-red-800 rounded-2xl shadow-lg border-2 border-red-400 overflow-hidden">
@@ -6099,7 +6099,7 @@ async function initializeApp() {
     try {
       const sphereId = extractSphereId(roomUrl);
       if (sphereId) {
-        const response = await fetch(`/.netlify/functions/manage-room?roomId=${sphereId}`);
+        const response = await fetch(`/.netlify/functions/manage-room?roomId=${encodeURIComponent(sphereId)}`);
         if (response.ok) {
           const roomData = await response.json();
           const roomRecord = roomData?.room || roomData;
@@ -6568,12 +6568,17 @@ async function initializeApp() {
     });
 
     if (!isSpectator) {
-      // Fetch user's plan to determine timer duration
-      const { plan, limitMinutes } = await fetchUserSubscriptionForTimer();
-      const timerDurationSeconds = limitMinutes * 60;
-      console.log(`⏱️ User plan: ${plan}, timer duration: ${limitMinutes} minutes`);
-      
       const serverNow = getServerNow();
+
+      const { plan, limitMinutes, expiresAtMs } = await fetchUserSubscriptionForTimer();
+      let timerDurationSeconds = limitMinutes * 60;
+      if (typeof expiresAtMs === 'number') {
+        timerDurationSeconds = Math.max(0, Math.ceil((expiresAtMs - serverNow) / 1000));
+      }
+
+      const effectiveMinutes = Math.ceil(timerDurationSeconds / 60);
+      console.log(`⏱️ User plan: ${plan}, timer duration: ${effectiveMinutes} minutes`);
+      
       const urlParams = new URLSearchParams(window.location.search);
       const isHostFromUrl = urlParams.get('host') === 'true';
       const hostDisplayName = window.currentUserData?.displayName || userName || 'Host';
@@ -6586,10 +6591,17 @@ async function initializeApp() {
           if (current && typeof current.startedAt === 'number' && typeof current.durationSeconds === 'number') {
             const expiresAt = current.startedAt + current.durationSeconds * 1000;
             if (expiresAt > serverNow + 1000) {
-              return current; // Keep existing timer and host
+              if (typeof expiresAtMs === 'number') {
+                const driftMs = Math.abs(expiresAt - expiresAtMs);
+                if (driftMs <= 120000) {
+                  return current;
+                }
+              } else {
+                return current; // Keep existing timer and host
+              }
             }
           }
-          console.log(`⏱️ Starting new shared timer for this room (${limitMinutes} min)`);
+          console.log(`⏱️ Starting new shared timer for this room (${effectiveMinutes} min)`);
           return {
             startedAt: firebase.database.ServerValue.TIMESTAMP,
             durationSeconds: timerDurationSeconds,
@@ -6603,7 +6615,7 @@ async function initializeApp() {
           if (error) {
             console.error('❌ Timer synchronization error:', error);
           } else if (committed) {
-            console.log(`✅ Timer synchronized for room (${limitMinutes} min) - you are the host`);
+            console.log(`✅ Timer synchronized for room (${effectiveMinutes} min) - you are the host`);
           } else {
             console.log('ℹ️ Timer already active, using existing value');
           }
@@ -6623,6 +6635,26 @@ async function initializeApp() {
     }
   }
   
+  async function fetchCreatorRoomEndsAtMs(roomId) {
+    if (!roomId) return null;
+    try {
+      const response = await fetch(`/.netlify/functions/manage-room?roomId=${encodeURIComponent(roomId)}`);
+      if (!response.ok) {
+        return null;
+      }
+      const data = await response.json();
+      const roomRecord = data?.room || data;
+      const endsAt = roomRecord?.ends_at;
+      if (!endsAt) return null;
+      const endsAtMs = typeof endsAt === 'number' ? endsAt : new Date(endsAt).getTime();
+      if (!Number.isFinite(endsAtMs)) return null;
+      return endsAtMs;
+    } catch (error) {
+      console.error('❌ Error fetching creator room ends_at:', error);
+      return null;
+    }
+  }
+
   // Fetch subscription specifically for timer (called early in flow)
   async function fetchUserSubscriptionForTimer() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -6630,10 +6662,15 @@ async function initializeApp() {
     const urlDuration = parseInt(urlParams.get('duration'), 10);
     const roomType = urlParams.get('roomType');
     
-    // Creator room hosts have unlimited time (24 hours effectively)
     if (roomType === 'creator' && isHost) {
-      console.log('⭐ Creator room host - using extended timer (24 hours)');
-      return { plan: 'creator_host', limitMinutes: 1440 }; // 24 hours
+      const roomIdFromUrl = urlParams.get('room') || extractSphereId(roomUrl);
+      const endsAtMs = await fetchCreatorRoomEndsAtMs(roomIdFromUrl);
+      if (typeof endsAtMs === 'number') {
+        const remainingSeconds = Math.max(0, Math.ceil((endsAtMs - getServerNow()) / 1000));
+        const remainingMinutes = Math.ceil(remainingSeconds / 60);
+        console.log(`⭐ Creator room host - using room ends_at timer (${remainingMinutes} min remaining)`);
+        return { plan: 'creator_host', limitMinutes: remainingMinutes, expiresAtMs: endsAtMs };
+      }
     }
     
     // For hosts, check URL duration first (set by room creation page based on their plan)
@@ -6651,7 +6688,7 @@ async function initializeApp() {
     }
     
     try {
-      const response = await fetch(`/.netlify/functions/get-subscription?userId=${userId}`);
+      const response = await fetch(`/.netlify/functions/get-subscription?userId=${encodeURIComponent(userId)}`);
       if (!response.ok) {
         return { plan: 'free', limitMinutes: 60 };
       }
@@ -16407,14 +16444,57 @@ function ensureSpectatorTracksForParticipant(participant) {
   // Generate guest session ID for queue tracking
   function getGuestSessionId() {
     if (!roomTypeState.guestSessionId) {
-      let storedId = sessionStorage.getItem('creatorQueueSessionId');
-      if (!storedId) {
-        storedId = 'guest-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 8);
-        sessionStorage.setItem('creatorQueueSessionId', storedId);
+      let storedId = null;
+      try {
+        storedId = sessionStorage.getItem('creatorQueueSessionId');
+      } catch (e) {
+        storedId = null;
+      }
+      if (!storedId || typeof storedId !== 'string' || storedId.length < 6) {
+        const rand = (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : (Math.random().toString(36).slice(2) + '-' + Date.now().toString(36));
+        storedId = 'guest-' + rand;
+        try {
+          sessionStorage.setItem('creatorQueueSessionId', storedId);
+        } catch (e) {
+        }
       }
       roomTypeState.guestSessionId = storedId;
     }
     return roomTypeState.guestSessionId;
+  }
+
+  function placeCreatorQueuePanel() {
+    const queuePanel = document.getElementById('creator-queue-panel');
+    if (!queuePanel) return;
+
+    const participantSidebar = document.getElementById('participant-sidebar');
+    const spectatorSidebar = document.getElementById('spectator-sidebar');
+    const targetSidebar = isSpectator ? spectatorSidebar : participantSidebar;
+    if (!targetSidebar) return;
+
+    if (queuePanel.parentElement !== targetSidebar) {
+      if (isSpectator) {
+        targetSidebar.insertBefore(queuePanel, targetSidebar.firstChild);
+      } else {
+        targetSidebar.appendChild(queuePanel);
+      }
+    }
+  }
+
+  function setQueueMonetizationDisabled(disabled) {
+    const ids = ['buy-gems-btn', 'paid-slot-5-btn', 'paid-slot-10-btn', 'boost-queue-btn'];
+    ids.forEach((id) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.disabled = !!disabled;
+      if (disabled) {
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    });
   }
   
   // Initialize Creator Room
@@ -16431,6 +16511,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     const queuePanel = document.getElementById('creator-queue-panel');
     if (queuePanel) queuePanel.classList.remove('hidden');
+
+    placeCreatorQueuePanel();
     
     roomTypeState.isHost = isHostParam;
     
@@ -16444,6 +16526,7 @@ function ensureSpectatorTracksForParticipant(participant) {
     } else {
       if (hostControls) hostControls.classList.add('hidden');
       if (joinQueueSection) joinQueueSection.classList.remove('hidden');
+      setQueueMonetizationDisabled(false);
     }
     
     // If user joined with mode=queue, automatically add them to the queue
@@ -16480,16 +16563,19 @@ function ensureSpectatorTracksForParticipant(participant) {
     const guestSessionId = getGuestSessionId();
     
     try {
-      let url = `/.netlify/functions/manage-queue?roomId=${sphereId}`;
+      const params = new URLSearchParams();
+      params.set('roomId', sphereId);
       if (currentUserId) {
-        url += `&userId=${currentUserId}`;
+        params.set('userId', currentUserId);
       } else {
-        url += `&guestSessionId=${guestSessionId}`;
+        params.set('guestSessionId', guestSessionId);
+      }
+      if (roomTypeState.isHost && currentUserId) {
+        params.set('autoAdvance', '1');
+        params.set('hostId', currentUserId);
       }
 
-      if (roomTypeState.isHost && currentUserId) {
-        url += `&autoAdvance=1&hostId=${currentUserId}`;
-      }
+      const url = `/.netlify/functions/manage-queue?${params.toString()}`;
       
       // Log refresh request details for first 3 refreshes
       if (queueRefreshCount <= 3) {
@@ -16695,6 +16781,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (notInQueue) notInQueue.classList.remove('hidden');
     if (inQueue) inQueue.classList.add('hidden');
     if (isActive) isActive.classList.add('hidden');
+
+    setQueueMonetizationDisabled(false);
   }
   
   // Show UI for in queue
@@ -16708,6 +16796,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (inQueue) inQueue.classList.remove('hidden');
     if (isActive) isActive.classList.add('hidden');
     if (positionEl) positionEl.textContent = position;
+
+    setQueueMonetizationDisabled(false);
   }
   
   // Show UI for active challenger and enable their media
@@ -16721,6 +16811,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (notInQueue) notInQueue.classList.add('hidden');
     if (inQueue) inQueue.classList.add('hidden');
     if (isActive) isActive.classList.remove('hidden');
+
+    setQueueMonetizationDisabled(true);
     
     // Spectators connect with canPublish=false, so we need to RECONNECT with participant permissions
     try {
@@ -16788,6 +16880,8 @@ function ensureSpectatorTracksForParticipant(participant) {
           participantLayout.style.display = 'grid';
           console.log('✅ Shown participant-layout');
         }
+
+        placeCreatorQueuePanel();
         
         // Show participant video elements
         const remoteVideoEl = document.getElementById('remote-video');
@@ -16905,6 +16999,9 @@ function ensureSpectatorTracksForParticipant(participant) {
         spectatorLayout.classList.remove('hidden');
         spectatorLayout.style.display = 'block';
       }
+
+      placeCreatorQueuePanel();
+      setQueueMonetizationDisabled(false);
       
       // Update role badge
       const roleBadge = document.getElementById('role-badge');

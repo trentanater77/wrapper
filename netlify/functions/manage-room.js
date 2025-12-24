@@ -26,6 +26,58 @@ function generateInviteCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
+function getControlApiBaseUrl() {
+  return (process.env.CONTROL_API_BASE_URL || process.env.LIVEKIT_CONTROL_API_BASE_URL || '').replace(/\/$/, '');
+}
+
+function getControlApiKey() {
+  return process.env.CONTROL_API_KEY || process.env.LIVEKIT_CONTROL_API_KEY || '';
+}
+
+async function stopActiveRecording({ recordingId, roomName, roomUrl }) {
+  const baseUrl = getControlApiBaseUrl();
+  const apiKey = getControlApiKey();
+  if (!baseUrl || !apiKey || !recordingId) return { attempted: false };
+
+  try {
+    const response = await fetch(`${baseUrl}/recordings/stop`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+      },
+      body: JSON.stringify({ recordingId, roomName, roomUrl }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      console.warn('⚠️ Failed to stop recording:', response.status, response.statusText, errorText);
+      return { attempted: true, ok: false };
+    }
+
+    return { attempted: true, ok: true };
+  } catch (error) {
+    console.warn('⚠️ Failed to stop recording (exception):', error.message);
+    return { attempted: true, ok: false };
+  }
+}
+
+async function clearCreatorRoomQueue(roomId, endedAt) {
+  if (!roomId) return;
+  try {
+    await supabase
+      .from('room_queue')
+      .update({
+        status: 'left',
+        ended_at: endedAt,
+      })
+      .eq('room_id', roomId)
+      .in('status', ['waiting', 'active']);
+  } catch (error) {
+    console.warn('⚠️ Failed to clear creator room queue:', error.message);
+  }
+}
+
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };
@@ -88,12 +140,40 @@ exports.handler = async function(event) {
         }
         
         if (isEnded || isExpired || isStale) {
+          const endedAt = new Date().toISOString();
+
           // Mark as ended if not already
           if (!isEnded) {
-            await supabase
+            const isCreator = data.room_type === 'creator' || data.is_creator_room === true;
+            if (isCreator && isExpired) {
+              await clearCreatorRoomQueue(roomId, endedAt);
+              if (data.active_recording_id) {
+                await stopActiveRecording({
+                  recordingId: data.active_recording_id,
+                  roomName: roomId,
+                  roomUrl: roomId,
+                });
+              }
+            }
+
+            const fullUpdate = await supabase
               .from('active_rooms')
-              .update({ status: 'ended', ended_at: new Date().toISOString() })
+              .update({
+                status: 'ended',
+                ended_at: endedAt,
+                ended_reason: isExpired ? 'expired' : isStale ? 'abandoned' : 'ended',
+                ended_by: null,
+                queue_cleared_at: isCreator ? endedAt : null,
+                recording_stopped_at: data.active_recording_id ? endedAt : null,
+              })
               .eq('room_id', roomId);
+
+            if (fullUpdate.error) {
+              await supabase
+                .from('active_rooms')
+                .update({ status: 'ended', ended_at: endedAt })
+                .eq('room_id', roomId);
+            }
           }
           
           return {
@@ -124,6 +204,18 @@ exports.handler = async function(event) {
       const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString();
       
       console.log('🧹 Running expired room cleanup (Jeff Bezos approved™)...');
+
+      let expiredCreatorRooms = [];
+      try {
+        const { data: expiredCreatorData } = await supabase
+          .from('active_rooms')
+          .select('room_id, active_recording_id')
+          .eq('status', 'live')
+          .eq('room_type', 'creator')
+          .not('ends_at', 'is', null)
+          .lt('ends_at', now);
+        expiredCreatorRooms = expiredCreatorData || [];
+      } catch (e) {}
       
       // Cleanup 1: Mark rooms past their ends_at as ended
       const cleanup1 = await supabase
@@ -133,6 +225,31 @@ exports.handler = async function(event) {
         .not('ends_at', 'is', null)
         .lt('ends_at', now);
       console.log('🧹 Cleanup 1 (past ends_at):', cleanup1.error ? cleanup1.error.message : 'OK');
+
+      if (expiredCreatorRooms.length > 0) {
+        for (const room of expiredCreatorRooms) {
+          const endedAt = now;
+          await clearCreatorRoomQueue(room.room_id, endedAt);
+          if (room.active_recording_id) {
+            await stopActiveRecording({
+              recordingId: room.active_recording_id,
+              roomName: room.room_id,
+              roomUrl: room.room_id,
+            });
+          }
+
+          const updateResult = await supabase
+            .from('active_rooms')
+            .update({
+              ended_reason: 'expired',
+              ended_by: null,
+              queue_cleared_at: endedAt,
+              recording_stopped_at: room.active_recording_id ? endedAt : null,
+            })
+            .eq('room_id', room.room_id);
+          void updateResult;
+        }
+      }
       
       // Cleanup 2: Mark old rooms without ends_at as ended (> 1 hour old)
       // EXCLUDE Creator rooms - they only end when host ends them (up to 8 hours)
@@ -363,6 +480,7 @@ exports.handler = async function(event) {
           roomId, hostId, hostName, hostAvatar,
           roomType, topic, description, coverImageUrl, isPublic,
           durationMinutes,
+          sessionDurationMinutes,
           // Creator room specific fields
           isCreatorRoom,
           challengerTimeLimit,
@@ -438,20 +556,19 @@ exports.handler = async function(event) {
           };
         }
 
-        const duration = durationMinutes || 60;
+        let duration = parseInt(sessionDurationMinutes ?? durationMinutes ?? 60, 10) || 60;
         const inviteCode = generateInviteCode();
 
         // Determine if this is a creator room
         const effectiveRoomType = roomType || 'red';
         const effectiveIsCreatorRoom = isCreatorRoom || effectiveRoomType === 'creator';
 
-        // Creator rooms don't have an ends_at - they only end when host ends them
-        // Other rooms expire after their duration
-        let endsAt = null;
-        if (!effectiveIsCreatorRoom) {
-          endsAt = new Date(Date.now() + duration * 60 * 1000).toISOString();
+        if (effectiveIsCreatorRoom && ![60, 120, 180].includes(duration)) {
+          duration = 60;
         }
-        console.log(`📅 Room ends_at: ${endsAt || 'null (creator room - no auto-end)'}`);
+
+        let endsAt = new Date(Date.now() + duration * 60 * 1000).toISOString();
+        console.log(`📅 Room ends_at: ${endsAt}`);
 
         let { data, error } = await supabase
           .from('active_rooms')
@@ -474,11 +591,21 @@ exports.handler = async function(event) {
             invite_code: inviteCode,
             // Creator room specific fields
             is_creator_room: effectiveIsCreatorRoom,
+            session_duration_minutes: effectiveIsCreatorRoom ? duration : null,
             challenger_time_limit: effectiveIsCreatorRoom ? (challengerTimeLimit || null) : null,
             max_queue_size: effectiveIsCreatorRoom ? (maxQueueSize || null) : null,
             current_challenger_id: null,
             current_challenger_name: null,
             current_challenger_started_at: null,
+            current_challenger_queue_id: null,
+            current_challenger_time_limit_seconds: null,
+            current_challenger_expires_at: null,
+            ended_reason: null,
+            ended_by: null,
+            queue_cleared_at: null,
+            active_recording_id: null,
+            recording_started_at: null,
+            recording_stopped_at: null,
           }, { onConflict: 'room_id' })
           .select()
           .single();
@@ -488,7 +615,7 @@ exports.handler = async function(event) {
           console.log(`⚠️ Database error: ${error.code} - ${error.message}`);
           
           // Check if it's a missing column error (cover_image_url not migrated yet)
-          if (error.code === '42703' || error.message?.includes('column') || error.message?.includes('cover_image_url')) {
+          if (error.code === '42703' || error.message?.includes('column') || error.message?.includes('cover_image_url') || error.message?.includes('session_duration_minutes')) {
             console.log(`⚠️ Missing column - trying without cover_image_url`);
             
             // Retry without cover_image_url
@@ -701,7 +828,7 @@ exports.handler = async function(event) {
       }
 
       case 'end': {
-        const { roomId, hostId } = body;
+        const { roomId, hostId, reason } = body;
 
         if (!roomId) {
           return {
@@ -713,16 +840,84 @@ exports.handler = async function(event) {
 
         const endedAt = new Date().toISOString();
 
-        // End in active_rooms
-        const { error } = await supabase
+        let room = null;
+        try {
+          const { data: roomData, error: roomError } = await supabase
+            .from('active_rooms')
+            .select('host_id, room_type, is_creator_room, active_recording_id')
+            .eq('room_id', roomId)
+            .single();
+          if (roomError) throw roomError;
+          room = roomData;
+        } catch (error) {
+          const { error: minimalEndError } = await supabase
+            .from('active_rooms')
+            .update({
+              status: 'ended',
+              ended_at: endedAt,
+            })
+            .eq('room_id', roomId);
+
+          if (minimalEndError) throw minimalEndError;
+
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ success: true, warning: 'Room ended (migration pending)' }),
+          };
+        }
+
+        if (room && hostId && room.host_id !== hostId) {
+          return {
+            statusCode: 403,
+            headers,
+            body: JSON.stringify({ error: 'Only the host can end the room' }),
+          };
+        }
+
+        const isCreator = room?.room_type === 'creator' || room?.is_creator_room === true;
+        if (isCreator) {
+          await clearCreatorRoomQueue(roomId, endedAt);
+          if (room?.active_recording_id) {
+            await stopActiveRecording({
+              recordingId: room.active_recording_id,
+              roomName: roomId,
+              roomUrl: roomId,
+            });
+          }
+        }
+
+        const endedReason = typeof reason === 'string' && reason.trim() ? reason.trim() : 'host_ended';
+        const endedBy = hostId || null;
+
+        const fullEnd = await supabase
           .from('active_rooms')
-          .update({ 
+          .update({
             status: 'ended',
-            ended_at: endedAt
+            ended_at: endedAt,
+            ended_reason: endedReason,
+            ended_by: endedBy,
+            queue_cleared_at: isCreator ? endedAt : null,
+            current_challenger_id: null,
+            current_challenger_name: null,
+            current_challenger_started_at: null,
+            current_challenger_queue_id: null,
+            current_challenger_time_limit_seconds: null,
+            current_challenger_expires_at: null,
+            recording_stopped_at: room?.active_recording_id ? endedAt : null,
           })
           .eq('room_id', roomId);
 
-        if (error) throw error;
+        if (fullEnd.error) {
+          const { error: minimalEndError } = await supabase
+            .from('active_rooms')
+            .update({
+              status: 'ended',
+              ended_at: endedAt,
+            })
+            .eq('room_id', roomId);
+          if (minimalEndError) throw minimalEndError;
+        }
 
         // Also end in forum_rooms if this was a forum room
         try {

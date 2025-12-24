@@ -1351,6 +1351,14 @@
         <label class="form-label">Creator Room Settings</label>
         <div style="background: var(--rose); padding: var(--space-md); border-radius: var(--radius-lg);">
           <div style="margin-bottom: var(--space-sm);">
+            <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Session Duration</label>
+            <select id="creator-session-duration" class="form-input" style="padding: 8px;">
+              <option value="60">60 minutes</option>
+              <option value="120">120 minutes</option>
+              <option value="180">180 minutes</option>
+            </select>
+          </div>
+          <div style="margin-bottom: var(--space-sm);">
             <label style="font-size: 0.8rem; font-weight: bold; display: block; margin-bottom: 4px;">Time per Challenger (optional)</label>
             <select id="challenger-time-limit" class="form-input" style="padding: 8px;">
               <option value="">No limit</option>
@@ -1754,10 +1762,16 @@
       // Get creator room settings if applicable
       let challengerTimeLimit = null;
       let maxQueueSize = null;
+      let sessionDurationMinutes = null;
       
       if (selectedRoomType === 'creator') {
+        const sessionDurationSelect = document.getElementById('creator-session-duration');
         const timeLimitSelect = document.getElementById('challenger-time-limit');
         const queueSizeSelect = document.getElementById('max-queue-size');
+
+        if (sessionDurationSelect && sessionDurationSelect.value) {
+          sessionDurationMinutes = parseInt(sessionDurationSelect.value);
+        }
         
         if (timeLimitSelect && timeLimitSelect.value) {
           challengerTimeLimit = parseInt(timeLimitSelect.value);
@@ -1790,6 +1804,7 @@
             coverImageUrl: coverImageUrl,
             isPublic: isPublic,
             durationMinutes: planLimits.durationMinutes,
+            sessionDurationMinutes,
             userPlan: userPlan,
             // Creator room specific
             isCreatorRoom: selectedRoomType === 'creator',
@@ -1801,8 +1816,11 @@
         const data = await response.json();
         
         if (data.success) {
+          const effectiveDuration = selectedRoomType === 'creator'
+            ? (sessionDurationMinutes || 60)
+            : planLimits.durationMinutes;
           // Redirect to the room as host with plan info
-          const roomUrl = `/index.html?room=${roomId}&mode=participant&roomType=${selectedRoomType}&topic=${encodeURIComponent(topic)}&host=true&duration=${planLimits.durationMinutes}`;
+          const roomUrl = `/index.html?room=${roomId}&mode=participant&roomType=${selectedRoomType}&topic=${encodeURIComponent(topic)}&host=true&duration=${effectiveDuration}`;
           window.location.href = roomUrl;
         } else {
           throw new Error(data.error || 'Failed to create room');

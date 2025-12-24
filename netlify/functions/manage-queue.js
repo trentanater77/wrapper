@@ -953,7 +953,7 @@ exports.handler = async function(event) {
       }
 
       case 'buy-slot': {
-        const { userId, minutes } = body;
+        const { userId, minutes, slotMinutes } = body;
         if (!userId) {
           return {
             statusCode: 400,
@@ -962,8 +962,8 @@ exports.handler = async function(event) {
           };
         }
 
-        const slotMinutes = safeInt(minutes, 0);
-        if (![5, 10].includes(slotMinutes)) {
+        const resolvedSlotMinutes = safeInt(typeof minutes !== 'undefined' ? minutes : slotMinutes, 0);
+        if (![5, 10].includes(resolvedSlotMinutes)) {
           return {
             statusCode: 400,
             headers,
@@ -994,7 +994,7 @@ exports.handler = async function(event) {
           };
         }
 
-        const price = PAID_SLOT_PRICES[slotMinutes];
+        const price = PAID_SLOT_PRICES[resolvedSlotMinutes];
 
         let entry = null;
         try {
@@ -1075,9 +1075,9 @@ exports.handler = async function(event) {
               queue_position: nextPosition,
               status: 'waiting',
               paid_gems: price,
-              paid_minutes: slotMinutes,
+              paid_minutes: resolvedSlotMinutes,
               paid_purchased_at: now,
-              time_limit_seconds: slotMinutes * 60,
+              time_limit_seconds: resolvedSlotMinutes * 60,
             })
             .select()
             .single();
@@ -1090,9 +1090,9 @@ exports.handler = async function(event) {
               .from('room_queue')
               .update({
                 paid_gems: price,
-                paid_minutes: slotMinutes,
+                paid_minutes: resolvedSlotMinutes,
                 paid_purchased_at: now,
-                time_limit_seconds: slotMinutes * 60,
+                time_limit_seconds: resolvedSlotMinutes * 60,
               })
               .eq('id', entry.id);
           } catch (e) {
@@ -1100,7 +1100,7 @@ exports.handler = async function(event) {
               .from('room_queue')
               .update({
                 paid_gems: price,
-                paid_minutes: slotMinutes,
+                paid_minutes: resolvedSlotMinutes,
               })
               .eq('id', entry.id);
           }
@@ -1121,7 +1121,7 @@ exports.handler = async function(event) {
             success: true,
             position: updatedEntry?.queue_position ?? null,
             paidGems: updatedEntry?.paid_gems ?? price,
-            paidMinutes: updatedEntry?.paid_minutes ?? slotMinutes,
+            paidMinutes: updatedEntry?.paid_minutes ?? resolvedSlotMinutes,
           }),
         };
       }

@@ -17410,7 +17410,8 @@ function ensureSpectatorTracksForParticipant(participant) {
   }
 
   async function buyPaidSlot(minutes) {
-    const sphereId = extractSphereId(roomUrl);
+    const urlRoomId = new URLSearchParams(window.location.search).get('room');
+    const sphereId = urlRoomId || extractSphereId(roomUrl);
     const rawUserId = window.currentUserData?.userId || userId;
     const currentUserId = getValidUuidOrNull(rawUserId);
     const userNameFromNav = document.querySelector('.nav-username')?.textContent?.trim();
@@ -17435,17 +17436,32 @@ function ensureSpectatorTracksForParticipant(participant) {
           userId: currentUserId,
           userName: queueUserName,
           minutes,
+          slotMinutes: minutes,
         }),
       });
-      const data = await response.json();
+      const rawBody = await response.text();
+      let data = null;
+      try {
+        data = JSON.parse(rawBody);
+      } catch (parseError) {
+        data = { error: rawBody };
+      }
+
+      if (!response.ok) {
+        console.error('❌ Paid slot purchase failed:', response.status, response.statusText, data);
+        showToast(`❌ ${data?.error || response.statusText || 'Purchase failed'}`);
+        return;
+      }
+
       if (data.success) {
-        showToast('✅ Paid slot purchased');
+        showToast(`✅ Paid slot purchased (${minutes} min)`);
         try { fetchAndDisplayGemBalance(); } catch (e) {}
         await refreshQueueState();
       } else {
         showToast(`❌ ${data.error || 'Purchase failed'}`);
       }
     } catch (e) {
+      console.error('❌ Paid slot purchase exception:', e);
       showToast('❌ Purchase failed');
     }
   }

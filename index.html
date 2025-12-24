@@ -3392,6 +3392,14 @@
         
         const data = await response.json();
         const totalGems = data.totalGems || 0;
+        const spendableGems = data.gems?.spendable_gems || 0;
+        const cashableGems = data.gems?.cashable_gems || 0;
+
+        window.currentGemBalance = {
+          totalGems,
+          spendableGems,
+          cashableGems,
+        };
         
         // Format with commas for large numbers
         gemCountEl.textContent = totalGems.toLocaleString();
@@ -17424,6 +17432,18 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (!sphereId || !currentUserId) {
       showToast('🔒 Sign in to buy a paid slot');
       return;
+    }
+
+    const slotMinutes = parseInt(minutes, 10);
+    const priceMap = { 5: 1500, 10: 3000 };
+    const requiredGems = priceMap[slotMinutes] || 0;
+    if (requiredGems > 0) {
+      const spendableGems = window.currentGemBalance?.spendableGems;
+      const cashableGems = window.currentGemBalance?.cashableGems;
+      if (typeof spendableGems === 'number' && spendableGems < requiredGems) {
+        showToast(`❌ Need ${requiredGems} spendable gems. You have ${spendableGems}. (Cashable gems: ${typeof cashableGems === 'number' ? cashableGems : 0})`);
+        return;
+      }
     }
 
     try {

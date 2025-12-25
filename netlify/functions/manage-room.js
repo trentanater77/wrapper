@@ -207,6 +207,29 @@ exports.handler = async function(event) {
       
       console.log('🧹 Running expired room cleanup (Jeff Bezos approved™)...');
 
+      // Creator rooms: if 0 participants, shorten ends_at to now + 2 minutes.
+      // This allows rooms that were already empty (even before this deploy) to auto-close reliably.
+      const emptyCreatorEndsAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+      try {
+        await supabase
+          .from('active_rooms')
+          .update({ ends_at: emptyCreatorEndsAt })
+          .eq('status', 'live')
+          .eq('room_type', 'creator')
+          .eq('participant_count', 0)
+          .gt('ends_at', emptyCreatorEndsAt);
+      } catch (e) {}
+
+      try {
+        await supabase
+          .from('active_rooms')
+          .update({ ends_at: emptyCreatorEndsAt })
+          .eq('status', 'live')
+          .eq('room_type', 'creator')
+          .eq('participant_count', 0)
+          .is('ends_at', null);
+      } catch (e) {}
+
       let expiredCreatorRooms = [];
       try {
         const { data: expiredCreatorData } = await supabase
@@ -518,12 +541,25 @@ exports.handler = async function(event) {
         
         // If room exists and is still live, just increment participant count
         if (existingRoom && existingRoom.status === 'live') {
+          const updates = {
+            participant_count: (existingRoom.participant_count || 0) + 1,
+          };
+
+          const isCreator = existingRoom.room_type === 'creator' || existingRoom.is_creator_room === true;
+          if (isCreator && existingRoom.started_at && existingRoom.session_duration_minutes) {
+            const durationMinutes = parseInt(existingRoom.session_duration_minutes, 10);
+            if ([60, 120, 180].includes(durationMinutes)) {
+              const originalEndsAt = new Date(
+                new Date(existingRoom.started_at).getTime() + durationMinutes * 60 * 1000
+              ).toISOString();
+              updates.ends_at = originalEndsAt;
+            }
+          }
+
           // Update participant count
           const { data: updated, error: updateError } = await supabase
             .from('active_rooms')
-            .update({ 
-              participant_count: (existingRoom.participant_count || 0) + 1
-            })
+            .update(updates)
             .eq('room_id', roomId)
             .select()
             .single();
@@ -875,7 +911,7 @@ exports.handler = async function(event) {
         // Get current room data
         const { data: room, error: fetchError } = await supabase
           .from('active_rooms')
-          .select('participant_count, spectator_count, status')
+          .select('participant_count, spectator_count, status, room_type, is_creator_room, started_at, session_duration_minutes, ends_at')
           .eq('room_id', roomId)
           .single();
 
@@ -906,6 +942,23 @@ exports.handler = async function(event) {
         }
 
         console.log(`👋 User left room ${roomId} (spectator: ${isSpectator}). New counts: participant=${updates.participant_count ?? room.participant_count}, spectator=${updates.spectator_count ?? room.spectator_count}`);
+
+        const isCreator = room?.room_type === 'creator' || room?.is_creator_room === true;
+        const nextParticipantCount = typeof updates.participant_count === 'number' ? updates.participant_count : (room.participant_count || 0);
+        const becameEmpty = isCreator && nextParticipantCount === 0;
+        if (becameEmpty) {
+          const emptyEndsAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
+          const shouldShorten = !room?.ends_at || new Date(room.ends_at).getTime() > new Date(emptyEndsAt).getTime();
+          if (shouldShorten) {
+            try {
+              await supabase
+                .from('active_rooms')
+                .update({ ends_at: emptyEndsAt })
+                .eq('room_id', roomId)
+                .eq('status', 'live');
+            } catch (e) {}
+          }
+        }
 
         return {
           statusCode: 200,

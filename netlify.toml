@@ -11,6 +11,9 @@
 [functions."send-event-reminders"]
   schedule = "*/2 * * * *"
 
+ [functions."cleanup-creator-rooms"]
+  schedule = "* * * * *"
+
 # Security Headers - Basic protection without breaking functionality
 [[headers]]
   for = "/*"

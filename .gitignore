@@ -6,4 +6,6 @@ node_modules/
 .netlify/
 netlify/functions/_generated/
 scripts/generate-firebase-service-account.js
+scripts/generate-function-config.js
+scripts/square-*.js
 core

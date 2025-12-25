@@ -39,13 +39,6 @@ const RELEVANT_EVENTS = [
   'customer.subscription.deleted',
   'invoice.payment_succeeded',
   'invoice.payment_failed',
-  // Identity verification events
-  'identity.verification_session.verified',
-  'identity.verification_session.requires_input',
-  'identity.verification_session.canceled',
-  // Connect account events
-  'account.updated',
-  'account.application.deauthorized',
 ];
 
 exports.handler = async function(event) {
@@ -110,26 +103,6 @@ exports.handler = async function(event) {
 
         case 'invoice.payment_failed':
           await handlePaymentFailed(stripeEvent.data.object);
-          break;
-
-        case 'identity.verification_session.verified':
-          await handleIdentityVerified(stripeEvent.data.object);
-          break;
-
-        case 'identity.verification_session.requires_input':
-          await handleIdentityRequiresInput(stripeEvent.data.object);
-          break;
-
-        case 'identity.verification_session.canceled':
-          await handleIdentityCanceled(stripeEvent.data.object);
-          break;
-
-        case 'account.updated':
-          await handleConnectAccountUpdated(stripeEvent.data.object);
-          break;
-
-        case 'account.application.deauthorized':
-          await handleConnectAccountDeauthorized(stripeEvent.data.object);
           break;
       }
 

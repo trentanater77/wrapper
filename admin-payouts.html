@@ -130,7 +130,7 @@
       <button class="btn btn-primary" onclick="loadPayouts()">Load Payouts</button>
     </div>
     <p style="margin-top: 1rem; font-size: 0.875rem; opacity: 0.7;">
-      Default secret: <code>chatspheres-admin-2024</code> (change this in Netlify env vars!)
+      Set <code>ADMIN_SECRET</code> in Netlify environment variables, then paste it here.
     </p>
   </div>
   
@@ -140,7 +140,7 @@
     <ol>
       <li><strong>Review</strong> the payout request (amount, email, method)</li>
       <li><strong>Approve</strong> → Changes status to "Processing"</li>
-      <li><strong>Pay manually</strong> via PayPal/Venmo to the user's email</li>
+      <li><strong>Pay manually</strong> via the requested payout method to the user's handle</li>
       <li><strong>Complete</strong> → Marks as done (after you've paid)</li>
       <li>If there's an issue, <strong>Reject</strong> → Refunds gems to user</li>
     </ol>
@@ -150,8 +150,25 @@
   <div id="content" style="display: none;">
     <!-- Summary -->
     <div class="admin-section">
-      <h2>📊 Summary</h2>
+      <div style="display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <h2 style="margin: 0;">📊 Summary</h2>
+        <button class="btn btn-ghost" onclick="exportCsv()">⬇️ Export CSV</button>
+      </div>
       <div class="summary-cards" id="summary"></div>
+    </div>
+
+    <div class="admin-section">
+      <h2>📅 YTD Totals (by creator)</h2>
+      <div id="ytd-summary" style="margin-bottom: 1rem; opacity: 0.8;"></div>
+      <table id="ytd-table">
+        <thead>
+          <tr>
+            <th>Creator (user_id)</th>
+            <th>YTD Paid USD</th>
+          </tr>
+        </thead>
+        <tbody id="ytd-body"></tbody>
+      </table>
     </div>
     
     <!-- Payout Requests -->
@@ -177,6 +194,7 @@
   
   <script>
     let adminSecret = '';
+    let lastRequests = [];
     
     async function loadPayouts() {
       adminSecret = document.getElementById('admin-secret').value;
@@ -200,14 +218,64 @@
         }
         
         const data = await response.json();
-        renderSummary(data.summary);
-        renderPayouts(data.requests || []);
+        lastRequests = data.requests || [];
+        const ytd = computeYtd(lastRequests);
+        renderSummary({ ...(data.summary || {}), ytdPaidUsd: ytd.ytdPaidUsd, ytdCreators: ytd.byCreator.length });
+        renderYtd(ytd);
+        renderPayouts(lastRequests);
         
       } catch (error) {
         document.getElementById('error').textContent = error.message;
         document.getElementById('error').style.display = 'block';
         document.getElementById('loading').style.display = 'none';
       }
+    }
+
+    function computeYtd(requests) {
+      const year = new Date().getFullYear();
+      const byCreatorMap = new Map();
+      let ytdPaidUsd = 0;
+
+      for (const r of (requests || [])) {
+        if (!r || r.status !== 'completed') continue;
+        const dateStr = r.completed_at || r.processed_at || r.requested_at;
+        if (!dateStr) continue;
+        const d = new Date(dateStr);
+        if (Number.isNaN(d.getTime())) continue;
+        if (d.getFullYear() !== year) continue;
+
+        const usd = parseFloat(r.usd_amount || 0) || 0;
+        ytdPaidUsd += usd;
+
+        const userId = r.user_id || 'unknown';
+        byCreatorMap.set(userId, (byCreatorMap.get(userId) || 0) + usd);
+      }
+
+      const byCreator = Array.from(byCreatorMap.entries())
+        .map(([userId, totalUsd]) => ({ userId, totalUsd }))
+        .sort((a, b) => b.totalUsd - a.totalUsd);
+
+      return { year, ytdPaidUsd, byCreator };
+    }
+
+    function renderYtd(ytd) {
+      const summaryEl = document.getElementById('ytd-summary');
+      const bodyEl = document.getElementById('ytd-body');
+      if (!summaryEl || !bodyEl) return;
+
+      summaryEl.textContent = `${ytd.year} total paid: $${(ytd.ytdPaidUsd || 0).toFixed(2)} across ${ytd.byCreator.length} creator(s)`;
+
+      if (ytd.byCreator.length === 0) {
+        bodyEl.innerHTML = `<tr><td colspan="2" style="text-align: center; padding: 1.5rem; opacity: 0.7;">No completed payouts this year yet.</td></tr>`;
+        return;
+      }
+
+      bodyEl.innerHTML = ytd.byCreator.map(row => `
+        <tr>
+          <td style="font-family: monospace; word-break: break-all;">${row.userId}</td>
+          <td><strong>$${(row.totalUsd || 0).toFixed(2)}</strong></td>
+        </tr>
+      `).join('');
     }
     
     function renderSummary(summary) {
@@ -228,6 +296,14 @@
           <div class="value">$${summary.totalPendingUsd.toFixed(2)}</div>
           <div class="label">Pending USD</div>
         </div>
+        <div class="summary-card">
+          <div class="value">$${(summary.ytdPaidUsd || 0).toFixed(2)}</div>
+          <div class="label">YTD Paid USD</div>
+        </div>
+        <div class="summary-card">
+          <div class="value">${summary.ytdCreators || 0}</div>
+          <div class="label">YTD Creators Paid</div>
+        </div>
       `;
     }
     
@@ -247,8 +323,18 @@
       const tbody = document.getElementById('payouts-body');
       tbody.innerHTML = requests.map(r => {
         const method = (r.payout_method || 'paypal').toLowerCase();
-        const methodIcon = method === 'venmo' ? '💜 Venmo' : '💙 PayPal';
-        const methodColor = method === 'venmo' ? '#008CFF' : '#003087';
+        const methodIcon = method === 'venmo' ? '💙 Venmo'
+          : method === 'cashapp' ? '💚 Cash App'
+          : method === 'zelle' ? '💜 Zelle'
+          : '💙 PayPal';
+        const methodColor = method === 'venmo' ? '#008CFF'
+          : method === 'cashapp' ? '#00d632'
+          : method === 'zelle' ? '#6d1ed4'
+          : '#003087';
+        const destinationLabel = method === 'venmo' ? 'Venmo username'
+          : method === 'cashapp' ? 'Cash App cashtag'
+          : method === 'zelle' ? 'Zelle email/phone'
+          : 'PayPal email';
         
         return `
         <tr>
@@ -266,7 +352,7 @@
             <div style="background: #f0f0f0; padding: 0.5rem; border-radius: 8px; font-family: monospace; word-break: break-all;">
               📧 <strong>${r.payout_email || 'NOT PROVIDED'}</strong>
             </div>
-            <small style="opacity: 0.7;">Copy this ${method === 'venmo' ? 'Venmo username' : 'PayPal email'} to send payment</small>
+            <small style="opacity: 0.7;">Copy this ${destinationLabel} to send payment</small>
           </td>
           <td class="status-${r.status}">${r.status.toUpperCase()}</td>
           <td>
@@ -294,7 +380,7 @@
     
     async function updatePayout(requestId, action) {
       const confirmMsg = action === 'complete' 
-        ? 'Have you already sent the payment via PayPal/Venmo?' 
+        ? 'Have you already sent the payment via the requested payout method?' 
         : `Are you sure you want to ${action} this payout?`;
       
       if (!confirm(confirmMsg)) return;
@@ -325,6 +411,44 @@
       } catch (error) {
         alert('Error: ' + error.message);
       }
+    }
+
+    function exportCsv() {
+      const rows = (lastRequests || []).map(r => ({
+        id: r.id,
+        user_id: r.user_id,
+        status: r.status,
+        payout_method: r.payout_method,
+        payout_email: r.payout_email,
+        gems_amount: r.gems_amount,
+        usd_amount: r.usd_amount,
+        requested_at: r.requested_at,
+        processed_at: r.processed_at,
+        completed_at: r.completed_at,
+        admin_notes: r.admin_notes,
+      }));
+
+      const headers = ['id','user_id','status','payout_method','payout_email','gems_amount','usd_amount','requested_at','processed_at','completed_at','admin_notes'];
+      const escapeCsv = (v) => {
+        const s = v === null || v === undefined ? '' : String(v);
+        if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      };
+
+      const csv = [headers.join(',')]
+        .concat(rows.map(r => headers.map(h => escapeCsv(r[h])).join(',')))
+        .join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().replace(/[:.]/g, '-');
+      a.href = url;
+      a.download = `payout-requests-${ts}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   </script>
 </body>

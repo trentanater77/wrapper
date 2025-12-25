@@ -444,53 +444,7 @@
                 ≈ $<span id="cashable-usd">0.00</span>
               </div>
             </div>
-            
-            <!-- Stripe Connect Section (Recommended) -->
-            <div id="connect-section" class="info-box hidden" style="background: linear-gradient(135deg, #635bff 0%, #7c3aed 100%); color: white; border: none;">
-              <p style="font-weight: 700;">💳 Connect Your Bank Account</p>
-              <p style="font-size: 0.875rem; margin-top: 0.5rem;">Get instant payouts directly to your bank. Powered by Stripe.</p>
-              <button id="connect-btn" class="btn" style="margin-top: var(--space-md); background: white; color: #635bff; font-weight: 700;" onclick="startStripeConnect()">
-                🔗 Connect with Stripe
-              </button>
-              <p style="font-size: 0.75rem; opacity: 0.8; margin-top: var(--space-sm);">Secure, instant, and automatic. No more waiting!</p>
-            </div>
-            
-            <!-- Stripe Connect Active -->
-            <div id="connect-active" class="info-box success hidden">
-              <p style="font-weight: 700;">💳 Stripe Connected</p>
-              <p style="font-size: 0.875rem;">Instant payouts enabled! Money goes directly to your bank.</p>
-            </div>
-            
-            <!-- Stripe Connect Pending -->
-            <div id="connect-pending" class="info-box warning hidden">
-              <p style="font-weight: 700;">⏳ Stripe Setup Incomplete</p>
-              <p style="font-size: 0.875rem; margin-top: 0.5rem;">Please complete your Stripe account setup to enable payouts.</p>
-              <button id="connect-continue-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startStripeConnect()">
-                Continue Setup
-              </button>
-            </div>
-            
-            <!-- Divider for alternative methods -->
-            <div id="alt-methods-divider" class="hidden" style="text-align: center; margin: var(--space-lg) 0; opacity: 0.6;">
-              <span style="background: var(--light-rose); padding: 0 var(--space-md); font-size: 0.875rem;">or use manual payout</span>
-            </div>
-            
-            <!-- KYC Required Notice (for manual PayPal/Venmo) -->
-            <div id="kyc-notice" class="info-box warning hidden">
-              <p style="font-weight: 700;">🆔 Identity Verification Required</p>
-              <p style="font-size: 0.875rem; margin-top: 0.5rem;">For PayPal/Venmo payouts, we need to verify your identity first.</p>
-              <button id="kyc-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startKycVerification()">
-                ✓ Verify My Identity
-              </button>
-              <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-sm);">Takes ~2 minutes. You'll need a government-issued ID.</p>
-            </div>
-            
-            <!-- KYC Verified Badge -->
-            <div id="kyc-verified" class="info-box success hidden">
-              <p style="font-weight: 700;">✅ Identity Verified</p>
-              <p style="font-size: 0.875rem;">You're approved for manual payouts!</p>
-            </div>
-            
+
             <!-- Pending Notice -->
             <div id="pending-notice" class="info-box warning hidden">
               <p style="font-weight: 700;">⏳ Payout Pending</p>
@@ -526,11 +480,13 @@
                 <select id="payout-method" class="form-select">
                   <option value="paypal">PayPal</option>
                   <option value="venmo">Venmo</option>
+                  <option value="cashapp">Cash App</option>
+                  <option value="zelle">Zelle</option>
                 </select>
               </div>
               
               <div class="form-group">
-                <label class="form-label">PayPal Email / Venmo Username</label>
+                <label id="payout-handle-label" class="form-label">Payout Handle</label>
                 <input type="text" id="payout-email" class="form-input" placeholder="your@email.com">
               </div>
               
@@ -576,7 +532,7 @@
         <div class="cashout-card info-card" style="text-align: center;">
           <h3 style="margin-bottom: var(--space-sm); font-weight: 700;">❓ Need Help?</h3>
           <p style="font-size: 0.875rem; opacity: 0.8; margin-bottom: var(--space-md);">
-            Having trouble with payouts, verification, or connecting your bank account?
+            Having trouble with payouts?
           </p>
           <a href="mailto:chatspheres.worldwide@mail.com?subject=Payout%20Help%20Request" 
              class="btn btn-ghost" style="text-decoration: none;">
@@ -591,11 +547,10 @@
         <div style="background: var(--bg-main); border: 2px solid var(--rose); border-radius: var(--radius-lg); padding: var(--space-lg); margin-top: var(--space-lg);">
           <h4 style="font-weight: 700; margin-bottom: var(--space-sm); font-size: 0.875rem;">🔒 Payment Security & Compliance</h4>
           <ul style="font-size: 0.75rem; opacity: 0.7; line-height: 1.8; margin: 0; padding-left: var(--space-md);">
-            <li>All payouts are processed securely through <strong>Stripe</strong></li>
-            <li>Identity verification protects against fraud</li>
-            <li>US creators earning $600+/year will receive a 1099 tax form</li>
-            <li>We comply with all applicable financial regulations</li>
-            <li>Your banking information is never stored on our servers</li>
+            <li>Payout requests are recorded in ChatSpheres and paid out manually via your chosen method</li>
+            <li>Do not enter bank information (we don’t ask for it)</li>
+            <li>US creators earning $600+/year may be asked for additional tax information</li>
+            <li>We keep internal payout records for accounting and support</li>
           </ul>
         </div>
 
@@ -623,13 +578,17 @@
     let currentUser = null;
     let supabaseClient = null;
     let payoutData = null;
-    let kycVerified = false;
-    let stripeConnected = false;
-    let stripePayoutsEnabled = false;
     
     document.addEventListener('DOMContentLoaded', async () => {
       // Wait a bit for config to load
       await new Promise(resolve => setTimeout(resolve, 100));
+      const methodSelect = document.getElementById('payout-method');
+      if (methodSelect) {
+        methodSelect.addEventListener('change', () => {
+          updatePayoutHandleUI();
+        });
+      }
+      updatePayoutHandleUI();
       await initSupabase();
       await checkAuth();
     });
@@ -695,19 +654,7 @@
           updateNavForUser(currentUser);
           document.getElementById('signin-required').classList.add('hidden');
           document.getElementById('main-content').classList.remove('hidden');
-          
-          // Check URL params for Connect completion
-          const urlParams = new URLSearchParams(window.location.search);
-          if (urlParams.get('connect') === 'complete') {
-            window.history.replaceState({}, document.title, '/cashout.html');
-            showMessage('✅ Stripe account connected! You can now receive instant payouts.', 'success');
-          } else if (urlParams.get('connect') === 'refresh') {
-            window.history.replaceState({}, document.title, '/cashout.html');
-            showMessage('⚠️ Please complete your Stripe setup to enable payouts.', 'error');
-          }
-          
-          await checkStripeConnectStatus();
-          await checkKycStatus();
+
           await loadPayoutData();
         } else {
           showSignInRequired();
@@ -748,210 +695,35 @@
       if (headerGemBadge) headerGemBadge.style.display = 'none';
     }
     
-    // Check Stripe Connect status
-    async function checkStripeConnectStatus() {
-      try {
-        const response = await fetch(`/.netlify/functions/get-connect-status?userId=${currentUser.id}`);
-        const data = await response.json();
-        
-        stripeConnected = data.connected;
-        stripePayoutsEnabled = data.payoutsEnabled;
-        
-        const connectSection = document.getElementById('connect-section');
-        const connectActive = document.getElementById('connect-active');
-        const connectPending = document.getElementById('connect-pending');
-        const altMethodsDivider = document.getElementById('alt-methods-divider');
-        
-        if (data.connected && data.payoutsEnabled) {
-          // Fully connected - show active badge
-          connectActive.classList.remove('hidden');
-          connectSection.classList.add('hidden');
-          connectPending.classList.add('hidden');
-          altMethodsDivider.classList.add('hidden');
-        } else if (data.connected && !data.payoutsEnabled) {
-          // Partially connected - needs more setup
-          connectPending.classList.remove('hidden');
-          connectSection.classList.add('hidden');
-          connectActive.classList.add('hidden');
-          altMethodsDivider.classList.remove('hidden');
-        } else {
-          // Not connected - show connect option
-          connectSection.classList.remove('hidden');
-          connectActive.classList.add('hidden');
-          connectPending.classList.add('hidden');
-          altMethodsDivider.classList.remove('hidden');
-        }
-      } catch (error) {
-        console.error('Error checking Stripe Connect status:', error);
-        // Default to showing connect option
-        document.getElementById('connect-section').classList.remove('hidden');
-        document.getElementById('alt-methods-divider').classList.remove('hidden');
-      }
+    function sanitizePayoutMethod(method) {
+      const allowed = new Set(['paypal', 'venmo', 'cashapp', 'zelle']);
+      const m = (method || '').toLowerCase();
+      return allowed.has(m) ? m : 'paypal';
     }
-    
-    // Start Stripe Connect onboarding
-    async function startStripeConnect() {
-      const btn = document.getElementById('connect-btn') || document.getElementById('connect-continue-btn');
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = '⏳ Loading...';
-      }
-      
-      try {
-        const response = await fetch('/.netlify/functions/connect-onboarding', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: currentUser.id,
-            userEmail: currentUser.email,
-            userName: currentUser.user_metadata?.name || currentUser.email?.split('@')[0]
-          })
-        });
-        
-        const data = await response.json();
-        
-        if (data.alreadyConnected) {
-          stripeConnected = true;
-          stripePayoutsEnabled = true;
-          await checkStripeConnectStatus();
-          showMessage('✅ ' + data.message, 'success');
-          return;
-        }
-        
-        if (data.url) {
-          window.location.href = data.url;
-        } else {
-          throw new Error(data.error || 'Failed to start Stripe Connect');
-        }
-      } catch (error) {
-        console.error('Stripe Connect error:', error);
-        showMessage('❌ ' + error.message, 'error');
-        if (btn) {
-          btn.disabled = false;
-          btn.textContent = '🔗 Connect with Stripe';
-        }
-      }
-    }
-    window.startStripeConnect = startStripeConnect;
 
-    // Check KYC verification status
-    async function checkKycStatus() {
-      try {
-        // Check URL params for KYC completion
-        const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.get('kyc') === 'complete') {
-          // Clear the URL param
-          window.history.replaceState({}, document.title, '/cashout.html');
-          showMessage('✅ Verification submitted! We\'ll update your status shortly.', 'success');
-        }
-        
-        const response = await fetch(`/.netlify/functions/get-kyc-status?userId=${currentUser.id}`);
-        const data = await response.json();
-        
-        kycVerified = data.verified;
-        
-        const kycNotice = document.getElementById('kyc-notice');
-        const kycVerifiedBadge = document.getElementById('kyc-verified');
-        
-        if (kycVerified) {
-          kycVerifiedBadge.classList.remove('hidden');
-          kycNotice.classList.add('hidden');
-        } else if (data.status === 'pending') {
-          // Actually pending with Stripe processing
-          kycNotice.classList.remove('hidden');
-          kycNotice.innerHTML = `
-            <p style="font-weight: 700;">⏳ Verification In Progress</p>
-            <p style="font-size: 0.875rem; margin-top: 0.5rem;">We're reviewing your documents. This usually takes a few minutes.</p>
-            <button class="btn btn-ghost" style="margin-top: var(--space-md);" onclick="location.reload()">
-              🔄 Refresh Status
-            </button>
-          `;
-          kycVerifiedBadge.classList.add('hidden');
-        } else if (data.status === 'incomplete' || data.needsRetry) {
-          // User started but didn't finish - let them continue
-          kycNotice.classList.remove('hidden');
-          kycNotice.innerHTML = `
-            <p style="font-weight: 700;">📝 Verification Incomplete</p>
-            <p style="font-size: 0.875rem; margin-top: 0.5rem;">You started verification but didn't complete it. Please finish to enable payouts.</p>
-            <button id="kyc-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startKycVerification()">
-              ✓ Continue Verification
-            </button>
-            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-sm);">Takes ~2 minutes. You'll need a government-issued ID.</p>
-          `;
-          kycVerifiedBadge.classList.add('hidden');
-        } else if (data.status === 'failed') {
-          // Verification failed - let them retry
-          kycNotice.classList.remove('hidden');
-          kycNotice.innerHTML = `
-            <p style="font-weight: 700;">❌ Verification Failed</p>
-            <p style="font-size: 0.875rem; margin-top: 0.5rem;">Your verification couldn't be completed. Please try again with a clear photo of your ID.</p>
-            <button id="kyc-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startKycVerification()">
-              🔄 Try Again
-            </button>
-            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-sm);">Make sure your ID is valid and the photo is clear.</p>
-          `;
-          kycVerifiedBadge.classList.add('hidden');
-        } else {
-          // Unverified - show initial verification prompt
-          kycNotice.classList.remove('hidden');
-          kycNotice.innerHTML = `
-            <p style="font-weight: 700;">🆔 Identity Verification Required</p>
-            <p style="font-size: 0.875rem; margin-top: 0.5rem;">Before you can cash out, we need to verify your identity. This is required by financial regulations.</p>
-            <button id="kyc-btn" class="btn btn-primary" style="margin-top: var(--space-md);" onclick="startKycVerification()">
-              ✓ Verify My Identity
-            </button>
-            <p style="font-size: 0.75rem; opacity: 0.7; margin-top: var(--space-sm);">Takes ~2 minutes. You'll need a government-issued ID.</p>
-          `;
-          kycVerifiedBadge.classList.add('hidden');
-        }
-      } catch (error) {
-        console.error('Error checking KYC status:', error);
-        // Default to showing KYC notice if check fails
-        document.getElementById('kyc-notice').classList.remove('hidden');
+    function updatePayoutHandleUI() {
+      const method = (document.getElementById('payout-method')?.value || 'paypal').toLowerCase();
+      const label = document.getElementById('payout-handle-label');
+      const input = document.getElementById('payout-email');
+      if (!label || !input) return;
+
+      if (method === 'paypal') {
+        label.textContent = 'PayPal Email';
+        input.placeholder = 'your@email.com';
+      } else if (method === 'venmo') {
+        label.textContent = 'Venmo Username';
+        input.placeholder = '@yourname';
+      } else if (method === 'cashapp') {
+        label.textContent = 'Cash App Cashtag';
+        input.placeholder = '$yourname';
+      } else if (method === 'zelle') {
+        label.textContent = 'Zelle Email or Phone';
+        input.placeholder = 'your@email.com or 555-555-5555';
+      } else {
+        label.textContent = 'Payout Handle';
+        input.placeholder = 'your@email.com';
       }
     }
-    
-    // Start KYC verification
-    async function startKycVerification() {
-      const btn = document.getElementById('kyc-btn');
-      btn.disabled = true;
-      btn.textContent = '⏳ Loading...';
-      
-      try {
-        const response = await fetch('/.netlify/functions/create-kyc-session', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: currentUser.id,
-            userEmail: currentUser.email,
-            returnUrl: `${window.location.origin}/cashout.html?kyc=complete`
-          })
-        });
-        
-        const data = await response.json();
-        
-        if (data.alreadyVerified) {
-          kycVerified = true;
-          document.getElementById('kyc-verified').classList.remove('hidden');
-          document.getElementById('kyc-notice').classList.add('hidden');
-          showMessage('✅ ' + data.message, 'success');
-          return;
-        }
-        
-        if (data.url) {
-          // Redirect to Stripe Identity verification
-          window.location.href = data.url;
-        } else {
-          throw new Error(data.error || 'Failed to start verification');
-        }
-      } catch (error) {
-        console.error('KYC error:', error);
-        showMessage('❌ ' + error.message, 'error');
-        btn.disabled = false;
-        btn.textContent = '✓ Verify My Identity';
-      }
-    }
-    window.startKycVerification = startKycVerification;
 
     async function loadPayoutData() {
       try {
@@ -995,9 +767,8 @@
         if (payoutData.payoutEmail) {
           document.getElementById('payout-email').value = payoutData.payoutEmail;
         }
-        if (payoutData.payoutMethod) {
-          document.getElementById('payout-method').value = payoutData.payoutMethod;
-        }
+        document.getElementById('payout-method').value = sanitizePayoutMethod(payoutData.payoutMethod);
+        updatePayoutHandleUI();
         
         // Set max gems for amount input
         document.getElementById('max-gems').textContent = (payoutData.cashableGems || 0).toLocaleString();
@@ -1009,38 +780,22 @@
         if (payoutData.pendingRequests && payoutData.pendingRequests.length > 0) {
           const pending = payoutData.pendingRequests[0];
           document.getElementById('pending-notice').classList.remove('hidden');
+          document.getElementById('minimum-notice').classList.add('hidden');
           document.getElementById('pending-amount').textContent = 
             `${pending.gems_amount.toLocaleString()} gems ($${parseFloat(pending.usd_amount).toFixed(2)})`;
           document.getElementById('payout-form').classList.add('hidden');
         } else if (payoutData.cashableGems < 500) {
           // Not enough gems
           document.getElementById('minimum-notice').classList.remove('hidden');
-          document.getElementById('payout-form').classList.add('hidden');
-        } else if (stripePayoutsEnabled) {
-          // Stripe Connect active - show instant payout form
           document.getElementById('pending-notice').classList.add('hidden');
-          document.getElementById('payout-form').classList.remove('hidden');
-          document.getElementById('payout-btn').disabled = false;
-          // Hide PayPal/Venmo fields for Stripe Connect users
-          document.getElementById('payout-method').closest('.form-group').style.display = 'none';
-          document.getElementById('payout-email').closest('.form-group').style.display = 'none';
-          document.getElementById('payout-btn').textContent = '⚡ Instant Payout';
-          updatePayoutPreview();
-        } else if (!kycVerified && !stripeConnected) {
-          // Neither KYC nor Connect - need one or the other
           document.getElementById('payout-form').classList.add('hidden');
-        } else if (kycVerified) {
-          // KYC verified but no Connect - show manual payout form
+        } else if (payoutData.canRequestPayout) {
           document.getElementById('pending-notice').classList.add('hidden');
+          document.getElementById('minimum-notice').classList.add('hidden');
           document.getElementById('payout-form').classList.remove('hidden');
           document.getElementById('payout-btn').disabled = false;
           document.getElementById('payout-method').closest('.form-group').style.display = 'block';
           document.getElementById('payout-email').closest('.form-group').style.display = 'block';
-          updatePayoutPreview();
-        } else if (payoutData.canRequestPayout) {
-          document.getElementById('pending-notice').classList.add('hidden');
-          document.getElementById('payout-form').classList.remove('hidden');
-          document.getElementById('payout-btn').disabled = false;
           updatePayoutPreview();
         }
         
@@ -1131,7 +886,7 @@
       const btn = document.getElementById('payout-btn');
       const messageEl = document.getElementById('message');
       const payoutEmail = document.getElementById('payout-email').value.trim();
-      const payoutMethod = document.getElementById('payout-method').value;
+      const payoutMethod = sanitizePayoutMethod(document.getElementById('payout-method').value);
       const gemsAmount = parseInt(document.getElementById('payout-amount').value) || 0;
       const maxGems = payoutData?.cashableGems || 0;
       
@@ -1139,7 +894,7 @@
       
       // Validation checks
       if (!payoutEmail) {
-        showMessage('❌ Please enter your PayPal email or Venmo username', 'error');
+        showMessage('❌ Please enter your payout handle', 'error');
         return;
       }
       
@@ -1171,33 +926,10 @@
         const data = await response.json();
         
         if (data.success) {
-          if (data.instant) {
-            // Instant payout via Stripe Connect
-            showMessage('🎉 ' + data.message, 'success');
-            // Show celebratory feedback
-            document.getElementById('payout-form').innerHTML = `
-              <div style="text-align: center; padding: var(--space-xl);">
-                <div style="font-size: 4rem; margin-bottom: var(--space-md);">🎉</div>
-                <h3 style="font-weight: 700; margin-bottom: var(--space-sm);">Instant Payout Complete!</h3>
-                <p style="opacity: 0.8;">$${data.request.usdAmount.toFixed(2)} has been sent to your bank account.</p>
-                <p style="font-size: 0.875rem; opacity: 0.6; margin-top: var(--space-md);">Funds typically arrive within 1-2 business days.</p>
-              </div>
-            `;
-          } else {
-            // Manual payout request submitted
-            showMessage('✅ ' + data.message, 'success');
-          }
+          showMessage('✅ ' + data.message, 'success');
           await loadPayoutData();
         } else {
-          // Handle specific error cases from backend
-          if (data.code === 'KYC_REQUIRED') {
-            showMessage('🆔 Please verify your identity or connect Stripe before cashing out.', 'error');
-            document.getElementById('kyc-notice').classList.remove('hidden');
-            document.getElementById('connect-section').classList.remove('hidden');
-            document.getElementById('payout-form').classList.add('hidden');
-          } else if (data.code === 'STRIPE_ERROR') {
-            showMessage('❌ ' + data.message, 'error');
-          } else if (data.error?.includes('Insufficient')) {
+          if (data.error?.includes('Insufficient')) {
             showMessage(`❌ Insufficient gems! You requested ${data.requested?.toLocaleString() || gemsAmount.toLocaleString()} but only have ${data.available?.toLocaleString() || maxGems.toLocaleString()} cashable gems.`, 'error');
           } else {
             throw new Error(data.error || 'Failed to request payout');

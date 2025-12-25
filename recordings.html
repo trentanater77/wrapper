@@ -821,18 +821,18 @@
           }
         }
 
-        // Filter and validate recordings
-        const validRecordings = await filterValidRecordings(allRecordings);
-        
-        // Sort by creation date (newest first)
-        validRecordings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        // Validate/refresh URLs where available
+        const hydratedRecordings = await filterValidRecordings(allRecordings);
 
-        if (validRecordings.length === 0) {
+        // Sort by creation date (newest first)
+        hydratedRecordings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        if (hydratedRecordings.length === 0) {
           showEmpty();
           return;
         }
 
-        allRecordings = validRecordings;
+        allRecordings = hydratedRecordings;
         renderRecordings();
         updateStats();
       } catch (error) {
@@ -845,17 +845,11 @@
       const validRecordings = [];
       
       for (const recording of recordings) {
-        if (!recording.downloadUrl) continue;
-        if (recording.status === 'processing') continue;
-        if (recording.uploadProgress !== undefined && recording.uploadProgress < 100) continue;
-
-        // Check if URL is valid, try to refresh if expired
-        const urlResult = await checkAndRefreshUrl(recording);
-        if (!urlResult.valid) continue;
-
-        // Update recording with refreshed URL if needed
-        if (urlResult.refreshed) {
-          recording.downloadUrl = urlResult.url;
+        if (recording.downloadUrl) {
+          const urlResult = await checkAndRefreshUrl(recording);
+          if (urlResult.valid && urlResult.refreshed) {
+            recording.downloadUrl = urlResult.url;
+          }
         }
 
         validRecordings.push(recording);
@@ -1000,6 +994,8 @@
       const topic = recording.topic || 'Untitled Recording';
       const privacy = recording.privacy || 'public';
       const participants = recording.participants || [];
+      const hasUrl = !!recording.downloadUrl;
+      const status = recording.status || (hasUrl ? 'uploaded' : 'processing');
       
       let roomName = 'Sphere';
       try {
@@ -1016,24 +1012,33 @@
         roomName = 'Sphere';
       }
 
-      const safeUrl = escapeHtml(recording.downloadUrl);
+      const safeUrl = hasUrl ? escapeHtml(recording.downloadUrl) : '';
       const safeTopic = escapeHtml(topic);
       const safeDate = escapeHtml(date);
 
       return `
         <div class="recording-card" style="animation-delay: ${index * 0.05}s">
-          <div class="video-container" onclick="openModal('${safeUrl}', '${safeTopic}', '${safeDate}')">
-            <video 
-              src="${recording.downloadUrl}" 
-              preload="metadata"
-              muted
-              onloadedmetadata="this.currentTime = 1"
-              onerror="handleVideoError(this, '${recording.id}')"
-            ></video>
-            <div class="play-overlay">
-              <div class="play-btn-overlay">▶</div>
+          ${hasUrl ? `
+            <div class="video-container" onclick="openModal('${safeUrl}', '${safeTopic}', '${safeDate}')">
+              <video 
+                src="${recording.downloadUrl}" 
+                preload="metadata"
+                muted
+                onloadedmetadata="this.currentTime = 1"
+                onerror="handleVideoError(this, '${recording.id}')"
+              ></video>
+              <div class="play-overlay">
+                <div class="play-btn-overlay">▶</div>
+              </div>
             </div>
-          </div>
+          ` : `
+            <div class="video-container">
+              <div class="video-placeholder">
+                <div class="video-placeholder-icon">⏳</div>
+                <div class="video-placeholder-text">${escapeHtml(status)}</div>
+              </div>
+            </div>
+          `}
           
           <div class="card-content">
             <div class="card-header">
@@ -1069,12 +1074,18 @@
             ` : ''}
             
             <div class="card-actions">
-              <button class="action-btn primary" onclick="openModal('${safeUrl}', '${safeTopic}', '${safeDate}')">
-                ▶️ Play
-              </button>
-              <a class="action-btn secondary" href="${recording.downloadUrl}" download target="_blank">
-                ⬇️ Download
-              </a>
+              ${hasUrl ? `
+                <button class="action-btn primary" onclick="openModal('${safeUrl}', '${safeTopic}', '${safeDate}')">
+                  ▶️ Play
+                </button>
+                <a class="action-btn secondary" href="${recording.downloadUrl}" download target="_blank">
+                  ⬇️ Download
+                </a>
+              ` : `
+                <button class="action-btn primary" disabled>
+                  ⏳ Processing
+                </button>
+              `}
             </div>
           </div>
         </div>

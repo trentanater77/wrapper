@@ -10197,7 +10197,7 @@ function ensureSpectatorTracksForParticipant(participant) {
 
       try {
         window.recordingPreferences = {
-          privacy: 'private',
+          privacy: 'public',
           autoDelete: 'never'
         };
         const response = await startServerSideRecording(window.recordingPreferences);

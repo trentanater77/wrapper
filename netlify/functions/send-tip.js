@@ -28,6 +28,35 @@ const FORUM_HOST_SHARE = 0.45;         // Forum: 45% host
 const FORUM_CREATOR_SHARE = 0.10;      // Forum: 10% forum creator
 const FORUM_HOST_CREATOR_SHARE = 0.55; // Forum (host is creator): 55% host
 
+function clampPercent(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return null;
+  return Math.min(100, Math.max(0, v));
+}
+
+async function getActivePartnerTipSharePercent(userId) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('creator_partners')
+      .select('tip_share_percent')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return null;
+      }
+      throw error;
+    }
+    return clampPercent(data?.tip_share_percent);
+  } catch (e) {
+    console.warn('⚠️ Failed to check creator partner status:', e.message);
+    return null;
+  }
+}
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -107,6 +136,8 @@ exports.handler = async function(event) {
       };
     }
 
+    const partnerTipSharePercent = await getActivePartnerTipSharePercent(hostId);
+
     // Check if this is a forum tip and determine revenue split
     let hostShare, forumCreatorShare = 0, forumOwnerId = null;
     
@@ -127,11 +158,11 @@ exports.handler = async function(event) {
         console.log('✅ Forum found! Owner:', forumOwnerId, 'Host:', hostId, 'Same?', forumOwnerId === hostId);
         
         if (forumOwnerId === hostId) {
-          // Host IS the forum creator - they get 55%
+          // Host IS the forum creator
           hostShare = Math.floor(tipAmount * FORUM_HOST_CREATOR_SHARE);
           forumCreatorShare = 0; // Already included in host share
         } else {
-          // Different host and creator - split: 45% host, 10% creator
+          // Different host and creator
           hostShare = Math.floor(tipAmount * FORUM_HOST_SHARE);
           forumCreatorShare = Math.floor(tipAmount * FORUM_CREATOR_SHARE);
         }
@@ -141,9 +172,20 @@ exports.handler = async function(event) {
         hostShare = Math.floor(tipAmount * STANDARD_HOST_SHARE);
       }
     } else {
-      // Standard tip (non-forum) - 50% to host
+      // Standard tip (non-forum) - 100% to host
       console.log('ℹ️ No forumId provided - using standard 50/50 split');
-      hostShare = Math.floor(tipAmount * STANDARD_HOST_SHARE);
+      if (partnerTipSharePercent != null) {
+        hostShare = Math.floor(tipAmount * (partnerTipSharePercent / 100));
+      } else {
+        hostShare = Math.floor(tipAmount * STANDARD_HOST_SHARE);
+      }
+    }
+
+    // Creator program share: partner share applies to the host portion only.
+    // Forum creator share (if any) is preserved and not reduced by partner share.
+    if (partnerTipSharePercent != null && forumId) {
+      const remainingAfterForumCreator = tipAmount - forumCreatorShare;
+      hostShare = Math.floor(remainingAfterForumCreator * (partnerTipSharePercent / 100));
     }
     
     console.log('💰 Final split calculated:', { hostShare, forumCreatorShare, platformFee: tipAmount - hostShare - forumCreatorShare });
@@ -206,9 +248,13 @@ exports.handler = async function(event) {
       });
 
     // Log transaction for host (tip received)
-    const hostDescription = forumId 
-      ? `Received tip: ${hostShare} gems (${tipAmount} total, forum tip)`
-      : `Received tip: ${hostShare} gems (${tipAmount} total, 50% commission)`;
+    const hostDescription = partnerTipSharePercent != null
+      ? (forumId
+        ? `Received tip: ${hostShare} gems (${tipAmount} total, forum tip, ${partnerTipSharePercent}% creator share)`
+        : `Received tip: ${hostShare} gems (${tipAmount} total, ${partnerTipSharePercent}% creator share)`)
+      : (forumId
+        ? `Received tip: ${hostShare} gems (${tipAmount} total, forum tip)`
+        : `Received tip: ${hostShare} gems (${tipAmount} total, 50% commission)`);
     
     await supabase
       .from('gem_transactions')

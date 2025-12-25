@@ -42,6 +42,36 @@ function isoNow() {
   return new Date().toISOString();
 }
 
+function clampPercent(n) {
+  const v = Number(n);
+  if (!Number.isFinite(v)) return null;
+  return Math.min(100, Math.max(0, v));
+}
+
+async function getActivePartnerSharePercent(userId) {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('creator_partners')
+      .select('tip_share_percent')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return null;
+      }
+      throw error;
+    }
+
+    return clampPercent(data?.tip_share_percent);
+  } catch (e) {
+    console.warn('⚠️ Failed to check creator partner status:', e.message);
+    return null;
+  }
+}
+
 async function getSpendableBalance(userId) {
   const { data, error } = await supabase
     .from('gem_balances')
@@ -138,7 +168,9 @@ async function applyMonetizedCharge({ roomId, payerId, hostId, gems, transaction
     return deductResult;
   }
 
-  const hostShare = Math.floor(amount * STANDARD_HOST_SHARE);
+  const partnerSharePercent = await getActivePartnerSharePercent(hostId);
+  const effectiveShare = partnerSharePercent != null ? (partnerSharePercent / 100) : STANDARD_HOST_SHARE;
+  const hostShare = Math.floor(amount * effectiveShare);
   await ensureHostCashableCredit(hostId, hostShare);
 
   await logGemTransaction({

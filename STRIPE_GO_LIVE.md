@@ -3,6 +3,17 @@
 ## Overview
 This document helps you switch from Stripe **Test Mode** (sandbox) to **Live Mode** (real payments).
 
+Note: This repo can route billing through **Square and/or Stripe** depending on Netlify environment variables:
+
+```
+SUBSCRIPTION_BILLING_PROVIDER=square|stripe
+GEMS_BILLING_PROVIDER=square|stripe
+```
+
+If you are using **Square** for subscriptions and gem purchases, you do not need to complete this Stripe checklist.
+
+Creator payouts are manual and do not use Stripe Connect.
+
 ---
 
 ## Step 1: Complete Stripe Account Activation

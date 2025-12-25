@@ -1,6 +1,17 @@
 # 💳 Stripe Subscription Setup Guide
 
-This guide walks you through setting up Stripe subscriptions for ChatSpheres.
+This guide walks you through setting up Stripe billing for ChatSpheres.
+
+Note: This repo supports routing billing through **Stripe and/or Square** depending on Netlify environment variables:
+
+```
+SUBSCRIPTION_BILLING_PROVIDER=square|stripe
+GEMS_BILLING_PROVIDER=square|stripe
+```
+
+If your site is configured to use **Square** for subscriptions and gem purchases, you may not need to set any of the Stripe values below (except if you still use Stripe for a subset of billing).
+
+Creator payouts are **manual** and do **not** use Stripe Connect.
 
 ---
 

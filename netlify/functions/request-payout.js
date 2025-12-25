@@ -76,8 +76,38 @@ exports.handler = async function(event) {
     const body = JSON.parse(event.body || '{}');
     const { userId, gemsAmount, payoutMethod, payoutEmail } = body;
 
+    const authHeader = (event.headers && (event.headers.authorization || event.headers.Authorization)) || '';
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length).trim() : '';
+    if (!token) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Missing Authorization token' }),
+      };
+    }
+
+    const { data: userData, error: userError } = await supabase.auth.getUser(token);
+    const tokenUserId = userData?.user?.id;
+    if (userError || !tokenUserId) {
+      return {
+        statusCode: 401,
+        headers,
+        body: JSON.stringify({ error: 'Invalid Authorization token' }),
+      };
+    }
+
+    if (userId && tokenUserId !== userId) {
+      return {
+        statusCode: 403,
+        headers,
+        body: JSON.stringify({ error: 'Forbidden' }),
+      };
+    }
+
+    const effectiveUserId = tokenUserId;
+
     // Validate required fields
-    if (!userId) {
+    if (!effectiveUserId) {
       return {
         statusCode: 400,
         headers,
@@ -97,7 +127,7 @@ exports.handler = async function(event) {
     const { data: balance, error: balanceError } = await supabase
       .from('gem_balances')
       .select('cashable_gems, payout_email, payout_method')
-      .eq('user_id', userId)
+      .eq('user_id', effectiveUserId)
       .single();
 
     if (balanceError || !balance) {
@@ -141,8 +171,8 @@ exports.handler = async function(event) {
     const { data: pendingRequests } = await supabase
       .from('payout_requests')
       .select('id')
-      .eq('user_id', userId)
-      .in('status', ['pending', 'processing'])
+      .eq('user_id', effectiveUserId)
+      .in('status', ['pending', 'approved', 'processing'])
       .limit(1);
 
     if (pendingRequests && pendingRequests.length > 0) {
@@ -178,7 +208,7 @@ exports.handler = async function(event) {
     const { data: payoutRequest, error: insertError } = await supabase
       .from('payout_requests')
       .insert({
-        user_id: userId,
+        user_id: effectiveUserId,
         gems_amount: requestedGems,
         usd_amount: usdAmount,
         payout_method: effectivePayoutMethod,
@@ -196,7 +226,7 @@ exports.handler = async function(event) {
 
     // Deduct gems from cashable balance
     const newCashableBalance = cashableGems - requestedGems;
-    await supabase
+    const { data: updatedBalanceRows, error: updateBalanceError } = await supabase
       .from('gem_balances')
       .update({ 
         cashable_gems: newCashableBalance,
@@ -204,21 +234,44 @@ exports.handler = async function(event) {
         payout_method: effectivePayoutMethod,
         updated_at: new Date().toISOString()
       })
-      .eq('user_id', userId);
+      .eq('user_id', effectiveUserId)
+      .eq('cashable_gems', cashableGems)
+      .select('cashable_gems');
+
+    if (updateBalanceError) {
+      console.error('❌ Error updating cashable balance:', updateBalanceError);
+      throw updateBalanceError;
+    }
+
+    if (!updatedBalanceRows || updatedBalanceRows.length === 0) {
+      // Another request modified the balance between read and update.
+      await supabase
+        .from('payout_requests')
+        .delete()
+        .eq('id', payoutRequest.id);
+
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({
+          error: 'Your balance changed. Please refresh and try again.',
+        }),
+      };
+    }
 
     // Manual payout (PayPal/Venmo) - existing flow
     // Log transaction
     await supabase
       .from('gem_transactions')
       .insert({
-        user_id: userId,
+        user_id: effectiveUserId,
         transaction_type: 'payout_request',
         amount: -requestedGems,
         wallet_type: 'cashable',
         description: `Payout request: ${requestedGems} gems → $${usdAmount} (${effectivePayoutMethod})`
       });
 
-    console.log(`💸 Manual payout request created: ${userId} requested ${requestedGems} gems ($${usdAmount})`);
+    console.log(`💸 Manual payout request created: ${effectiveUserId} requested ${requestedGems} gems ($${usdAmount})`);
 
     return {
       statusCode: 200,

@@ -447,6 +447,8 @@ exports.handler = async function(event) {
             userId: activeChallenger.user_id,
             guestSessionId: activeChallenger.guest_session_id,
             startedAt: activeChallenger.called_at,
+            paidGems: safeInt(activeChallenger.paid_gems, 0),
+            paidMinutes: safeInt(activeChallenger.paid_minutes, 0),
             timeLimitSeconds: safeInt(activeChallenger.time_limit_seconds, 0) || (safeInt(activeChallenger.paid_minutes, 0) > 0 ? safeInt(activeChallenger.paid_minutes, 0) * 60 : null) || safeInt(room?.challenger_time_limit, 0) || DEFAULT_CALL_SECONDS,
           } : null,
           position: userPosition,

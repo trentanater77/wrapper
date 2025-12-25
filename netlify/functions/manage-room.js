@@ -164,6 +164,8 @@ exports.handler = async function(event) {
                 ended_reason: isExpired ? 'expired' : isStale ? 'abandoned' : 'ended',
                 ended_by: null,
                 queue_cleared_at: isCreator ? endedAt : null,
+                active_recording_id: isCreator ? null : undefined,
+                recording_started_at: isCreator ? null : undefined,
                 recording_stopped_at: data.active_recording_id ? endedAt : null,
               })
               .eq('room_id', roomId);
@@ -731,6 +733,133 @@ exports.handler = async function(event) {
         };
       }
 
+      case 'set-recording': {
+        const { roomId, hostId, recordingId, roomName, roomUrl } = body;
+
+        if (!roomId || !hostId || !recordingId) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'roomId, hostId, and recordingId are required' }),
+          };
+        }
+
+        const { data: room, error: fetchError } = await supabase
+          .from('active_rooms')
+          .select('host_id, room_type, is_creator_room, status')
+          .eq('room_id', roomId)
+          .single();
+
+        if (fetchError || !room || room.status === 'ended') {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Room not found or already ended' }),
+          };
+        }
+
+        if (room.host_id && room.host_id !== hostId) {
+          return {
+            statusCode: 403,
+            headers,
+            body: JSON.stringify({ error: 'Only the host can set recording state' }),
+          };
+        }
+
+        const isCreator = room?.room_type === 'creator' || room?.is_creator_room === true;
+        if (!isCreator) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Recording state is only tracked for creator rooms' }),
+          };
+        }
+
+        const nowIso = new Date().toISOString();
+        const { error: updateError } = await supabase
+          .from('active_rooms')
+          .update({
+            active_recording_id: recordingId,
+            recording_started_at: nowIso,
+            recording_stopped_at: null,
+          })
+          .eq('room_id', roomId);
+
+        if (updateError) throw updateError;
+
+        console.log(`🎬 Recording state set for room ${roomId}: ${recordingId}`);
+        void roomName;
+        void roomUrl;
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true }),
+        };
+      }
+
+      case 'clear-recording': {
+        const { roomId, hostId } = body;
+
+        if (!roomId || !hostId) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'roomId and hostId are required' }),
+          };
+        }
+
+        const { data: room, error: fetchError } = await supabase
+          .from('active_rooms')
+          .select('host_id, room_type, is_creator_room, status')
+          .eq('room_id', roomId)
+          .single();
+
+        if (fetchError || !room || room.status === 'ended') {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Room not found or already ended' }),
+          };
+        }
+
+        if (room.host_id && room.host_id !== hostId) {
+          return {
+            statusCode: 403,
+            headers,
+            body: JSON.stringify({ error: 'Only the host can clear recording state' }),
+          };
+        }
+
+        const isCreator = room?.room_type === 'creator' || room?.is_creator_room === true;
+        if (!isCreator) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Recording state is only tracked for creator rooms' }),
+          };
+        }
+
+        const nowIso = new Date().toISOString();
+        const { error: updateError } = await supabase
+          .from('active_rooms')
+          .update({
+            active_recording_id: null,
+            recording_stopped_at: nowIso,
+          })
+          .eq('room_id', roomId);
+
+        if (updateError) throw updateError;
+
+        console.log(`🛑 Recording state cleared for room ${roomId}`);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true }),
+        };
+      }
+
       case 'leave': {
         // User is leaving the room - decrement appropriate count
         const { roomId, isSpectator } = body;
@@ -904,6 +1033,8 @@ exports.handler = async function(event) {
             current_challenger_queue_id: null,
             current_challenger_time_limit_seconds: null,
             current_challenger_expires_at: null,
+            active_recording_id: null,
+            recording_started_at: null,
             recording_stopped_at: room?.active_recording_id ? endedAt : null,
           })
           .eq('room_id', roomId);

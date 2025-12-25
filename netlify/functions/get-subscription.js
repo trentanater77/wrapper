@@ -687,6 +687,17 @@ exports.handler = async function(event) {
       .eq('user_id', userId)
       .maybeSingle();
 
+    let isCreatorPartner = false;
+    try {
+      const { data: creatorPartnerResult, error: creatorPartnerError } = await supabase
+        .rpc('is_creator_partner', { p_user_id: userId });
+      if (!creatorPartnerError) {
+        isCreatorPartner = creatorPartnerResult === true;
+      }
+    } catch (e) {
+      isCreatorPartner = false;
+    }
+
     // Get pending payout requests
     const { data: pendingPayouts } = await supabase
       .from('payout_requests')
@@ -762,6 +773,7 @@ exports.handler = async function(event) {
       isPro: planType === 'host_pro' || planType === 'pro_bundle',
       isAdFree: ['ad_free_plus', 'ad_free_premium', 'pro_bundle'].includes(planType),
       isBundle: planType === 'pro_bundle',
+      isCreatorPartner,
       totalGems: (gemBalance?.spendable_gems || 0) + (gemBalance?.cashable_gems || 0),
       // Limits based on plan
       limits: getPlanLimits(planType),

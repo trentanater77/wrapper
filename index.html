@@ -2105,6 +2105,7 @@
                   <div>
                     <p class="text-xs text-yellow-200 opacity-80">Now Challenging:</p>
                     <p id="current-challenger-name" class="text-white font-bold">—</p>
+                    <p id="current-challenger-paid" class="text-xs text-yellow-200 opacity-90 mt-1 hidden"></p>
                   </div>
                   <div id="challenger-timer" class="text-white font-bold text-lg">—</div>
                 </div>
@@ -3400,6 +3401,9 @@
           spendableGems,
           cashableGems,
         };
+
+        window.currentUserIsCreatorPartner = !!data.isCreatorPartner;
+        currentUserIsCreatorPartner = window.currentUserIsCreatorPartner;
         
         // Format with commas for large numbers
         gemCountEl.textContent = totalGems.toLocaleString();
@@ -3969,6 +3973,8 @@
   let isSpectator = false;
   let isRecording = false;
   let recordingId = null;
+  let currentUserIsCreatorPartner = false;
+  let creatorAutoRecordInitialized = false;
   let recordingUploadState = {
     isUploading: false,
     progress: 0,
@@ -5491,6 +5497,21 @@
       
       // End conversation session (most important!)
       await endConversationSession(reason);
+
+      // If creator-room host is recording, stop the recording before disconnecting.
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isHostParam = urlParams.get('host') === 'true';
+        if (
+          isHostParam &&
+          typeof roomTypeState !== 'undefined' &&
+          roomTypeState.type === 'creator' &&
+          isRecording
+        ) {
+          await stopRecording();
+        }
+      } catch (e) {
+      }
       
       // Reset user join tracking for next session
       userJoinedAtTimestamp = null;
@@ -5584,7 +5605,7 @@
       // Warn Green Room hosts before leaving (NOT forum rooms - they persist)
       // Note: Modern browsers show generic "Leave site?" message for security
       if (typeof roomTypeState !== 'undefined' && 
-          (roomTypeState.type === 'green' || roomTypeState.type === 'creator') && 
+          roomTypeState.type === 'green' && 
           !roomTypeState.roomEnded && 
           !isSpectator) {
         const urlParams = new URLSearchParams(window.location.search);
@@ -5775,37 +5796,8 @@
       }
       
       // End Creator Room when host leaves
-      if (typeof roomTypeState !== 'undefined' && 
-          roomTypeState.type === 'creator' && 
-          !roomTypeState.roomEnded && 
-          isHost) {
-        console.log('⭐ Host is leaving Creator Room - ending room');
-        if (sphereId) {
-          // Notify participants via LiveKit
-          if (livekitRoom && livekitRoom.localParticipant) {
-            try {
-              const endMessage = {
-                type: 'room-ended',
-                roomType: 'creator',
-                reason: 'host_left',
-                message: 'The host has ended this room.',
-                timestamp: Date.now()
-              };
-              const encoder = new TextEncoder();
-              livekitRoom.localParticipant.publishData(encoder.encode(JSON.stringify(endMessage)), { reliable: true });
-            } catch (e) {
-              console.log('Could not send end notification:', e);
-            }
-          }
-          
-          // End the room in database
-          const endPayload = JSON.stringify({
-            action: 'end',
-            roomId: sphereId
-          });
-          navigator.sendBeacon('/.netlify/functions/manage-room', new Blob([endPayload], { type: 'application/json' }));
-        }
-      }
+      // NOTE: Creator rooms should NOT end on host refresh/unload.
+      // They persist until explicit host end or server-side expiry.
       
       // Always send leave beacon to decrement count (for any user leaving)
       if (sphereId) {
@@ -7208,6 +7200,9 @@ async function initializeApp() {
       
       // Initialize recording permissions (plan-based)
       initializeRecordingPermissions();
+
+      // Creator program: auto-record creator rooms for creator partners (host only)
+      maybeAutoStartCreatorRoomRecording();
       
       // Fetch user badge for chat messages
       fetchUserBadge();
@@ -8286,6 +8281,13 @@ async function initializeApp() {
     if (recordBtn) {
       recordBtn.classList.add('active');
     }
+
+    persistCreatorRoomRecordingState('set', recordingId);
+
+    try {
+      saveRecordingMetadata(event);
+    } catch (e) {
+    }
     
     showToast('🎬 Recording started!');
   }
@@ -8314,6 +8316,8 @@ async function initializeApp() {
     if (recordBtn) {
       recordBtn.classList.remove('active');
     }
+
+    persistCreatorRoomRecordingState('clear');
     
     // Save recording metadata to Firebase
     if (recordingId) {
@@ -10104,6 +10108,106 @@ function ensureSpectatorTracksForParticipant(participant) {
       return response.json();
     }
 
+    async function persistCreatorRoomRecordingState(action, activeId = null) {
+      try {
+        if (typeof roomTypeState === 'undefined' || roomTypeState.type !== 'creator') return;
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const isHostParam = urlParams.get('host') === 'true';
+        if (!isHostParam) return;
+
+        const sphereId = extractSphereId(roomUrl);
+        if (!sphereId) return;
+
+        const hostId = window.currentUserData?.userId || userId;
+        if (!hostId || !isValidUuid(hostId)) return;
+
+        const payload = {
+          action: action === 'set' ? 'set-recording' : 'clear-recording',
+          roomId: sphereId,
+          hostId,
+        };
+
+        if (action === 'set') {
+          payload.recordingId = activeId;
+        }
+
+        await fetch('/.netlify/functions/manage-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {
+      }
+    }
+
+    async function maybeAutoStartCreatorRoomRecording() {
+      if (creatorAutoRecordInitialized) return;
+      creatorAutoRecordInitialized = true;
+
+      if (isSpectator) return;
+      if (typeof roomTypeState === 'undefined' || roomTypeState.type !== 'creator') return;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const isHostParam = urlParams.get('host') === 'true';
+      if (!isHostParam) return;
+
+      const currentUserId = window.currentUserData?.userId || userId;
+      if (!currentUserId || !isValidUuid(currentUserId)) return;
+
+      const sphereId = extractSphereId(roomUrl);
+      if (!sphereId) return;
+
+      // If a recording is already tracked on the room, hydrate local state and don't start a new one.
+      try {
+        const roomResp = await fetch(`/.netlify/functions/manage-room?roomId=${encodeURIComponent(sphereId)}`);
+        if (roomResp.ok) {
+          const roomData = await roomResp.json();
+          const existingRecordingId = roomData?.room?.active_recording_id || null;
+          if (existingRecordingId) {
+            recordingId = existingRecordingId;
+            isRecording = true;
+            showRecordButton();
+            updateRecordingStatusIndicator('recording');
+            const recordBtn = document.getElementById('record-btn');
+            if (recordBtn) recordBtn.classList.add('active');
+            return;
+          }
+        }
+      } catch (e) {
+      }
+
+      // Check Creator Program membership
+      let subscriptionData = null;
+      try {
+        const response = await fetch(`/.netlify/functions/get-subscription?userId=${currentUserId}`);
+        if (!response.ok) return;
+        subscriptionData = await response.json();
+      } catch (e) {
+        return;
+      }
+
+      const isCreatorPartner = !!subscriptionData?.isCreatorPartner;
+      currentUserIsCreatorPartner = isCreatorPartner;
+      window.currentUserIsCreatorPartner = isCreatorPartner;
+
+      if (!isCreatorPartner) return;
+      if (!LIVEKIT_RECORDINGS_ENDPOINT) return;
+      if (isRecording) return;
+
+      try {
+        window.recordingPreferences = {
+          privacy: 'private',
+          autoDelete: 'never'
+        };
+        const response = await startServerSideRecording(window.recordingPreferences);
+        recordingId = response.recordingId || response.egressId || response.id || `recording_${Date.now()}`;
+        handleRecordingStarted({ recordingId });
+      } catch (error) {
+        console.warn('⚠️ Auto-record failed:', error);
+      }
+    }
+
     async function toggleRecording() {
     console.log('🎬 toggleRecording called');
     console.log('🎬 isSpectator:', isSpectator);
@@ -10118,8 +10222,13 @@ function ensureSpectatorTracksForParticipant(participant) {
     const recordBtn = document.getElementById('record-btn');
     console.log('🎬 Record button found:', !!recordBtn);
     console.log('🎬 Record button hidden:', recordBtn?.classList.contains('hidden'));
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const isCreatorRoomHost = (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'creator')
+      && urlParams.get('host') === 'true';
+    const allowCreatorRoomRecording = !!window.currentUserIsCreatorPartner && isCreatorRoomHost;
     
-    if (recordBtn && recordBtn.classList.contains('hidden')) {
+    if (recordBtn && recordBtn.classList.contains('hidden') && !allowCreatorRoomRecording) {
       // Button is hidden = no permission, but user somehow clicked it
       showToast('⬆️ Upgrade to Host Pro or Pro Bundle to record!');
       return;
@@ -10134,7 +10243,8 @@ function ensureSpectatorTracksForParticipant(participant) {
         const data = await response.json();
         console.log('🎬 Subscription data:', data);
         console.log('🎬 Can record:', data.limits?.canRecord);
-        if (!data.limits?.canRecord) {
+        const allowedByCreatorProgram = !!data.isCreatorPartner && isCreatorRoomHost;
+        if (!data.limits?.canRecord && !allowedByCreatorProgram) {
           showToast('⬆️ Upgrade to Host Pro or Pro Bundle to record!');
           hideRecordButton();
           return;
@@ -11029,10 +11139,18 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       const plan = data.plan || 'free';
       const canRecord = data.limits?.canRecord || false;
+      const isCreatorPartner = !!data.isCreatorPartner;
+      currentUserIsCreatorPartner = isCreatorPartner;
+      window.currentUserIsCreatorPartner = isCreatorPartner;
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const isCreatorRoomHost = (typeof roomTypeState !== 'undefined' && roomTypeState.type === 'creator')
+        && urlParams.get('host') === 'true';
+      const canRecordInThisRoom = canRecord || (isCreatorPartner && isCreatorRoomHost);
       
-      console.log(`🎥 Recording permission: ${canRecord} (${plan} plan)`);
+      console.log(`🎥 Recording permission: ${canRecordInThisRoom} (${plan} plan)`);
       
-      if (canRecord) {
+      if (canRecordInThisRoom) {
         showRecordButton();
         console.log('🎥 Record button enabled');
       } else {
@@ -16448,6 +16566,8 @@ function ensureSpectatorTracksForParticipant(participant) {
   // ============================================
   
   let queueRefreshInterval = null;
+  let lastHostQueuePaidSnapshot = new Map();
+  let hostPaidToastPrimed = false;
   
   // Generate guest session ID for queue tracking
   function getGuestSessionId() {
@@ -16558,6 +16678,10 @@ function ensureSpectatorTracksForParticipant(participant) {
   // Refresh queue state from server
   let lastQueueLogTime = 0;
   let queueRefreshCount = 0;
+  let lastSeenActiveChallengerId = null;
+  let autoNextFiredForChallengerId = null;
+  let autoNextInProgress = false;
+  let lastAutoNextAtMs = 0;
   async function refreshQueueState() {
     queueRefreshCount++;
     const sphereId = extractSphereId(roomUrl);
@@ -16578,6 +16702,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       } else {
         params.set('guestSessionId', guestSessionId);
       }
+
       if (roomTypeState.isHost && currentUserId) {
         params.set('autoAdvance', '1');
         params.set('hostId', currentUserId);
@@ -16604,6 +16729,13 @@ function ensureSpectatorTracksForParticipant(participant) {
       }
       
       const data = await response.json();
+
+      const activeIdNow = data.activeChallenger?.id || null;
+      if (activeIdNow !== lastSeenActiveChallengerId) {
+        lastSeenActiveChallengerId = activeIdNow;
+        autoNextFiredForChallengerId = null;
+        autoNextInProgress = false;
+      }
       
       // Log full queue state for first few refreshes to help diagnose issues
       if (queueRefreshCount <= 3) {
@@ -16626,6 +16758,8 @@ function ensureSpectatorTracksForParticipant(participant) {
       
       // Update queue display
       updateQueueDisplay(data);
+
+      maybeNotifyHostOfPaidPurchase(data);
       
       // Track previous state to detect transitions
       const wasActiveChallenger = roomTypeState.isActiveChallenger;
@@ -16702,16 +16836,29 @@ function ensureSpectatorTracksForParticipant(participant) {
       if (!data.queue || data.queue.length === 0) {
         queueList.innerHTML = `<p class="text-white text-opacity-60 text-xs text-center py-2">Queue is empty</p>`;
       } else {
-        queueList.innerHTML = data.queue.slice(0, 10).map((entry, index) => `
-          <div class="flex items-center justify-between bg-black bg-opacity-20 rounded px-2 py-1">
-            <span class="text-white text-xs">
-              ${entry.position}. ${entry.paidGems > 0 ? '✅' : entry.boostGems > 0 ? '🚀' : (entry.isUser ? '👤' : '👻')} ${entry.name || 'Guest'}
-            </span>
-            <span class="text-yellow-200 text-xs">
-              ${entry.paidGems > 0 ? `${entry.paidMinutes}m` : entry.boostGems > 0 ? `${entry.boostGems}` : ''}
-            </span>
-          </div>
-        `).join('');
+        queueList.innerHTML = data.queue.slice(0, 10).map((entry, index) => {
+          const isPaid = entry.paidGems > 0;
+          const isBoost = !isPaid && entry.boostGems > 0;
+          const rowClass = isPaid
+            ? 'bg-yellow-500 bg-opacity-25 border border-yellow-300'
+            : isBoost
+              ? 'bg-white bg-opacity-10 border border-white border-opacity-10'
+              : 'bg-black bg-opacity-20';
+          const icon = isPaid ? '💎' : isBoost ? '🚀' : (entry.isUser ? '👤' : '👻');
+          const rightBadge = isPaid
+            ? `<span class="text-yellow-100 text-xs font-bold">PAID ${entry.paidMinutes}m</span>`
+            : isBoost
+              ? `<span class="text-yellow-200 text-xs">+${entry.boostGems}</span>`
+              : '<span class="text-yellow-200 text-xs"></span>';
+          return `
+            <div class="flex items-center justify-between ${rowClass} rounded px-2 py-1">
+              <span class="text-white text-xs font-medium">
+                ${entry.position}. ${icon} ${entry.name || 'Guest'}
+              </span>
+              ${rightBadge}
+            </div>
+          `;
+        }).join('');
         
         if (data.queue.length > 10) {
           queueList.innerHTML += `<p class="text-yellow-200 text-xs text-center mt-1">+${data.queue.length - 10} more...</p>`;
@@ -16723,15 +16870,60 @@ function ensureSpectatorTracksForParticipant(participant) {
       console.warn('⚠️ Queue list element not found!');
     }
   }
+
+  function maybeNotifyHostOfPaidPurchase(data) {
+    try {
+      if (!roomTypeState.isHost) return;
+
+      const nextSnapshot = new Map();
+      const changedPaid = [];
+
+      (data.queue || []).forEach((entry) => {
+        nextSnapshot.set(entry.id, { paidGems: entry.paidGems, paidMinutes: entry.paidMinutes });
+
+        const prev = lastHostQueuePaidSnapshot.get(entry.id);
+        const becamePaid = entry.paidGems > 0 && (!prev || (prev.paidGems || 0) === 0);
+        const minutesChanged = entry.paidGems > 0 && prev && (prev.paidMinutes || 0) !== (entry.paidMinutes || 0);
+
+        if (becamePaid || minutesChanged) {
+          changedPaid.push(entry);
+        }
+      });
+
+      lastHostQueuePaidSnapshot = nextSnapshot;
+
+      if (!hostPaidToastPrimed) {
+        hostPaidToastPrimed = true;
+        return;
+      }
+
+      if (changedPaid.length > 0) {
+        const entry = changedPaid[0];
+        showToast(`💎 Paid slot purchased: ${entry.name || 'Guest'} — ${entry.paidMinutes} min guaranteed`);
+      }
+    } catch (e) {
+    }
+  }
   
   // Show current challenger
   function showCurrentChallenger(challenger) {
     const section = document.getElementById('current-challenger-section');
     const nameEl = document.getElementById('current-challenger-name');
     const timerEl = document.getElementById('challenger-timer');
+    const paidEl = document.getElementById('current-challenger-paid');
     
     if (section) section.classList.remove('hidden');
     if (nameEl) nameEl.textContent = challenger.name || 'Challenger';
+
+    if (paidEl) {
+      if (challenger.paidGems > 0 && challenger.paidMinutes > 0) {
+        paidEl.textContent = `💎 Paid Slot: ${challenger.paidMinutes} min guaranteed`;
+        paidEl.classList.remove('hidden');
+      } else {
+        paidEl.textContent = '';
+        paidEl.classList.add('hidden');
+      }
+    }
     
     // Update timer if there's a time limit
     if (challenger.startedAt && roomTypeState.challengerTimeLimit) {
@@ -16756,8 +16948,13 @@ function ensureSpectatorTracksForParticipant(participant) {
   function hideCurrentChallenger() {
     const section = document.getElementById('current-challenger-section');
     const challengerControls = document.getElementById('challenger-controls');
+    const paidEl = document.getElementById('current-challenger-paid');
     if (section) section.classList.add('hidden');
     if (challengerControls) challengerControls.classList.add('hidden');
+    if (paidEl) {
+      paidEl.textContent = '';
+      paidEl.classList.add('hidden');
+    }
   }
   
   // Update challenger timer
@@ -16772,6 +16969,37 @@ function ensureSpectatorTracksForParticipant(participant) {
     if (remaining <= 0) {
       timerEl.textContent = '⏰ Time!';
       timerEl.classList.add('text-red-300');
+
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isHostParam = urlParams.get('host') === 'true';
+        const rawUserId = window.currentUserData?.userId || userId;
+        const currentUserId = getValidUuidOrNull(rawUserId);
+        const activeId = roomTypeState.currentChallenger?.id || null;
+
+        if (
+          isHostParam &&
+          currentUserId &&
+          typeof roomTypeState !== 'undefined' &&
+          roomTypeState.type === 'creator' &&
+          activeId &&
+          !autoNextInProgress &&
+          autoNextFiredForChallengerId !== activeId &&
+          Date.now() - lastAutoNextAtMs > 2500
+        ) {
+          autoNextInProgress = true;
+          autoNextFiredForChallengerId = activeId;
+          lastAutoNextAtMs = Date.now();
+
+          Promise.resolve()
+            .then(() => callNextChallenger())
+            .catch(() => {})
+            .finally(() => {
+              autoNextInProgress = false;
+            });
+        }
+      } catch (e) {
+      }
     } else {
       const mins = Math.floor(remaining / 60);
       const secs = remaining % 60;

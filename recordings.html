@@ -821,6 +821,27 @@
           }
         }
 
+        const STALE_PROCESSING_MS = 60 * 60 * 1000;
+        const normalizeTimestampMs = (value) => {
+          const num = Number(value || 0);
+          if (!Number.isFinite(num) || num <= 0) return 0;
+          if (num < 1e12) return num * 1000;
+          return num;
+        };
+
+        allRecordings = allRecordings.filter((rec) => {
+          if (rec?.downloadUrl) return true;
+          const status = String(rec?.status || '').toLowerCase();
+          if (status === 'failed' || status === 'error') return false;
+          if (status === 'processing' || status === '') {
+            const createdAtMs = normalizeTimestampMs(rec?.createdAt);
+            if (createdAtMs && (Date.now() - createdAtMs) > STALE_PROCESSING_MS) {
+              return false;
+            }
+          }
+          return true;
+        });
+
         // Validate/refresh URLs where available
         const hydratedRecordings = await filterValidRecordings(allRecordings);
 

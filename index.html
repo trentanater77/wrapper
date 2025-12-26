@@ -3821,14 +3821,33 @@
     const LIVEKIT_WS_URL = livekitRuntimeConfig.livekitUrl || runtimeDataset.livekitUrl || 'wss://YOUR-LIVEKIT-HOST';
     const LIVEKIT_CONTROL_API = livekitRuntimeConfig.controlApiBaseUrl || runtimeDataset.livekitControl || '';
     const LIVEKIT_CONTROL_API_KEY = livekitRuntimeConfig.controlApiKey || runtimeDataset.livekitControlKey || '';
-    const LIVEKIT_TOKEN_ENDPOINT = livekitRuntimeConfig.tokenEndpoint || runtimeDataset.livekitToken || (LIVEKIT_CONTROL_API ? `${LIVEKIT_CONTROL_API.replace(/\/$/, '')}/token` : '');
-    const LIVEKIT_RECORDINGS_ENDPOINT = livekitRuntimeConfig.recordingsEndpoint || runtimeDataset.livekitRecordings || (LIVEKIT_CONTROL_API ? `${LIVEKIT_CONTROL_API.replace(/\/$/, '')}/recordings` : '');
+    let LIVEKIT_TOKEN_ENDPOINT = livekitRuntimeConfig.tokenEndpoint || runtimeDataset.livekitToken || (LIVEKIT_CONTROL_API ? `${LIVEKIT_CONTROL_API.replace(/\/$/, '')}/token` : '');
+    let LIVEKIT_RECORDINGS_ENDPOINT = livekitRuntimeConfig.recordingsEndpoint || runtimeDataset.livekitRecordings || (LIVEKIT_CONTROL_API ? `${LIVEKIT_CONTROL_API.replace(/\/$/, '')}/recordings` : '');
+    const LIVEKIT_PROXY_TOKEN_ENDPOINT = '/.netlify/functions/livekit-token';
+    const LIVEKIT_PROXY_RECORDINGS_ENDPOINT = '/.netlify/functions/livekit-recordings';
     const DEFAULT_RECORDING_LAYOUT = livekitRuntimeConfig.recordingLayout || 'grid';
     const DEFAULT_LIVEKIT_SDK_SOURCES = [
       '/livekit-client.umd.min.js',
       'https://cdn.jsdelivr.net/npm/livekit-client@2.3.0/dist/livekit-client.umd.min.js',
       'https://unpkg.com/livekit-client@2.3.0/dist/livekit-client.umd.min.js'
     ];
+
+    const isCrossOriginUrl = (urlValue) => {
+      if (!urlValue || typeof urlValue !== 'string') return false;
+      try {
+        const resolved = new URL(urlValue, window.location.href);
+        return resolved.origin !== window.location.origin;
+      } catch {
+        return false;
+      }
+    };
+
+    if (LIVEKIT_TOKEN_ENDPOINT && isCrossOriginUrl(LIVEKIT_TOKEN_ENDPOINT)) {
+      LIVEKIT_TOKEN_ENDPOINT = LIVEKIT_PROXY_TOKEN_ENDPOINT;
+    }
+    if (LIVEKIT_RECORDINGS_ENDPOINT && isCrossOriginUrl(LIVEKIT_RECORDINGS_ENDPOINT)) {
+      LIVEKIT_RECORDINGS_ENDPOINT = LIVEKIT_PROXY_RECORDINGS_ENDPOINT;
+    }
     const DEFAULT_LIVEKIT_ESM_SOURCES = [
       '/livekit-client.esm.mjs',
       'https://cdn.jsdelivr.net/npm/livekit-client@2.3.0/dist/livekit-client.esm.js',

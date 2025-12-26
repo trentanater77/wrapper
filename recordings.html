@@ -847,8 +847,18 @@
       for (const recording of recordings) {
         if (recording.downloadUrl) {
           const urlResult = await checkAndRefreshUrl(recording);
-          if (urlResult.valid && urlResult.refreshed) {
+
+          if (!urlResult.valid) {
+            continue;
+          }
+
+          if (urlResult.refreshed) {
             recording.downloadUrl = urlResult.url;
+          }
+
+          const existsResult = await checkRecordingExists(recording);
+          if (!existsResult) {
+            continue;
           }
         }
 
@@ -856,6 +866,30 @@
       }
 
       return validRecordings;
+    }
+
+    async function checkRecordingExists(recording) {
+      if (!recording?.downloadUrl || !recording?.id) return true;
+
+      try {
+        const response = await fetch('/.netlify/functions/refresh-recording-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recordingId: recording.id,
+            oldUrl: recording.downloadUrl,
+            checkOnly: true,
+          }),
+        });
+
+        if (response.status === 404) {
+          return false;
+        }
+
+        return true;
+      } catch (e) {
+        return true;
+      }
     }
 
     // Try to refresh expired URLs
@@ -881,6 +915,10 @@
             oldUrl: url
           })
         });
+
+        if (response.status === 404) {
+          return { valid: false, refreshed: false };
+        }
 
         if (response.ok) {
           const data = await response.json();
@@ -955,16 +993,22 @@
           }
         }
         
-        // For permanent public URLs (no query params), assume valid
         if (url.includes('storage.googleapis.com') && !url.includes('?')) {
-          return true;
+          try {
+            const head = await fetch(url, { method: 'HEAD', mode: 'cors' });
+            if (head.status === 404) return false;
+            if (head.ok) return true;
+            return true;
+          } catch (e) {
+            return true;
+          }
         }
         
         // Try HEAD request for other URLs
         const response = await fetch(url, { method: 'HEAD', mode: 'cors' });
         if (response.ok) return true;
-        if (response.status === 403 || response.status === 401) return false;
-        return false;
+        if (response.status === 404) return false;
+        return true;
       } catch (error) {
         // CORS errors often mean the URL is valid but protected
         if (error.name === 'TypeError' && error.message.includes('CORS')) {
@@ -973,7 +1017,7 @@
             return true;
           }
         }
-        return false;
+        return true;
       }
     }
 
@@ -1017,7 +1061,7 @@
       const safeDate = escapeHtml(date);
 
       return `
-        <div class="recording-card" style="animation-delay: ${index * 0.05}s">
+        <div class="recording-card" data-privacy="${privacy}" data-has-url="${hasUrl ? '1' : '0'}" data-invalid="0" style="animation-delay: ${index * 0.05}s">
           ${hasUrl ? `
             <div class="video-container" onclick="openModal('${safeUrl}', '${safeTopic}', '${safeDate}')">
               <video 
@@ -1096,16 +1140,30 @@
       console.warn('Video failed to load:', recordingId);
       const card = videoElement.closest('.recording-card');
       if (card) {
+        card.dataset.invalid = '1';
         card.style.display = 'none';
       }
       updateVisibleStats();
     }
 
     function updateVisibleStats() {
-      const visibleCards = document.querySelectorAll('.recording-card:not([style*="display: none"])');
+      const allCards = Array.from(document.querySelectorAll('.recording-card'));
+      const visibleCards = allCards.filter((card) => {
+        if (card?.dataset?.invalid === '1') return false;
+        return card.style.display !== 'none';
+      });
+
       const totalCount = document.getElementById('total-count');
-      if (totalCount) {
-        totalCount.textContent = visibleCards.length;
+      const publicCount = document.getElementById('public-count');
+
+      if (totalCount) totalCount.textContent = visibleCards.length;
+      if (publicCount) {
+        const publicVisible = visibleCards.filter((card) => {
+          const isPublic = (card?.dataset?.privacy || 'public') === 'public';
+          const hasUrl = card?.dataset?.hasUrl === '1';
+          return isPublic && hasUrl;
+        }).length;
+        publicCount.textContent = publicVisible;
       }
     }
 
@@ -1115,12 +1173,13 @@
       const publicCount = document.getElementById('public-count');
       
       const total = allRecordings.length;
-      const publicRecs = allRecordings.filter(r => r.privacy === 'public' || !r.privacy).length;
+      const publicRecs = allRecordings.filter(r => (r.privacy === 'public' || !r.privacy) && !!r.downloadUrl).length;
       
       totalCount.textContent = total;
       publicCount.textContent = publicRecs;
       
       statsBar.style.display = 'flex';
+      updateVisibleStats();
     }
     
     // Search/filter functionality
@@ -1133,6 +1192,11 @@
       let visibleCount = 0;
       
       cards.forEach((card, index) => {
+        if (card?.dataset?.invalid === '1') {
+          card.style.display = 'none';
+          return;
+        }
+
         const recording = allRecordings[index];
         if (!recording) return;
         

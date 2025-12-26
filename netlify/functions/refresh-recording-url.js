@@ -27,7 +27,7 @@ exports.handler = async function(event) {
 
   try {
     const body = JSON.parse(event.body || '{}');
-    const { recordingId, filePath, oldUrl } = body;
+    const { recordingId, filePath, oldUrl, checkOnly } = body;
 
     if (!recordingId && !filePath && !oldUrl) {
       return {
@@ -77,10 +77,46 @@ exports.handler = async function(event) {
     // Check if file exists
     const [exists] = await file.exists();
     if (!exists) {
+      if (recordingId) {
+        try {
+          const db = firebase.database();
+          const recordingsRef = db.ref('recordings');
+          const snapshot = await recordingsRef.once('value');
+          const allRecordings = snapshot.val();
+
+          if (allRecordings) {
+            for (const [roomKey, roomRecordings] of Object.entries(allRecordings)) {
+              if (roomRecordings && roomRecordings[recordingId]) {
+                await db.ref(`recordings/${roomKey}/${recordingId}`).update({
+                  downloadUrl: null,
+                  linkStatus: 'missing',
+                  linkError: 'file_deleted',
+                  deletedAt: admin.database.ServerValue.TIMESTAMP,
+                });
+                break;
+              }
+            }
+          }
+        } catch (cleanupError) {
+          console.warn('⚠️ Failed to clean up missing recording metadata:', cleanupError.message);
+        }
+      }
       return {
         statusCode: 404,
         headers,
         body: JSON.stringify({ error: 'Recording file not found' }),
+      };
+    }
+
+    if (checkOnly) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          exists: true,
+          filePath: actualFilePath,
+        }),
       };
     }
 

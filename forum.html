@@ -2881,6 +2881,18 @@
         }
       }
 
+      let loggedInEmail = '';
+      if (currentUser) {
+        loggedInEmail = String(currentUser.email || '').trim();
+        if (!loggedInEmail) {
+          loggedInEmail = await promptForGuestReminderEmail();
+        }
+        if (!loggedInEmail) {
+          showToast('Email is required to set a reminder', 'error');
+          return;
+        }
+      }
+
       const hasReminder = userReminders[eventId] === true;
       const prevText = btnEl ? btnEl.textContent : '';
       const prevDisabled = btnEl ? btnEl.disabled : false;
@@ -2907,7 +2919,7 @@
             body: JSON.stringify({
               eventId,
               userId: currentUser ? currentUser.id : undefined,
-              email: currentUser ? undefined : guestEmail,
+              email: currentUser ? loggedInEmail : guestEmail,
               notifyBrowser: true,
               notifyEmail: true,
             })

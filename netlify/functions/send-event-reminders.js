@@ -306,7 +306,7 @@ async function sendLiveNow(now) {
   if (!from) throw new Error('Missing RESEND_FROM_EMAIL');
   if (!baseUrl) throw new Error('Missing APP_BASE_URL');
 
-  const since = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
+  const since = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
 
   const { data: events, error } = await supabase
     .from('scheduled_events')

@@ -253,6 +253,17 @@ exports.handler = async function(event) {
     const { data: existing } = await existingQuery.single();
 
     if (existing) {
+      if (notifyEmailValue && !sanitizeEmail(existing.email) && !normalizedEmail) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: 'Email is required to enable email reminders',
+            requiresEmail: true,
+          }),
+        };
+      }
+
       // Update existing reminder
       const updatePayload = {
         push_subscription: pushSubscription || null,
@@ -293,6 +304,17 @@ exports.handler = async function(event) {
           success: true,
           message: 'Reminder updated',
           alreadySubscribed: true,
+        }),
+      };
+    }
+
+    if (notifyEmailValue && !normalizedEmail) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Email is required to enable email reminders',
+          requiresEmail: true,
         }),
       };
     }

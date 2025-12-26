@@ -2676,6 +2676,15 @@
         await ensureCurrentUserEmail();
       }
 
+      if (currentUserId && !currentUserEmail) {
+        const manualEmail = await promptForGuestReminderEmail();
+        if (!manualEmail) {
+          showToast('Email is required to set a reminder', 'error');
+          return;
+        }
+        currentUserEmail = manualEmail;
+      }
+
       let guestEmail = '';
       if (!currentUserId) {
         guestEmail = getGuestReminderEmail();
@@ -2724,14 +2733,37 @@
             body: JSON.stringify({
               eventId,
               userId: currentUserId || undefined,
-              email: currentUserId ? (currentUserEmail || undefined) : guestEmail,
+              email: currentUserId ? currentUserEmail : guestEmail,
               notifyBrowser: true,
               notifyEmail: true,
             })
           });
           const payload = await res.json().catch(() => null);
           if (!res.ok) {
-            throw new Error(payload?.error || payload?.message || 'Failed to set reminder');
+            if (payload?.requiresEmail) {
+              const manualEmail = await promptForGuestReminderEmail();
+              if (!manualEmail) {
+                throw new Error(payload?.error || payload?.message || 'Email required');
+              }
+              currentUserEmail = manualEmail;
+              const retryRes = await fetch('/.netlify/functions/subscribe-reminder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  eventId,
+                  userId: currentUserId || undefined,
+                  email: currentUserId ? currentUserEmail : guestEmail,
+                  notifyBrowser: true,
+                  notifyEmail: true,
+                })
+              });
+              const retryPayload = await retryRes.json().catch(() => null);
+              if (!retryRes.ok) {
+                throw new Error(retryPayload?.error || retryPayload?.message || 'Failed to set reminder');
+              }
+            } else {
+              throw new Error(payload?.error || payload?.message || 'Failed to set reminder');
+            }
           }
           userReminders[eventId] = true;
           showToast('Reminded');

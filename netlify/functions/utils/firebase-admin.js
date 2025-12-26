@@ -7,6 +7,11 @@ function getFirebaseAdmin(options = {}) {
     return admin;
   }
 
+  const isNetlifyLikeEnv =
+    process.env.NETLIFY === 'true' ||
+    !!process.env.AWS_LAMBDA_FUNCTION_NAME ||
+    !!process.env.AWS_REGION;
+
   const projectId = process.env.FIREBASE_MAIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
   const databaseURL = process.env.FIREBASE_MAIN_DATABASE_URL || process.env.FIREBASE_DATABASE_URL;
   const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_MAIN_STORAGE_BUCKET;
@@ -34,8 +39,10 @@ function getFirebaseAdmin(options = {}) {
         parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
       }
       credential = admin.credential.cert(parsed);
-    } catch (_) {
-      // ignore
+    } catch (error) {
+      if (isNetlifyLikeEnv) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is set but is not valid JSON');
+      }
     }
   } else if (clientEmail && privateKey) {
     credential = admin.credential.cert({
@@ -43,6 +50,10 @@ function getFirebaseAdmin(options = {}) {
       clientEmail,
       privateKey: privateKey.replace(/\\n/g, '\n'),
     });
+  }
+
+  if (!credential && isNetlifyLikeEnv) {
+    throw new Error('Firebase credentials missing (set FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY)');
   }
 
   const initConfig = {

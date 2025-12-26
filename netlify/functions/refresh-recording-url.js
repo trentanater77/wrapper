@@ -16,6 +16,24 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+function hasDatabaseUrlConfigured() {
+  return !!(process.env.FIREBASE_MAIN_DATABASE_URL || process.env.FIREBASE_DATABASE_URL);
+}
+
+function getFirebaseConfigStatus() {
+  const projectId = process.env.FIREBASE_MAIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
+  const databaseURL = process.env.FIREBASE_MAIN_DATABASE_URL || process.env.FIREBASE_DATABASE_URL;
+  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_MAIN_STORAGE_BUCKET;
+  return {
+    hasProjectId: !!projectId,
+    hasDatabaseURL: !!databaseURL,
+    hasStorageBucket: !!storageBucket,
+    hasServiceAccountJson: !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
+    hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+    hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+  };
+}
+
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };
@@ -37,7 +55,21 @@ exports.handler = async function(event) {
       };
     }
 
-    const firebase = getFirebaseAdmin({ requireDatabaseURL: true, requireStorageBucket: true });
+    let firebase;
+    try {
+      firebase = getFirebaseAdmin({ requireStorageBucket: true });
+    } catch (firebaseError) {
+      const status = getFirebaseConfigStatus();
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          error: 'Failed to refresh recording URL',
+          message: firebaseError.message,
+          firebase: status,
+        }),
+      };
+    }
     const bucket = firebase.storage().bucket();
     const bucketName = bucket.name;
 
@@ -75,30 +107,44 @@ exports.handler = async function(event) {
     const file = bucket.file(actualFilePath);
 
     // Check if file exists
-    const [exists] = await file.exists();
+    let exists = false;
+    try {
+      [exists] = await file.exists();
+    } catch (existsError) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          error: 'Failed to refresh recording URL',
+          message: existsError.message,
+        }),
+      };
+    }
     if (!exists) {
       if (recordingId) {
-        try {
-          const db = firebase.database();
-          const recordingsRef = db.ref('recordings');
-          const snapshot = await recordingsRef.once('value');
-          const allRecordings = snapshot.val();
+        if (hasDatabaseUrlConfigured()) {
+          try {
+            const db = firebase.database();
+            const recordingsRef = db.ref('recordings');
+            const snapshot = await recordingsRef.once('value');
+            const allRecordings = snapshot.val();
 
-          if (allRecordings) {
-            for (const [roomKey, roomRecordings] of Object.entries(allRecordings)) {
-              if (roomRecordings && roomRecordings[recordingId]) {
-                await db.ref(`recordings/${roomKey}/${recordingId}`).update({
-                  downloadUrl: null,
-                  linkStatus: 'missing',
-                  linkError: 'file_deleted',
-                  deletedAt: admin.database.ServerValue.TIMESTAMP,
-                });
-                break;
+            if (allRecordings) {
+              for (const [roomKey, roomRecordings] of Object.entries(allRecordings)) {
+                if (roomRecordings && roomRecordings[recordingId]) {
+                  await db.ref(`recordings/${roomKey}/${recordingId}`).update({
+                    downloadUrl: null,
+                    linkStatus: 'missing',
+                    linkError: 'file_deleted',
+                    deletedAt: admin.database.ServerValue.TIMESTAMP,
+                  });
+                  break;
+                }
               }
             }
+          } catch (cleanupError) {
+            console.warn('⚠️ Failed to clean up missing recording metadata:', cleanupError.message);
           }
-        } catch (cleanupError) {
-          console.warn('⚠️ Failed to clean up missing recording metadata:', cleanupError.message);
         }
       }
       return {
@@ -128,7 +174,7 @@ exports.handler = async function(event) {
       console.log(`✅ Made file public: ${publicUrl}`);
 
       // Update the database with the permanent URL
-      if (recordingId) {
+      if (recordingId && hasDatabaseUrlConfigured()) {
         const db = firebase.database();
         // Try to find and update the recording in the database
         const recordingsRef = db.ref('recordings');
@@ -164,22 +210,36 @@ exports.handler = async function(event) {
       // If making public fails, generate a new signed URL
       console.log('⚠️ Could not make public, generating signed URL:', publicError.message);
 
-      const [signedUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
+      try {
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
 
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          url: signedUrl,
-          permanent: false,
-          expiresIn: '7 days',
-          message: 'Generated new signed URL (expires in 7 days)'
-        }),
-      };
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            success: true,
+            url: signedUrl,
+            permanent: false,
+            expiresIn: '7 days',
+            message: 'Generated new signed URL (expires in 7 days)'
+          }),
+        };
+      } catch (signError) {
+        const status = getFirebaseConfigStatus();
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            error: 'Failed to refresh recording URL',
+            message: signError.message,
+            makePublicError: publicError.message,
+            firebase: status,
+          }),
+        };
+      }
     }
 
   } catch (error) {

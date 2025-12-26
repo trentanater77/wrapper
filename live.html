@@ -1718,6 +1718,18 @@
       
       // Check auth state for create room
       checkAuthForCreateRoom();
+
+      try {
+        const params = new URLSearchParams(window.location.search || '');
+        const shouldOpen = params.get('createRoom') === '1' || window.location.hash === '#create-room';
+        if (shouldOpen) {
+          setTimeout(() => {
+            if (window.openCreateRoomModal) window.openCreateRoomModal();
+          }, 50);
+        }
+      } catch (e) {
+        // ignore
+      }
     });
     
     // Plan limits configuration (matches pricing.html)

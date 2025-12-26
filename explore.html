@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tivoq | Meaningful Video Conversations</title>
-  <meta name="description" content="Join meaningful 1-on-1 video conversations on topics you care about. Find your match, share ideas, and connect authentically.">
+  <title>Tivoq | Paid Fan Calls & Debate Rooms for Creators</title>
+  <meta name="description" content="Run paid live fan calls and debates with your viewers. Built for politics, culture, and sports creators who get \"debate me\" spam in chat.">
   
   <!-- Open Graph -->
-  <meta property="og:title" content="Tivoq - Meaningful Video Conversations">
-  <meta property="og:description" content="Talk with purpose. Connect with heart. Find someone to discuss what's on your mind.">
+  <meta property="og:title" content="Tivoq - Paid Fan Calls & Debate Rooms">
+  <meta property="og:description" content="Run paid live fan calls and debates with your viewers. Queues, timers, tips, paid 1-on-1 slots, and recordings.">
   <meta property="og:type" content="website">
   
   <!-- Monetag ads loaded dynamically by ads.js after subscription check -->
@@ -254,6 +254,55 @@
       padding: 6rem 2rem;
       position: relative;
       z-index: 1;
+    }
+
+    .founding-offer {
+      padding: 0 2rem 3rem;
+      position: relative;
+      z-index: 1;
+    }
+
+    .offer-card {
+      max-width: 900px;
+      margin: 0 auto;
+      background: linear-gradient(135deg, #22223B 0%, #3A3A66 100%);
+      color: #FCE2E5;
+      border-radius: 24px;
+      border: 3px solid #FFD166;
+      padding: 2rem;
+      box-shadow: 0 18px 50px rgba(34, 34, 59, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .offer-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      margin-bottom: 0.35rem;
+      color: #FFD166;
+    }
+
+    .offer-line {
+      font-size: 1.1rem;
+      font-weight: 800;
+      margin-bottom: 0.35rem;
+    }
+
+    .offer-subline {
+      opacity: 0.9;
+      line-height: 1.5;
+      max-width: 560px;
+    }
+
+    .offer-actions {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      min-width: 240px;
     }
     
     .section-container {
@@ -770,37 +819,51 @@
   <section class="hero">
     <div class="hero-content">
       <div class="hero-badge">
-        ✨ Real conversations. Real connections.
+        🎙️ Built for creator call-in shows
       </div>
       
       <h1 class="hero-title">
-        Talk with <span class="highlight">Purpose</span>.<br>
-        Connect with <span class="highlight">Heart</span>.
+        Run paid live <span class="highlight">fan calls</span><br>
+        and <span class="highlight">debates</span> with your viewers.
       </h1>
       
       <p class="hero-subtitle">
-        Join meaningful 1-on-1 video conversations on topics you care about. 
-        Find your match, share ideas, and connect authentically.
+        Built for politics, culture, and sports creators who get “debate me” spam in chat.
+        Run a structured call-in show with queues, tips, paid 1-on-1 slots, and recordings — while you keep streaming on Twitch, YouTube, or TikTok.
       </p>
       
       <div class="hero-ctas">
-        <a href="/matchmaking.html" class="cta-btn large">🎯 Find Your Match</a>
-        <a href="/live.html" class="cta-btn secondary large">🔴 Host a Room</a>
+        <a href="/live.html?createRoom=1" class="cta-btn large">🔴 Set Up a Fan Call Room</a>
+        <a href="#how-it-works-creators" class="cta-btn secondary large">👀 See How It Works</a>
       </div>
       
       <div class="hero-stats">
         <div class="stat">
-          <div class="stat-value">💬</div>
-          <div class="stat-label">Meaningful Chats</div>
+          <div class="stat-value">⏱️</div>
+          <div class="stat-label">Timers & turn-taking</div>
         </div>
         <div class="stat">
-          <div class="stat-value">🎯</div>
-          <div class="stat-label">Topic Matching</div>
+          <div class="stat-value">💸</div>
+          <div class="stat-label">Tips & paid slots</div>
         </div>
         <div class="stat">
-          <div class="stat-value">🔒</div>
-          <div class="stat-label">Private & Safe</div>
+          <div class="stat-value">📹</div>
+          <div class="stat-label">Record & download</div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="founding-offer">
+    <div class="offer-card">
+      <div>
+        <div class="offer-title">Founding Creator Cohort (10 spots total)</div>
+        <div class="offer-line">Keep 100% of tips + Host Pro free for life.</div>
+        <div class="offer-subline">Featured on the homepage + direct access to the founder.</div>
+      </div>
+      <div class="offer-actions">
+        <a href="/creators.html" class="cta-btn" style="background:#FFD166;color:#22223B;">Learn More</a>
+        <a href="/live.html?createRoom=1" class="cta-btn secondary" style="border-color:#FFD166;color:#FFD166;">Set Up a Room</a>
       </div>
     </div>
   </section>
@@ -809,95 +872,89 @@
   <section class="features">
     <div class="section-container">
       <div class="section-header">
-        <h2 class="section-title">Why Tivoq?</h2>
+        <h2 class="section-title">Why creators use Tivoq</h2>
         <p class="section-subtitle">
-          Unlike random video chat, we match you with someone who actually wants to talk about the same things you do.
+          Turn “debate me” chaos into a clean, monetized call-in show.
         </p>
       </div>
       
       <div class="features-grid">
         <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <h3 class="feature-title">Topic-Based Matching</h3>
-          <p class="feature-desc">
-            Type what's on your mind and our AI finds someone with similar interests. No more awkward "hi, how are you" loops.
-          </p>
+          <div class="feature-icon">💰</div>
+          <h3 class="feature-title">Turn “debate me” into money</h3>
+          <p class="feature-desc">Fans join a queue, tip, or buy guaranteed 1-on-1 slots while you debate or do Q&A.</p>
         </div>
         
         <div class="feature-card">
-          <div class="feature-icon">💡</div>
-          <h3 class="feature-title">Conversation Sparks</h3>
-          <p class="feature-desc">
-            AI-generated prompts help keep the conversation flowing. Never run out of things to talk about.
-          </p>
+          <div class="feature-icon">🧵</div>
+          <h3 class="feature-title">No more Discord chaos</h3>
+          <p class="feature-desc">Tivoq runs the call-in line: queue, timers, skips, and retries for callers.</p>
         </div>
         
         <div class="feature-card">
-          <div class="feature-icon">👀</div>
-          <h3 class="feature-title">Watch & Learn</h3>
-          <p class="feature-desc">
-            Join as a spectator to watch interesting conversations. Learn from others before jumping in.
-          </p>
+          <div class="feature-icon">📡</div>
+          <h3 class="feature-title">Keep your main stream</h3>
+          <p class="feature-desc">Continue streaming on Twitch, YouTube, or TikTok. Just drop one Tivoq link for callers.</p>
         </div>
         
         <div class="feature-card">
-          <div class="feature-icon">📹</div>
-          <h3 class="feature-title">Record & Share</h3>
-          <p class="feature-desc">
-            Save your best conversations. Build a library of memorable discussions to revisit anytime.
-          </p>
+          <div class="feature-icon">🎬</div>
+          <h3 class="feature-title">Instant content from every show</h3>
+          <p class="feature-desc">Sessions auto-record so you can download and clip the best debates into Shorts, Reels, and TikToks.</p>
         </div>
         
         <div class="feature-card">
-          <div class="feature-icon">💎</div>
-          <h3 class="feature-title">Tip & Earn</h3>
-          <p class="feature-desc">
-            Show appreciation with gems. Hosts can earn real money from tips and paid entry rooms.
-          </p>
+          <div class="feature-icon">⚡</div>
+          <h3 class="feature-title">Built-in tipping and paid entry</h3>
+          <p class="feature-desc">Fans tip, boost themselves in the queue, or pay for guaranteed 1-on-1 time during your show.</p>
         </div>
         
         <div class="feature-card">
           <div class="feature-icon">🛡️</div>
-          <h3 class="feature-title">Safe & Moderated</h3>
-          <p class="feature-desc">
-            Rating system, reporting tools, and active moderation keep the community positive and respectful.
-          </p>
+          <h3 class="feature-title">Safe & moderated</h3>
+          <p class="feature-desc">Reporting, blocking, and host controls help keep call-in shows manageable.</p>
         </div>
       </div>
     </div>
   </section>
   
   <!-- How It Works -->
-  <section class="how-it-works">
+  <section class="how-it-works" id="how-it-works-creators">
     <div class="section-container">
       <div class="section-header">
-        <h2 class="section-title">How It Works</h2>
-        <p class="section-subtitle">Three simple steps to your next great conversation</p>
+        <h2 class="section-title">How it works for creators</h2>
+        <p class="section-subtitle">Run a call-in show your viewers understand in 30 seconds</p>
       </div>
       
       <div class="steps">
         <div class="step">
           <div class="step-number">1</div>
-          <h3 class="step-title">Share Your Topic</h3>
+          <h3 class="step-title">Start a fan call room</h3>
           <p class="step-desc">
-            Tell us what you want to talk about. Career advice? Philosophy? That show everyone's watching?
+            Pick a topic like “Roast my takes,” “Relationship hot seat,” or “Game-day calls.” Set the length (60–180 minutes).
           </p>
         </div>
         
         <div class="step">
           <div class="step-number">2</div>
-          <h3 class="step-title">Get Matched</h3>
+          <h3 class="step-title">Drop one link on your stream</h3>
           <p class="step-desc">
-            Our AI finds someone who wants to discuss the same thing. Usually in under a minute.
+            Keep going live on Twitch/YouTube/TikTok. Pin your Tivoq room link so fans can join the queue.
           </p>
         </div>
         
         <div class="step">
           <div class="step-number">3</div>
-          <h3 class="step-title">Start Talking</h3>
+          <h3 class="step-title">Talk, debate, and get paid</h3>
           <p class="step-desc">
-            Video chat instantly. Conversation sparks help if you need them. It's that simple.
+            Fans queue up, tip, or buy guaranteed slots. Tivoq handles timers and turn-taking while you focus on the conversation.
           </p>
+        </div>
+
+        <div class="step">
+          <div class="step-number">4</div>
+          <h3 class="step-title">Download the recording and clip it</h3>
+          <p class="step-desc">After the show, download the full recording and turn the best moments into content.</p>
         </div>
       </div>
     </div>
@@ -907,8 +964,26 @@
   <section class="spheres">
     <div class="section-container">
       <div class="section-header">
-        <h2 class="section-title">Explore Topics</h2>
-        <p class="section-subtitle">Join conversations about things that matter to you</p>
+        <h2 class="section-title">For fans & community</h2>
+        <p class="section-subtitle">When you’re not doing fan calls with creators, you can still use Tivoq to find 1-on-1 conversations with people who care about the same topics.</p>
+      </div>
+
+      <div class="steps" style="margin-top: 1.5rem;">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3 class="step-title">Share your topic</h3>
+          <p class="step-desc">Type what you want to talk about and pick your vibe.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3 class="step-title">Get matched</h3>
+          <p class="step-desc">Find someone who wants to discuss the same thing.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3 class="step-title">Start talking</h3>
+          <p class="step-desc">Jump into a 1-on-1 conversation instantly.</p>
+        </div>
       </div>
       
       <div class="sphere-tags">
@@ -944,11 +1019,11 @@
           <ul class="pricing-features">
             <li>60 minutes per room</li>
             <li>Unlimited guests</li>
-            <li>Topic matching</li>
-            <li>Basic video chat</li>
-            <li>Community access</li>
+            <li>Join creator rooms</li>
+            <li>Watch live calls</li>
+            <li>Try topic matching</li>
           </ul>
-          <a href="/matchmaking.html" class="cta-btn" style="width: 100%; text-align: center;">Start Free</a>
+          <a href="/live.html" class="cta-btn" style="width: 100%; text-align: center;">Start Free</a>
         </div>
         
         <!-- Ad-Free Premium -->
@@ -976,7 +1051,7 @@
             <li>Green Room (paid entry)</li>
             <li>Cash out earnings</li>
           </ul>
-          <a href="/pricing.html" class="cta-btn" style="width: 100%; text-align: center;">Become a Host</a>
+          <a href="/pricing.html" class="cta-btn" style="width: 100%; text-align: center;">Best for creators</a>
         </div>
         
         <!-- Pro Bundle -->
@@ -999,12 +1074,11 @@
   <!-- Final CTA -->
   <section class="final-cta">
     <div class="section-container">
-      <h2 class="section-title">Ready to Connect?</h2>
+      <h2 class="section-title">Ready to run your first fan call?</h2>
       <p class="section-subtitle">
-        Two seats. One topic. Infinite insight.<br>
-        Start your first conversation today.
+        Start a call-in show your viewers understand instantly.
       </p>
-      <a href="/matchmaking.html" class="cta-btn large">🚀 Find Your Match Now</a>
+      <a href="/live.html?createRoom=1" class="cta-btn large">🔴 Set Up a Fan Call Room</a>
     </div>
   </section>
   

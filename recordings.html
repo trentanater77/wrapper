@@ -774,6 +774,8 @@
 
     let recordingsReloadInFlight = false;
     let recordingsLastReloadAt = 0;
+    let recordingsLiveRef = null;
+    let recordingsLiveTimer = null;
 
     // Wait for config and initialize
     document.addEventListener('DOMContentLoaded', () => {
@@ -792,6 +794,21 @@
         firebaseApp = firebase.initializeApp(config.firebaseMain, 'recordings-app');
         database = firebase.database(firebaseApp);
         await loadRecordings();
+
+        recordingsLiveRef = database.ref('recordings');
+        recordingsLiveRef.on('value', (snapshot) => {
+          if (recordingsLiveTimer) {
+            clearTimeout(recordingsLiveTimer);
+          }
+          recordingsLiveTimer = setTimeout(() => {
+            try {
+              if (document.visibilityState !== 'visible') return;
+              const modal = document.getElementById('video-modal');
+              if (modal && modal.classList.contains('active')) return;
+              void hydrateAndRenderRecordings(snapshot ? snapshot.val() : null, { validateUrls: false }).catch(() => {});
+            } catch (e) {}
+          }, 600);
+        });
 
         window.addEventListener('focus', () => {
           maybeReloadRecordings();
@@ -826,67 +843,70 @@
       }
     }
 
+    async function hydrateAndRenderRecordings(data, options = {}) {
+      if (!data) {
+        showEmpty();
+        return;
+      }
+
+      const validateUrls = options?.validateUrls !== false;
+
+      allRecordings = [];
+
+      for (const roomKey in data) {
+        const roomRecordings = data[roomKey];
+        for (const recordingId in roomRecordings) {
+          const recording = roomRecordings[recordingId];
+          allRecordings.push({
+            ...recording,
+            roomKey,
+            id: recordingId
+          });
+        }
+      }
+
+      const STALE_PROCESSING_MS = 60 * 60 * 1000;
+      const normalizeTimestampMs = (value) => {
+        const num = Number(value || 0);
+        if (!Number.isFinite(num) || num <= 0) return 0;
+        if (num < 1e12) return num * 1000;
+        return num;
+      };
+
+      allRecordings = allRecordings.filter((rec) => {
+        if (rec?.downloadUrl) return true;
+        const status = String(rec?.status || '').toLowerCase();
+        if (status === 'failed' || status === 'error') return false;
+        if (status === 'processing' || status === '') {
+          const createdAtMs = normalizeTimestampMs(rec?.createdAt);
+          if (createdAtMs && (Date.now() - createdAtMs) > STALE_PROCESSING_MS) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      let nextRecordings = allRecordings;
+      if (validateUrls) {
+        nextRecordings = await filterValidRecordings(allRecordings);
+      }
+      nextRecordings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      if (nextRecordings.length === 0) {
+        showEmpty();
+        return;
+      }
+
+      allRecordings = nextRecordings;
+      renderRecordings();
+      updateStats();
+    }
+
     async function loadRecordings() {
       try {
         const recordingsRef = database.ref('recordings');
         const snapshot = await recordingsRef.once('value');
-        const data = snapshot.val();
-
-        if (!data) {
-          showEmpty();
-          return;
-        }
-
-        // Flatten the nested structure
-        allRecordings = [];
-        
-        for (const roomKey in data) {
-          const roomRecordings = data[roomKey];
-          for (const recordingId in roomRecordings) {
-            const recording = roomRecordings[recordingId];
-            allRecordings.push({
-              ...recording,
-              roomKey,
-              id: recordingId
-            });
-          }
-        }
-
-        const STALE_PROCESSING_MS = 60 * 60 * 1000;
-        const normalizeTimestampMs = (value) => {
-          const num = Number(value || 0);
-          if (!Number.isFinite(num) || num <= 0) return 0;
-          if (num < 1e12) return num * 1000;
-          return num;
-        };
-
-        allRecordings = allRecordings.filter((rec) => {
-          if (rec?.downloadUrl) return true;
-          const status = String(rec?.status || '').toLowerCase();
-          if (status === 'failed' || status === 'error') return false;
-          if (status === 'processing' || status === '') {
-            const createdAtMs = normalizeTimestampMs(rec?.createdAt);
-            if (createdAtMs && (Date.now() - createdAtMs) > STALE_PROCESSING_MS) {
-              return false;
-            }
-          }
-          return true;
-        });
-
-        // Validate/refresh URLs where available
-        const hydratedRecordings = await filterValidRecordings(allRecordings);
-
-        // Sort by creation date (newest first)
-        hydratedRecordings.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-        if (hydratedRecordings.length === 0) {
-          showEmpty();
-          return;
-        }
-
-        allRecordings = hydratedRecordings;
-        renderRecordings();
-        updateStats();
+        await hydrateAndRenderRecordings(snapshot.val(), { validateUrls: true });
       } catch (error) {
         console.error('Failed to load recordings:', error);
         showError('Load Error', 'Failed to load recordings. ' + error.message);

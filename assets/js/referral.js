@@ -1,17 +1,17 @@
 /**
- * ChatSpheres Cross-Domain Referral Tracking
+ * Tivoq Cross-Domain Referral Tracking
  * Stores referral codes in cookies that work across all subdomains
  */
 
 (function() {
   'use strict';
 
-  const REFERRAL_COOKIE_NAME = 'chatspheres_ref';
-  const COOKIE_DOMAIN = '.chatspheres.com';
+  const REFERRAL_COOKIE_NAME = 'tivoq_ref';
+  const COOKIE_DOMAIN = '.tivoq.com';
   const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
   /**
-   * Set a cookie that works across all chatspheres.com subdomains
+   * Set a cookie that works across all tivoq.com subdomains
    */
   function setCrossDomainCookie(name, value, maxAge) {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
@@ -73,7 +73,7 @@
     
     // Also save to sessionStorage as backup
     try {
-      sessionStorage.setItem('chatspheres_referral_code', refCode);
+      sessionStorage.setItem('tivoq_referral_code', refCode);
     } catch (e) {
       console.log('SessionStorage not available');
     }
@@ -91,7 +91,7 @@
     // Fallback to sessionStorage
     if (!refCode) {
       try {
-        refCode = sessionStorage.getItem('chatspheres_referral_code');
+        refCode = sessionStorage.getItem('tivoq_referral_code');
       } catch (e) {}
     }
     
@@ -104,7 +104,7 @@
   function clearReferralCode() {
     deleteCookie(REFERRAL_COOKIE_NAME);
     try {
-      sessionStorage.removeItem('chatspheres_referral_code');
+      sessionStorage.removeItem('tivoq_referral_code');
     } catch (e) {}
     console.log('🗑️ Referral code cleared');
   }
@@ -190,7 +190,7 @@
     if (!refCode) return;
     
     // Find all links to the signup page (including new /signup.html path)
-    const signupLinks = document.querySelectorAll('a[href*="chatspheres.com/sign-up"], a[href*="/sign-up"], a[href*="/signup.html"], a[href*="/login.html"]');
+    const signupLinks = document.querySelectorAll('a[href*="/sign-up"], a[href*="/signup.html"], a[href*="/login.html"]');
     
     signupLinks.forEach(link => {
       const currentHref = link.getAttribute('href');

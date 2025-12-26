@@ -25,16 +25,16 @@
       return {
         '@context': 'https://schema.org',
         '@type': 'Organization',
-        name: 'ChatSpheres',
-        url: 'https://chatspheres.com',
-        logo: 'https://chatspheres.com/assets/images/logo.png',
+        name: 'Tivoq',
+        url: 'https://tivoq.com',
+        logo: 'https://tivoq.com/assets/images/logo.png',
         description: 'Live video chat platform for meaningful conversations, debates, and forums.',
         sameAs: [
           // Add social media links here when available
         ],
         contactPoint: {
           '@type': 'ContactPoint',
-          email: 'support@chatspheres.com',
+          email: 'support@tivoq.com',
           contactType: 'customer service'
         }
       };
@@ -47,14 +47,14 @@
       return {
         '@context': 'https://schema.org',
         '@type': 'WebSite',
-        name: 'ChatSpheres',
-        url: 'https://chatspheres.com',
+        name: 'Tivoq',
+        url: 'https://tivoq.com',
         description: 'Find your conversation match. AI-powered semantic matchmaking for meaningful video conversations.',
         potentialAction: {
           '@type': 'SearchAction',
           target: {
             '@type': 'EntryPoint',
-            urlTemplate: 'https://chatspheres.com/explore.html?q={search_term_string}'
+            urlTemplate: 'https://tivoq.com/explore.html?q={search_term_string}'
           },
           'query-input': 'required name=search_term_string'
         }
@@ -68,12 +68,12 @@
       return {
         '@context': 'https://schema.org',
         '@type': 'WebApplication',
-        name: 'ChatSpheres',
+        name: 'Tivoq',
         applicationCategory: 'CommunicationApplication',
         operatingSystem: 'Any',
         browserRequirements: 'Requires JavaScript. Requires WebRTC support.',
         description: 'Live video chat platform with AI-powered matchmaking for debates, conversations, and community forums.',
-        url: 'https://chatspheres.com',
+        url: 'https://tivoq.com',
         offers: {
           '@type': 'AggregateOffer',
           priceCurrency: 'USD',
@@ -120,7 +120,7 @@
         description: plan.description,
         brand: {
           '@type': 'Brand',
-          name: 'ChatSpheres'
+          name: 'Tivoq'
         },
         offers: {
           '@type': 'Offer',
@@ -128,7 +128,7 @@
           priceCurrency: 'USD',
           priceValidUntil: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           availability: 'https://schema.org/InStock',
-          url: 'https://chatspheres.com/pricing.html'
+          url: 'https://tivoq.com/pricing.html'
         }
       };
     },
@@ -165,11 +165,11 @@
         eventAttendanceMode: 'https://schema.org/OnlineEventAttendanceMode',
         location: {
           '@type': 'VirtualLocation',
-          url: `https://chatspheres.com/live.html?room=${room.id}`
+          url: `https://tivoq.com/live.html?room=${room.id}`
         },
         organizer: {
           '@type': 'Person',
-          name: room.hostName || 'ChatSpheres Host'
+          name: room.hostName || 'Tivoq Host'
         },
         offers: {
           '@type': 'Offer',
@@ -191,7 +191,7 @@
         '@type': 'VideoObject',
         name: video.title,
         description: video.description,
-        thumbnailUrl: video.thumbnailUrl || 'https://chatspheres.com/assets/images/video-thumbnail.png',
+        thumbnailUrl: video.thumbnailUrl || 'https://tivoq.com/assets/images/video-thumbnail.png',
         uploadDate: video.createdAt || new Date().toISOString(),
         duration: video.duration || 'PT0M',
         interactionStatistic: {
@@ -255,8 +255,8 @@
       if (path !== '/' && path !== '/index.html') {
         const pageName = path.replace(/\//g, '').replace('.html', '').replace(/-/g, ' ');
         const breadcrumbs = [
-          { name: 'Home', url: 'https://chatspheres.com/' },
-          { name: pageName.charAt(0).toUpperCase() + pageName.slice(1), url: `https://chatspheres.com${path}` }
+          { name: 'Home', url: 'https://tivoq.com/' },
+          { name: pageName.charAt(0).toUpperCase() + pageName.slice(1), url: `https://tivoq.com${path}` }
         ];
         this.add(this.breadcrumbs(breadcrumbs));
       }

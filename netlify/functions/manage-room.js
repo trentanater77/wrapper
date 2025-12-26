@@ -34,6 +34,10 @@ function getControlApiKey() {
   return process.env.CONTROL_API_KEY || process.env.LIVEKIT_CONTROL_API_KEY || '';
 }
 
+function getAppBaseUrl() {
+  return (process.env.APP_BASE_URL || process.env.URL || 'https://tivoq.com').replace(/\/$/, '');
+}
+
 async function stopActiveRecording({ recordingId, roomName, roomUrl }) {
   const baseUrl = getControlApiBaseUrl();
   const apiKey = getControlApiKey();
@@ -576,7 +580,7 @@ exports.handler = async function(event) {
               success: true,
               room: updated || existingRoom,
               inviteCode: existingRoom.invite_code,
-              inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${existingRoom.invite_code}`,
+              inviteLink: `${getAppBaseUrl()}/index.html?room=${roomId}&invite=${existingRoom.invite_code}`,
               existingRoom: true
             }),
           };
@@ -694,7 +698,7 @@ exports.handler = async function(event) {
                   success: true,
                   room: retryData,
                   inviteCode,
-                  inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${inviteCode}`,
+                  inviteLink: `${getAppBaseUrl()}/index.html?room=${roomId}&invite=${inviteCode}`,
                   warning: 'Cover image not saved - run migration to enable'
                 }),
               };
@@ -718,7 +722,7 @@ exports.handler = async function(event) {
                   is_creator_room: effectiveIsCreatorRoom,
                 },
                 inviteCode,
-                inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${inviteCode}`,
+                inviteLink: `${getAppBaseUrl()}/index.html?room=${roomId}&invite=${inviteCode}`,
                 warning: 'Room created but not saved to database (migration pending)'
               }),
             };
@@ -735,7 +739,7 @@ exports.handler = async function(event) {
             success: true,
             room: data,
             inviteCode,
-            inviteLink: `https://sphere.chatspheres.com/index.html?room=${roomId}&invite=${inviteCode}`,
+            inviteLink: `${getAppBaseUrl()}/index.html?room=${roomId}&invite=${inviteCode}`,
           }),
         };
       }

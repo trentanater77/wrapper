@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ChatSpheres - Explore Forums</title>
-  <meta name="description" content="Discover video chat communities on ChatSpheres.">
+  <title>Tivoq - Explore Forums</title>
+  <meta name="description" content="Discover video chat communities on Tivoq.">
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
@@ -119,7 +119,7 @@
             <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
             <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           </svg>
-          <span class="site-logo-text">ChatSpheres</span>
+          <span class="site-logo-text">Tivoq</span>
         </a>
       </div>
       <!-- Right side: Gem badge -->
@@ -210,7 +210,7 @@
     
     <footer>
       <p><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/community-guidelines.html">Guidelines</a></p>
-      <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres</p>
+      <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 Tivoq</p>
     </footer>
   </main>
 
@@ -227,7 +227,7 @@
       
       const SUPABASE_URL = supabaseConfig.url || config.SUPABASE_URL || '';
       const SUPABASE_ANON_KEY = supabaseConfig.anonKey || config.SUPABASE_ANON_KEY || '';
-      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.tivoq.com';
       
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
       
@@ -518,7 +518,7 @@
           <div class="forum-card-body">
             <div class="forum-card-name">${escapeHtml(f.name)}${f.isNsfw ? '<span class="nsfw-badge">NSFW</span>' : ''}${roleBadge}</div>
             <div class="forum-card-slug">f/${f.slug}</div>
-            <div class="forum-card-desc">${escapeHtml(f.description || 'A community on ChatSpheres')}</div>
+            <div class="forum-card-desc">${escapeHtml(f.description || 'A community on Tivoq')}</div>
             <div class="forum-card-stats">
               <span class="forum-card-stat">👥 ${formatNumber(f.memberCount || 0)}</span>
               ${f.activeRoomCount > 0 ? `<span class="forum-card-stat live">🔴 ${f.activeRoomCount} live</span>` : ''}
@@ -567,7 +567,7 @@
         <div class="empty-state">
           <div class="empty-state-icon">🌐</div>
           <h2>No Forums Yet!</h2>
-          <p>Be the first to create a community on ChatSpheres</p>
+          <p>Be the first to create a community on Tivoq</p>
           ${currentUser ? '<a href="/create-forum" class="create-btn">+ Create Forum</a>' : '<a href="/login.html?redirect=/create-forum" class="create-btn">Sign In to Create</a>'}
         </div>
       `;
@@ -789,7 +789,7 @@
             </div>
             <div class="forum-card-slug">📅 ${dateDisplay} · ${timeDisplay}</div>
             ${event.forum_name ? `<p style="font-size: 0.8rem; color: #8b5cf6; margin-bottom: 4px;">📍 From: ${escapeHtml(event.forum_name)}</p>` : ''}
-            <div class="forum-card-desc">${escapeHtml(event.description || 'An upcoming event on ChatSpheres')}</div>
+            <div class="forum-card-desc">${escapeHtml(event.description || 'An upcoming event on Tivoq')}</div>
             <div class="forum-card-stats">
               <span class="forum-card-stat">👤 ${escapeHtml(event.host_name || 'Host')}</span>
               <span class="forum-card-stat">🔔 ${event.reminderCount || 0} interested</span>

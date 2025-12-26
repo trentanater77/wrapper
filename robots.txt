@@ -1,5 +1,5 @@
-# robots.txt for ChatSpheres
-# https://chatspheres.com
+# robots.txt for Tivoq
+# https://tivoq.com
 
 User-agent: *
 
@@ -18,7 +18,7 @@ Disallow: /embed.html
 Disallow: /recordings.html
 
 # Sitemap location
-Sitemap: https://chatspheres.com/sitemap.xml
+Sitemap: https://tivoq.com/sitemap.xml
 
 # Crawl delay (be nice to our server)
 Crawl-delay: 1

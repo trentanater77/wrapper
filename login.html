@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login - ChatSpheres</title>
-  <meta name="description" content="Sign in to ChatSpheres - Join live video conversations and debates.">
+  <title>Login - Tivoq</title>
+  <meta name="description" content="Sign in to Tivoq - Join live video conversations and debates.">
   
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -317,7 +317,7 @@
           <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         </svg>
         <h1>Welcome Back</h1>
-        <p>Sign in to continue to ChatSpheres</p>
+        <p>Sign in to continue to Tivoq</p>
       </div>
       
       <div id="auth-message" class="auth-message"></div>
@@ -356,7 +356,7 @@
       </div>
     </div>
     
-    <a href="/explore.html" class="back-home">← Back to ChatSpheres</a>
+    <a href="/explore.html" class="back-home">← Back to Tivoq</a>
   </div>
 
   <script>
@@ -370,7 +370,7 @@
       
       const SUPABASE_URL = supabaseConfig.url || config.SUPABASE_URL || '';
       const SUPABASE_ANON_KEY = supabaseConfig.anonKey || config.SUPABASE_ANON_KEY || '';
-      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.tivoq.com';
       const AUTH_SITE_URL = authConfig.siteUrl || window.location.origin;
       AUTH_REDIRECT_URL = authConfig.redirectUrl || `${AUTH_SITE_URL}/.netlify/functions/auth-callback`;
       

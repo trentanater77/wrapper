@@ -1,11 +1,11 @@
-# ChatSpheres Wrapper – Key Facts for Future Maintainers
+# Tivoq Wrapper – Key Facts for Future Maintainers
 
 This document orients anyone (human or AI) who lands in this repo without prior context. It highlights the moving pieces you must understand before changing or debugging the stack.
 
 ## High-Level Architecture
 - **Frontend**: Single-page app in `index.html` served via Netlify. Uses Firebase auth/DB, Supabase session tracking, and LiveKit for real-time calls. No bundler; everything is vanilla JS plus inline modules.
 - **Backend controller**: Express app in `server/controller.js`, containerized via `docker-compose.yml`. Exposes `/token` (LiveKit JWT issuance), `/recordings/*`, and `/webhooks/livekit`. Runs on a Google Cloud VM inside `/home/trenton_hammons777/livekit-stack`.
-- **LiveKit**: The actual SFU instance is part of the same compose stack (`livekit/` configs). Frontend connects over WebSocket to `wss://sphere.chatspheres.com` (production) or the VM’s host/IP for debugging.
+- **LiveKit**: The actual SFU instance is part of the same compose stack (`livekit/` configs). Frontend connects over WebSocket to `wss://api.chatspheres.com` (production) or the VM’s host/IP for debugging.
 
 ## Frontend Notes (`index.html`)
 - Loads LiveKit SDK dynamically, preferring the vendored files `livekit-client.umd.min.js` and `livekit-client.esm.mjs`, then falling back to CDN. Because LiveKit’s bundles export slightly different shapes, the loader now:

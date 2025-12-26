@@ -46,7 +46,7 @@ exports.handler = async function(event) {
         const expiresAt = expiresInHours ? new Date(Date.now() + expiresInHours * 3600000) : null;
         const { data: invite } = await supabase.from('forum_invites').insert({ forum_id: forumId, invite_code: inviteCode, created_by: userId, max_uses: maxUses || null, expires_at: expiresAt }).select().single();
         
-        const baseUrl = process.env.URL || 'https://sphere.chatspheres.com';
+        const baseUrl = process.env.APP_BASE_URL || process.env.URL || 'https://tivoq.com';
         return { statusCode: 201, headers, body: JSON.stringify({ success: true, invite: { id: invite.id, code: invite.invite_code, url: `${baseUrl}/f/${forum.slug}?invite=${inviteCode}`, maxUses: invite.max_uses, expiresAt: invite.expires_at } }) };
       }
       case 'delete': {
@@ -56,7 +56,7 @@ exports.handler = async function(event) {
       }
       case 'list': {
         const { data: invites } = await supabase.from('forum_invites').select('*').eq('forum_id', forumId).eq('is_active', true).order('created_at', { ascending: false });
-        const baseUrl = process.env.URL || 'https://sphere.chatspheres.com';
+        const baseUrl = process.env.APP_BASE_URL || process.env.URL || 'https://tivoq.com';
         return { statusCode: 200, headers, body: JSON.stringify({ invites: invites?.map(inv => ({ id: inv.id, code: inv.invite_code, url: `${baseUrl}/f/${forum.slug}?invite=${inv.invite_code}`, maxUses: inv.max_uses, useCount: inv.use_count, expiresAt: inv.expires_at })) || [] }) };
       }
       default:

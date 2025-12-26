@@ -32,7 +32,7 @@
             </div>
             <h2 class="text-xl font-bold mb-2" style="color: var(--charcoal, #22223B);">You have a pending rating!</h2>
             <p class="opacity-70 text-sm" style="color: var(--charcoal, #22223B);">How was your chat with <strong id="rating-other-user-name">User</strong>?</p>
-            <p class="opacity-60 text-xs mt-2" style="color: var(--charcoal, #22223B);">Your feedback keeps ChatSpheres safe.</p>
+            <p class="opacity-60 text-xs mt-2" style="color: var(--charcoal, #22223B);">Your feedback helps keep Tivoq safe.</p>
           </div>
           
           <div class="flex justify-center gap-6 mb-6">

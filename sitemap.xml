@@ -6,125 +6,125 @@
   
   <!-- Main Pages -->
   <url>
-    <loc>https://chatspheres.com/</loc>
+    <loc>https://tivoq.com/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/matchmaking.html</loc>
+    <loc>https://tivoq.com/matchmaking.html</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/live.html</loc>
+    <loc>https://tivoq.com/live.html</loc>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/explore.html</loc>
+    <loc>https://tivoq.com/explore.html</loc>
     <changefreq>hourly</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/forum.html</loc>
+    <loc>https://tivoq.com/forum.html</loc>
     <changefreq>hourly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <!-- Feature Pages -->
   <url>
-    <loc>https://chatspheres.com/features.html</loc>
+    <loc>https://tivoq.com/features.html</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/pricing.html</loc>
+    <loc>https://tivoq.com/pricing.html</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/creators.html</loc>
+    <loc>https://tivoq.com/creators.html</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/affiliate.html</loc>
+    <loc>https://tivoq.com/affiliate.html</loc>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <!-- User Account Pages -->
   <url>
-    <loc>https://chatspheres.com/login.html</loc>
+    <loc>https://tivoq.com/login.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/signup.html</loc>
+    <loc>https://tivoq.com/signup.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/profile.html</loc>
+    <loc>https://tivoq.com/profile.html</loc>
     <changefreq>weekly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/branding.html</loc>
+    <loc>https://tivoq.com/branding.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/cashout.html</loc>
+    <loc>https://tivoq.com/cashout.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.4</priority>
   </url>
   
   <!-- Information Pages -->
   <url>
-    <loc>https://chatspheres.com/about.html</loc>
+    <loc>https://tivoq.com/about.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/contact.html</loc>
+    <loc>https://tivoq.com/contact.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   
   <!-- Legal Pages -->
   <url>
-    <loc>https://chatspheres.com/privacy.html</loc>
+    <loc>https://tivoq.com/privacy.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/terms.html</loc>
+    <loc>https://tivoq.com/terms.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/community-guidelines.html</loc>
+    <loc>https://tivoq.com/community-guidelines.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>
   
   <url>
-    <loc>https://chatspheres.com/creator-agreement.html</loc>
+    <loc>https://tivoq.com/creator-agreement.html</loc>
     <changefreq>monthly</changefreq>
     <priority>0.3</priority>
   </url>

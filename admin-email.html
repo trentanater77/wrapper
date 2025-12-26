@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - Send Email | ChatSpheres</title>
+  <title>Admin - Send Email | Tivoq</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -89,7 +89,7 @@
 
     <div style="display:flex;align-items:center;gap:10px;margin-top:0.75rem;">
       <input id="wrapHtml" type="checkbox" checked style="width:auto;" />
-      <label for="wrapHtml" style="margin:0;">Wrap HTML in ChatSpheres template</label>
+      <label for="wrapHtml" style="margin:0;">Wrap HTML in Tivoq template</label>
     </div>
 
     <div class="actions">
@@ -171,7 +171,7 @@
     async function sendTestEmail() {
       const adminSecret = document.getElementById('adminSecret').value.trim();
       const to = document.getElementById('testTo').value.trim();
-      const subject = document.getElementById('subject').value || 'ChatSpheres Test Email';
+      const subject = document.getElementById('subject').value || 'Tivoq Test Email';
 
       if (!adminSecret) {
         alert('Admin secret is required');

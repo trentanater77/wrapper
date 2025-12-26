@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Forum - ChatSpheres</title>
-  <meta name="description" content="Join the community on ChatSpheres.">
+  <title>Forum - Tivoq</title>
+  <meta name="description" content="Join the community on Tivoq.">
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
@@ -316,7 +316,7 @@
             <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
             <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           </svg>
-          <span class="site-logo-text">ChatSpheres</span>
+          <span class="site-logo-text">Tivoq</span>
         </a>
       </div>
       <!-- Right side: Gem badge -->
@@ -706,7 +706,7 @@
     
     <footer>
       <p><a href="/terms.html">Terms</a> · <a href="/privacy.html">Privacy</a> · <a href="/community-guidelines.html">Guidelines</a></p>
-      <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 ChatSpheres</p>
+      <p style="margin-top: var(--space-sm); opacity: 0.7;">© 2025 Tivoq</p>
     </footer>
   </main>
 
@@ -884,7 +884,7 @@
       
       const SUPABASE_URL = supabaseConfig.url || config.SUPABASE_URL || '';
       const SUPABASE_ANON_KEY = supabaseConfig.anonKey || config.SUPABASE_ANON_KEY || '';
-      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.tivoq.com';
       
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
       
@@ -1012,7 +1012,7 @@
           console.warn('Could not hydrate upcoming event reminders:', e);
         }
         
-        document.title = `${forumData.name} - ChatSpheres`;
+        document.title = `${forumData.name} - Tivoq`;
         renderForum(forumData);
       } catch (err) {
         console.error('Error loading forum:', err);
@@ -1101,7 +1101,7 @@
                   ${forum.forumType === 'private' ? '<span class="private-badge">🔒 Private</span>' : ''}
                 </h1>
                 <p class="forum-slug">f/${forum.slug}</p>
-                <p class="forum-desc">${escapeHtml(forum.description || 'A community on ChatSpheres')}</p>
+                <p class="forum-desc">${escapeHtml(forum.description || 'A community on Tivoq')}</p>
                 <div class="forum-stats">
                   <div class="forum-stat">
                     <div class="forum-stat-value">${formatNumber(forum.memberCount || 0)}</div>
@@ -1259,7 +1259,7 @@
         // Build URL with all necessary params
         // Use forum ID (UUID) for revenue split, not slug
         // Include forumRoomType to distinguish regular chat from help rooms
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&roomType=${roomTypeParam}&forumRoomType=${forumRoomType}&topic=${encodedTopic}&forum=${forumData.id}&mode=${mode}`;
+        let roomUrl = `${window.location.origin}/index.html?room=${roomId}&roomType=${roomTypeParam}&forumRoomType=${forumRoomType}&topic=${encodedTopic}&forum=${forumData.id}&mode=${mode}`;
         
         // Different button text based on state and type
         let actionText = isTrulyLive ? '👁️ Watch Live' : '🎤 Join Room';
@@ -2564,7 +2564,7 @@
       
       // Check if Creator Room is allowed
       if (selectedForumRoomType === 'creator' && !isCreatorPartner) {
-        alert('Creator Rooms require Creator Partner status.\n\nApply to become a Creator Partner at:\nhttps://sphere.chatspheres.com/affiliate.html#partner-section');
+        alert('Creator Rooms require Creator Partner status.\n\nApply to become a Creator Partner at:\nhttps://tivoq.com/affiliate.html#partner-section');
         return;
       }
       
@@ -2667,7 +2667,7 @@
         const encodedDesc = description ? encodeURIComponent(description) : '';
         // Use forum ID (UUID) for revenue split, not slug
         // Pass forumRoomType to distinguish regular chat from help rooms
-        let roomUrl = `https://sphere.chatspheres.com/index.html?room=${roomId}&mode=participant&roomType=${activeRoomType}&forumRoomType=${forumRoomType}&forum=${forumData.id}&topic=${encodedTopic}&host=true&duration=${planLimits.durationMinutes}`;
+        let roomUrl = `${window.location.origin}/index.html?room=${roomId}&mode=participant&roomType=${activeRoomType}&forumRoomType=${forumRoomType}&forum=${forumData.id}&topic=${encodedTopic}&host=true&duration=${planLimits.durationMinutes}`;
         if (encodedDesc) roomUrl += `&description=${encodedDesc}`;
         if (createData.inviteCode) roomUrl += `&invite=${createData.inviteCode}`;
         

@@ -535,8 +535,8 @@
     const theirTopic = encodeURIComponent(state.matchData.their_topic || 'Chat');
     const similarity = state.matchData.similarity || 80;
     
-    // Use sphere.chatspheres.com format that works with the existing app
-    const roomUrl = `https://chatspheres.daily.co/${roomId}`;
+    // Daily room URL (unused; kept for debugging)
+    const roomUrl = `https://tivoq.daily.co/${roomId}`;
     
     const redirectUrl = `${baseUrl}${CONFIG.VIDEO_CHAT_URL}?room=${roomId}&mode=participant&matched=true&topic=${yourTopic}&matchedTopic=${theirTopic}&similarity=${similarity}`;
     

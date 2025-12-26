@@ -133,7 +133,7 @@
       banner.innerHTML = `
         <div class="pwa-install-content">
           <div class="pwa-install-text">
-            <strong>Install ChatSpheres</strong>
+            <strong>Install Tivoq</strong>
             <span>Add to home screen for the best experience</span>
           </div>
           <div class="pwa-install-actions">

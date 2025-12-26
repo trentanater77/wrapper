@@ -33,7 +33,7 @@ const {
 
 const livekitEndpoint = LIVEKIT_EGRESS_URL || LIVEKIT_URL || LIVEKIT_WS_URL || LIVEKIT_HOST;
 const app = express();
-const allowedOrigins = (process.env.LIVEKIT_ALLOWED_ORIGINS || 'https://sphere.chatspheres.com')
+const allowedOrigins = (process.env.LIVEKIT_ALLOWED_ORIGINS || 'https://tivoq.com')
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean);

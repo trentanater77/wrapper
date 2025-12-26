@@ -1,11 +1,11 @@
-# ChatSpheres Authentication Setup Guide
+# Tivoq Authentication Setup Guide
 
-This guide explains how to configure Supabase authentication for the ChatSpheres Video Sphere (Netlify/HTML) to share sessions across `chatspheres.com` and `sphere.chatspheres.com`.
+This guide explains how to configure Supabase authentication for the Tivoq app (Netlify/HTML).
 
 ## What's Been Implemented
 
 ✅ **Authentication Modal** - Sign up, sign in, and Google OAuth  
-✅ **Cross-Subdomain Cookies** - Sessions persist across `.chatspheres.com`  
+✅ **Cross-Subdomain Cookies** - Sessions persist across `.tivoq.com`  
 ✅ **Supabase Integration** - Full auth flow with PKCE  
 ✅ **Guest Mode** - Users can continue without signing in  
 ✅ **OAuth Callback Handler** - Netlify function for Google redirect  
@@ -27,7 +27,7 @@ Add these environment variables to your Netlify site settings:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `AUTH_COOKIE_DOMAIN` | Cookie domain for cross-subdomain auth | `.chatspheres.com` |
+| `AUTH_COOKIE_DOMAIN` | Cookie domain for cross-subdomain auth | `.tivoq.com` |
 | `AUTH_SITE_URL` | Base URL for auth redirects | Auto-detected from request |
 | `AUTH_REDIRECT_URL` | OAuth callback URL | `{AUTH_SITE_URL}/.netlify/functions/auth-callback` |
 
@@ -48,8 +48,8 @@ Add these environment variables to your Netlify site settings:
 In **Authentication** → **URL Configuration**, add these redirect URLs:
 
 ```
-https://sphere.chatspheres.com/.netlify/functions/auth-callback
-https://sphere.chatspheres.com/
+https://tivoq.com/.netlify/functions/auth-callback
+https://tivoq.com/
 ```
 
 For local development, also add:
@@ -62,7 +62,7 @@ http://localhost:8888/
 
 Set the **Site URL** to your main domain:
 ```
-https://sphere.chatspheres.com
+https://tivoq.com
 ```
 
 ---
@@ -89,29 +89,26 @@ https://yourproject.supabase.co/auth/v1/callback
 
 Add:
 ```
-https://sphere.chatspheres.com
-https://chatspheres.com
+https://tivoq.com
+https://www.tivoq.com
 ```
 
 ---
 
 ## Cross-Domain Cookie Configuration
 
-The authentication system uses cookies with the `.chatspheres.com` domain to allow users to stay logged in when navigating between:
-
-- **chatspheres.com** (Forum/Web)
-- **sphere.chatspheres.com** (Video Sphere/Netlify)
+The authentication system uses cookies with the `.tivoq.com` domain to allow users to stay logged in when navigating between subdomains (for example `tivoq.com` and `www.tivoq.com`).
 
 ### How It Works
 
-1. When a user signs in on `sphere.chatspheres.com`, the session cookie is set with `domain=.chatspheres.com`
-2. This cookie is automatically sent to both `chatspheres.com` and `sphere.chatspheres.com`
+1. When a user signs in, the session cookie is set with `domain=.tivoq.com`
+2. This cookie is automatically sent to other `*.tivoq.com` subdomains
 3. The Supabase client on both sites can read the same session
 
 ### Important Notes
 
 - Both sites **must** use the same Supabase project
-- Both sites **must** use the same cookie domain (`.chatspheres.com`)
+- Both sites **must** use the same cookie domain (`.tivoq.com`)
 - Both sites should configure their Supabase client with the same storage settings
 
 ---
@@ -145,7 +142,7 @@ For local development, the cookie domain falls back to not setting a domain (wor
                               ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Check for existing Supabase session             │
-│         (from cookies set on .chatspheres.com domain)        │
+│           (from cookies set on .tivoq.com domain)            │
 └─────────────────────────────────────────────────────────────┘
                               │
                ┌──────────────┼──────────────┐
@@ -196,7 +193,7 @@ For local development, the cookie domain falls back to not setting a domain (wor
 - Ensure Google Cloud Console credentials are correct
 
 ### Session not persisting across subdomains
-- Verify `AUTH_COOKIE_DOMAIN` is set to `.chatspheres.com`
+- Verify `AUTH_COOKIE_DOMAIN` is set to `.tivoq.com`
 - Ensure both sites use HTTPS (required for Secure cookies)
 - Check browser dev tools → Application → Cookies to verify domain
 
@@ -211,7 +208,7 @@ For local development, the cookie domain falls back to not setting a domain (wor
 
 - [ ] Set `SUPABASE_URL` in Netlify environment variables
 - [ ] Set `SUPABASE_ANON_KEY` in Netlify environment variables
-- [ ] Set `AUTH_COOKIE_DOMAIN` to `.chatspheres.com` in Netlify
+- [ ] Set `AUTH_COOKIE_DOMAIN` to `.tivoq.com` in Netlify
 - [ ] Enable Google provider in Supabase dashboard
 - [ ] Add redirect URLs in Supabase dashboard
 - [ ] Configure Google Cloud Console OAuth credentials

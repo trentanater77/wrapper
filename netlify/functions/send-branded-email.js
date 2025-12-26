@@ -145,8 +145,8 @@ function textToHtml(text) {
 function wrapMarketingHtml(innerHtml, subject, logoUrl) {
   const safeSubject = sanitizeText(subject || '', 160);
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="ChatSpheres" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:6px;" />`
-    : '<div style="font-size: 18px; font-weight: 900; letter-spacing: 0.2px;">ChatSpheres</div>';
+    ? `<img src="${logoUrl}" alt="Tivoq" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:6px;" />`
+    : '<div style="font-size: 18px; font-weight: 900; letter-spacing: 0.2px;">Tivoq</div>';
   return `
   <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px 12px; background: #ffffff;">
     <div style="max-width: 680px; margin: 0 auto; border: 1px solid #f1f1f1; border-radius: 16px; overflow: hidden;">
@@ -161,7 +161,7 @@ function wrapMarketingHtml(innerHtml, subject, logoUrl) {
       </div>
     </div>
     <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">
-      © ${new Date().getFullYear()} ChatSpheres
+      © ${new Date().getFullYear()} Tivoq
     </div>
   </div>`;
 }

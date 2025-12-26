@@ -76,7 +76,7 @@ exports.handler = async function(event) {
     if (row.status === 'unsubscribed') {
       if (accept.includes('text/html')) {
         const baseUrl = process.env.APP_BASE_URL || '';
-        const backLink = baseUrl ? `<p><a href="${baseUrl}">Return to ChatSpheres</a></p>` : '';
+        const backLink = baseUrl ? `<p><a href="${baseUrl}">Return to Tivoq</a></p>` : '';
         return htmlResponse(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Unsubscribed</title></head><body style="font-family: ui-sans-serif, system-ui; padding: 24px;"><h2>Unsubscribed</h2><p>${row.email} is currently unsubscribed.</p>${backLink}</body></html>`);
       }
 
@@ -105,7 +105,7 @@ exports.handler = async function(event) {
 
     if (accept.includes('text/html')) {
       const baseUrl = process.env.APP_BASE_URL || '';
-      const backLink = baseUrl ? `<p><a href="${baseUrl}">Return to ChatSpheres</a></p>` : '';
+      const backLink = baseUrl ? `<p><a href="${baseUrl}">Return to Tivoq</a></p>` : '';
       return htmlResponse(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Confirmed</title></head><body style="font-family: ui-sans-serif, system-ui; padding: 24px;"><h2>Subscribed</h2><p>${row.email} is confirmed and subscribed.</p>${backLink}</body></html>`);
     }
 

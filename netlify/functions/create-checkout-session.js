@@ -435,7 +435,7 @@ async function createSquareGemPaymentLink({ userId, gemPackKey, userEmail, succe
         ],
       },
       checkout_options: {
-        redirect_url: successUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/pricing.html?success=true`,
+        redirect_url: successUrl || `${process.env.URL || 'https://tivoq.com'}/pricing.html?success=true`,
       },
     },
   });
@@ -533,7 +533,7 @@ async function createSquareSubscriptionPaymentLink({ userId, priceKey, userEmail
     },
     checkout_options: {
       subscription_plan_id: resolvedPlanVariationId,
-      redirect_url: successUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/pricing.html?success=true`,
+      redirect_url: successUrl || `${process.env.URL || 'https://tivoq.com'}/pricing.html?success=true`,
     },
     pre_populated_data: {
       buyer_email: userEmail,
@@ -792,8 +792,8 @@ exports.handler = async function(event) {
       ],
       metadata: sessionMetadata,
       customer_email: userEmail,
-      success_url: successUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/pricing.html?success=true`,
-      cancel_url: cancelUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/pricing.html?canceled=true`,
+      success_url: successUrl || `${process.env.URL || 'https://tivoq.com'}/pricing.html?success=true`,
+      cancel_url: cancelUrl || `${process.env.URL || 'https://tivoq.com'}/pricing.html?canceled=true`,
       allow_promotion_codes: true,
     };
 

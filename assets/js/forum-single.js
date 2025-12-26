@@ -84,7 +84,7 @@ async function loadForum(slug) {
     renderForum(data);
     
     // Update page title
-    document.title = `${forumData.name} - ChatSpheres`;
+    document.title = `${forumData.name} - Tivoq`;
   } catch (err) {
     console.error('Error loading forum:', err);
     showError('Error', err.message);

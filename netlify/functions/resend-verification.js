@@ -80,7 +80,7 @@ exports.handler = async function(event) {
     }
 
     // Get site URL for redirect
-    const siteUrl = process.env.AUTH_SITE_URL || process.env.URL || 'https://chatspheres.com';
+    const siteUrl = process.env.AUTH_SITE_URL || process.env.URL || 'https://tivoq.com';
 
     // Resend verification email
     const { error } = await supabase.auth.resend({

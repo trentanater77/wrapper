@@ -68,6 +68,18 @@
 
 # Redirects
 [[redirects]]
+  from = "http://sphere.chatspheres.com/*"
+  to = "https://tivoq.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "https://sphere.chatspheres.com/*"
+  to = "https://tivoq.com/:splat"
+  status = 301
+  force = true
+
+[[redirects]]
   from = "/match"
   to = "/matchmaking.html"
   status = 200

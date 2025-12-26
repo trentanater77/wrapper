@@ -61,7 +61,7 @@ Webhooks tell your app when subscriptions are created, renewed, or canceled.
 2. Click **+ Add endpoint**
 3. Enter your endpoint URL:
    ```
-   https://sphere.chatspheres.com/.netlify/functions/stripe-webhook
+   https://tivoq.com/.netlify/functions/stripe-webhook
    ```
 4. Click **Select events** and add these events:
    - `checkout.session.completed`
@@ -99,7 +99,7 @@ You should see these tables created:
 ## ✅ Step 5: Test the Flow
 
 1. Deploy to Netlify (it will auto-deploy on push)
-2. Go to `https://sphere.chatspheres.com/pricing`
+2. Go to `https://tivoq.com/pricing`
 3. Sign in
 4. Click "Upgrade to Pro"
 5. Use Stripe test card: `4242 4242 4242 4242`
@@ -143,7 +143,7 @@ STRIPE_PRICE_AD_FREE_PREMIUM_YEARLY=price_YOUR_PRICE_ID
 
 ### Webhook not working
 → Check the webhook secret is correct in `STRIPE_WEBHOOK_SECRET`
-→ Check webhook endpoint URL is exactly: `https://sphere.chatspheres.com/.netlify/functions/stripe-webhook`
+→ Check webhook endpoint URL is exactly: `https://tivoq.com/.netlify/functions/stripe-webhook`
 
 ### Subscription not showing in Supabase
 → Check if the SQL tables were created (run the SQL in Step 4)

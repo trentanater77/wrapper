@@ -147,7 +147,7 @@ function buildReminderHtml({ title, hostName, timeDisplay, ctaUrl, ctaLabel, sub
               <span style="font-size:18px;">💬</span>
             </div>
             <div>
-              <div style="font-size: 18px; font-weight: 900; letter-spacing: 0.2px;">ChatSpheres</div>
+              <div style="font-size: 18px; font-weight: 900; letter-spacing: 0.2px;">Tivoq</div>
               <div style="opacity: 0.92; margin-top: 2px; font-weight: 700;">${safeSubtitle}</div>
             </div>
           </div>
@@ -169,7 +169,7 @@ function buildReminderHtml({ title, hostName, timeDisplay, ctaUrl, ctaLabel, sub
         </div>
       </div>
       <div style="max-width:600px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
-        © ${new Date().getFullYear()} ChatSpheres
+        © ${new Date().getFullYear()} Tivoq
       </div>
     </div>
   </div>
@@ -177,7 +177,7 @@ function buildReminderHtml({ title, hostName, timeDisplay, ctaUrl, ctaLabel, sub
 }
 
 function buildReminderText({ title, hostName, timeDisplay, ctaUrl, subtitle }) {
-  return `ChatSpheres — ${subtitle}
+  return `Tivoq — ${subtitle}
 
 ${title}
 Hosted by: ${hostName}

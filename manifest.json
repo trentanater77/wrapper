@@ -1,6 +1,6 @@
 {
-  "name": "ChatSpheres - Live Video Conversations",
-  "short_name": "ChatSpheres",
+  "name": "Tivoq - Live Video Conversations",
+  "short_name": "Tivoq",
   "description": "Find your conversation match. AI-powered semantic matchmaking for meaningful video conversations, debates, and forums.",
   "start_url": "/matchmaking.html",
   "display": "standalone",

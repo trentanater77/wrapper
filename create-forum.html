@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Create Forum - ChatSpheres</title>
-  <meta name="description" content="Create your own community on ChatSpheres.">
+  <title>Create Forum - Tivoq</title>
+  <meta name="description" content="Create your own community on Tivoq.">
   
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>window.__CHATSPHERES_CONFIG__ = window.__CHATSPHERES_CONFIG__ || {};</script>
@@ -98,7 +98,7 @@
             <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
             <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           </svg>
-          <span class="site-logo-text">ChatSpheres</span>
+          <span class="site-logo-text">Tivoq</span>
         </a>
       </div>
       <!-- Right side: Gem badge -->
@@ -168,7 +168,7 @@
       
       const SUPABASE_URL = supabaseConfig.url || config.SUPABASE_URL || '';
       const SUPABASE_ANON_KEY = supabaseConfig.anonKey || config.SUPABASE_ANON_KEY || '';
-      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.chatspheres.com';
+      const AUTH_COOKIE_DOMAIN = authConfig.cookieDomain || '.tivoq.com';
       
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
       
@@ -284,7 +284,7 @@
             <div class="form-group">
               <label class="form-label">URL Slug <span class="required">*</span></label>
               <input type="text" class="form-input" id="forumSlug" placeholder="e.g., gaming-lounge" required maxlength="50" pattern="[a-z0-9-]+" oninput="updateSlugPreview()">
-              <div class="slug-preview">chatspheres.com/f/<span id="slugPreview">your-forum</span></div>
+              <div class="slug-preview">tivoq.com/f/<span id="slugPreview">your-forum</span></div>
               <p class="form-hint">Lowercase letters, numbers, and hyphens only</p>
             </div>
             

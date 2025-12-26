@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChatSpheres - Join Your Sphere</title>
+  <title>Tivoq - Join Your Sphere</title>
   
   <!-- Monetag ads loaded dynamically by ads.js after subscription check -->
   
@@ -1046,7 +1046,7 @@
         <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
         <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
       </svg>
-      <h2>Welcome to ChatSpheres</h2>
+      <h2>Welcome to Tivoq</h2>
       <p>Sign in to connect with purpose</p>
     </div>
     
@@ -1640,14 +1640,14 @@
     <div class="header-inner max-w-7xl mx-auto flex items-center justify-between">
       <!-- Logo & Controls - Left Side -->
       <div class="header-left flex items-center space-x-3">
-        <a href="/explore.html" class="header-logo flex items-center space-x-2 hover:opacity-80 transition-opacity flex-shrink-0" title="Go to ChatSpheres Home">
+        <a href="/explore.html" class="header-logo flex items-center space-x-2 hover:opacity-80 transition-opacity flex-shrink-0" title="Go to Tivoq Home">
           <svg viewBox="0 0 64 64" width="40" height="40" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="24" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
             <circle cx="40" cy="32" r="20" stroke="#FCE2E5" stroke-width="6"/>
             <circle cx="24" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
             <circle cx="40" cy="32" r="18" stroke="#e63946" stroke-width="4" fill="none"/>
           </svg>
-          <span class="header-brand-text text-xl font-extrabold" style="color: var(--charcoal);">ChatSpheres</span>
+          <span class="header-brand-text text-xl font-extrabold" style="color: var(--charcoal);">Tivoq</span>
         </a>
         
         <!-- Gem Balance (shown when logged in) -->
@@ -2767,7 +2767,7 @@
       </div>
       <h2 class="text-xl font-bold text-charcoal mb-2">How was your chat?</h2>
       <p id="rating-with-user" class="text-charcoal opacity-70 text-sm">with <strong id="rating-other-user-name">User</strong></p>
-      <p class="text-charcoal opacity-60 text-xs mt-2">Your feedback keeps ChatSpheres safe and helps us match you with better people.</p>
+      <p class="text-charcoal opacity-60 text-xs mt-2">Your feedback helps keep Tivoq safe and helps us match you with better people.</p>
     </div>
     
     <!-- Rating Buttons -->
@@ -2885,7 +2885,7 @@
         <span class="text-3xl">🐛</span>
       </div>
       <h2 class="text-xl font-bold text-charcoal mb-2">Report a Bug</h2>
-      <p class="text-charcoal opacity-70 text-sm">Help us improve ChatSpheres!</p>
+      <p class="text-charcoal opacity-70 text-sm">Help us improve Tivoq!</p>
     </div>
     
     <!-- Bug Category -->
@@ -3128,10 +3128,8 @@
     const SUPABASE_ANON_KEY = supabaseRuntimeConfig.anonKey || '';
     
     // Auth cookie configuration for cross-subdomain sessions
-    // Cookie domain should be .chatspheres.com to work across:
-    // - chatspheres.com (Forum/Web)
-    // - sphere.chatspheres.com (Video Sphere/Netlify)
-    const AUTH_COOKIE_DOMAIN = authRuntimeConfig.cookieDomain || '.chatspheres.com';
+    // Cookie domain should be .tivoq.com to work across subdomains.
+    const AUTH_COOKIE_DOMAIN = authRuntimeConfig.cookieDomain || '.tivoq.com';
     const AUTH_SITE_URL = authRuntimeConfig.siteUrl || window.location.origin;
     const AUTH_REDIRECT_URL = authRuntimeConfig.redirectUrl || `${AUTH_SITE_URL}/.netlify/functions/auth-callback`;
 
@@ -3751,12 +3749,12 @@
         return true;
       }
 
-      // Check if user has URL params (coming from chatspheres.com with auth)
+      // Check if user has URL params (coming from another page with auth)
       const urlParams = new URLSearchParams(window.location.search);
       const userIdFromURL = urlParams.get('userId');
       const usernameFromURL = urlParams.get('username');
-      
-      if (userIdFromURL && usernameFromURL && isValidUuid(userIdFromURL)) {
+      const identityFromURL = urlParams.get('identity');
+      if (usernameFromURL && isValidUuid(userIdFromURL)) {
         // User is coming with valid credentials from another app
         console.log('✅ User authenticated via URL params');
         return true;
@@ -7230,7 +7228,7 @@ async function initializeApp() {
       
       // Note: Host tracking is initialized AFTER setupPresence() so our presence is set first
       
-      showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your ChatSpheres room!');
+      showToast(isSpectator ? '👀 Welcome to the live chat!' : '🎉 Welcome to your Tivoq room!');
     }
 
   function handleLeftMeeting() {
@@ -15791,7 +15789,7 @@ function ensureSpectatorTracksForParticipant(participant) {
         if (wasTimerExpired) {
           window.location.href = '/pricing.html?session_ended=true';
         } else {
-          window.location.href = 'https://sphere.chatspheres.com/';
+          window.location.href = 'https://tivoq.com/';
         }
       }, 300);
     }
@@ -15870,7 +15868,7 @@ function ensureSpectatorTracksForParticipant(participant) {
       const data = await response.json();
       
       if (data.success) {
-        showToast('🚩 Report submitted. Thank you for keeping ChatSpheres safe!');
+        showToast('🚩 Report submitted. Thank you for keeping Tivoq safe!');
         if (data.userSuspended) {
           console.log('User was auto-suspended due to multiple reports');
         }
@@ -17740,7 +17738,7 @@ function ensureSpectatorTracksForParticipant(participant) {
   window.buyPaidSlot = buyPaidSlot;
 
   // Initialize
-  console.log("ChatSpheres Video Chat Room Loading... 🌟");
+  console.log("Tivoq Video Chat Room Loading... 🌟");
   console.log(`Mode: ${isSpectator ? 'Spectator 👀' : 'Participant 🎤'}`);
   
   // Start the app initialization (checks auth first)

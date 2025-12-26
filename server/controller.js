@@ -31,14 +31,14 @@ const {
   LIVEKIT_WEBHOOK_API_SECRET,
 } = process.env;
 
-const DAILY_ROOM_BASE_URL = process.env.DAILY_ROOM_BASE_URL || 'https://chatspheres.daily.co';
+const DAILY_ROOM_BASE_URL = process.env.DAILY_ROOM_BASE_URL || 'https://tivoq.daily.co';
 const MAX_PARTICIPANTS_PER_ROOM = Number(process.env.MAX_PARTICIPANTS_PER_ROOM || 2);
 const PRESENCE_GUARDS_DISABLED = process.env.DISABLE_PRESENCE_GUARDS === 'true';
 const DUPLICATE_GUARD_DISABLED = process.env.DISABLE_DUPLICATE_GUARD === 'true';
 
 const livekitEndpoint = LIVEKIT_EGRESS_URL || LIVEKIT_URL || LIVEKIT_WS_URL || LIVEKIT_HOST;
 const app = express();
-const allowedOrigins = (process.env.LIVEKIT_ALLOWED_ORIGINS || 'https://sphere.chatspheres.com')
+const allowedOrigins = (process.env.LIVEKIT_ALLOWED_ORIGINS || 'https://tivoq.com')
   .split(',')
   .map((value) => value.trim())
   .filter(Boolean);

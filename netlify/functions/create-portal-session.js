@@ -113,7 +113,7 @@ exports.handler = async function(event) {
     // Create billing portal session
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: returnUrl || `${process.env.URL || 'https://sphere.chatspheres.com'}/profile.html`,
+      return_url: returnUrl || `${process.env.URL || 'https://tivoq.com'}/profile.html`,
     });
 
     console.log(`✅ Created billing portal session for customer ${customerId}`);

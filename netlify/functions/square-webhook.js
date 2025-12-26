@@ -430,7 +430,7 @@ exports.handler = async function (event) {
 
   const notificationUrl =
     process.env.SQUARE_WEBHOOK_NOTIFICATION_URL ||
-    `${process.env.URL || 'https://sphere.chatspheres.com'}/.netlify/functions/square-webhook`;
+    `${process.env.URL || 'https://tivoq.com'}/.netlify/functions/square-webhook`;
 
   const rawBody = event.isBase64Encoded
     ? Buffer.from(event.body || '', 'base64').toString('utf8')

@@ -131,12 +131,12 @@ exports.handler = async function(event) {
       };
     }
 
-    const subject = body.subject || 'ChatSpheres Test Email';
+    const subject = body.subject || 'Tivoq Test Email';
     const now = new Date();
 
     const html = `
       <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px;">
-        <h2 style="margin: 0 0 12px;">ChatSpheres</h2>
+        <h2 style="margin: 0 0 12px;">Tivoq</h2>
         <p style="margin: 0 0 12px;">This is a test email from Resend.</p>
         <p style="margin: 0; color: #666; font-size: 12px;">Sent at ${now.toISOString()}</p>
       </div>

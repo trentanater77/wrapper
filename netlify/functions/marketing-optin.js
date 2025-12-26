@@ -105,8 +105,8 @@ function buildConfirmEmailHtml({ subject, confirmUrl, baseUrl }) {
   const safeSubject = sanitizeText(subject || '', 160);
   const logoUrl = baseUrl ? `${baseUrl}/assets/icons/icon.svg` : '';
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="ChatSpheres" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:6px;" />`
-    : '<div style="font-size:18px;font-weight:900;letter-spacing:0.2px;">ChatSpheres</div>';
+    ? `<img src="${logoUrl}" alt="Tivoq" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:6px;" />`
+    : '<div style="font-size:18px;font-weight:900;letter-spacing:0.2px;">Tivoq</div>';
 
   return `
   <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px 12px; background: #ffffff;">
@@ -118,19 +118,19 @@ function buildConfirmEmailHtml({ subject, confirmUrl, baseUrl }) {
         </div>
       </div>
       <div style="padding: 18px 20px; color: #111827; font-size: 16px; line-height: 1.6;">
-        <p style="margin:0 0 12px;">Confirm your email to start receiving ChatSpheres updates.</p>
+        <p style="margin:0 0 12px;">Confirm your email to start receiving Tivoq updates.</p>
         <p style="margin:0 0 16px;">
           <a href="${confirmUrl}" style="display:inline-block;background:#e63946;color:#ffffff;text-decoration:none;font-weight:800;padding:12px 16px;border-radius:999px;">Confirm subscription</a>
         </p>
         <p style="margin:0 0 12px; color:#6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
       </div>
     </div>
-    <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">© ${new Date().getFullYear()} ChatSpheres</div>
+    <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">© ${new Date().getFullYear()} Tivoq</div>
   </div>`;
 }
 
 function buildConfirmEmailText({ confirmUrl }) {
-  return `Confirm your ChatSpheres subscription:\n${confirmUrl}\n\nIf you did not request this, you can ignore this email.`;
+  return `Confirm your Tivoq subscription:\n${confirmUrl}\n\nIf you did not request this, you can ignore this email.`;
 }
 
 async function getEmailForUserId(userId) {
@@ -291,7 +291,7 @@ exports.handler = async function(event) {
       : '';
 
     if (result.status === 'pending' && confirmUrl) {
-      const subject = 'Confirm your subscription to ChatSpheres';
+      const subject = 'Confirm your subscription to Tivoq';
       const html = buildConfirmEmailHtml({ subject, confirmUrl, baseUrl });
       const text = buildConfirmEmailText({ confirmUrl });
       await sendResendEmail({ from, to: result.email, subject, html, text });

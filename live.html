@@ -1491,6 +1491,7 @@
     let selectedRoomType = 'red';
     let currentUserId = null;
     let currentUserName = null;
+    let currentUserEmail = null;
     let userPlan = 'free';
     let isCreatorPartner = false;
     
@@ -1849,6 +1850,7 @@
         
         if (session?.user) {
           currentUserId = session.user.id;
+          currentUserEmail = session.user.email || null;
           currentUserName = session.user.user_metadata?.name || 
                            session.user.user_metadata?.full_name || 
                            session.user.email?.split('@')[0] || 'Host';
@@ -2429,6 +2431,7 @@
                     body: JSON.stringify({
                       eventId: event.id,
                       userId: currentUserId,
+                      email: currentUserEmail || undefined,
                       notifyBrowser: true,
                       notifyEmail: true,
                     })
@@ -2696,7 +2699,7 @@
             body: JSON.stringify({
               eventId,
               userId: currentUserId || undefined,
-              email: currentUserId ? undefined : guestEmail,
+              email: currentUserId ? (currentUserEmail || undefined) : guestEmail,
               notifyBrowser: true,
               notifyEmail: true,
             })

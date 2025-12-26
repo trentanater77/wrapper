@@ -16,6 +16,11 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+function getAppBaseUrl() {
+  const raw = (process.env.APP_BASE_URL || process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.SITE_URL || '').trim();
+  return raw ? raw.replace(/\/$/, '') : '';
+}
+
 function resendRequest(payload) {
   return new Promise((resolve, reject) => {
     const apiKey = process.env.RESEND_API_KEY;
@@ -163,7 +168,7 @@ function buildReminderHtml({ title, hostName, timeDisplay, ctaUrl, ctaLabel, sub
           <a href="${safeCtaUrl}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:900;">${safeCtaLabel}</a>
 
           <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid #f3f4f6; color: #6b7280; font-size: 12px; line-height: 1.5;">
-            Manage reminders anytime from <a href="${escapeHtml(process.env.APP_BASE_URL || '')}/live.html" style="color:#e63946;">Live</a>.
+            Manage reminders anytime from <a href="${escapeHtml(process.env.APP_BASE_URL || process.env.URL || process.env.DEPLOY_PRIME_URL || process.env.SITE_URL || '')}/live.html" style="color:#e63946;">Live</a>.
             <br/>If you didn’t request reminders, you can ignore this email.
           </div>
         </div>
@@ -199,7 +204,7 @@ function formatRoomTypeLabel(roomType) {
 
 async function sendTMinus10(now) {
   const from = process.env.RESEND_FROM_EMAIL;
-  const baseUrl = process.env.APP_BASE_URL;
+  const baseUrl = getAppBaseUrl();
   if (!from) throw new Error('Missing RESEND_FROM_EMAIL');
   if (!baseUrl) throw new Error('Missing APP_BASE_URL');
 
@@ -297,7 +302,7 @@ async function sendTMinus10(now) {
 
 async function sendLiveNow(now) {
   const from = process.env.RESEND_FROM_EMAIL;
-  const baseUrl = process.env.APP_BASE_URL;
+  const baseUrl = getAppBaseUrl();
   if (!from) throw new Error('Missing RESEND_FROM_EMAIL');
   if (!baseUrl) throw new Error('Missing APP_BASE_URL');
 

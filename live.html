@@ -1889,6 +1889,27 @@
         console.warn('Auth check failed:', e);
       }
     }
+
+    async function ensureCurrentUserEmail() {
+      if (currentUserEmail || !currentUserId) return;
+
+      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
+      const supabaseConfig = runtimeConfig.supabase || {};
+
+      if (!window.supabase || !supabaseConfig.url || !supabaseConfig.anonKey) {
+        return;
+      }
+
+      try {
+        const client = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
+        const { data: { session } } = await client.auth.getSession();
+        if (session?.user?.id === currentUserId && session.user.email) {
+          currentUserEmail = session.user.email;
+        }
+      } catch (e) {
+        return;
+      }
+    }
     
     async function loadRooms() {
       try {
@@ -2651,6 +2672,10 @@
     }
 
     async function toggleReminder(eventId) {
+      if (currentUserId && !currentUserEmail) {
+        await ensureCurrentUserEmail();
+      }
+
       let guestEmail = '';
       if (!currentUserId) {
         guestEmail = getGuestReminderEmail();

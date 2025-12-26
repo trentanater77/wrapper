@@ -772,6 +772,9 @@
     let database = null;
     let allRecordings = [];
 
+    let recordingsReloadInFlight = false;
+    let recordingsLastReloadAt = 0;
+
     // Wait for config and initialize
     document.addEventListener('DOMContentLoaded', () => {
       setTimeout(initializeApp, 100);
@@ -789,9 +792,37 @@
         firebaseApp = firebase.initializeApp(config.firebaseMain, 'recordings-app');
         database = firebase.database(firebaseApp);
         await loadRecordings();
+
+        window.addEventListener('focus', () => {
+          maybeReloadRecordings();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') {
+            maybeReloadRecordings();
+          }
+        });
       } catch (error) {
         console.error('Failed to initialize:', error);
         showError('Connection Error', 'Failed to connect to the database. Please try again.');
+      }
+    }
+
+    async function maybeReloadRecordings() {
+      try {
+        if (!database) return;
+        if (recordingsReloadInFlight) return;
+        const now = Date.now();
+        if (now - recordingsLastReloadAt < 4000) return;
+        const modal = document.getElementById('video-modal');
+        if (modal && modal.classList.contains('active')) return;
+
+        recordingsReloadInFlight = true;
+        await loadRecordings();
+      } catch (e) {
+      } finally {
+        recordingsLastReloadAt = Date.now();
+        recordingsReloadInFlight = false;
       }
     }
 

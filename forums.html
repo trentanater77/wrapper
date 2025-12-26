@@ -817,29 +817,17 @@
     window.handleEventClick = handleEventClick;
 
     async function toggleEventReminder(eventId, btnEl) {
+      const hasReminder = userReminders[eventId] === true;
+
       let guestEmail = '';
-      if (!currentUser) {
+      if (!currentUser && hasReminder) {
         guestEmail = getGuestReminderEmail();
         if (!guestEmail) guestEmail = await promptForGuestReminderEmail();
         if (!guestEmail) {
-          showToast('Email is required to set a reminder', 'error');
+          showToast('Email is required to remove a reminder', 'error');
           return;
         }
       }
-
-      let loggedInEmail = '';
-      if (currentUser) {
-        loggedInEmail = String(currentUser.email || '').trim();
-        if (!loggedInEmail) {
-          loggedInEmail = await promptForGuestReminderEmail();
-        }
-        if (!loggedInEmail) {
-          showToast('Email is required to set a reminder', 'error');
-          return;
-        }
-      }
-
-      const hasReminder = userReminders[eventId] === true;
       const prevText = btnEl ? btnEl.textContent : '';
       const prevDisabled = btnEl ? btnEl.disabled : false;
       if (btnEl) {
@@ -859,13 +847,18 @@
           userReminders[eventId] = false;
           showToast('Reminder removed');
         } else {
+          const inputEmail = await promptForGuestReminderEmail();
+          if (!inputEmail) {
+            showToast('Email is required to set a reminder', 'error');
+            return;
+          }
           const res = await fetch('/.netlify/functions/subscribe-reminder', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               eventId,
               userId: currentUser ? currentUser.id : undefined,
-              email: currentUser ? loggedInEmail : guestEmail,
+              email: inputEmail,
               notifyBrowser: true,
               notifyEmail: true,
             })

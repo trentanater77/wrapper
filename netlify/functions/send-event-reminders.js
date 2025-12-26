@@ -95,17 +95,6 @@ async function sendResendEmail({ from, to, subject, html, text }) {
   return resendRequest(payload);
 }
 
-async function getEmailForUserId(userId) {
-  if (!userId) return '';
-  try {
-    const { data, error } = await supabase.auth.admin.getUserById(userId);
-    if (error) return '';
-    return data?.user?.email || '';
-  } catch {
-    return '';
-  }
-}
-
 function formatEventTime(iso) {
   try {
     return new Date(iso).toLocaleString('en-US', {
@@ -243,18 +232,6 @@ async function sendTMinus10(now) {
     for (const r of reminders) {
       let toEmail = sanitizeEmail(r.email);
 
-      if (!toEmail && r.user_id) {
-        const userEmail = await getEmailForUserId(r.user_id);
-        toEmail = sanitizeEmail(userEmail);
-
-        if (toEmail) {
-          await supabase
-            .from('event_reminders')
-            .update({ email: toEmail })
-            .eq('id', r.id);
-        }
-      }
-
       if (!toEmail) continue;
 
       const ctaUrl = `${baseUrl}/live.html`;
@@ -362,18 +339,6 @@ async function sendLiveNow(now) {
 
     for (const r of reminders) {
       let toEmail = sanitizeEmail(r.email);
-
-      if (!toEmail && r.user_id) {
-        const userEmail = await getEmailForUserId(r.user_id);
-        toEmail = sanitizeEmail(userEmail);
-
-        if (toEmail) {
-          await supabase
-            .from('event_reminders')
-            .update({ email: toEmail })
-            .eq('id', r.id);
-        }
-      }
 
       if (!toEmail) continue;
 

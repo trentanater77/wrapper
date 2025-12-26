@@ -1890,27 +1890,6 @@
       }
     }
 
-    async function ensureCurrentUserEmail() {
-      if (currentUserEmail || !currentUserId) return;
-
-      const runtimeConfig = window.__CHATSPHERES_CONFIG__ || {};
-      const supabaseConfig = runtimeConfig.supabase || {};
-
-      if (!window.supabase || !supabaseConfig.url || !supabaseConfig.anonKey) {
-        return;
-      }
-
-      try {
-        const client = window.supabase.createClient(supabaseConfig.url, supabaseConfig.anonKey);
-        const { data: { session } } = await client.auth.getSession();
-        if (session?.user?.id === currentUserId && session.user.email) {
-          currentUserEmail = session.user.email;
-        }
-      } catch (e) {
-        return;
-      }
-    }
-    
     async function loadRooms() {
       try {
         const response = await fetch('/.netlify/functions/manage-room');
@@ -2444,23 +2423,6 @@
               const reminderData = await reminderRes.json();
               userReminders[event.id] = reminderData.hasReminder;
 
-              if (currentUserId && reminderData?.hasReminder && reminderData?.reminder && (reminderData.reminder.notify_email !== true || !reminderData.reminder.email)) {
-                try {
-                  await fetch('/.netlify/functions/subscribe-reminder', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      eventId: event.id,
-                      userId: currentUserId,
-                      email: currentUserEmail || undefined,
-                      notifyBrowser: true,
-                      notifyEmail: true,
-                    })
-                  });
-                } catch (upgradeErr) {
-                  console.warn('Reminder upgrade failed:', upgradeErr);
-                }
-              }
             } catch (e) {
               console.error('Error checking reminder status:', e);
             }
@@ -2672,32 +2634,19 @@
     }
 
     async function toggleReminder(eventId) {
-      if (currentUserId && !currentUserEmail) {
-        await ensureCurrentUserEmail();
-      }
-
-      if (currentUserId && !currentUserEmail) {
-        const manualEmail = await promptForGuestReminderEmail();
-        if (!manualEmail) {
-          showToast('Email is required to set a reminder', 'error');
-          return;
-        }
-        currentUserEmail = manualEmail;
-      }
+      const hasReminder = userReminders[eventId];
 
       let guestEmail = '';
-      if (!currentUserId) {
+      if (!currentUserId && hasReminder) {
         guestEmail = getGuestReminderEmail();
         if (!guestEmail) {
           guestEmail = await promptForGuestReminderEmail();
         }
         if (!guestEmail) {
-          showToast('Email is required to set a reminder', 'error');
+          showToast('Email is required to remove a reminder', 'error');
           return;
         }
       }
-      
-      const hasReminder = userReminders[eventId];
 
       const cardEl = document.querySelector(`.event-card[data-event-id="${eventId}"]`);
       const btnEl = cardEl ? cardEl.querySelector('button.remind-btn') : null;
@@ -2726,6 +2675,12 @@
           userReminders[eventId] = false;
           showToast('Reminder removed');
         } else {
+          const inputEmail = await promptForGuestReminderEmail();
+          if (!inputEmail) {
+            showToast('Email is required to set a reminder', 'error');
+            return;
+          }
+
           // Add reminder
           const res = await fetch('/.netlify/functions/subscribe-reminder', {
             method: 'POST',
@@ -2733,7 +2688,7 @@
             body: JSON.stringify({
               eventId,
               userId: currentUserId || undefined,
-              email: currentUserId ? currentUserEmail : guestEmail,
+              email: inputEmail,
               notifyBrowser: true,
               notifyEmail: true,
             })
@@ -2745,14 +2700,13 @@
               if (!manualEmail) {
                 throw new Error(payload?.error || payload?.message || 'Email required');
               }
-              currentUserEmail = manualEmail;
               const retryRes = await fetch('/.netlify/functions/subscribe-reminder', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   eventId,
                   userId: currentUserId || undefined,
-                  email: currentUserId ? currentUserEmail : guestEmail,
+                  email: manualEmail,
                   notifyBrowser: true,
                   notifyEmail: true,
                 })

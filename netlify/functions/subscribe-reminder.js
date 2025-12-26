@@ -24,21 +24,6 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-async function getEmailForUserId(userId) {
-  if (!userId) return '';
-  try {
-    const { data, error } = await supabase.auth.admin.getUserById(userId);
-    if (error) {
-      console.warn('⚠️ Failed to fetch user email:', error.message);
-      return '';
-    }
-    return data?.user?.email || '';
-  } catch (e) {
-    console.warn('⚠️ Failed to fetch user email:', e.message);
-    return '';
-  }
-}
-
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };
@@ -186,9 +171,15 @@ exports.handler = async function(event) {
 
     let normalizedEmail = sanitizeEmail(email);
 
-    if (!normalizedEmail && userId) {
-      const userEmail = await getEmailForUserId(userId);
-      normalizedEmail = sanitizeEmail(userEmail);
+    if (!normalizedEmail) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Email is required to set a reminder',
+          requiresEmail: true,
+        }),
+      };
     }
 
     if (!eventId) {
@@ -253,12 +244,12 @@ exports.handler = async function(event) {
     const { data: existing } = await existingQuery.single();
 
     if (existing) {
-      if (notifyEmailValue && !sanitizeEmail(existing.email) && !normalizedEmail) {
+      if (!normalizedEmail) {
         return {
           statusCode: 400,
           headers,
           body: JSON.stringify({
-            error: 'Email is required to enable email reminders',
+            error: 'Email is required to set a reminder',
             requiresEmail: true,
           }),
         };
@@ -304,17 +295,6 @@ exports.handler = async function(event) {
           success: true,
           message: 'Reminder updated',
           alreadySubscribed: true,
-        }),
-      };
-    }
-
-    if (notifyEmailValue && !normalizedEmail) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          error: 'Email is required to enable email reminders',
-          requiresEmail: true,
         }),
       };
     }

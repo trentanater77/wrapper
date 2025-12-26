@@ -950,11 +950,17 @@
           }
         }
         if (googExpiresMatch) {
-          const dateMatch = url.match(/X-Goog-Date=(\d{8}T\d{6}Z)/);
+          const dateMatch = url.match(/[?&]X-Goog-Date=(\d{8}T\d{6}Z)/);
           if (dateMatch) {
             const signDate = new Date(dateMatch[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'));
-            const expiresMs = signDate.getTime() + (parseInt(googExpiresMatch[1]) * 1000);
-            if (Date.now() > expiresMs) {
+            const signMs = signDate.getTime();
+            const expiresMs = signMs + (parseInt(googExpiresMatch[1]) * 1000);
+
+            if (Number.isNaN(signMs)) {
+              return false;
+            }
+
+            if (Date.now() > (expiresMs + 30_000)) {
               return true;
             }
           }
@@ -1136,13 +1142,58 @@
       `;
     }
 
-    function handleVideoError(videoElement, recordingId) {
+    async function handleVideoError(videoElement, recordingId) {
       console.warn('Video failed to load:', recordingId);
+
       const card = videoElement.closest('.recording-card');
-      if (card) {
+      if (!card) {
+        updateVisibleStats();
+        return;
+      }
+
+      if (videoElement.dataset.refreshAttempted === '1') {
         card.dataset.invalid = '1';
         card.style.display = 'none';
+        updateVisibleStats();
+        return;
       }
+      videoElement.dataset.refreshAttempted = '1';
+
+      try {
+        const recording = allRecordings.find(r => r.id === recordingId);
+        if (!recording?.downloadUrl) {
+          throw new Error('Missing recording URL');
+        }
+
+        const response = await fetch('/.netlify/functions/refresh-recording-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recordingId,
+            oldUrl: recording.downloadUrl,
+          })
+        });
+
+        if (response.status === 404) {
+          card.dataset.invalid = '1';
+          card.style.display = 'none';
+          updateVisibleStats();
+          return;
+        }
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data?.success && data?.url) {
+            recording.downloadUrl = data.url;
+            videoElement.src = data.url;
+            videoElement.load();
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn('Refresh attempt failed:', e?.message || e);
+      }
+
       updateVisibleStats();
     }
 
@@ -1266,9 +1317,32 @@
       modalTitle.textContent = title;
       modalMeta.textContent = '📅 ' + date;
       
-      video.onerror = function() {
-        modalTitle.textContent = 'Recording Expired';
-        modalMeta.textContent = 'This recording link has expired. The video is no longer available.';
+      video.onerror = async function() {
+        try {
+          const response = await fetch('/.netlify/functions/refresh-recording-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oldUrl: videoUrl })
+          });
+          if (response.status === 404) {
+            modalTitle.textContent = 'Recording Missing';
+            modalMeta.textContent = 'This recording file is no longer available.';
+            video.style.display = 'none';
+            return;
+          }
+          if (response.ok) {
+            const data = await response.json();
+            if (data?.success && data?.url && data.url !== videoUrl) {
+              video.src = data.url;
+              video.load();
+              video.play().catch(() => {});
+              return;
+            }
+          }
+        } catch (e) {}
+
+        modalTitle.textContent = 'Recording Error';
+        modalMeta.textContent = 'Unable to load this recording right now.';
         video.style.display = 'none';
       };
       

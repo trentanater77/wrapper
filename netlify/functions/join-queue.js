@@ -2,134 +2,24 @@
 // Adds a user to the matchmaking queue in Firebase
 // RATE LIMITED: 60 requests per minute (STANDARD tier)
 
-const { getFirebaseAdmin } = require('./utils/firebase-admin');
-const { createClient } = require('@supabase/supabase-js');
-const { checkRateLimit, getClientIP, rateLimitResponse, RATE_LIMITS } = require('./utils/rate-limiter');
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, DELETE, OPTIONS',
+  'Content-Type': 'application/json',
+};
 
-// Supabase client for rate limiting
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
-exports.handler = async function (event) {
-  // Handle CORS preflight
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
-      },
-      body: "",
-    };
+exports.handler = async function(event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers, body: '' };
   }
 
-  // Rate limiting - STANDARD tier (60 requests/min)
-  const clientIP = getClientIP(event);
-  const rateLimitResult = await checkRateLimit(supabase, clientIP, RATE_LIMITS.STANDARD, 'join-queue');
-  if (!rateLimitResult.allowed) {
-    return rateLimitResponse(rateLimitResult, RATE_LIMITS.STANDARD);
-  }
-
-  // Handle DELETE - remove user from queue
-  if (event.httpMethod === "DELETE") {
-    try {
-      const { userId } = JSON.parse(event.body);
-      
-      if (!userId) {
-        return {
-          statusCode: 400,
-          headers: { "Access-Control-Allow-Origin": "*" },
-          body: JSON.stringify({ error: "userId is required" }),
-        };
-      }
-
-      const firebaseAdmin = getFirebaseAdmin({ requireDatabaseURL: true });
-      const db = firebaseAdmin.database();
-      await db.ref(`matchmaking_queue/${userId}`).remove();
-
-      console.log(`🗑️ User ${userId} removed from queue`);
-
-      return {
-        statusCode: 200,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ success: true, message: "Removed from queue" }),
-      };
-    } catch (error) {
-      console.error("❌ Failed to remove from queue:", error);
-      return {
-        statusCode: 500,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({ error: "Failed to remove from queue" }),
-      };
-    }
-  }
-
-  if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers: { "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({ error: "Method not allowed" }),
-    };
-  }
-
-  try {
-    const { userId, topicText, topicVector, mode } = JSON.parse(event.body);
-
-    if (!userId || !topicText || !topicVector) {
-      return {
-        statusCode: 400,
-        headers: { "Access-Control-Allow-Origin": "*" },
-        body: JSON.stringify({
-          error: "userId, topicText, and topicVector are required",
-        }),
-      };
-    }
-
-    const firebase = getFirebaseAdmin({ requireDatabaseURL: true });
-    const db = firebase.database();
-
-    // Create queue entry
-    const queueEntry = {
-      topic_text: topicText.trim().slice(0, 500),
-      topic_vector: topicVector,
-      mode: mode || "casual", // debate, vent, casual
-      timestamp: Date.now(),
-      status: "waiting",
-      matched_with: null,
-      room_id: null,
-    };
-
-    // Write to matchmaking_queue (auto-creates node if doesn't exist)
-    await db.ref(`matchmaking_queue/${userId}`).set(queueEntry);
-
-    console.log(`✅ User ${userId} joined queue with topic: "${topicText.slice(0, 30)}..."`);
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        success: true,
-        message: "Joined matchmaking queue",
-        userId,
-        status: "waiting",
-      }),
-    };
-  } catch (error) {
-    console.error("❌ Failed to join queue:", error);
-
-    return {
-      statusCode: 500,
-      headers: { "Access-Control-Allow-Origin": "*" },
-      body: JSON.stringify({
-        error: "Failed to join queue",
-        message: error.message,
-      }),
-    };
-  }
+  return {
+    statusCode: 410,
+    headers,
+    body: JSON.stringify({
+      error: 'Deprecated endpoint',
+      message: 'This endpoint is no longer supported. Use the current matchmaking flow.',
+    }),
+  };
 };

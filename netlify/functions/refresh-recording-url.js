@@ -7,7 +7,7 @@
  * This is a workaround until recordings are made permanently public.
  */
 
-const { admin, getFirebaseAdmin } = require('./utils/firebase-admin');
+const { URL } = require('url');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -16,22 +16,92 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
-function hasDatabaseUrlConfigured() {
-  return !!(process.env.FIREBASE_MAIN_DATABASE_URL || process.env.FIREBASE_DATABASE_URL);
+function resolveBucketName() {
+  return (
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.FIREBASE_MAIN_STORAGE_BUCKET ||
+    process.env.FIREBASE_PROJECT_STORAGE_BUCKET ||
+    ''
+  );
 }
 
-function getFirebaseConfigStatus() {
-  const projectId = process.env.FIREBASE_MAIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
-  const databaseURL = process.env.FIREBASE_MAIN_DATABASE_URL || process.env.FIREBASE_DATABASE_URL;
-  const storageBucket = process.env.FIREBASE_STORAGE_BUCKET || process.env.FIREBASE_MAIN_STORAGE_BUCKET;
-  return {
-    hasProjectId: !!projectId,
-    hasDatabaseURL: !!databaseURL,
-    hasStorageBucket: !!storageBucket,
-    hasServiceAccountJson: !!process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
-    hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
-    hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
-  };
+function parseBucketAndObjectFromUrl(oldUrl) {
+  if (!oldUrl) return null;
+  let parsed;
+  try {
+    parsed = new URL(oldUrl);
+  } catch (_) {
+    return null;
+  }
+
+  const host = parsed.hostname;
+
+  if (host === 'storage.googleapis.com') {
+    const parts = parsed.pathname.split('/').filter(Boolean);
+    if (parts.length >= 2) {
+      return {
+        bucket: parts[0],
+        objectPath: parts.slice(1).join('/'),
+      };
+    }
+  }
+
+  if (host.endsWith('.storage.googleapis.com')) {
+    const bucket = host.replace(/\.storage\.googleapis\.com$/, '');
+    const objectPath = parsed.pathname.split('/').filter(Boolean).join('/');
+    if (bucket && objectPath) {
+      return { bucket, objectPath };
+    }
+  }
+
+  if (host === 'firebasestorage.googleapis.com') {
+    const match = parsed.pathname.match(/\/v0\/b\/([^/]+)\/o\/(.+)$/);
+    if (match) {
+      return {
+        bucket: decodeURIComponent(match[1]),
+        objectPath: decodeURIComponent(match[2]),
+      };
+    }
+  }
+
+  return null;
+}
+
+function normalizeObjectPath(objectPath) {
+  if (!objectPath) return '';
+  return String(objectPath).replace(/^\/+/, '');
+}
+
+function buildPublicUrl(bucket, objectPath) {
+  const safeBucket = String(bucket || '').trim();
+  const safeObjectPath = normalizeObjectPath(objectPath);
+  if (!safeBucket || !safeObjectPath) return '';
+  return `https://storage.googleapis.com/${safeBucket}/${safeObjectPath}`;
+}
+
+async function probeUrl(url) {
+  if (!url) return { ok: false, status: 0 };
+  try {
+    let resp;
+    try {
+      resp = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+    } catch (_) {
+      resp = null;
+    }
+
+    if (resp && (resp.status === 405 || resp.status === 501)) {
+      resp = await fetch(url, {
+        method: 'GET',
+        headers: { Range: 'bytes=0-0' },
+        redirect: 'follow',
+      });
+    }
+
+    if (!resp) return { ok: false, status: 0 };
+    return { ok: resp.ok, status: resp.status };
+  } catch (_) {
+    return { ok: false, status: 0 };
+  }
 }
 
 exports.handler = async function(event) {
@@ -55,147 +125,58 @@ exports.handler = async function(event) {
       };
     }
 
-    let firebase;
-    try {
-      firebase = getFirebaseAdmin({ requireStorageBucket: true });
-    } catch (firebaseError) {
-      const status = getFirebaseConfigStatus();
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({
-          error: 'Failed to refresh recording URL',
-          message: firebaseError.message,
-          firebase: status,
-        }),
-      };
-    }
-    const bucket = firebase.storage().bucket();
-    const bucketName = bucket.name;
+    const fromUrl = parseBucketAndObjectFromUrl(oldUrl);
+    const bucketName = fromUrl?.bucket || resolveBucketName();
+    const objectPath = fromUrl?.objectPath || filePath;
+    const publicUrl = buildPublicUrl(bucketName, objectPath);
 
-    // Try to determine the file path
-    let actualFilePath = filePath;
-
-    if (!actualFilePath && oldUrl) {
-      // Extract file path from old URL
-      // URL format: https://storage.googleapis.com/bucket/recordings/filename.mp4?params
-      // Or: https://firebasestorage.googleapis.com/v0/b/bucket/o/recordings%2Ffilename.mp4?params
-      
-      const decodedUrl = decodeURIComponent(oldUrl);
-      
-      // Try different URL patterns
-      let match = decodedUrl.match(/recordings\/([^?]+)/);
-      if (!match) {
-        match = decodedUrl.match(/recordings%2F([^?&]+)/);
-      }
-      
-      if (match) {
-        actualFilePath = `recordings/${match[1]}`;
-      }
-    }
-
-    if (!actualFilePath) {
+    if (!oldUrl && !publicUrl) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Could not determine file path' }),
+        body: JSON.stringify({ error: 'Could not determine a URL to validate' }),
       };
     }
 
-    console.log(`🔄 Refreshing URL for: ${actualFilePath}`);
-
-    const file = bucket.file(actualFilePath);
-
-    // Check if file exists
-    let exists = false;
-    try {
-      [exists] = await file.exists();
-    } catch (existsError) {
+    const oldProbe = await probeUrl(oldUrl);
+    if (oldProbe.ok) {
+      const permanent =
+        (oldUrl && oldUrl.includes('firebasestorage.googleapis.com') && oldUrl.includes('token=')) ||
+        (oldUrl && oldUrl.includes('storage.googleapis.com') && !oldUrl.includes('?'));
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers,
         body: JSON.stringify({
-          error: 'Failed to refresh recording URL',
-          message: existsError.message,
+          success: true,
+          url: oldUrl,
+          permanent,
+          message: 'URL still valid'
         }),
       };
     }
-    if (!exists) {
-      if (recordingId) {
-        if (hasDatabaseUrlConfigured()) {
-          try {
-            const db = firebase.database();
-            const recordingsRef = db.ref('recordings');
-            const snapshot = await recordingsRef.once('value');
-            const allRecordings = snapshot.val();
 
-            if (allRecordings) {
-              for (const [roomKey, roomRecordings] of Object.entries(allRecordings)) {
-                if (roomRecordings && roomRecordings[recordingId]) {
-                  await db.ref(`recordings/${roomKey}/${recordingId}`).update({
-                    downloadUrl: null,
-                    linkStatus: 'missing',
-                    linkError: 'file_deleted',
-                    deletedAt: admin.database.ServerValue.TIMESTAMP,
-                  });
-                  break;
-                }
-              }
-            }
-          } catch (cleanupError) {
-            console.warn('⚠️ Failed to clean up missing recording metadata:', cleanupError.message);
-          }
-        }
-      }
-      return {
-        statusCode: 404,
-        headers,
-        body: JSON.stringify({ error: 'Recording file not found' }),
-      };
-    }
+    const publicProbe = await probeUrl(publicUrl);
 
     if (checkOnly) {
+      if (oldProbe.status === 404 && publicProbe.status === 404) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ error: 'Recording file not found' }),
+        };
+      }
+
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
           exists: true,
-          filePath: actualFilePath,
         }),
       };
     }
 
-    // Try to make the file public (permanent solution)
-    try {
-      await file.makePublic();
-      const publicUrl = `https://storage.googleapis.com/${bucketName}/${actualFilePath}`;
-      
-      console.log(`✅ Made file public: ${publicUrl}`);
-
-      // Update the database with the permanent URL
-      if (recordingId && hasDatabaseUrlConfigured()) {
-        const db = firebase.database();
-        // Try to find and update the recording in the database
-        const recordingsRef = db.ref('recordings');
-        const snapshot = await recordingsRef.once('value');
-        const allRecordings = snapshot.val();
-
-        if (allRecordings) {
-          for (const [roomKey, roomRecordings] of Object.entries(allRecordings)) {
-            if (roomRecordings && roomRecordings[recordingId]) {
-              await db.ref(`recordings/${roomKey}/${recordingId}`).update({
-                downloadUrl: publicUrl,
-                linkStatus: 'ready',
-                urlFixedAt: admin.database.ServerValue.TIMESTAMP,
-              });
-              console.log(`✅ Updated database record`);
-              break;
-            }
-          }
-        }
-      }
-
+    if (publicProbe.ok) {
       return {
         statusCode: 200,
         headers,
@@ -203,44 +184,29 @@ exports.handler = async function(event) {
           success: true,
           url: publicUrl,
           permanent: true,
-          message: 'File is now permanently public'
+          message: 'Derived public URL'
         }),
       };
-    } catch (publicError) {
-      // If making public fails, generate a new signed URL
-      console.log('⚠️ Could not make public, generating signed URL:', publicError.message);
-
-      try {
-        const [signedUrl] = await file.getSignedUrl({
-          action: 'read',
-          expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-        });
-
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({
-            success: true,
-            url: signedUrl,
-            permanent: false,
-            expiresIn: '7 days',
-            message: 'Generated new signed URL (expires in 7 days)'
-          }),
-        };
-      } catch (signError) {
-        const status = getFirebaseConfigStatus();
-        return {
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({
-            error: 'Failed to refresh recording URL',
-            message: signError.message,
-            makePublicError: publicError.message,
-            firebase: status,
-          }),
-        };
-      }
     }
+
+    if (oldProbe.status === 404 && publicProbe.status === 404) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: 'Recording file not found' }),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        url: oldUrl || publicUrl,
+        permanent: false,
+        message: 'Unable to generate a better URL'
+      }),
+    };
 
   } catch (error) {
     console.error('❌ Refresh recording URL error:', error);

@@ -21,6 +21,62 @@ const headers = {
   'Content-Type': 'application/json',
 };
 
+function getEffectivePlanType(subscription) {
+  const rawPlan = subscription?.plan_type || 'free';
+  if (rawPlan === 'free') return 'free';
+
+  const status = subscription?.status || 'active';
+  const end = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
+
+  if (status === 'canceled' && end && end.getTime() <= Date.now()) {
+    return 'free';
+  }
+
+  return rawPlan;
+}
+
+async function isCreatorPartner(userId) {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabase
+      .from('creator_partners')
+      .select('status')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (error) return false;
+    return !!data;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function getUserPlanType(userId) {
+  if (!userId) return 'free';
+  try {
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .select('plan_type,status,current_period_end')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error || !data) return 'free';
+    return getEffectivePlanType(data);
+  } catch (_) {
+    return 'free';
+  }
+}
+
+async function canCreateGreenRoom(hostId) {
+  const plan = await getUserPlanType(hostId);
+  return plan === 'host_pro' || plan === 'pro_bundle';
+}
+
+async function canCreateCreatorRoom(hostId) {
+  const plan = await getUserPlanType(hostId);
+  if (plan === 'host_pro' || plan === 'pro_bundle') return true;
+  return await isCreatorPartner(hostId);
+}
+
 // Generate a short invite code
 function generateInviteCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
@@ -516,6 +572,9 @@ exports.handler = async function(event) {
           maxQueueSize,
         } = body;
 
+        const effectiveRoomType = roomType || 'red';
+        const effectiveIsCreatorRoom = !!(isCreatorRoom || effectiveRoomType === 'creator');
+
         if (!roomId || !hostId) {
           return {
             statusCode: 400,
@@ -598,12 +657,37 @@ exports.handler = async function(event) {
           };
         }
 
+        if (effectiveRoomType === 'green') {
+          const allowed = await canCreateGreenRoom(hostId);
+          if (!allowed) {
+            return {
+              statusCode: 403,
+              headers,
+              body: JSON.stringify({
+                error: 'Green Rooms require Host Pro subscription',
+              }),
+            };
+          }
+        }
+
+        if (effectiveIsCreatorRoom) {
+          const allowed = await canCreateCreatorRoom(hostId);
+          if (!allowed) {
+            return {
+              statusCode: 403,
+              headers,
+              body: JSON.stringify({
+                error: 'Creator Rooms require Host Pro or Creator Partner status',
+              }),
+            };
+          }
+        }
+
         let duration = parseInt(sessionDurationMinutes ?? durationMinutes ?? 60, 10) || 60;
         const inviteCode = generateInviteCode();
 
         // Determine if this is a creator room
-        const effectiveRoomType = roomType || 'red';
-        const effectiveIsCreatorRoom = isCreatorRoom || effectiveRoomType === 'creator';
+        // (effectiveRoomType + effectiveIsCreatorRoom computed earlier for gating)
 
         if (effectiveIsCreatorRoom && ![60, 120, 180].includes(duration)) {
           duration = 60;

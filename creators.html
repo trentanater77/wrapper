@@ -715,6 +715,19 @@
   <script src="/assets/js/navigation.js?v=2"></script>
   <script src="/assets/js/referral.js"></script>
   <script src="/assets/js/ads.js?v=6"></script>
+
+  <div id="creator-invite-banner" style="display:none; position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 999999; max-width: 980px; margin: 0 auto; background: rgba(34, 34, 59, 0.96); border: 2px solid rgba(255, 209, 102, 0.6); color: #FCE2E5; border-radius: 16px; padding: 14px 16px; box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
+    <div style="display:flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+      <div>
+        <div id="creator-invite-title" style="font-weight: 900;">Creator invite</div>
+        <div id="creator-invite-subtitle" style="opacity: 0.9; font-size: 0.9rem; margin-top: 2px;"></div>
+      </div>
+      <div style="display:flex; gap: 10px; align-items: center;">
+        <a id="creator-invite-cta" href="/live?createRoom=1" class="btn-gold" style="padding: 0.75rem 1.25rem;">Create your first room</a>
+        <button id="creator-invite-close" class="btn-outline" style="padding: 0.75rem 1.25rem;">Close</button>
+      </div>
+    </div>
+  </div>
   
   <!-- Auth Script -->
   <script>
@@ -782,6 +795,72 @@
           else updateHeaderForGuest();
         });
       }
+
+      function getInviteCodeFromUrl() {
+        try {
+          const params = new URLSearchParams(window.location.search || '');
+          const code = (params.get('invite') || '').trim();
+          return code || '';
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function showInviteBanner({ title, subtitle, showCta }) {
+        const banner = document.getElementById('creator-invite-banner');
+        const titleEl = document.getElementById('creator-invite-title');
+        const subtitleEl = document.getElementById('creator-invite-subtitle');
+        const cta = document.getElementById('creator-invite-cta');
+        if (!banner) return;
+        if (titleEl) titleEl.textContent = title || 'Creator invite';
+        if (subtitleEl) subtitleEl.textContent = subtitle || '';
+        if (cta) cta.style.display = showCta ? 'inline-block' : 'none';
+        banner.style.display = 'block';
+      }
+
+      async function redeemInviteIfPresent() {
+        const code = getInviteCodeFromUrl();
+        if (!code) return;
+        if (!supabaseClient) return;
+
+        showInviteBanner({
+          title: 'Redeeming your creator invite…',
+          subtitle: 'One moment while we activate your benefits.',
+          showCta: false,
+        });
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session?.user?.id) {
+          const redirectPath = window.location.pathname + window.location.search;
+          window.location.href = `/login.html?redirect=${encodeURIComponent(redirectPath)}`;
+          return;
+        }
+
+        try {
+          const response = await fetch('/.netlify/functions/redeem-creator-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: session.user.id, code }),
+          });
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok || data.success !== true) {
+            const msg = data?.error === 'cohort_full'
+              ? 'The Founding Creator cohort is full.'
+              : (data?.error ? `Invite error: ${data.error}` : 'Invite redemption failed.');
+            showInviteBanner({ title: 'Invite could not be redeemed', subtitle: msg, showCta: false });
+            return;
+          }
+
+          const status = data.status || 'redeemed';
+          const subtitle = status === 'already_redeemed'
+            ? 'Your Creator Program benefits are already active.'
+            : 'Success — Host Pro (lifetime) + Creator Program perks are now active.';
+          showInviteBanner({ title: 'You’re in!', subtitle, showCta: true });
+        } catch (e) {
+          showInviteBanner({ title: 'Invite could not be redeemed', subtitle: e.message || 'Network error', showCta: false });
+        }
+      }
       
       function updateHeaderForUser(user) {
         const guestLinks = document.getElementById('nav-guest-links');
@@ -830,11 +909,25 @@
           updateHeaderForGuest();
         }
       };
+
+      (function initInviteBannerClose() {
+        const btn = document.getElementById('creator-invite-close');
+        const banner = document.getElementById('creator-invite-banner');
+        if (btn && banner) {
+          btn.addEventListener('click', () => {
+            banner.style.display = 'none';
+          });
+        }
+      })();
       
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', checkAuthState);
+        document.addEventListener('DOMContentLoaded', () => {
+          checkAuthState();
+          redeemInviteIfPresent();
+        });
       } else {
         checkAuthState();
+        redeemInviteIfPresent();
       }
     })();
   </script>

@@ -83,13 +83,14 @@ function resendRequest(payload) {
   });
 }
 
-async function sendResendEmail({ from, to, subject, html, text }) {
+async function sendResendEmail({ from, to, subject, html, text, replyTo }) {
   const payload = {
     from,
     to: Array.isArray(to) ? to : [to],
     subject,
     ...(html ? { html } : {}),
     ...(text ? { text } : {}),
+    ...(replyTo ? { reply_to: replyTo } : {}),
   };
 
   return resendRequest(payload);
@@ -193,6 +194,7 @@ function formatRoomTypeLabel(roomType) {
 
 async function sendTMinus10(now) {
   const from = process.env.RESEND_FROM_EMAIL;
+  const replyTo = process.env.RESEND_REPLY_TO_EMAIL || 'support@tivoq.com';
   const baseUrl = getAppBaseUrl();
   if (!from) throw new Error('Missing RESEND_FROM_EMAIL');
   if (!baseUrl) throw new Error('Missing APP_BASE_URL');
@@ -255,6 +257,7 @@ async function sendTMinus10(now) {
       try {
         await sendResendEmail({
           from,
+          replyTo,
           to: toEmail,
           subject: `Reminder: ${evt.title} starts soon`,
           html,
@@ -279,6 +282,7 @@ async function sendTMinus10(now) {
 
 async function sendLiveNow(now) {
   const from = process.env.RESEND_FROM_EMAIL;
+  const replyTo = process.env.RESEND_REPLY_TO_EMAIL || 'support@tivoq.com';
   const baseUrl = getAppBaseUrl();
   if (!from) throw new Error('Missing RESEND_FROM_EMAIL');
   if (!baseUrl) throw new Error('Missing APP_BASE_URL');
@@ -345,6 +349,7 @@ async function sendLiveNow(now) {
       try {
         await sendResendEmail({
           from,
+          replyTo,
           to: toEmail,
           subject: `Live now: ${evt.title}`,
           html,

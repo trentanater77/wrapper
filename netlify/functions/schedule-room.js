@@ -18,6 +18,62 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+function getEffectivePlanType(subscription) {
+  const rawPlan = subscription?.plan_type || 'free';
+  if (rawPlan === 'free') return 'free';
+
+  const status = subscription?.status || 'active';
+  const end = subscription?.current_period_end ? new Date(subscription.current_period_end) : null;
+
+  if (status === 'canceled' && end && end.getTime() <= Date.now()) {
+    return 'free';
+  }
+
+  return rawPlan;
+}
+
+async function isCreatorPartner(userId) {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabase
+      .from('creator_partners')
+      .select('status')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+    if (error) return false;
+    return !!data;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function getUserPlanType(userId) {
+  if (!userId) return 'free';
+  try {
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .select('plan_type,status,current_period_end')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error || !data) return 'free';
+    return getEffectivePlanType(data);
+  } catch (_) {
+    return 'free';
+  }
+}
+
+async function canCreateGreenRoom(hostId) {
+  const plan = await getUserPlanType(hostId);
+  return plan === 'host_pro' || plan === 'pro_bundle';
+}
+
+async function canCreateCreatorRoom(hostId) {
+  const plan = await getUserPlanType(hostId);
+  if (plan === 'host_pro' || plan === 'pro_bundle') return true;
+  return await isCreatorPartner(hostId);
+}
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -223,6 +279,29 @@ exports.handler = async function(event) {
           };
         }
 
+        const effectiveRoomType = String(roomType || 'creator').toLowerCase();
+        if (effectiveRoomType === 'green') {
+          const allowed = await canCreateGreenRoom(hostId);
+          if (!allowed) {
+            return {
+              statusCode: 403,
+              headers,
+              body: JSON.stringify({ error: 'Green Rooms require Host Pro subscription' }),
+            };
+          }
+        }
+
+        if (effectiveRoomType === 'creator') {
+          const allowed = await canCreateCreatorRoom(hostId);
+          if (!allowed) {
+            return {
+              statusCode: 403,
+              headers,
+              body: JSON.stringify({ error: 'Creator Rooms require Host Pro or Creator Partner status' }),
+            };
+          }
+        }
+
         // Validate scheduled time is in the future
         const scheduledTime = new Date(scheduledAt);
         if (scheduledTime <= new Date()) {
@@ -424,6 +503,29 @@ exports.handler = async function(event) {
             headers,
             body: JSON.stringify({ error: 'Event is not in scheduled status' }),
           };
+        }
+
+        const scheduledRoomType = String(scheduledEvent.room_type || '').toLowerCase();
+        if (scheduledRoomType === 'green') {
+          const allowed = await canCreateGreenRoom(hostId);
+          if (!allowed) {
+            return {
+              statusCode: 403,
+              headers,
+              body: JSON.stringify({ error: 'Green Rooms require Host Pro subscription' }),
+            };
+          }
+        }
+
+        if (scheduledRoomType === 'creator') {
+          const allowed = await canCreateCreatorRoom(hostId);
+          if (!allowed) {
+            return {
+              statusCode: 403,
+              headers,
+              body: JSON.stringify({ error: 'Creator Rooms require Host Pro or Creator Partner status' }),
+            };
+          }
         }
 
         // Generate room ID

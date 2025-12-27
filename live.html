@@ -1458,10 +1458,10 @@
       <div id="creator-partner-warning" class="plan-warning red" style="display:none;">
         <div class="plan-warning-header">
           <span>⭐</span>
-          <span class="plan-warning-title">Creator Rooms require Partner status</span>
+          <span class="plan-warning-title">Creator Rooms require Host Pro or Partner</span>
         </div>
-        <p style="font-size: 0.75rem; margin-top: 4px; opacity: 0.9;">Apply to become a Creator Partner to unlock Creator Rooms with queue system and unlimited time.</p>
-        <a href="/affiliate.html#partner-section" style="color: var(--gold);">Apply Now →</a>
+        <p style="font-size: 0.75rem; margin-top: 4px; opacity: 0.9;">Upgrade to Host Pro (or become a Creator Partner) to unlock Creator Rooms with the queue system.</p>
+        <a href="/pricing.html" style="color: var(--gold);">Upgrade →</a>
       </div>
       
       <!-- Create Button -->
@@ -1683,8 +1683,10 @@
         // Show creator room settings
         if (creatorSettings) creatorSettings.style.display = 'block';
         
-        // Check if user is a creator partner
-        if (!isCreatorPartner && currentUserId) {
+        const canCreateCreatorRoom = isCreatorPartner || ['host_pro', 'pro_bundle'].includes(userPlan);
+
+        // Check if user can create creator rooms
+        if (!canCreateCreatorRoom && currentUserId) {
           if (creatorPartnerWarning) creatorPartnerWarning.style.display = 'block';
           if (createBtn) {
             createBtn.disabled = true;
@@ -1767,8 +1769,9 @@
       }
       
       // Check if Creator Room is allowed
-      if (selectedRoomType === 'creator' && !isCreatorPartner) {
-        alert('Creator Rooms require Creator Partner status.\n\nApply to become a Creator Partner at:\nhttps://tivoq.com/affiliate.html#partner-section\n\nAs a Creator Partner you get:\n• Unlimited room duration\n• Queue system for challengers\n• 100% of tips\n• Featured placement');
+      const canCreateCreatorRoom = isCreatorPartner || ['host_pro', 'pro_bundle'].includes(userPlan);
+      if (selectedRoomType === 'creator' && !canCreateCreatorRoom) {
+        alert('Creator Rooms require Host Pro (or Creator Partner status).\n\nUpgrade to Host Pro at:\nhttps://tivoq.com/pricing\n\nHost Pro gives you:\n• Creator queue rooms\n• 3 hour sessions\n• Recording\n• Custom branding');
         return;
       }
       
@@ -1896,6 +1899,12 @@
             isCreatorPartner = false;
             console.log('ℹ️ Partner check failed:', partnerError.message);
           }
+
+          try {
+            if (window.selectRoomType) {
+              window.selectRoomType(selectedRoomType);
+            }
+          } catch (_) {}
         }
       } catch (e) {
         console.warn('Auth check failed:', e);

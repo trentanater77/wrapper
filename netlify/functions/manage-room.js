@@ -277,6 +277,8 @@ exports.handler = async function(event) {
           .eq('status', 'live')
           .eq('room_type', 'creator')
           .eq('participant_count', 0)
+          .eq('spectator_count', 0)
+          .lt('started_at', twoHoursAgo)
           .gt('ends_at', emptyCreatorEndsAt);
       } catch (e) {}
 
@@ -287,6 +289,8 @@ exports.handler = async function(event) {
           .eq('status', 'live')
           .eq('room_type', 'creator')
           .eq('participant_count', 0)
+          .eq('spectator_count', 0)
+          .lt('started_at', twoHoursAgo)
           .is('ends_at', null);
       } catch (e) {}
 
@@ -609,12 +613,38 @@ exports.handler = async function(event) {
           };
 
           const isCreator = existingRoom.room_type === 'creator' || existingRoom.is_creator_room === true;
-          if (isCreator && existingRoom.started_at && existingRoom.session_duration_minutes) {
-            const durationMinutes = parseInt(existingRoom.session_duration_minutes, 10);
-            if ([60, 120, 180].includes(durationMinutes)) {
-              const originalEndsAt = new Date(
-                new Date(existingRoom.started_at).getTime() + durationMinutes * 60 * 1000
-              ).toISOString();
+          const isHostRejoin = !!(existingRoom.host_id && hostId && existingRoom.host_id === hostId);
+          if (isCreator && existingRoom.started_at && isHostRejoin) {
+            let durationForRestore = null;
+            let plan = null;
+            let creatorPartner = false;
+            try {
+              plan = await getUserPlanType(hostId);
+              creatorPartner = await isCreatorPartner(hostId);
+            } catch (_) {
+            }
+
+            if (plan === 'host_pro' || plan === 'pro_bundle' || creatorPartner) {
+              durationForRestore = 180;
+            } else {
+              const storedDuration = parseInt(existingRoom.session_duration_minutes, 10);
+              if ([60, 120, 180].includes(storedDuration)) {
+                durationForRestore = storedDuration;
+              }
+              const requestedDuration = parseInt(sessionDurationMinutes ?? durationMinutes, 10);
+              if (!durationForRestore && [60, 120, 180].includes(requestedDuration)) {
+                durationForRestore = requestedDuration;
+              }
+              if (!durationForRestore) {
+                durationForRestore = 180;
+              }
+            }
+
+            updates.session_duration_minutes = durationForRestore;
+
+            const startedAtMs = new Date(existingRoom.started_at).getTime();
+            if (Number.isFinite(startedAtMs)) {
+              const originalEndsAt = new Date(startedAtMs + durationForRestore * 60 * 1000).toISOString();
               updates.ends_at = originalEndsAt;
             }
           }
@@ -670,8 +700,12 @@ exports.handler = async function(event) {
           }
         }
 
+        let hostPlanForCreator = null;
+        let hostIsCreatorPartner = false;
         if (effectiveIsCreatorRoom) {
-          const allowed = await canCreateCreatorRoom(hostId);
+          hostPlanForCreator = await getUserPlanType(hostId);
+          hostIsCreatorPartner = await isCreatorPartner(hostId);
+          const allowed = hostPlanForCreator === 'host_pro' || hostPlanForCreator === 'pro_bundle' || hostIsCreatorPartner;
           if (!allowed) {
             return {
               statusCode: 403,
@@ -689,8 +723,14 @@ exports.handler = async function(event) {
         // Determine if this is a creator room
         // (effectiveRoomType + effectiveIsCreatorRoom computed earlier for gating)
 
-        if (effectiveIsCreatorRoom && ![60, 120, 180].includes(duration)) {
-          duration = 60;
+        if (effectiveIsCreatorRoom) {
+          if (!([60, 120, 180].includes(duration))) {
+            duration = 180;
+          }
+          // Creator Partner / Host Pro should default to 3 hours.
+          if (hostPlanForCreator === 'host_pro' || hostPlanForCreator === 'pro_bundle' || hostIsCreatorPartner) {
+            duration = 180;
+          }
         }
 
         let endsAt = new Date(Date.now() + duration * 60 * 1000).toISOString();
@@ -1030,23 +1070,6 @@ exports.handler = async function(event) {
         }
 
         console.log(`👋 User left room ${roomId} (spectator: ${isSpectator}). New counts: participant=${updates.participant_count ?? room.participant_count}, spectator=${updates.spectator_count ?? room.spectator_count}`);
-
-        const isCreator = room?.room_type === 'creator' || room?.is_creator_room === true;
-        const nextParticipantCount = typeof updates.participant_count === 'number' ? updates.participant_count : (room.participant_count || 0);
-        const becameEmpty = isCreator && nextParticipantCount === 0;
-        if (becameEmpty) {
-          const emptyEndsAt = new Date(Date.now() + 2 * 60 * 1000).toISOString();
-          const shouldShorten = !room?.ends_at || new Date(room.ends_at).getTime() > new Date(emptyEndsAt).getTime();
-          if (shouldShorten) {
-            try {
-              await supabase
-                .from('active_rooms')
-                .update({ ends_at: emptyEndsAt })
-                .eq('room_id', roomId)
-                .eq('status', 'live');
-            } catch (e) {}
-          }
-        }
 
         return {
           statusCode: 200,

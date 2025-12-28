@@ -6688,9 +6688,35 @@ async function initializeApp() {
       const data = await response.json();
       const roomRecord = data?.room || data;
       const endsAt = roomRecord?.ends_at;
-      if (!endsAt) return null;
+      const startedAt = roomRecord?.started_at;
+      const sessionDurationMinutesRaw = roomRecord?.session_duration_minutes;
+
+      let calculatedEndsAtMs = null;
+      try {
+        const durationMinutes = parseInt(sessionDurationMinutesRaw, 10);
+        if (startedAt && [60, 120, 180].includes(durationMinutes)) {
+          const startedAtMs = typeof startedAt === 'number' ? startedAt : new Date(startedAt).getTime();
+          if (Number.isFinite(startedAtMs)) {
+            calculatedEndsAtMs = startedAtMs + durationMinutes * 60 * 1000;
+          }
+        }
+      } catch (_) {
+      }
+
+      if (!endsAt) {
+        return Number.isFinite(calculatedEndsAtMs) ? calculatedEndsAtMs : null;
+      }
+
       const endsAtMs = typeof endsAt === 'number' ? endsAt : new Date(endsAt).getTime();
-      if (!Number.isFinite(endsAtMs)) return null;
+      if (!Number.isFinite(endsAtMs)) {
+        return Number.isFinite(calculatedEndsAtMs) ? calculatedEndsAtMs : null;
+      }
+
+      if (Number.isFinite(calculatedEndsAtMs) && calculatedEndsAtMs - endsAtMs > 60000) {
+        console.warn('⚠️ Creator room ends_at appears shortened; using calculated original ends_at');
+        return calculatedEndsAtMs;
+      }
+
       return endsAtMs;
     } catch (error) {
       console.error('❌ Error fetching creator room ends_at:', error);
@@ -6712,7 +6738,7 @@ async function initializeApp() {
         const remainingSeconds = Math.max(0, Math.ceil((endsAtMs - getServerNow()) / 1000));
         const remainingMinutes = Math.ceil(remainingSeconds / 60);
         console.log(`⭐ Creator room host - using room ends_at timer (${remainingMinutes} min remaining)`);
-        return { plan: 'host_pro', limitMinutes: remainingMinutes, expiresAtMs: endsAtMs };
+        return { plan: 'host_pro', limitMinutes: 180, expiresAtMs: endsAtMs };
       }
     }
     
@@ -11090,10 +11116,17 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     if (planSpan) planSpan.textContent = planName;
     if (messageEl) {
-      messageEl.innerHTML = `
-        You've reached the <strong>${limitMinutes}-minute limit</strong> on the ${planName} plan.<br>
-        Upgrade to Host Pro for <strong>3 hours</strong> of uninterrupted conversation!
-      `;
+      if (sessionLimitState.userPlan === 'host_pro' || sessionLimitState.userPlan === 'pro_bundle') {
+        messageEl.innerHTML = `
+          You've reached the <strong>${limitMinutes}-minute limit</strong> on the ${planName} plan.<br>
+          To keep going, start a new session.
+        `;
+      } else {
+        messageEl.innerHTML = `
+          You've reached the <strong>${limitMinutes}-minute limit</strong> on the ${planName} plan.<br>
+          Upgrade to Host Pro for <strong>3 hours</strong> of uninterrupted conversation!
+        `;
+      }
     }
     
     // Start grace period countdown (60 seconds)
@@ -12864,6 +12897,8 @@ function ensureSpectatorTracksForParticipant(participant) {
     
     try {
       const urlParams = new URLSearchParams(window.location.search);
+      const isHostFromUrl = urlParams.get('host') === 'true';
+      const roomTypeFromUrl = urlParams.get('roomType') || roomTypeState?.type;
       // Get topic from URL first, then from displayed topic element, then fallback
       let topic = urlParams.get('topic') || urlParams.get('matchedTopic');
       if (!topic) {
@@ -12875,6 +12910,17 @@ function ensureSpectatorTracksForParticipant(participant) {
         }
       }
       
+      let durationMinutesToSend = sessionLimitState?.limitMinutes || parseInt(urlParams.get('duration'), 10) || 60;
+      if (roomTypeFromUrl === 'creator' && isHostFromUrl) {
+        try {
+          const { limitMinutes } = await fetchUserSubscription();
+          if (typeof limitMinutes === 'number' && limitMinutes > durationMinutesToSend) {
+            durationMinutesToSend = limitMinutes;
+          }
+        } catch (_) {
+        }
+      }
+
       const response = await fetch('/.netlify/functions/manage-room', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -12887,7 +12933,7 @@ function ensureSpectatorTracksForParticipant(participant) {
           roomType: roomTypeState.type,
           topic: decodeURIComponent(topic),
           isPublic: true,
-          durationMinutes: sessionLimitState?.limitMinutes || 60
+          durationMinutes: durationMinutesToSend
         })
       });
       

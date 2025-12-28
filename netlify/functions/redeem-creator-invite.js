@@ -160,6 +160,9 @@ function buildCreatorWelcomeEmailHtml({ baseUrl, creatorName, supportEmail }) {
   </div>`;
 }
 
+exports.buildCreatorWelcomeEmailHtml = buildCreatorWelcomeEmailHtml;
+exports.getAppBaseUrl = getAppBaseUrl;
+
 exports.handler = async function(event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers, body: '' };

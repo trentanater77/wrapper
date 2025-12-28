@@ -108,8 +108,8 @@ function escapeHtml(value) {
 function buildCreatorWelcomeEmailHtml({ baseUrl, creatorName, supportEmail }) {
   const logoUrl = baseUrl ? `${baseUrl}/assets/icons/icon.svg` : '';
   const logoHtml = logoUrl
-    ? `<img src="${logoUrl}" alt="Tivoq" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:6px;" />`
-    : '<div style="font-size:18px;font-weight:900;letter-spacing:0.2px;">Tivoq</div>';
+    ? `<img src="${logoUrl}" alt="Tivoq" width="28" height="28" style="display:block;width:28px;height:28px;border-radius:8px;" />`
+    : '<div style="width:28px;height:28px;border-radius:8px;background:#111827;color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;">T</div>';
 
   const safeName = escapeHtml(creatorName || 'Creator');
   const safeSupport = escapeHtml(supportEmail || 'support@tivoq.com');
@@ -120,18 +120,18 @@ function buildCreatorWelcomeEmailHtml({ baseUrl, creatorName, supportEmail }) {
   const pinnedMessage = "\n\n\ud83d\udd34 CALL IN: Join the queue here \u2192 [paste your room link]\n\n\u23f1\ufe0f 3-5 min per challenger. Be respectful.\n\n\ud83d\udcb0 Tip to support the show, or buy a guaranteed slot.";
 
   return `
-  <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px 12px; background: #ffffff;">
-    <div style="max-width: 680px; margin: 0 auto; border: 1px solid #f1f1f1; border-radius: 16px; overflow: hidden;">
-      <div style="background: linear-gradient(135deg, #e63946 0%, #ff7a86 100%); color: #fff; padding: 18px 20px; display:flex; align-items:center; gap:10px;">
+  <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; padding: 24px 12px; background: #f3f4f6;">
+    <div style="max-width: 680px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 16px; overflow: hidden; background:#ffffff;">
+      <div style="background: linear-gradient(135deg, #e63946 0%, #ff7a86 100%); color: #fff; padding: 18px 20px; display:flex; align-items:center; justify-content:center; gap:10px; text-align:center;">
         ${logoHtml}
-        <div style="flex:1;">
-          <div style="opacity: 0.92; font-weight: 900; font-size: 16px;">Welcome to Tivoq</div>
-          <div style="opacity: 0.86; font-weight: 700; font-size: 13px;">Founding Creator Program</div>
+        <div>
+          <div style="opacity: 0.96; font-weight: 900; font-size: 16px; letter-spacing: 0.2px;">Tivoq</div>
+          <div style="opacity: 0.9; font-weight: 800; font-size: 13px;">Founding Creator Program</div>
         </div>
       </div>
 
       <div style="padding: 18px 20px; color: #111827; font-size: 16px; line-height: 1.6;">
-        <p style="margin:0 0 12px;">Hey ${safeName} — you’re in.</p>
+        <p style="margin:0 0 12px;"><strong>Welcome</strong> ${safeName} — you’re in.</p>
         <p style="margin:0 0 12px;"><strong>Host Pro is unlocked for life</strong>, and your Creator Program perks are active.</p>
 
         <div style="margin: 14px 0; padding: 12px 14px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px;">
@@ -156,7 +156,7 @@ function buildCreatorWelcomeEmailHtml({ baseUrl, creatorName, supportEmail }) {
       </div>
     </div>
 
-    <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">© ${new Date().getFullYear()} Tivoq</div>
+    <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">© 2026 Tivoq</div>
   </div>`;
 }
 

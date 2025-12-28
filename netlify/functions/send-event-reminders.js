@@ -164,7 +164,7 @@ function buildReminderHtml({ title, hostName, timeDisplay, ctaUrl, ctaLabel, sub
         </div>
       </div>
       <div style="max-width:600px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;">
-        © ${new Date().getFullYear()} Tivoq
+        © 2026 Tivoq
       </div>
     </div>
   </div>

@@ -161,7 +161,7 @@ function wrapMarketingHtml(innerHtml, subject, logoUrl) {
       </div>
     </div>
     <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">
-      © ${new Date().getFullYear()} Tivoq
+      © 2026 Tivoq
     </div>
   </div>`;
 }

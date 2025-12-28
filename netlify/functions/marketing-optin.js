@@ -125,7 +125,7 @@ function buildConfirmEmailHtml({ subject, confirmUrl, baseUrl }) {
         <p style="margin:0 0 12px; color:#6b7280; font-size: 13px;">If you did not request this, you can ignore this email.</p>
       </div>
     </div>
-    <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">© ${new Date().getFullYear()} Tivoq</div>
+    <div style="max-width:680px;margin:12px auto 0;color:#9ca3af;font-size:12px;text-align:center;">© 2026 Tivoq</div>
   </div>`;
 }
 

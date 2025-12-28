@@ -708,7 +708,7 @@
       <a href="/creator-agreement.html">Creator Agreement</a>
       <a href="/contact.html">Contact</a>
     </div>
-    <p>© 2025 Tivoq. All rights reserved.</p>
+    <p>© 2026 Tivoq. All rights reserved.</p>
   </footer>
   
   <!-- Scripts -->
@@ -716,14 +716,14 @@
   <script src="/assets/js/referral.js"></script>
   <script src="/assets/js/ads.js?v=6"></script>
 
-  <div id="creator-invite-banner" style="display:none; position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 999999; max-width: 980px; margin: 0 auto; background: rgba(34, 34, 59, 0.96); border: 2px solid rgba(255, 209, 102, 0.6); color: #FCE2E5; border-radius: 16px; padding: 14px 16px; box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
-    <div style="display:flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;">
+  <div id="creator-invite-banner" style="display:none; position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 999999; width: calc(100% - 32px); max-width: 720px; margin: 0 auto; background: rgba(34, 34, 59, 0.96); border: 2px solid rgba(255, 209, 102, 0.6); color: #FCE2E5; border-radius: 16px; padding: 16px 16px; box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
+    <div style="display:flex; flex-direction: column; gap: 12px; align-items: center; text-align: center;">
       <div>
-        <div id="creator-invite-title" style="font-weight: 900;">Creator invite</div>
-        <div id="creator-invite-subtitle" style="opacity: 0.9; font-size: 0.9rem; margin-top: 2px;"></div>
+        <div id="creator-invite-title" style="font-weight: 900; font-size: 1.05rem;">Creator invite</div>
+        <div id="creator-invite-subtitle" style="opacity: 0.9; font-size: 0.95rem; margin-top: 6px; line-height: 1.35; white-space: pre-line;"></div>
       </div>
-      <div style="display:flex; gap: 10px; align-items: center;">
-        <a id="creator-invite-cta" href="/live?createRoom=1" class="btn-gold" style="padding: 0.75rem 1.25rem;">Create your first room</a>
+      <div style="display:flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
+        <a id="creator-invite-cta" href="/live?createRoom=1" class="btn-gold" style="padding: 0.75rem 1.25rem;">Create your first Creator Room</a>
         <button id="creator-invite-close" class="btn-outline" style="padding: 0.75rem 1.25rem;">Close</button>
       </div>
     </div>
@@ -854,8 +854,8 @@
 
           const status = data.status || 'redeemed';
           const subtitle = status === 'already_redeemed'
-            ? 'Your Creator Program benefits are already active.'
-            : 'Success — Host Pro (lifetime) + Creator Program perks are now active.';
+            ? 'Your Creator Program benefits are already active.\nHost Pro is already unlocked.'
+            : 'You’re all set.\nHost Pro (lifetime) + Creator Program perks are now active.';
           showInviteBanner({ title: 'You’re in!', subtitle, showCta: true });
         } catch (e) {
           showInviteBanner({ title: 'Invite could not be redeemed', subtitle: e.message || 'Network error', showCta: false });

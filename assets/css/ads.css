@@ -212,14 +212,14 @@ div[id*="notification"],
 div[class*="push"],
 div[id*="push"],
 /* Common Monetag container patterns */
-body > div:not(#creator-invite-banner)[style*="position: fixed"],
-body > div:not(#creator-invite-banner)[style*="position:fixed"],
-body > div:not(#creator-invite-banner)[style*="z-index: 9"],
-body > div:not(#creator-invite-banner)[style*="z-index:9"],
-body > div:not(#creator-invite-banner)[style*="top: 0"],
-body > div:not(#creator-invite-banner)[style*="top:0"],
-body > div:not(#creator-invite-banner)[style*="right: 0"],
-body > div:not(#creator-invite-banner)[style*="right:0"] {
+body > div[style*="position: fixed"],
+body > div[style*="position:fixed"],
+body > div[style*="z-index: 9"],
+body > div[style*="z-index:9"],
+body > div[style*="top: 0"],
+body > div[style*="top:0"],
+body > div[style*="right: 0"],
+body > div[style*="right:0"] {
   top: auto !important;
   bottom: 20px !important;
   left: auto !important;

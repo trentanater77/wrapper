@@ -35,6 +35,7 @@ const DAILY_ROOM_BASE_URL = process.env.DAILY_ROOM_BASE_URL || 'https://tivoq.da
 const MAX_PARTICIPANTS_PER_ROOM = Number(process.env.MAX_PARTICIPANTS_PER_ROOM || 2);
 const PRESENCE_GUARDS_DISABLED = process.env.DISABLE_PRESENCE_GUARDS === 'true';
 const DUPLICATE_GUARD_DISABLED = process.env.DISABLE_DUPLICATE_GUARD === 'true';
+const PRESENCE_STALE_THRESHOLD_MS = Number(process.env.PRESENCE_STALE_THRESHOLD_MS || 3 * 60 * 1000);
 
 const livekitEndpoint = LIVEKIT_EGRESS_URL || LIVEKIT_URL || LIVEKIT_WS_URL || LIVEKIT_HOST;
 const app = express();
@@ -655,6 +656,17 @@ function isEntryActive(entry) {
   if (!entry) {
     return false;
   }
+
+  const now = Date.now();
+  const updatedAt = typeof entry.updatedAt === 'number' ? entry.updatedAt : null;
+  const joinedAt = typeof entry.joinedAt === 'number' ? entry.joinedAt : null;
+  const latestTimestamp = updatedAt || joinedAt;
+  if (latestTimestamp && Number.isFinite(PRESENCE_STALE_THRESHOLD_MS) && PRESENCE_STALE_THRESHOLD_MS > 0) {
+    if (now - latestTimestamp > PRESENCE_STALE_THRESHOLD_MS) {
+      return false;
+    }
+  }
+
   const statusValue = entry.status || entry.state;
   if (!statusValue) {
     return true;

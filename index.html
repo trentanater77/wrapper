@@ -6609,6 +6609,11 @@ async function initializeApp() {
       const serverNow = getServerNow();
 
       const { plan, limitMinutes, expiresAtMs } = await fetchUserSubscriptionForTimer();
+      try {
+        sessionLimitState.userPlan = plan;
+        sessionLimitState.limitMinutes = limitMinutes;
+      } catch (_) {
+      }
       let timerDurationSeconds = limitMinutes * 60;
       if (typeof expiresAtMs === 'number') {
         timerDurationSeconds = Math.max(0, Math.ceil((expiresAtMs - serverNow) / 1000));
@@ -6707,7 +6712,7 @@ async function initializeApp() {
         const remainingSeconds = Math.max(0, Math.ceil((endsAtMs - getServerNow()) / 1000));
         const remainingMinutes = Math.ceil(remainingSeconds / 60);
         console.log(`⭐ Creator room host - using room ends_at timer (${remainingMinutes} min remaining)`);
-        return { plan: 'creator_host', limitMinutes: remainingMinutes, expiresAtMs: endsAtMs };
+        return { plan: 'host_pro', limitMinutes: remainingMinutes, expiresAtMs: endsAtMs };
       }
     }
     
@@ -6715,9 +6720,16 @@ async function initializeApp() {
     if (isHost && urlDuration && urlDuration > 0) {
       // Validate the duration is reasonable (max 180 for host_pro)
       const validDuration = Math.min(urlDuration, 180);
-      const plan = validDuration >= 180 ? 'host_pro' : (validDuration > 60 ? 'pro_bundle' : 'free');
-      console.log(`⏱️ Using URL duration for host: ${validDuration} minutes`);
-      return { plan, limitMinutes: validDuration };
+      if (validDuration >= 180) {
+        console.log(`⏱️ Using URL duration for host: ${validDuration} minutes`);
+        return { plan: 'host_pro', limitMinutes: validDuration };
+      }
+      if (validDuration > 60) {
+        console.log(`⏱️ Using URL duration for host: ${validDuration} minutes`);
+        return { plan: 'pro_bundle', limitMinutes: validDuration };
+      }
+      // If the URL says 60 minutes, fall through to server subscription lookup so Creator Partners
+      // (and real Host Pro) aren't incorrectly treated as Free.
     }
     
     if (!userId || !isValidUuid(userId)) {
@@ -6732,7 +6744,9 @@ async function initializeApp() {
       }
       
       const data = await response.json();
-      const plan = data.plan || 'free';
+      const rawPlan = data.plan || 'free';
+      const isCreatorPartner = data.isCreatorPartner === true;
+      const plan = isCreatorPartner ? (rawPlan === 'pro_bundle' ? 'pro_bundle' : 'host_pro') : rawPlan;
       const limitMinutes = PLAN_LIMITS_TIMER[plan] || 60;
       
       return { plan, limitMinutes };
@@ -10980,7 +10994,9 @@ function ensureSpectatorTracksForParticipant(participant) {
       }
       
       const data = await response.json();
-      const plan = data.plan || 'free';
+      const rawPlan = data.plan || 'free';
+      const isCreatorPartner = data.isCreatorPartner === true;
+      const plan = isCreatorPartner ? (rawPlan === 'pro_bundle' ? 'pro_bundle' : 'host_pro') : rawPlan;
       const limitMinutes = PLAN_LIMITS[plan] || 60;
       
       console.log(`✅ User plan: ${plan}, limit: ${limitMinutes} minutes`);
@@ -17106,6 +17122,38 @@ function ensureSpectatorTracksForParticipant(participant) {
     setQueueMonetizationDisabled(false);
   }
   
+  async function waitForLocalCameraMediaTrack({ timeoutMs = 8000 } = {}) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      const participant = livekitRoom?.localParticipant;
+      if (!participant) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        continue;
+      }
+
+      const pubs = Array.from(participant.videoTrackPublications?.values?.() || []);
+      const pub = pubs.find((candidate) => {
+        const source = candidate?.source;
+        if (!source) return true;
+        if (typeof LiveKitTrackSource !== 'undefined' && LiveKitTrackSource && source === LiveKitTrackSource.Camera) {
+          return true;
+        }
+        return source === 'camera' || source === 'Camera';
+      }) || pubs[0];
+
+      const track = pub?.track;
+      const mediaTrack = track?.mediaStreamTrack instanceof MediaStreamTrack
+        ? track.mediaStreamTrack
+        : (track instanceof MediaStreamTrack ? track : null);
+
+      if (mediaTrack && mediaTrack.readyState === 'live') {
+        return mediaTrack;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    }
+    return null;
+  }
+
   // Show UI for active challenger and enable their media
   async function showActiveChallengerUI() {
     console.log('🎯 User is now the ACTIVE CHALLENGER! Enabling media...');
@@ -17127,6 +17175,15 @@ function ensureSpectatorTracksForParticipant(participant) {
       if (livekitRoom) {
         console.log('🔄 Challenger: Reconnecting with participant permissions...');
         showToast('🎯 You\'re up! Connecting your camera...');
+
+        if (presenceRef) {
+          try {
+            await presenceRef.remove();
+            presenceRef = null;
+          } catch (e) {
+            console.warn('⚠️ Challenger: Failed to clear presence before reconnect:', e);
+          }
+        }
         
         // Disconnect from current session
         try {
@@ -17139,6 +17196,8 @@ function ensureSpectatorTracksForParticipant(participant) {
         // Switch mode BEFORE reconnecting
         isSpectator = false;
         roomTypeState.isActiveChallenger = true;
+
+        configureTimerUiForMode();
         
         // Wait a moment for cleanup
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -17146,6 +17205,22 @@ function ensureSpectatorTracksForParticipant(participant) {
         // Reconnect as participant (connectToLiveKitRoom uses isSpectator to determine role)
         console.log('🔌 Reconnecting as participant...');
         await connectToLiveKitRoom();
+
+        try {
+          await handleJoinedMeeting({
+            participant: normalizeLiveKitParticipant(livekitRoom?.localParticipant, { local: true })
+          });
+        } catch (e) {
+          console.warn('⚠️ Challenger: handleJoinedMeeting failed after reconnect:', e);
+        }
+
+        try {
+          if (firebaseRoomId) {
+            await setupPresence(firebaseRoomId);
+          }
+        } catch (e) {
+          console.warn('⚠️ Challenger: Failed to re-create presence after reconnect:', e);
+        }
         
         console.log('✅ Challenger reconnected with participant permissions!');
         
@@ -17215,16 +17290,16 @@ function ensureSpectatorTracksForParticipant(participant) {
         // Attach local camera track to video element
         if (localVideoEl && livekitRoom && livekitRoom.localParticipant) {
           try {
-            const cameraPublication = livekitRoom.localParticipant.getTrackPublication('camera');
-            const cameraTrack = cameraPublication?.track;
-            if (cameraTrack && cameraTrack.mediaStreamTrack) {
-              localVideoEl.srcObject = new MediaStream([cameraTrack.mediaStreamTrack]);
+            const mediaTrack = await waitForLocalCameraMediaTrack({ timeoutMs: 8000 });
+            if (mediaTrack) {
+              localVideoEl.srcObject = new MediaStream([mediaTrack]);
               localVideoEl.style.display = 'block';
               localVideoEl.classList.remove('hidden');
               localVideoEl.play().catch(e => console.log('Local video autoplay prevented:', e));
               console.log('✅ Shown local-video with camera track');
             } else {
               console.log('⚠️ Camera track not ready yet');
+              showToast('📹 Camera is not ready yet. Tap the camera button if needed.');
             }
           } catch (e) {
             console.error('❌ Error setting up local video:', e);
@@ -17276,11 +17351,23 @@ function ensureSpectatorTracksForParticipant(participant) {
       // Disconnect from LiveKit and reconnect as spectator
       if (livekitRoom) {
         console.log('🔌 Disconnecting participant session...');
+
+        if (presenceRef) {
+          try {
+            await presenceRef.remove();
+            presenceRef = null;
+          } catch (e) {
+            console.warn('⚠️ Challenger: Failed to clear presence before spectator reconnect:', e);
+          }
+        }
+
         await livekitRoom.disconnect(true);
         
         // Set spectator flags
         isSpectator = true;
         roomTypeState.isActiveChallenger = false;
+
+        configureTimerUiForMode();
         
         // Small delay for cleanup
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -17288,6 +17375,22 @@ function ensureSpectatorTracksForParticipant(participant) {
         // Reconnect as spectator (this will get spectator token)
         console.log('🔌 Reconnecting as spectator...');
         await connectToLiveKitRoom();
+
+        try {
+          await handleJoinedMeeting({
+            participant: normalizeLiveKitParticipant(livekitRoom?.localParticipant, { local: true })
+          });
+        } catch (e) {
+          console.warn('⚠️ Spectator: handleJoinedMeeting failed after reconnect:', e);
+        }
+
+        try {
+          if (firebaseRoomId) {
+            await setupPresence(firebaseRoomId);
+          }
+        } catch (e) {
+          console.warn('⚠️ Spectator: Failed to re-create presence after reconnect:', e);
+        }
         
         console.log('✅ Reconnected as spectator');
       }

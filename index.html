@@ -12690,6 +12690,25 @@ function ensureSpectatorTracksForParticipant(participant) {
         }
       }
     }
+
+    if (!roomType) {
+      const sphereId = extractSphereId(roomUrl);
+      if (sphereId) {
+        try {
+          const response = await fetch(`/.netlify/functions/manage-room?roomId=${encodeURIComponent(sphereId)}`);
+          if (response.ok) {
+            const data = await response.json();
+            const roomRecord = data?.room || data;
+            const detectedType = roomRecord?.room_type || roomRecord?.roomType || (roomRecord?.is_creator_room ? 'creator' : null);
+            if (detectedType) {
+              roomType = detectedType;
+              console.log('🔍 Detected room type from database:', roomType);
+            }
+          }
+        } catch (e) {
+        }
+      }
+    }
     
     // Default to red room if still not set
     roomType = roomType || 'red';
@@ -14382,11 +14401,24 @@ function ensureSpectatorTracksForParticipant(participant) {
       return null;
     }
     
-    // Create a clean share link with just the room and mode
-    // The person clicking will add their own user info when they join
-    const shareUrl = new URL(baseUrl);
-    shareUrl.searchParams.set('room', roomUrl || sphereId);
+    const shareUrl = new URL('/index.html', baseUrl);
+    shareUrl.searchParams.set('room', sphereId);
     shareUrl.searchParams.set('mode', mode);
+
+    const currentParams = new URLSearchParams(window.location.search);
+    const currentRoomType = currentParams.get('roomType') || roomTypeState?.type;
+    if (currentRoomType) {
+      shareUrl.searchParams.set('roomType', currentRoomType);
+    }
+
+    const forumId = currentParams.get('forum');
+    const forumRoomType = currentParams.get('forumRoomType');
+    if (forumId) {
+      shareUrl.searchParams.set('forum', forumId);
+    }
+    if (forumRoomType) {
+      shareUrl.searchParams.set('forumRoomType', forumRoomType);
+    }
     
     return shareUrl.toString();
   }

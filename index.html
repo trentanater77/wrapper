@@ -6678,7 +6678,7 @@ async function initializeApp() {
     }
   }
   
-  async function fetchCreatorRoomEndsAtMs(roomId) {
+  async function fetchCreatorRoomTiming(roomId) {
     if (!roomId) return null;
     try {
       const response = await fetch(`/.netlify/functions/manage-room?roomId=${encodeURIComponent(roomId)}`);
@@ -6690,11 +6690,13 @@ async function initializeApp() {
       const endsAt = roomRecord?.ends_at;
       const startedAt = roomRecord?.started_at;
       const sessionDurationMinutesRaw = roomRecord?.session_duration_minutes;
+      const storedDurationMinutes = parseInt(sessionDurationMinutesRaw, 10);
+      const normalizedStoredDurationMinutes = [60, 120, 180].includes(storedDurationMinutes) ? storedDurationMinutes : null;
 
       let calculatedEndsAtMs = null;
       try {
-        const durationMinutes = parseInt(sessionDurationMinutesRaw, 10);
-        if (startedAt && [60, 120, 180].includes(durationMinutes)) {
+        const durationMinutes = normalizedStoredDurationMinutes;
+        if (startedAt && durationMinutes) {
           const startedAtMs = typeof startedAt === 'number' ? startedAt : new Date(startedAt).getTime();
           if (Number.isFinite(startedAtMs)) {
             calculatedEndsAtMs = startedAtMs + durationMinutes * 60 * 1000;
@@ -6704,20 +6706,22 @@ async function initializeApp() {
       }
 
       if (!endsAt) {
-        return Number.isFinite(calculatedEndsAtMs) ? calculatedEndsAtMs : null;
+        if (!Number.isFinite(calculatedEndsAtMs)) return null;
+        return { endsAtMs: calculatedEndsAtMs, sessionDurationMinutes: normalizedStoredDurationMinutes };
       }
 
       const endsAtMs = typeof endsAt === 'number' ? endsAt : new Date(endsAt).getTime();
       if (!Number.isFinite(endsAtMs)) {
-        return Number.isFinite(calculatedEndsAtMs) ? calculatedEndsAtMs : null;
+        if (!Number.isFinite(calculatedEndsAtMs)) return null;
+        return { endsAtMs: calculatedEndsAtMs, sessionDurationMinutes: normalizedStoredDurationMinutes };
       }
 
       if (Number.isFinite(calculatedEndsAtMs) && calculatedEndsAtMs - endsAtMs > 60000) {
         console.warn('⚠️ Creator room ends_at appears shortened; using calculated original ends_at');
-        return calculatedEndsAtMs;
+        return { endsAtMs: calculatedEndsAtMs, sessionDurationMinutes: normalizedStoredDurationMinutes };
       }
 
-      return endsAtMs;
+      return { endsAtMs, sessionDurationMinutes: normalizedStoredDurationMinutes };
     } catch (error) {
       console.error('❌ Error fetching creator room ends_at:', error);
       return null;
@@ -6733,12 +6737,15 @@ async function initializeApp() {
     
     if (roomType === 'creator' && isHost) {
       const roomIdFromUrl = urlParams.get('room') || extractSphereId(roomUrl);
-      const endsAtMs = await fetchCreatorRoomEndsAtMs(roomIdFromUrl);
+      const creatorTiming = await fetchCreatorRoomTiming(roomIdFromUrl);
+      const endsAtMs = creatorTiming?.endsAtMs;
       if (typeof endsAtMs === 'number') {
         const remainingSeconds = Math.max(0, Math.ceil((endsAtMs - getServerNow()) / 1000));
         const remainingMinutes = Math.ceil(remainingSeconds / 60);
         console.log(`⭐ Creator room host - using room ends_at timer (${remainingMinutes} min remaining)`);
-        return { plan: 'host_pro', limitMinutes: 180, expiresAtMs: endsAtMs };
+        const explicitDuration = [60, 120, 180].includes(urlDuration) ? urlDuration : null;
+        const durationMinutes = explicitDuration || creatorTiming?.sessionDurationMinutes || 180;
+        return { plan: 'host_pro', limitMinutes: durationMinutes, expiresAtMs: endsAtMs };
       }
     }
     
@@ -12910,11 +12917,16 @@ function ensureSpectatorTracksForParticipant(participant) {
         }
       }
       
-      let durationMinutesToSend = sessionLimitState?.limitMinutes || parseInt(urlParams.get('duration'), 10) || 60;
-      if (roomTypeFromUrl === 'creator' && isHostFromUrl) {
+      const urlDuration = parseInt(urlParams.get('duration'), 10);
+      const explicitUrlDuration = [60, 120, 180].includes(urlDuration) ? urlDuration : null;
+
+      let durationMinutesToSend = explicitUrlDuration || sessionLimitState?.limitMinutes || 60;
+
+      // If no explicit duration was provided for creator room hosts, fall back to their subscription limit.
+      if (roomTypeFromUrl === 'creator' && isHostFromUrl && !explicitUrlDuration) {
         try {
           const { limitMinutes } = await fetchUserSubscription();
-          if (typeof limitMinutes === 'number' && limitMinutes > durationMinutesToSend) {
+          if (typeof limitMinutes === 'number' && [60, 120, 180].includes(limitMinutes)) {
             durationMinutesToSend = limitMinutes;
           }
         } catch (_) {

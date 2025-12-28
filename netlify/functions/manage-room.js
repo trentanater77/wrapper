@@ -624,19 +624,20 @@ exports.handler = async function(event) {
             } catch (_) {
             }
 
-            if (plan === 'host_pro' || plan === 'pro_bundle' || creatorPartner) {
-              durationForRestore = 180;
-            } else {
-              const storedDuration = parseInt(existingRoom.session_duration_minutes, 10);
-              if ([60, 120, 180].includes(storedDuration)) {
-                durationForRestore = storedDuration;
-              }
-              const requestedDuration = parseInt(sessionDurationMinutes ?? durationMinutes, 10);
-              if (!durationForRestore && [60, 120, 180].includes(requestedDuration)) {
-                durationForRestore = requestedDuration;
-              }
-              if (!durationForRestore) {
+            const storedDuration = parseInt(existingRoom.session_duration_minutes, 10);
+            if ([60, 120, 180].includes(storedDuration)) {
+              durationForRestore = storedDuration;
+            }
+            const requestedDuration = parseInt(sessionDurationMinutes ?? durationMinutes, 10);
+            if ([60, 120, 180].includes(requestedDuration)) {
+              durationForRestore = requestedDuration;
+            }
+
+            if (!durationForRestore) {
+              if (plan === 'host_pro' || plan === 'pro_bundle' || creatorPartner) {
                 durationForRestore = 180;
+              } else {
+                durationForRestore = 60;
               }
             }
 
@@ -717,6 +718,8 @@ exports.handler = async function(event) {
           }
         }
 
+        const requestedDurationRaw = parseInt(sessionDurationMinutes ?? durationMinutes, 10);
+        const normalizedRequestedDuration = [60, 120, 180].includes(requestedDurationRaw) ? requestedDurationRaw : null;
         let duration = parseInt(sessionDurationMinutes ?? durationMinutes ?? 60, 10) || 60;
         const inviteCode = generateInviteCode();
 
@@ -724,12 +727,12 @@ exports.handler = async function(event) {
         // (effectiveRoomType + effectiveIsCreatorRoom computed earlier for gating)
 
         if (effectiveIsCreatorRoom) {
-          if (!([60, 120, 180].includes(duration))) {
+          if (normalizedRequestedDuration) {
+            duration = normalizedRequestedDuration;
+          } else if (hostPlanForCreator === 'host_pro' || hostPlanForCreator === 'pro_bundle' || hostIsCreatorPartner) {
             duration = 180;
-          }
-          // Creator Partner / Host Pro should default to 3 hours.
-          if (hostPlanForCreator === 'host_pro' || hostPlanForCreator === 'pro_bundle' || hostIsCreatorPartner) {
-            duration = 180;
+          } else {
+            duration = 60;
           }
         }
 

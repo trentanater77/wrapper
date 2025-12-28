@@ -68,6 +68,12 @@ const STOP_RETRY_DELAY_MS = Number(process.env.LIVEKIT_EGRESS_STOP_RETRY_DELAY_M
 const STOP_STATUS_CHECKS = Number(process.env.LIVEKIT_EGRESS_STOP_STATUS_CHECKS || 2);
 const STOP_STATUS_CHECK_DELAY_MS = Number(process.env.LIVEKIT_EGRESS_STOP_STATUS_INTERVAL_MS || 1_500);
 
+const FILE_WAIT_ATTEMPTS = Number(process.env.RECORDING_FILE_WAIT_ATTEMPTS || 24);
+const FILE_WAIT_DELAY_MS = Number(process.env.RECORDING_FILE_WAIT_DELAY_MS || 5_000);
+
+const FINALIZE_RETRY_ATTEMPTS = Number(process.env.RECORDING_FINALIZE_RETRY_ATTEMPTS || 12);
+const FINALIZE_RETRY_DELAY_MS = Number(process.env.RECORDING_FINALIZE_RETRY_DELAY_MS || 10_000);
+
 const egressClient =
   LIVEKIT_API_KEY && LIVEKIT_API_SECRET
     ? new EgressClient(livekitEndpoint, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
@@ -244,8 +250,10 @@ app.post('/recordings/stop', requireApiKey, async (req, res) => {
 
   try {
     const info = await stopEgressWithBackoff(recordingId);
-    await finalizeStopResult(recordingId, info);
     res.json({ ok: true });
+    finalizeStopResult(recordingId, info).catch((error) => {
+      console.error('❌ Failed to finalize stop result:', error);
+    });
   } catch (error) {
     console.error('❌ Failed to stop recording:', error);
     res.status(500).json({ error: 'Failed to stop recording.' });
@@ -268,7 +276,9 @@ app.post('/webhooks/livekit', express.raw({ type: '*/*', limit: '2mb' }), async 
 
   if (payload?.event?.startsWith('egress')) {
     try {
-      await handleEgressEvent(payload);
+      handleEgressEvent(payload).catch((error) => {
+        console.error('❌ Failed to handle egress webhook:', error);
+      });
     } catch (error) {
       console.error('❌ Failed to handle egress webhook:', error);
     }
@@ -293,6 +303,19 @@ async function handleEgressEvent(payload) {
   ) {
     await finalizeRecordingUpload(egressId, egressInfo);
   }
+}
+
+async function ensureRecordingFileAvailable(absolutePath) {
+  if (fs.existsSync(absolutePath)) {
+    return true;
+  }
+  for (let attempt = 0; attempt < FILE_WAIT_ATTEMPTS; attempt += 1) {
+    await sleep(FILE_WAIT_DELAY_MS);
+    if (fs.existsSync(absolutePath)) {
+      return true;
+    }
+  }
+  return fs.existsSync(absolutePath);
 }
 
 function getErrorCode(error) {
@@ -407,7 +430,16 @@ async function finalizeStopResult(recordingId, info) {
 
 async function finalizeRecordingUpload(egressId, egressInfo) {
   console.log(`📼 finalizeRecordingUpload invoked for ${egressId}`);
-  const active = activeRecordings.get(egressId) || {};
+  const existing = activeRecordings.get(egressId) || {};
+  if (existing.finalizeRunning) {
+    return;
+  }
+  existing.finalizeRunning = true;
+  activeRecordings.set(egressId, existing);
+
+  const active = existing;
+  const egressFailed = egressInfo?.status === 'EGRESS_FAILED';
+  try {
   const roomKey = await resolveRecordingRoomKey(active, egressId);
   const result =
     egressInfo?.result?.file ||
@@ -419,6 +451,7 @@ async function finalizeRecordingUpload(egressId, egressInfo) {
   if (!recordedFile) {
     console.warn(`⚠️ No file path reported for recording ${egressId}`);
     await markRecordingLinkUnavailable(active, egressId, 'no_file_reported');
+    activeRecordings.delete(egressId);
     return;
   }
 
@@ -426,36 +459,78 @@ async function finalizeRecordingUpload(egressId, egressInfo) {
     ? recordedFile
     : path.join(RECORDING_OUTPUT_DIR, recordedFile);
 
+  const fileExists = await ensureRecordingFileAvailable(absolutePath);
+  if (!fileExists) {
+    console.warn(`⚠️ Recording file not found for ${egressId} after waiting: ${absolutePath}`);
+    if (egressFailed) {
+      await markRecordingLinkUnavailable(active, egressId, 'file_missing');
+      activeRecordings.delete(egressId);
+      return;
+    }
+
+    const attemptCount = Number(active.finalizeMissingFileAttempts || 0) + 1;
+    active.finalizeMissingFileAttempts = attemptCount;
+    activeRecordings.set(egressId, active);
+
+    if (realtimeDb && roomKey) {
+      const recordingPath = `recordings/${roomKey}/${active.recordingId || egressId}`;
+      try {
+        await realtimeDb.ref(recordingPath).update({
+          status: 'processing',
+          linkStatus: 'pending',
+          linkError: 'file_pending'
+        });
+      } catch (error) {
+        console.warn('⚠️ Failed to update processing status for missing file:', error);
+      }
+    }
+
+    if (attemptCount <= FINALIZE_RETRY_ATTEMPTS) {
+      setTimeout(() => {
+        finalizeRecordingUpload(egressId, egressInfo).catch((error) => {
+          console.error('❌ Recording finalize retry failed:', error);
+        });
+      }, FINALIZE_RETRY_DELAY_MS);
+      return;
+    }
+
+    await markRecordingLinkUnavailable(active, egressId, 'file_missing_timeout');
+    activeRecordings.delete(egressId);
+    return;
+  }
+
   let downloadUrl = null;
-  const egressFailed = egressInfo?.status === 'EGRESS_FAILED';
   let linkStatus = 'pending';
   let linkError = egressInfo?.error || null;
   if (storageBucket && fs.existsSync(absolutePath)) {
     const destination = `recordings/${path.basename(absolutePath)}`;
-    await storageBucket.upload(absolutePath, {
-      destination,
-      metadata: { contentType: 'video/mp4' },
-    });
-
-    // Make the file publicly readable so URLs never expire
-    const file = storageBucket.file(destination);
     try {
-      await file.makePublic();
-      // Use permanent public URL (never expires)
-      const bucketName = storageBucket.name;
-      downloadUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
-      console.log(`✅ Uploaded recording ${egressId} to Firebase Storage (public URL)`);
-    } catch (publicError) {
-      // If makePublic fails (e.g., uniform bucket access), fall back to signed URL
-      console.warn(`⚠️ Could not make file public, using signed URL: ${publicError.message}`);
-      const [signedUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 1000 * 60 * 60 * 24 * 365, // 1 year fallback
+      await storageBucket.upload(absolutePath, {
+        destination,
+        metadata: { contentType: 'video/mp4' },
       });
-      downloadUrl = signedUrl;
-      console.log(`✅ Uploaded recording ${egressId} to Firebase Storage (signed URL)`);
+
+      const file = storageBucket.file(destination);
+      try {
+        await file.makePublic();
+        const bucketName = storageBucket.name;
+        downloadUrl = `https://storage.googleapis.com/${bucketName}/${destination}`;
+        console.log(`✅ Uploaded recording ${egressId} to Firebase Storage (public URL)`);
+      } catch (publicError) {
+        console.warn(`⚠️ Could not make file public, using signed URL: ${publicError.message}`);
+        const [signedUrl] = await file.getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 1000 * 60 * 60 * 24 * 365,
+        });
+        downloadUrl = signedUrl;
+        console.log(`✅ Uploaded recording ${egressId} to Firebase Storage (signed URL)`);
+      }
+      linkStatus = 'ready';
+    } catch (uploadError) {
+      console.warn(`⚠️ Failed to upload recording ${egressId} to storage:`, uploadError);
+      linkStatus = 'failed';
+      linkError = uploadError?.message || linkError || 'upload_failed';
     }
-    linkStatus = 'ready';
   } else {
     console.warn(`⚠️ Skipped Firebase upload for ${egressId} (storage not configured or file missing)`);
     linkStatus = egressFailed ? 'failed' : 'missing';
@@ -492,6 +567,13 @@ async function finalizeRecordingUpload(egressId, egressInfo) {
   }
 
   activeRecordings.delete(egressId);
+  } finally {
+    const current = activeRecordings.get(egressId);
+    if (current && current.finalizeRunning) {
+      current.finalizeRunning = false;
+      activeRecordings.set(egressId, current);
+    }
+  }
 }
 
 async function resolveRecordingRoomKey(active, recordingId) {

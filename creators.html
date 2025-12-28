@@ -120,6 +120,107 @@
       background: #FFB6B9;
       color: #22223B;
     }
+
+    .creator-invite-banner {
+      display: none;
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 16px;
+      z-index: 999999;
+      width: calc(100% - 32px);
+      max-width: 560px;
+      margin: 0 auto;
+      box-sizing: border-box;
+    }
+
+    .creator-invite-inner {
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(34, 34, 59, 0.96);
+      border: 2px solid rgba(255, 209, 102, 0.6);
+      color: #FCE2E5;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+    }
+
+    .creator-invite-header {
+      background: linear-gradient(135deg, #e63946 0%, #ff7a86 100%);
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-align: center;
+    }
+
+    .creator-invite-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(17, 24, 39, 0.9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 14px;
+      flex: 0 0 auto;
+    }
+
+    .creator-invite-brand-name {
+      opacity: 0.96;
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing: 0.2px;
+      line-height: 1.1;
+    }
+
+    .creator-invite-brand-sub {
+      opacity: 0.9;
+      font-weight: 800;
+      font-size: 13px;
+      margin-top: 2px;
+      line-height: 1.1;
+    }
+
+    .creator-invite-body {
+      padding: 14px 16px 16px;
+      text-align: center;
+    }
+
+    .creator-invite-title {
+      font-weight: 900;
+      font-size: 1.15rem;
+      margin: 2px 0 0;
+    }
+
+    .creator-invite-subtitle {
+      opacity: 0.92;
+      font-size: 0.95rem;
+      margin-top: 8px;
+      line-height: 1.35;
+      white-space: pre-line;
+    }
+
+    .creator-invite-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .creator-invite-actions .btn-gold,
+    .creator-invite-actions .btn-outline {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.95rem;
+      line-height: 1;
+    }
+
+    .creator-invite-actions button.btn-outline {
+      cursor: pointer;
+    }
     
     .hero-visual {
       display: flex;
@@ -716,15 +817,22 @@
   <script src="/assets/js/referral.js"></script>
   <script src="/assets/js/ads.js?v=6"></script>
 
-  <div id="creator-invite-banner" style="display:none; position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 999999; width: calc(100% - 32px); max-width: 720px; margin: 0 auto; background: rgba(34, 34, 59, 0.96); border: 2px solid rgba(255, 209, 102, 0.6); color: #FCE2E5; border-radius: 16px; padding: 16px 16px; box-shadow: 0 16px 40px rgba(0,0,0,0.35);">
-    <div style="display:flex; flex-direction: column; gap: 12px; align-items: center; text-align: center;">
-      <div>
-        <div id="creator-invite-title" style="font-weight: 900; font-size: 1.05rem;">Creator invite</div>
-        <div id="creator-invite-subtitle" style="opacity: 0.9; font-size: 0.95rem; margin-top: 6px; line-height: 1.35; white-space: pre-line;"></div>
+  <div id="creator-invite-banner" class="creator-invite-banner">
+    <div class="creator-invite-inner">
+      <div class="creator-invite-header">
+        <div class="creator-invite-logo">T</div>
+        <div>
+          <div class="creator-invite-brand-name">Tivoq</div>
+          <div class="creator-invite-brand-sub">Founding Creator Program</div>
+        </div>
       </div>
-      <div style="display:flex; gap: 10px; align-items: center; justify-content: center; flex-wrap: wrap;">
-        <a id="creator-invite-cta" href="/live?createRoom=1" class="btn-gold" style="padding: 0.75rem 1.25rem;">Create your first Creator Room</a>
-        <button id="creator-invite-close" class="btn-outline" style="padding: 0.75rem 1.25rem;">Close</button>
+      <div class="creator-invite-body">
+        <div id="creator-invite-title" class="creator-invite-title">Creator invite</div>
+        <div id="creator-invite-subtitle" class="creator-invite-subtitle"></div>
+        <div class="creator-invite-actions">
+          <a id="creator-invite-cta" href="/live?createRoom=1" class="btn-gold">Create your first Creator Room</a>
+          <button id="creator-invite-close" class="btn-outline">Close</button>
+        </div>
       </div>
     </div>
   </div>

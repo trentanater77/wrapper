@@ -117,6 +117,9 @@ function buildCreatorWelcomeEmailHtml({ baseUrl, creatorName, supportEmail }) {
   const createUrl = baseUrl ? `${baseUrl}/live?createRoom=1` : '/live?createRoom=1';
   const safeCreateUrl = escapeHtml(createUrl);
 
+  const demoUrl = 'https://vento.so/view/56ad0cb3-bedf-46fa-b938-15cd313bf283';
+  const safeDemoUrl = escapeHtml(demoUrl);
+
   const pinnedMessage = "\n\n\ud83d\udd34 CALL IN: Join the queue here \u2192 [paste your room link]\n\n\u23f1\ufe0f 3-5 min per challenger. Be respectful.\n\n\ud83d\udcb0 Tip to support the show, or buy a guaranteed slot.";
 
   return `
@@ -146,6 +149,11 @@ function buildCreatorWelcomeEmailHtml({ baseUrl, creatorName, supportEmail }) {
         <p style="margin:0 0 16px;">
           <a href="${safeCreateUrl}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-weight:900;padding:12px 16px;border-radius:12px;">Create your first Creator Room</a>
         </p>
+
+        <div style="margin: 14px 0; padding: 12px 14px; background: #eef2ff; border: 1px solid #c7d2fe; border-radius: 12px;">
+          <div style="font-weight: 900; margin-bottom: 6px;">57-second demo</div>
+          <a href="${safeDemoUrl}" style="color:#1d4ed8;font-weight:900;text-decoration:none;">Watch the quick walkthrough →</a>
+        </div>
 
         <div style="margin: 14px 0; padding: 12px 14px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px;">
           <div style="font-weight: 900; margin-bottom: 6px;">Pinned chat message (copy/paste)</div>

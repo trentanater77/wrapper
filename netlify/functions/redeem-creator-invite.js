@@ -105,6 +105,31 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+function pickCreatorNameFromUser(user) {
+  const meta = user?.user_metadata || {};
+  const full = String(meta.full_name || '').trim();
+  const name = String(meta.name || '').trim();
+  const alt = String(meta.display_name || meta.username || '').trim();
+
+  const candidates = [full, name, alt].filter(Boolean);
+  if (!candidates.length) return '';
+
+  let best = candidates[0];
+  for (const candidate of candidates) {
+    if (candidate.length > best.length) {
+      best = candidate;
+    }
+  }
+
+  for (const candidate of candidates) {
+    if (candidate.toLowerCase().startsWith(best.toLowerCase()) && candidate.length > best.length) {
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
 function buildCreatorWelcomeEmailHtml({ baseUrl, creatorName, supportEmail }) {
   const logoUrl = baseUrl ? `${baseUrl}/assets/icons/icon.svg` : '';
   const logoHtml = logoUrl
@@ -236,8 +261,9 @@ exports.handler = async function(event) {
       let creatorName = '';
       try {
         const resp = await supabase.auth.admin.getUserById(userId);
-        userEmail = sanitizeEmail(resp?.data?.user?.email || '');
-        creatorName = resp?.data?.user?.user_metadata?.name || resp?.data?.user?.user_metadata?.full_name || '';
+        const user = resp?.data?.user || null;
+        userEmail = sanitizeEmail(user?.email || '');
+        creatorName = pickCreatorNameFromUser(user);
       } catch (e) {
         // Continue without email.
       }

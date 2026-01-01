@@ -1,0 +1,29 @@
+services:
+  - type: worker
+    name: tivoq-discord-bot
+    runtime: node
+    region: oregon
+    plan: starter
+    rootDir: discord-bot
+    buildCommand: npm install
+    startCommand: node index.js
+    autoDeployTrigger: commit
+    disk:
+      name: tivoq-discord-bot-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DISCORD_TOKEN
+        sync: false
+      - key: DISCORD_CLIENT_ID
+        sync: false
+      - key: DISCORD_GUILD_ID
+        sync: false
+      - key: DISCORD_AUTO_REGISTER
+        value: "1"
+      - key: BOT_DATA_PATH
+        value: /var/data/data.json
+      - key: TIVOQ_BASE_URL
+        value: https://tivoq.com
+      - key: CHAMPION_ROLE_NAME
+        value: Tivoq Champion

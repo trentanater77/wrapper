@@ -68,6 +68,27 @@ async function resolvePostChannel({ guild, preferredChannelId, fallbackChannelId
   return { channel, error: null };
 }
 
+function buildBotInviteUrl({ clientId }) {
+  const base = 'https://discord.com/api/oauth2/authorize';
+  const perms = new PermissionsBitField([
+    PermissionsBitField.Flags.ViewChannel,
+    PermissionsBitField.Flags.SendMessages,
+    PermissionsBitField.Flags.EmbedLinks,
+  ]).bitfield.toString();
+  const scope = encodeURIComponent('bot applications.commands');
+  return `${base}?client_id=${encodeURIComponent(clientId)}&permissions=${encodeURIComponent(perms)}&scope=${scope}`;
+}
+
+const guildActionCooldowns = new Map();
+function isOnCooldown(guildId, action, ms) {
+  const key = `${guildId}:${action}`;
+  const now = Date.now();
+  const until = guildActionCooldowns.get(key) || 0;
+  if (until > now) return { onCooldown: true, seconds: Math.ceil((until - now) / 1000) };
+  guildActionCooldowns.set(key, now + ms);
+  return { onCooldown: false, seconds: 0 };
+}
+
 const token = requiredEnv('DISCORD_TOKEN');
 const store = new ConfigStore({ filePath: process.env.BOT_DATA_PATH || 'data.json' });
 const tivoq = new TivoqApi({ baseUrl: process.env.TIVOQ_BASE_URL || 'https://tivoq.com' });
@@ -121,7 +142,12 @@ async function ensureChampionRole(guild, cachedRoleId) {
 function buildCallinEmbed({ topic, guildName, createdBy }) {
   return new EmbedBuilder()
     .setTitle('Live Call-In Debate')
-    .setDescription(topic)
+    .setDescription(
+      `${topic}\n\n` +
+        `**Challengers:** click **Join as Challenger** to enter the queue.\n` +
+        `**Viewers:** click **Watch** to spectate.\n` +
+        `Only **one challenger is live at a time**.`
+    )
     .setColor(0xE63946)
     .addFields(
       { name: 'Server', value: guildName || 'Unknown', inline: true },
@@ -133,7 +159,11 @@ function buildCallinEmbed({ topic, guildName, createdBy }) {
 function buildDuelEmbed({ topic, guildName, aName, bName }) {
   return new EmbedBuilder()
     .setTitle('1v1 Main Event')
-    .setDescription(topic)
+    .setDescription(
+      `${topic}\n\n` +
+        `This is a **1v1** format (max queue size 1).\n` +
+        `Spectators should click **Watch**.`
+    )
     .setColor(0x111827)
     .addFields(
       { name: 'Debater A', value: aName || 'Unknown', inline: true },
@@ -149,7 +179,7 @@ function buildLinkRow({ joinUrl, spectateUrl, hostUrl }) {
     row.addComponents(
       new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
-        .setLabel('Join (Queue)')
+        .setLabel('Join as Challenger')
         .setURL(joinUrl)
     );
   }
@@ -157,7 +187,7 @@ function buildLinkRow({ joinUrl, spectateUrl, hostUrl }) {
     row.addComponents(
       new ButtonBuilder()
         .setStyle(ButtonStyle.Link)
-        .setLabel('Spectate')
+        .setLabel('Watch')
         .setURL(spectateUrl)
     );
   }
@@ -172,7 +202,7 @@ function buildLinkRow({ joinUrl, spectateUrl, hostUrl }) {
   return row;
 }
 
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`✅ Discord bot ready as ${client.user?.tag || 'unknown'}`);
 });
 
@@ -188,6 +218,72 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   try {
+    if (sub === 'help') {
+      await interaction.reply({
+        ephemeral: true,
+        content:
+          `**Tivoq Discord Bot — Quick Start**\n` +
+          `1) /tivoq link_host (server admin)\n` +
+          `2) /tivoq set_channel (choose where match cards post)\n` +
+          `3) /tivoq callin topic:"..." (posts buttons)\n` +
+          `4) /tivoq next (advance challenger)\n` +
+          `5) /tivoq end (end the room)\n\n` +
+          `**Buttons**\n` +
+          `- Join as Challenger = enter the queue (participants)\n` +
+          `- Watch = spectators\n` +
+          `- Host Controls = host/admin link\n\n` +
+          `Run /tivoq doctor to self-test your setup.`
+      });
+      return;
+    }
+
+    if (sub === 'invite') {
+      const clientId = String(process.env.DISCORD_CLIENT_ID || '').trim();
+      if (!clientId) {
+        await interaction.reply({ content: 'Missing DISCORD_CLIENT_ID env var (needed to generate an invite link).', ephemeral: true });
+        return;
+      }
+      const url = buildBotInviteUrl({ clientId });
+      await interaction.reply({
+        ephemeral: true,
+        content:
+          `**Invite Tivoq Debate League to another server:**\n${url}\n\n` +
+          `During the invite, make sure the scope includes **applications.commands** and the bot has permission to post in your chosen channel.`
+      });
+      return;
+    }
+
+    if (sub === 'doctor') {
+      const cfg = await store.getGuild(guildId);
+      const guild = interaction.guild;
+      const me = await getBotMember(guild).catch(() => null);
+      const canManageRoles = me?.permissions?.has?.(PermissionsBitField.Flags.ManageRoles) ? 'yes' : 'no';
+
+      const resolved = await resolvePostChannel({
+        guild,
+        preferredChannelId: cfg.channelId,
+        fallbackChannelId: interaction.channelId,
+        needsEmbed: true,
+      });
+
+      const channelStatus = resolved.channel
+        ? `ok → <#${resolved.channel.id}>`
+        : `not ok → ${resolved.error}`;
+
+      await interaction.reply({
+        ephemeral: true,
+        content:
+          `**Tivoq bot doctor**\n` +
+          `Host linked: ${cfg.hostUserId ? 'yes' : 'no'}\n` +
+          `Default channel set: ${cfg.channelId ? 'yes' : 'no'}\n` +
+          `Post permissions: ${channelStatus}\n` +
+          `Manage Roles (for /tivoq champion): ${canManageRoles}\n` +
+          `Active room tracked: ${cfg.lastRoomId ? 'yes' : 'no'}\n` +
+          `TIVOQ_BASE_URL: ${String(process.env.TIVOQ_BASE_URL || 'https://tivoq.com')}`
+      });
+      return;
+    }
+
     if (sub === 'link_host') {
       if (!hasManageGuild(interaction)) {
         await interaction.reply({ content: 'You need Manage Server to do that.', ephemeral: true });
@@ -228,6 +324,17 @@ client.on('interactionCreate', async (interaction) => {
         return;
       }
 
+      if (cfg.lastRoomId) {
+        await interaction.reply({ content: 'A room is already active for this server. Use `/tivoq end` (or `/tivoq reset` if the room is gone) before starting a new one.', ephemeral: true });
+        return;
+      }
+
+      const cd = isOnCooldown(guildId, 'callin', 30_000);
+      if (cd.onCooldown) {
+        await interaction.reply({ content: `Please wait ${cd.seconds}s before starting another call-in.`, ephemeral: true });
+        return;
+      }
+
       const topic = interaction.options.getString('topic', true).trim().slice(0, 240);
       const duration = interaction.options.getInteger('duration', false);
 
@@ -252,7 +359,7 @@ client.on('interactionCreate', async (interaction) => {
       }
       const { hostLink, challengerLink, spectatorLink } = buildTivoqLinks({ inviteLink, roomType: 'creator', host: true });
 
-      await store.setGuild(guildId, { lastRoomId: roomId, lastInviteLink: inviteLink, lastRoomType: 'creator' });
+      await store.setGuild(guildId, { lastRoomId: roomId, lastInviteLink: inviteLink, lastRoomType: 'creator', lastRoomCreatedAt: Date.now() });
 
       const embed = buildCallinEmbed({
         topic,
@@ -275,8 +382,8 @@ client.on('interactionCreate', async (interaction) => {
             `⚠️ Could not post in the configured channel. ${resolved.error}\n` +
             `Here are the links so you can paste them manually:\n` +
             `Host: ${hostLink}\n` +
-            `Join (Queue): ${challengerLink}\n` +
-            `Spectate: ${spectatorLink}`,
+            `Join as Challenger: ${challengerLink}\n` +
+            `Watch: ${spectatorLink}`,
           ephemeral: true,
         });
         return;
@@ -296,6 +403,17 @@ client.on('interactionCreate', async (interaction) => {
       const cfg = await store.getGuild(guildId);
       if (!cfg.hostUserId) {
         await interaction.reply({ content: 'This server is not linked to a Tivoq host yet. Use `/tivoq link_host` first.', ephemeral: true });
+        return;
+      }
+
+      if (cfg.lastRoomId) {
+        await interaction.reply({ content: 'A room is already active for this server. Use `/tivoq end` (or `/tivoq reset` if the room is gone) before starting a new one.', ephemeral: true });
+        return;
+      }
+
+      const cd = isOnCooldown(guildId, 'duel', 30_000);
+      if (cd.onCooldown) {
+        await interaction.reply({ content: `Please wait ${cd.seconds}s before starting another duel.`, ephemeral: true });
         return;
       }
 
@@ -323,7 +441,7 @@ client.on('interactionCreate', async (interaction) => {
       }
       const { hostLink, challengerLink, spectatorLink } = buildTivoqLinks({ inviteLink, roomType: 'creator', host: true });
 
-      await store.setGuild(guildId, { lastRoomId: roomId, lastInviteLink: inviteLink, lastRoomType: 'creator' });
+      await store.setGuild(guildId, { lastRoomId: roomId, lastInviteLink: inviteLink, lastRoomType: 'creator', lastRoomCreatedAt: Date.now() });
 
       const embed = buildDuelEmbed({
         topic,
@@ -347,8 +465,8 @@ client.on('interactionCreate', async (interaction) => {
             `⚠️ Could not post in the configured channel. ${resolved.error}\n` +
             `Here are the links so you can paste them manually:\n` +
             `Host: ${hostLink}\n` +
-            `Join (Queue): ${challengerLink}\n` +
-            `Spectate: ${spectatorLink}`,
+            `Join as Challenger: ${challengerLink}\n` +
+            `Watch: ${spectatorLink}`,
           ephemeral: true,
         });
         return;
@@ -393,7 +511,7 @@ client.on('interactionCreate', async (interaction) => {
       });
 
       if (!overrideRoomId || overrideRoomId === cfg.lastRoomId) {
-        await store.setGuild(guildId, { lastRoomId: null, lastInviteLink: null, lastRoomType: null });
+        await store.setGuild(guildId, { lastRoomId: null, lastInviteLink: null, lastRoomType: null, lastRoomCreatedAt: null });
       }
       await interaction.editReply({ content: '✅ Room ended.', ephemeral: true });
       return;
@@ -459,6 +577,9 @@ client.on('interactionCreate', async (interaction) => {
       const hostLine = cfg.hostUserId ? `${String(cfg.hostUserId).slice(0, 8)}…` : '(not linked)';
       const roomLine = cfg.lastRoomId ? cfg.lastRoomId : '(none)';
       const linkLine = cfg.lastInviteLink ? cfg.lastInviteLink : '(none)';
+      const ageLine = cfg.lastRoomCreatedAt
+        ? `${Math.max(0, Math.round((Date.now() - Number(cfg.lastRoomCreatedAt || 0)) / 60000))} min ago`
+        : '(n/a)';
 
       await interaction.reply({
         ephemeral: true,
@@ -467,6 +588,7 @@ client.on('interactionCreate', async (interaction) => {
           `Host: ${hostLine}\n` +
           `Default channel: ${channelLine}\n` +
           `Last roomId: ${roomLine}\n` +
+          `Last room age: ${ageLine}\n` +
           `Last inviteLink: ${linkLine}\n` +
           `Champion role: ${cfg.championRoleId ? 'set' : '(not set)'}\n` +
           `Champion user: ${cfg.championUserId ? cfg.championUserId : '(none)'}`

@@ -6,6 +6,21 @@ export function buildTivoqCommand() {
     .setDescription('Tivoq Debate League')
     .addSubcommand((sub) =>
       sub
+        .setName('help')
+        .setDescription('Show how this bot works and the recommended setup/testing flow.')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('invite')
+        .setDescription('Get the bot invite link for installing in another server.')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('doctor')
+        .setDescription('Self-test: check configuration and permissions for this server.')
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName('link_host')
         .setDescription('Link this Discord server to a Tivoq host account (UUID).')
         .addStringOption((opt) =>

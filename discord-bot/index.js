@@ -231,7 +231,7 @@ client.on('interactionCreate', async (interaction) => {
           `**Buttons**\n` +
           `- Join as Challenger = enter the queue (participants)\n` +
           `- Watch = spectators\n` +
-          `- Host Controls = host/admin link\n\n` +
+          `- Host Controls = shown privately to server admins when starting a room\n\n` +
           `Run /tivoq doctor to self-test your setup.`
       });
       return;
@@ -367,7 +367,7 @@ client.on('interactionCreate', async (interaction) => {
         createdBy: interaction.user.tag,
       });
 
-      const row = buildLinkRow({ joinUrl: challengerLink, spectateUrl: spectatorLink, hostUrl: hostLink });
+      const row = buildLinkRow({ joinUrl: challengerLink, spectateUrl: spectatorLink, hostUrl: null });
 
       const resolved = await resolvePostChannel({
         guild: interaction.guild,
@@ -390,7 +390,12 @@ client.on('interactionCreate', async (interaction) => {
       }
 
       await resolved.channel.send({ embeds: [embed], components: row.components.length ? [row] : [] });
-      await interaction.editReply({ content: '✅ Posted the debate links.', ephemeral: true });
+      await interaction.editReply({
+        content:
+          `✅ Posted the debate links.\n` +
+          `**Host Controls (admin only):** ${hostLink}`,
+        ephemeral: true,
+      });
       return;
     }
 
@@ -450,7 +455,7 @@ client.on('interactionCreate', async (interaction) => {
         bName: opponent.tag,
       });
 
-      const row = buildLinkRow({ joinUrl: challengerLink, spectateUrl: spectatorLink, hostUrl: hostLink });
+      const row = buildLinkRow({ joinUrl: challengerLink, spectateUrl: spectatorLink, hostUrl: null });
 
       const resolved = await resolvePostChannel({
         guild: interaction.guild,
@@ -478,7 +483,12 @@ client.on('interactionCreate', async (interaction) => {
         components: row.components.length ? [row] : [],
       });
 
-      await interaction.editReply({ content: '✅ Posted the duel links.', ephemeral: true });
+      await interaction.editReply({
+        content:
+          `✅ Posted the duel links.\n` +
+          `**Host Controls (admin only):** ${hostLink}`,
+        ephemeral: true,
+      });
       return;
     }
 

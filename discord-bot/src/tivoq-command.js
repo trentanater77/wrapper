@@ -32,6 +32,17 @@ export function buildTivoqCommand() {
     )
     .addSubcommand((sub) =>
       sub
+        .setName('link_host_from_link')
+        .setDescription('Link host by pasting a Tivoq room link (auto-detects host UUID).')
+        .addStringOption((opt) =>
+          opt
+            .setName('room_link')
+            .setDescription('Tivoq room link (or room id) that belongs to the host')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName('set_channel')
         .setDescription('Set the default channel for posts.')
         .addChannelOption((opt) =>

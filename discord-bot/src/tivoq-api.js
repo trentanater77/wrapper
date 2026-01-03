@@ -49,6 +49,30 @@ export class TivoqApi {
     this.baseUrl = cleanBaseUrl(baseUrl || 'https://tivoq.com');
   }
 
+  async getRoom(roomId) {
+    const rid = String(roomId || '').trim();
+    if (!rid) {
+      throw new Error('Missing roomId.');
+    }
+    const url = `${this.baseUrl}/.netlify/functions/manage-room?roomId=${encodeURIComponent(rid)}`;
+    const fetchFn = await resolveFetch();
+    const resp = await fetchFn(url, { method: 'GET' });
+
+    const text = await resp.text().catch(() => '');
+    const parsed = safeJsonParse(text);
+    const json = parsed.ok ? parsed.json : {};
+
+    if (!resp.ok) {
+      const message = json?.error || json?.message || `manage-room GET failed (${resp.status})`;
+      const err = new Error(message);
+      err.status = resp.status;
+      err.body = parsed.ok ? json : { rawText: parsed.rawText };
+      throw err;
+    }
+
+    return json;
+  }
+
   async manageRoom(payload) {
     const url = `${this.baseUrl}/.netlify/functions/manage-room`;
     const fetchFn = await resolveFetch();

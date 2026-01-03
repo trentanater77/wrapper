@@ -8,6 +8,7 @@ const {
   EncodedFileOutput,
   EncodedFileType,
   RoomCompositeEgressRequest,
+  RoomServiceClient,
   WebhookReceiver,
 } = require('livekit-server-sdk');
 
@@ -83,6 +84,11 @@ const FINALIZE_RETRY_DELAY_MS = Number(process.env.RECORDING_FINALIZE_RETRY_DELA
 const egressClient =
   LIVEKIT_API_KEY && LIVEKIT_API_SECRET
     ? new EgressClient(livekitEndpoint, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
+    : null;
+
+const roomService =
+  LIVEKIT_API_KEY && LIVEKIT_API_SECRET
+    ? new RoomServiceClient(LIVEKIT_HOST, LIVEKIT_API_KEY, LIVEKIT_API_SECRET)
     : null;
 
 const webhookReceiver =
@@ -176,6 +182,51 @@ app.post('/token', requireApiKey, async (req, res) => {
         error: guardResult.code,
         message: guardResult.message,
       });
+    }
+  }
+
+  // Fallback enforcement when Firebase presence isn't available.
+  // This ensures we still cap speakers at MAX_PARTICIPANTS_PER_ROOM and block duplicates.
+  if ((PRESENCE_GUARDS_DISABLED || !realtimeDb || !presenceRoomKey) && roomService) {
+    try {
+      const participants = await roomService.listParticipants(roomName);
+
+      if (!DUPLICATE_GUARD_DISABLED && requesterUserId) {
+        const duplicate = participants.find((p) => {
+          const meta = parseJsonObject(p?.metadata);
+          const uid = extractUserId(meta);
+          return uid && uid === requesterUserId;
+        });
+        if (duplicate) {
+          console.warn(
+            `🚫 Blocking ${identity || 'anonymous'} from joining ${roomName} - duplicate session detected (livekit fallback)`
+          );
+          return res.status(409).json({
+            error: 'duplicate_session',
+            message: 'You already joined this room. Close the existing tab before joining again.',
+          });
+        }
+      }
+
+      if (normalizedRole !== 'spectator' && MAX_PARTICIPANTS_PER_ROOM > 0) {
+        const participantCount = participants.filter((p) => {
+          const meta = parseJsonObject(p?.metadata);
+          return entryRole(meta) !== 'spectator';
+        }).length;
+
+        if (participantCount >= MAX_PARTICIPANTS_PER_ROOM) {
+          console.warn(
+            `🚫 Blocking ${identity || 'anonymous'} from joining ${roomName} - participant cap (${participantCount}) reached (livekit fallback)`
+          );
+          const message =
+            MAX_PARTICIPANTS_PER_ROOM === 1
+              ? 'Another host is already live in this room. Join as a spectator or wait for them to finish.'
+              : 'This room already has two participants online. Join as a spectator or wait for a spot to open.';
+          return res.status(409).json({ error: 'room_full', message });
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ LiveKit fallback participant guard failed (allowing join):', error.message);
     }
   }
 
@@ -697,6 +748,21 @@ function normalizeRole(value) {
     return 'spectator';
   }
   return 'participant';
+}
+
+function parseJsonObject(value) {
+  if (!value) return {};
+  if (typeof value === 'object') return value;
+  if (typeof value !== 'string') return {};
+  try {
+    const parsed = JSON.parse(value);
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+    return {};
+  } catch {
+    return {};
+  }
 }
 
 function extractUserId(entry) {

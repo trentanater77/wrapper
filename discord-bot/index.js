@@ -28,6 +28,32 @@ function isUuid(value) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 }
 
+function extractRoomIdFromInput(raw) {
+  const value = String(raw || '').trim();
+  if (!value) return '';
+
+  // If the user pasted only a room id, accept it.
+  if (!value.includes('http://') && !value.includes('https://') && !value.includes('?')) {
+    return value;
+  }
+
+  try {
+    const url = new URL(value);
+    const roomId = url.searchParams.get('room') || url.searchParams.get('roomId') || url.searchParams.get('room_id');
+    return String(roomId || '').trim();
+  } catch {
+    const match = value.match(/[?&]room=([^&#]+)/i) || value.match(/[?&]roomId=([^&#]+)/i) || value.match(/[?&]room_id=([^&#]+)/i);
+    if (match && match[1]) {
+      try {
+        return decodeURIComponent(match[1]).trim();
+      } catch {
+        return String(match[1] || '').trim();
+      }
+    }
+    return '';
+  }
+}
+
 function hasManageGuild(interaction) {
   return interaction.memberPermissions?.has(PermissionsBitField.Flags.ManageGuild) ||
     interaction.memberPermissions?.has(PermissionsBitField.Flags.Administrator);
@@ -223,7 +249,7 @@ client.on('interactionCreate', async (interaction) => {
         ephemeral: true,
         content:
           `**Tivoq Discord Bot — Quick Start**\n` +
-          `1) /tivoq link_host (server admin)\n` +
+          `1) /tivoq link_host_from_link (server admin)\n` +
           `2) /tivoq set_channel (choose where match cards post)\n` +
           `3) /tivoq callin topic:"..." (posts buttons)\n` +
           `4) /tivoq next (advance challenger)\n` +
@@ -270,6 +296,11 @@ client.on('interactionCreate', async (interaction) => {
         ? `ok → <#${resolved.channel.id}>`
         : `not ok → ${resolved.error}`;
 
+      const nextSteps = [
+        !cfg.hostUserId ? 'Run `/tivoq link_host_from_link room_link:<tivoq room link>`' : null,
+        !cfg.channelId ? 'Run `/tivoq set_channel channel:#your-channel`' : null,
+      ].filter(Boolean);
+
       await interaction.reply({
         ephemeral: true,
         content:
@@ -279,7 +310,8 @@ client.on('interactionCreate', async (interaction) => {
           `Post permissions: ${channelStatus}\n` +
           `Manage Roles (for /tivoq champion): ${canManageRoles}\n` +
           `Active room tracked: ${cfg.lastRoomId ? 'yes' : 'no'}\n` +
-          `TIVOQ_BASE_URL: ${String(process.env.TIVOQ_BASE_URL || 'https://tivoq.com')}`
+          `TIVOQ_BASE_URL: ${String(process.env.TIVOQ_BASE_URL || 'https://tivoq.com')}\n` +
+          (nextSteps.length ? `\n**Next steps**\n- ${nextSteps.join('\n- ')}` : '')
       });
       return;
     }
@@ -298,6 +330,46 @@ client.on('interactionCreate', async (interaction) => {
 
       await store.setGuild(guildId, { hostUserId });
       await interaction.reply({ content: `✅ Linked host userId for this server.`, ephemeral: true });
+      return;
+    }
+
+    if (sub === 'link_host_from_link') {
+      if (!hasManageGuild(interaction)) {
+        await interaction.reply({ content: 'You need Manage Server to do that.', ephemeral: true });
+        return;
+      }
+
+      const raw = interaction.options.getString('room_link', true);
+      const roomId = extractRoomIdFromInput(raw);
+      if (!roomId) {
+        await interaction.reply({
+          ephemeral: true,
+          content:
+            'Could not extract a room id from that input. Paste a full Tivoq link like `https://tivoq.com/index.html?room=...` or just paste the room id itself.',
+        });
+        return;
+      }
+
+      await interaction.deferReply({ ephemeral: true });
+      const lookup = await tivoq.getRoom(roomId);
+      const room = lookup?.room || null;
+      const hostUserId = String(room?.host_id || room?.hostId || '').trim();
+      if (!isUuid(hostUserId)) {
+        await interaction.editReply({
+          content:
+            `Could not find a valid host UUID for roomId: \`${roomId}\`.\n` +
+            `Make sure the room is a Creator Room created by the host (not expired/ended), then try again.`,
+        });
+        return;
+      }
+
+      await store.setGuild(guildId, { hostUserId });
+      await interaction.editReply({
+        content:
+          `✅ Linked host for this server.\n` +
+          `Host UUID: \`${hostUserId.slice(0, 8)}…${hostUserId.slice(-6)}\`\n` +
+          `Next: run \`/tivoq set_channel\` to choose where match cards post.`,
+      });
       return;
     }
 
@@ -320,7 +392,7 @@ client.on('interactionCreate', async (interaction) => {
 
       const cfg = await store.getGuild(guildId);
       if (!cfg.hostUserId) {
-        await interaction.reply({ content: 'This server is not linked to a Tivoq host yet. Use `/tivoq link_host` first.', ephemeral: true });
+        await interaction.reply({ content: 'This server is not linked to a Tivoq host yet. Use `/tivoq link_host_from_link` (recommended) or `/tivoq link_host`.', ephemeral: true });
         return;
       }
 

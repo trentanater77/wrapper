@@ -228,7 +228,7 @@ function buildLinkRow({ joinUrl, spectateUrl, hostUrl }) {
   return row;
 }
 
-client.once('clientReady', () => {
+client.once('ready', () => {
   console.log(`✅ Discord bot ready as ${client.user?.tag || 'unknown'}`);
 });
 
@@ -396,7 +396,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
       }
 
-      if (cfg.lastRoomId) {
+      if (cfg.lastRoomId && !cfg.allowMultiRooms) {
         await interaction.reply({ content: 'A room is already active for this server. Use `/tivoq end` (or `/tivoq reset` if the room is gone) before starting a new one.', ephemeral: true });
         return;
       }
@@ -483,7 +483,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
       }
 
-      if (cfg.lastRoomId) {
+      if (cfg.lastRoomId && !cfg.allowMultiRooms) {
         await interaction.reply({ content: 'A room is already active for this server. Use `/tivoq end` (or `/tivoq reset` if the room is gone) before starting a new one.', ephemeral: true });
         return;
       }
@@ -669,12 +669,34 @@ client.on('interactionCreate', async (interaction) => {
           `**Tivoq bot status**\n` +
           `Host: ${hostLine}\n` +
           `Default channel: ${channelLine}\n` +
+          `Multi rooms: ${cfg.allowMultiRooms ? 'enabled' : 'disabled'}\n` +
           `Last roomId: ${roomLine}\n` +
           `Last room age: ${ageLine}\n` +
           `Last inviteLink: ${linkLine}\n` +
           `Champion role: ${cfg.championRoleId ? 'set' : '(not set)'}\n` +
           `Champion user: ${cfg.championUserId ? cfg.championUserId : '(none)'}`
       });
+      return;
+    }
+
+    if (sub === 'clear_room') {
+      if (!hasManageGuild(interaction)) {
+        await interaction.reply({ content: 'You need Manage Server to do that.', ephemeral: true });
+        return;
+      }
+      await store.setGuild(guildId, { lastRoomId: null, lastInviteLink: null, lastRoomType: null, lastRoomCreatedAt: null });
+      await interaction.reply({ content: '✅ Cleared tracked active room for this server.', ephemeral: true });
+      return;
+    }
+
+    if (sub === 'allow_multi') {
+      if (!hasManageGuild(interaction)) {
+        await interaction.reply({ content: 'You need Manage Server to do that.', ephemeral: true });
+        return;
+      }
+      const enable = interaction.options.getBoolean('enable', true);
+      await store.setGuild(guildId, { allowMultiRooms: !!enable });
+      await interaction.reply({ content: enable ? '✅ Multiple rooms enabled. Use `room_id` with /tivoq end and /tivoq next to target a specific room.' : '✅ Multiple rooms disabled (single active room enforced).', ephemeral: true });
       return;
     }
 

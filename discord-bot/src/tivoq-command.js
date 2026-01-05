@@ -120,6 +120,22 @@ export function buildTivoqCommand() {
     )
     .addSubcommand((sub) =>
       sub
+        .setName('clear_room')
+        .setDescription('Clear the tracked active room for this server (keeps host and channel settings).')
+    )
+    .addSubcommand((sub) =>
+      sub
+        .setName('allow_multi')
+        .setDescription('Allow multiple concurrent rooms for this server (advanced).')
+        .addBooleanOption((opt) =>
+          opt
+            .setName('enable')
+            .setDescription('Enable (true) or disable (false) multiple rooms')
+            .setRequired(true)
+        )
+    )
+    .addSubcommand((sub) =>
+      sub
         .setName('reset')
         .setDescription("Reset this server's Tivoq bot configuration (host/channel/room tracking).")
     )

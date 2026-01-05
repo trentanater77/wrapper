@@ -563,16 +563,13 @@ exports.handler = async function(event) {
 
         console.log('🏠 Room lookup result:', { room, roomError });
         
+        // Allow guest-friendly fallback if active_rooms record is missing.
+        // If room is present and not a creator room, block queue joins.
         if (roomError || !room) {
-          console.log('❌ Room not found:', roomError);
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ error: 'Room not found or not live', details: roomError?.message }),
-          };
+          console.warn('⚠️ Room not found in active_rooms; allowing queue join in fallback mode (guest-friendly).');
         }
 
-        if (room.room_type !== 'creator' && !room.is_creator_room) {
+        if (room && room.room_type !== 'creator' && !room.is_creator_room) {
           console.log('❌ Room is not a creator room:', room.room_type, room.is_creator_room);
           return {
             statusCode: 400,
@@ -584,7 +581,7 @@ exports.handler = async function(event) {
         console.log('✅ Room is valid creator room');
 
         // Check if host is trying to join their own queue
-        if (userId && room.host_id === userId) {
+        if (room && userId && room.host_id === userId) {
           return {
             statusCode: 400,
             headers,
@@ -644,8 +641,8 @@ exports.handler = async function(event) {
         
         console.log('✅ Not already in queue, proceeding to join');
 
-        // Check queue size limit
-        if (room.max_queue_size) {
+        // Check queue size limit (only if we have a room record)
+        if (room && room.max_queue_size) {
           try {
             const { count, error: countError } = await supabase
               .from('room_queue')
